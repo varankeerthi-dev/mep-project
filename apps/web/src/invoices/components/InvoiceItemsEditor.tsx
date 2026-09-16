@@ -37,6 +37,7 @@ type InvoiceItemsEditorProps = {
   useArcPricing?: boolean;
   arcPricingMap?: Record<string, { item_id: string; arc_rate: number; company_variant_id: string | null; pricing_type: string; is_active: boolean }[]>;
   headerDiscounts?: Record<string, number>;
+  hideHeader?: boolean;
 };
 
 function SortableRow({ children, id, index }: { children: React.ReactNode; id: string; index: number }) {
@@ -79,6 +80,7 @@ export function InvoiceItemsEditor({
   useArcPricing = false,
   arcPricingMap = {},
   headerDiscounts = {},
+  hideHeader = false,
 }: InvoiceItemsEditorProps) {
   const { organisation } = useAuth();
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
@@ -564,39 +566,40 @@ export function InvoiceItemsEditor({
 
   return (
     <div style={{ border: '1px solid #d4d4d4', borderRadius: '4px', overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        padding: '8px 12px',
-        background: '#f5f5f5',
-        borderBottom: '1px solid #d4d4d4'
-      }}>
-        <span style={{ fontSize: '12px', fontWeight: 600, color: '#171717' }}>
-          Line Items
-        </span>
-        {mode !== 'lot' && (
-          <Button variant="default" size="default" type="button" onClick={() => append(createEmptyItem())}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 8px',
-              border: '1px solid #d4d4d4',
-              borderRadius: '4px',
-              background: '#fff',
-              fontSize: '11px',
-              fontWeight: 600,
-              color: '#525252',
-              cursor: 'pointer'
-            }}
-          >
-            <Plus size={12} />
-            Add
-          </Button>
-        )}
-      </div>
+      {!hideHeader && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 12px',
+          background: '#f5f5f5',
+          borderBottom: '1px solid #d4d4d4'
+        }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: '#171717' }}>
+            Line Items
+          </span>
+          {mode !== 'lot' && (
+            <Button variant="default" size="default" type="button" onClick={() => append(createEmptyItem())}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                background: '#fff',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#525252',
+                cursor: 'pointer'
+              }}
+            >
+              <Plus size={12} />
+              Add
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Table - Quotation Style */}
       {/* DndContext renders a div (accessibility HiddenText) — must live OUTSIDE the <table> to keep valid HTML nesting */}

@@ -21,6 +21,8 @@ import {
   CustomDatePicker,
   sharedStyles,
   SummaryFooter,
+  DocumentEditorShell,
+  DocumentLineItemsSurface,
 } from '../../../components/document-editor';
 import { User, FileText, Briefcase, Truck } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
@@ -121,54 +123,57 @@ export default function PurchaseOrdersV2() {
   };
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
-      <DocumentActionBar
-        title="Create Purchase Order"
-        fixed={{ top: 32, left: 220 }}
-        rightActions={
-          <>
-            <SecondaryButton onClick={() => navigate('/purchase/orders')} disabled={saving}>Cancel</SecondaryButton>
-            <PrimaryButton onClick={handleSave} disabled={saving}>{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {saving ? 'Saving...' : 'Save'}</PrimaryButton>
-          </>
-        }
-      />
+    <DocumentEditorShell
+      contentStyle={{ paddingBottom: '16px' }}
+      actionBar={
+        <DocumentActionBar
+          title="Create Purchase Order"
+          fixed={{ top: 32, left: 220 }}
+          rightActions={
+            <>
+              <SecondaryButton onClick={() => navigate('/purchase/orders')} disabled={saving}>Cancel</SecondaryButton>
+              <PrimaryButton onClick={handleSave} disabled={saving}>{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {saving ? 'Saving...' : 'Save'}</PrimaryButton>
+            </>
+          }
+        />
+      }
+    >
+      <HeaderFormGrid columns={3}>
 
-      <div style={{ paddingTop: '84px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: '16px', maxWidth: '1400px', margin: '0 auto' }}>
-        <HeaderFormGrid columns={3}>
-          <HeaderCard icon={<User size={14} style={{ color: '#2563eb' }} />} title="Vendor">
-            <HeaderField label="Vendor" required labelWidth="100px">
-              <select className="form-select" style={sharedStyles.inputStyle} value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
-                <option value="">Select vendor</option>
-                {vendors.map((v: any) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
-              </select>
-            </HeaderField>
-            <HeaderField label="Project" labelWidth="100px">
-              <select className="form-select" style={sharedStyles.inputStyle} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-                <option value="">Select project</option>
-                {projects.map((p: any) => <option key={p.id} value={p.id}>{p.project_name}</option>)}
-              </select>
-            </HeaderField>
-          </HeaderCard>
+      <HeaderCard icon={<User size={14} style={{ color: '#2563eb' }} />} title="Vendor">
+        <HeaderField label="Vendor" required labelWidth="100px">
+          <select className="form-select" style={sharedStyles.inputStyle} value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
+            <option value="">Select vendor</option>
+            {vendors.map((v: any) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
+          </select>
+        </HeaderField>
+        <HeaderField label="Project" labelWidth="100px">
+          <select className="form-select" style={sharedStyles.inputStyle} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+            <option value="">Select project</option>
+            {projects.map((p: any) => <option key={p.id} value={p.id}>{p.project_name}</option>)}
+          </select>
+        </HeaderField>
+      </HeaderCard>
 
-          <HeaderCard icon={<FileText size={14} style={{ color: '#2563eb' }} />} title="Document">
-            <HeaderField label="PO Number" labelWidth="100px"><input type="text" className="form-input" style={{ ...sharedStyles.inputStyle, background: '#f3f4f6' }} value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder="Auto" /></HeaderField>
-            <HeaderField label="Date" required labelWidth="100px"><CustomDatePicker value={poDate} onChange={setPoDate} inputStyle={sharedStyles.inputStyle} /></HeaderField>
-            <HeaderField label="Delivery Date" labelWidth="100px"><CustomDatePicker value={deliveryDate} onChange={setDeliveryDate} inputStyle={sharedStyles.inputStyle} minDate={poDate} /></HeaderField>
-          </HeaderCard>
+      <HeaderCard icon={<FileText size={14} style={{ color: '#2563eb' }} />} title="Document">
+        <HeaderField label="PO Number" labelWidth="100px"><input type="text" className="form-input" style={{ ...sharedStyles.inputStyle, background: '#f3f4f6' }} value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder="Auto" /></HeaderField>
+        <HeaderField label="Date" required labelWidth="100px"><CustomDatePicker value={poDate} onChange={setPoDate} inputStyle={sharedStyles.inputStyle} /></HeaderField>
+        <HeaderField label="Delivery Date" labelWidth="100px"><CustomDatePicker value={deliveryDate} onChange={setDeliveryDate} inputStyle={sharedStyles.inputStyle} minDate={poDate} /></HeaderField>
+      </HeaderCard>
 
-          <HeaderCard icon={<Truck size={14} style={{ color: '#2563eb' }} />} title="Details">
-            <HeaderField label="Remarks" labelWidth="100px"><textarea className="form-input" style={{ ...sharedStyles.inputStyle, minHeight: '36px', resize: 'vertical', fontFamily: 'inherit' }} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Remarks..." /></HeaderField>
-          </HeaderCard>
-        </HeaderFormGrid>
+      <HeaderCard icon={<Truck size={14} style={{ color: '#2563eb' }} />} title="Details">
+        <HeaderField label="Remarks" labelWidth="100px"><textarea className="form-input" style={{ ...sharedStyles.inputStyle, minHeight: '36px', resize: 'vertical', fontFamily: 'inherit' }} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Remarks..." /></HeaderField>
+      </HeaderCard>
+    </HeaderFormGrid>
 
-        {/* Line Items */}
-        <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8">
-          <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Line Items</span>
-            <button type="button" onClick={addItem} style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', fontSize: '12px', fontWeight: 500, color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Plus size={13} /> Add Item
-            </button>
-          </div>
+    <DocumentLineItemsSurface
+      title="Line Items"
+      actions={
+        <button type="button" onClick={addItem} style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', fontSize: '12px', fontWeight: 500, color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Plus size={13} /> Add Item
+        </button>
+      }
+    >
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
@@ -201,13 +206,12 @@ export default function PurchaseOrdersV2() {
               </tbody>
             </table>
           </div>
-        </div>
+    </DocumentLineItemsSurface>
 
-        <SummaryFooter
-          rows={[{ label: 'Subtotal', value: totals.subtotal }, { label: 'Tax', value: totals.taxTotal }]}
-          grandTotal={{ label: 'Grand Total', amount: totals.grandTotal }}
-        />
-      </div>
-    </div>
+      <SummaryFooter
+        rows={[{ label: 'Subtotal', value: totals.subtotal }, { label: 'Tax', value: totals.taxTotal }]}
+        grandTotal={{ label: 'Grand Total', amount: totals.grandTotal }}
+      />
+    </DocumentEditorShell>
   );
 }

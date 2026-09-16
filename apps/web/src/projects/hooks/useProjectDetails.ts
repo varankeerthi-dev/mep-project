@@ -124,13 +124,17 @@ export function useProjectDetails(
   const warrantyClaimsQuery = useQuery({
     queryKey: projectKeys.warrantyClaims(pId),
     queryFn: async () => {
+      // Server-side project scoping: only claims whose linked equipment belongs
+      // to this project (same effective result as the previous org-wide fetch +
+      // client-side filter, but the filtering now happens in the database).
       const { data, error } = await supabase
         .from('warranty_claims')
-        .select('*, equipment:project_equipment(*), snag:project_snags(*)')
+        .select('*, equipment:project_equipment!inner(*), snag:project_snags(*)')
         .eq('organisation_id', organisationId)
+        .eq('equipment.project_id', pId)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []).filter((c: any) => c.equipment?.project_id === pId);
+      return data || [];
     },
     enabled: isWarrantyClaimsEnabled && !!organisationId,
     staleTime: 30 * 1000,
@@ -218,11 +222,15 @@ export function useProjectDetails(
   const tcProtocolsQuery = useQuery({
     queryKey: projectKeys.tcProtocols(pId),
     queryFn: async () => {
+      // Server-side project scoping: tc_protocols link to a project through
+      // their equipment (tc_protocols.equipment_id -> project_equipment.project_id).
+      // The !inner embed restricts rows to equipment of THIS project only.
       const { data, error } = await supabase
         .from('tc_protocols')
         .select(
-          '*, site_visit:site_visits(signed_off_by, signed_off_designation, signature_image_url, visit_date)'
+          '*, site_visit:site_visits(signed_off_by, signed_off_designation, signature_image_url, visit_date), equipment:project_equipment!inner(project_id)'
         )
+        .eq('equipment.project_id', pId)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];

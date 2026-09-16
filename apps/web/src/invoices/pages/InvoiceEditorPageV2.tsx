@@ -15,6 +15,8 @@ import {
   HeaderField,
   CustomDatePicker,
   sharedStyles,
+  DocumentEditorShell,
+  DocumentLineItemsSurface,
 } from '@/components/document-editor';
 import { mapInvoiceSourceToDraft, generateInvoiceNumber, loadClientPOs, incrementInvoiceNumber } from '../api';
 import { InvoiceItemsEditor } from '../components/InvoiceItemsEditor';
@@ -81,6 +83,12 @@ async function loadClientOptions(organisationId: string): Promise<InvoiceClientO
       name: String(client.name ?? client.client_name ?? 'Unnamed client'),
       state: client.state ?? null,
       gst_number: client.gst_number ?? client.gstin ?? null,
+      contact: client.contact ?? client.phone ?? null,
+      email: client.email ?? null,
+      address1: client.address1 ?? client.address_line1 ?? null,
+      address2: client.address2 ?? client.address_line2 ?? null,
+      city: client.city ?? null,
+      pincode: client.pincode ?? client.postal_code ?? null,
       default_template_id: client.default_template_id ?? null,
       discount_type: client.discount_type ?? null,
       standard_pricelist_id: client.standard_pricelist_id ?? null,
@@ -364,6 +372,18 @@ export default function InvoiceEditorPageV2() {
     enabled: Boolean(organisation?.id),
   });
 
+  const selectedClient = useMemo(
+    () => (clientsQuery.data ?? []).find((client) => client.id === selectedClientId) ?? null,
+    [clientsQuery.data, selectedClientId]
+  );
+
+  const selectedClientAddress = useMemo(
+    () => [selectedClient?.address1, selectedClient?.address2, selectedClient?.city, selectedClient?.state, selectedClient?.pincode]
+      .filter(Boolean)
+      .join(', '),
+    [selectedClient]
+  );
+
   const materialsQuery = useQuery({
     queryKey: ['invoice-materials', organisation?.id],
     queryFn: () => loadMaterialOptions(organisation!.id),
@@ -522,46 +542,123 @@ export default function InvoiceEditorPageV2() {
     }
   };
 
+  const handlePreviewPdf = async () => {
+    if (!invoiceId) {
+      toast.error('Please save the invoice first before previewing.');
+      return;
+    }
+
+    setPdfAction('preview');
+    try {
+      await previewInvoicePDF(invoiceId);
+    } catch (error: any) {
+      toast.error(`Failed to preview PDF: ${error.message}`);
+    } finally {
+      setPdfAction(null);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!invoiceId) {
+      toast.error('Please save the invoice first before downloading.');
+      return;
+    }
+
+    setPdfAction('download');
+    try {
+      await downloadInvoicePDF(invoiceId);
+    } catch (error: any) {
+      toast.error(`Failed to download PDF: ${error.message}`);
+    } finally {
+      setPdfAction(null);
+    }
+  };
+
+  const handlePrintPdf = async () => {
+    if (!invoiceId) {
+      toast.error('Please save the invoice first before printing.');
+      return;
+    }
+
+    setPdfAction('print');
+    try {
+      await printInvoicePDF(invoiceId);
+    } catch (error: any) {
+      toast.error(`Failed to print PDF: ${error.message}`);
+    } finally {
+      setPdfAction(null);
+    }
+  };
+
+  const handleEmailPdf = async () => {
+    if (!invoiceId) {
+      toast.error('Please save the invoice first before emailing.');
+      return;
+    }
+
+    setPdfAction('email');
+    try {
+      await emailInvoicePDF(invoiceId);
+    } catch (error: any) {
+      toast.error(`Failed to email PDF: ${error.message}`);
+    } finally {
+      setPdfAction(null);
+    }
+  };
+
   const isSubmitting = createInvoiceMutation.isPending || updateInvoiceMutation.isPending;
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
-      {/* ── Document Action Bar ───────────────────────────────── */}
-      <DocumentActionBar
-        title={isEditMode ? `Edit Invoice` : 'New Invoice'}
-        statusBadge={
-          isEditMode && existingInvoiceQuery.data ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <InvoiceStatusBadge status={(existingInvoiceQuery.data as any).status} />
-              {invoiceRevisionNo > 1 && <RevisionBadge revisionNo={invoiceRevisionNo} />}
-            </div>
-          ) : undefined
-        }
-        fixed={{ top: 32, left: 220 }}
-        leftActions={
-          <>
-            {invoiceId && <DocumentConversionChain documentType="invoice" documentId={invoiceId} />}
-          </>
-        }
-        rightActions={
-          <>
-            <Button variant="outline" size="sm" type="button" onClick={() => navigate('/invoices')} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button size="sm" type="button" onClick={() => form.handleSubmit(onSubmit)()} disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
-              {isEditMode ? 'Update Invoice' : 'Save Invoice'}
-            </Button>
-          </>
-        }
-      />
+    <DocumentEditorShell
+      actionBar={
+        <DocumentActionBar
+          title={isEditMode ? `Edit Invoice` : 'New Invoice'}
+          statusBadge={
+            isEditMode && existingInvoiceQuery.data ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <InvoiceStatusBadge status={(existingInvoiceQuery.data as any).status} />
+                {invoiceRevisionNo > 1 && <RevisionBadge revisionNo={invoiceRevisionNo} />}
+              </div>
+            ) : undefined
+          }
+          fixed={{ top: 32, left: 220 }}
+          leftActions={
+            <>
+              {invoiceId && <DocumentConversionChain documentType="invoice" documentId={invoiceId} />}
+            </>
+          }
+          rightActions={
+            <>
+              <Button variant="outline" size="icon-xs" type="button" onClick={handlePreviewPdf} disabled={!isEditMode || pdfAction !== null} title="Preview PDF">
+                {pdfAction === 'preview' ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
+              </Button>
+              <Button variant="outline" size="icon-xs" type="button" onClick={handleDownloadPdf} disabled={!isEditMode || pdfAction !== null} title="Download PDF">
+                {pdfAction === 'download' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              </Button>
+              <Button variant="outline" size="icon-xs" type="button" onClick={handlePrintPdf} disabled={!isEditMode || pdfAction !== null} title="Print">
+                {pdfAction === 'print' ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+              </Button>
+              <Button variant="outline" size="icon-xs" type="button" onClick={handleEmailPdf} disabled={!isEditMode || pdfAction !== null} title="Email">
+                {pdfAction === 'email' ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+              </Button>
+              <Button variant="outline" size="sm" type="button" onClick={() => navigate('/invoices')} disabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button size="sm" type="button" onClick={() => form.handleSubmit(onSubmit)()} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
+                {isEditMode ? 'Update Invoice' : 'Save Invoice'}
+              </Button>
+            </>
+          }
+        />
+      }
+    >
 
-      <div style={{ paddingTop: '84px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: '32px', maxWidth: '1400px', margin: '0 auto' }}>
-        <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(onSubmit)}>
           {/* ── 3-Column Header Grid Layout ────────────────────────── */}
           <HeaderFormGrid columns={3}>
             {/* Card 1: Client & Party Info */}
-            <HeaderCard icon={<User size={14} style={{ color: '#2563eb' }} />} title="Client Details">
+            <HeaderCard icon={<User size={14} style={{ color: '#2563eb' }} />} title="Client">
               <HeaderField label="Client" required labelWidth="100px" error={fieldErrorMessage(errors.client_id)}>
                 <select
                   className="form-select"
@@ -582,15 +679,79 @@ export default function InvoiceEditorPageV2() {
                   type="text"
                   className="form-input"
                   style={{ ...sharedStyles.inputStyle, background: '#f3f4f6' }}
-                  value={selectedClientState || 'N/A'}
+                  value={selectedClient?.gst_number || 'N/A'}
                   readOnly
                   placeholder="Client GSTIN"
+                />
+              </HeaderField>
+
+              <HeaderField label="Contact" labelWidth="100px">
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ ...sharedStyles.inputStyle, background: '#f3f4f6' }}
+                  value={selectedClient?.contact || selectedClient?.email || 'N/A'}
+                  readOnly
+                  placeholder="Client contact"
+                />
+              </HeaderField>
+
+              <HeaderField label="Address" labelWidth="100px">
+                <div
+                  style={{
+                    ...sharedStyles.inputStyle,
+                    minHeight: '32px',
+                    background: '#f3f4f6',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {selectedClientAddress || 'Auto-populated from client'}
+                </div>
+              </HeaderField>
+
+              <HeaderField label="Shipping" labelWidth="100px">
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <select
+                    className="form-select"
+                    style={{ ...sharedStyles.inputStyle, flex: 1 }}
+                    {...form.register('shipping_address_id')}
+                    disabled={!selectedClientId}
+                  >
+                    <option value="">Select shipping address</option>
+                    {(shippingAddressesQuery.data ?? []).map((address) => (
+                      <option key={address.id} value={address.id}>
+                        {[address.address_line1, address.city, address.state].filter(Boolean).join(', ')}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-xs"
+                    onClick={() => setIsShippingAddressModalOpen(true)}
+                    disabled={!selectedClientId}
+                    title="Add shipping address"
+                  >
+                    <Plus size={14} />
+                  </Button>
+                </div>
+              </HeaderField>
+
+              <HeaderField label="State" labelWidth="100px">
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ ...sharedStyles.inputStyle, background: '#f3f4f6' }}
+                  value={selectedClientState || 'N/A'}
+                  readOnly
+                  placeholder="Client state"
                 />
               </HeaderField>
             </HeaderCard>
 
             {/* Card 2: Document Metadata */}
-            <HeaderCard icon={<FileText size={14} style={{ color: '#2563eb' }} />} title="Invoice Details">
+            <HeaderCard icon={<FileText size={14} style={{ color: '#2563eb' }} />} title="Document">
               <HeaderField label="Invoice No" required labelWidth="100px" error={fieldErrorMessage(errors.invoice_number)}>
                 <input
                   type="text"
@@ -679,32 +840,65 @@ export default function InvoiceEditorPageV2() {
           </HeaderFormGrid>
 
           {/* ── Line Items Editor ───────────────────────────────── */}
-          <div style={{ marginTop: '24px', background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#0f172a', margin: 0 }}>Invoice Items</h3>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => itemsFieldArray.append(createEmptyItem())}
-              >
-                <Plus size={14} className="mr-1" /> Add Line Item
-              </Button>
-            </div>
-
+          <DocumentLineItemsSurface
+            title="Materials List"
+            actions={
+              <>
+                <Button type="button" variant="outline" size="sm" disabled title="Section headers are not supported for invoice line items">
+                  <Plus size={14} className="mr-1" /> Add Section Header
+                </Button>
+                <Button type="button" variant="outline" size="sm" disabled title="Sub-total rows are not supported for invoice line items">
+                  <Plus size={14} className="mr-1" /> Add Sub-total Row
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => itemsFieldArray.append(createEmptyItem())}
+                >
+                  <Plus size={14} className="mr-1" /> Add Materials
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePOSelection}
+                  disabled={selectedSourceType !== 'po' || !selectedSourceId || !poDetailsQuery.data}
+                  title="Select multiple lines from the selected purchase order"
+                >
+                  <Plus size={14} className="mr-1" /> Add Multiple Items
+                </Button>
+                <Button type="button" variant="outline" size="sm" disabled title="Column customization is not available for invoice line items">
+                  <Plus size={14} className="mr-1" /> Columns
+                </Button>
+              </>
+            }
+          >
             <InvoiceItemsEditor
-              form={form}
-              materials={materialsQuery.data ?? []}
+              fields={itemsFieldArray.fields}
+              items={formValues.items}
+              register={form.register}
+              append={itemsFieldArray.append}
+              remove={itemsFieldArray.remove}
+              move={itemsFieldArray.move}
+              mode={formValues.mode}
+              productOptions={materialsQuery.data ?? []}
+              setValue={setValue}
+              formState={form.formState}
+              isApplyingPOItems={isApplyingPOItems}
+              warehouses={warehousesQuery.data ?? []}
+              useArcPricing={useArcPricing}
+              arcPricingMap={arcPricingMap}
+              hideHeader
             />
-          </div>
+          </DocumentLineItemsSurface>
 
           {/* ── Summary Footer ─────────────────────────────────── */}
           <InvoiceSummaryFooter
             totals={totals}
             form={form}
           />
-        </form>
-      </div>
+      </form>
 
       {/* ── Modals & Selectors ── */}
       {isPOSelectorOpen && (
@@ -715,6 +909,16 @@ export default function InvoiceEditorPageV2() {
           onApply={handlePOLineItemsApply}
         />
       )}
-    </div>
+      {selectedClientId && (
+        <AddShippingAddressModal
+          isOpen={isShippingAddressModalOpen}
+          onClose={() => setIsShippingAddressModalOpen(false)}
+          clientId={selectedClientId}
+          onSuccess={() => {
+            shippingAddressesQuery.refetch();
+          }}
+        />
+      )}
+    </DocumentEditorShell>
   );
 }

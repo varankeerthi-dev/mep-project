@@ -39,6 +39,8 @@ import {
   CustomDatePicker,
   sharedStyles,
   SummaryFooter,
+  DocumentEditorShell,
+  DocumentLineItemsSurface,
 } from '../components/document-editor';
 import { User, FileText, Briefcase, Truck, Plus, Trash2 } from 'lucide-react';
 import { formatCurrency } from '../utils/formatters';
@@ -746,34 +748,37 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
 
   // ─── Render ─────────────────────────────────────────────────
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
-      {/* ── Action Bar (shared component) ────────────────────── */}
-      <DocumentActionBar
-        title={isEditing ? 'Edit Delivery Challan' : 'Create Delivery Challan'}
-        statusBadge={
-          isLocked ? (
-            <span style={{ padding: '2px 8px', fontSize: '11px', fontWeight: 700, background: '#fef3c7', color: '#b45309', borderRadius: '4px' }}>Approved</span>
-          ) : undefined
-        }
-        fixed={{ top: 32, left: 220 }}
-        isDirty={isDirty}
-        leftActions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <ImportButton onClick={() => {}} />
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>
-              <input type="checkbox" checked={allowInsufficientStock} onChange={(e) => { setAllowInsufficientStock(e.target.checked); localStorage.setItem('dc_allow_insufficient_stock', e.target.checked ? 'true' : 'false'); }} style={{ width: '14px', height: '14px' }} />
-              Allow insufficient stock
-            </label>
-          </div>
-        }
-        rightActions={
-          <>
-            <SecondaryButton onClick={onCancel} disabled={loading}>Cancel</SecondaryButton>
-            <SecondaryButton onClick={handleSaveAsDraft} disabled={loading || isLocked}>{loading ? 'Saving...' : 'Save as Draft'}</SecondaryButton>
-            <PrimaryButton onClick={() => handleSubmit()} disabled={loading || isLocked}>{loading ? 'Saving...' : isEditing ? 'Update DC' : 'Save Delivery Challan'}</PrimaryButton>
-          </>
-        }
-      />
+    <DocumentEditorShell
+      contentStyle={{ paddingBottom: '16px' }}
+      actionBar={
+        <DocumentActionBar
+          title={isEditing ? 'Edit Delivery Challan' : 'Create Delivery Challan'}
+          statusBadge={
+            isLocked ? (
+              <span style={{ padding: '2px 8px', fontSize: '11px', fontWeight: 700, background: '#fef3c7', color: '#b45309', borderRadius: '4px' }}>Approved</span>
+            ) : undefined
+          }
+          fixed={{ top: 32, left: 220 }}
+          isDirty={isDirty}
+          leftActions={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <ImportButton onClick={() => {}} />
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: '#374151' }}>
+                <input type="checkbox" checked={allowInsufficientStock} onChange={(e) => { setAllowInsufficientStock(e.target.checked); localStorage.setItem('dc_allow_insufficient_stock', e.target.checked ? 'true' : 'false'); }} style={{ width: '14px', height: '14px' }} />
+                Allow insufficient stock
+              </label>
+            </div>
+          }
+          rightActions={
+            <>
+              <SecondaryButton onClick={onCancel} disabled={loading}>Cancel</SecondaryButton>
+              <SecondaryButton onClick={handleSaveAsDraft} disabled={loading || isLocked}>{loading ? 'Saving...' : 'Save as Draft'}</SecondaryButton>
+              <PrimaryButton onClick={() => handleSubmit()} disabled={loading || isLocked}>{loading ? 'Saving...' : isEditing ? 'Update DC' : 'Save Delivery Challan'}</PrimaryButton>
+            </>
+          }
+        />
+      }
+    >
 
       {/* ── Loading / Error states ────────────────────────────── */}
       {clientsQuery.isLoading && <div style={{ padding: '10px', background: '#fef3c7', margin: '10px', borderRadius: '6px' }}>Loading clients...</div>}
@@ -781,8 +786,7 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
       {!clientsQuery.isLoading && !clientsQuery.isError && clients.length === 0 && <div style={{ padding: '10px', background: '#ffcccc', margin: '10px', borderRadius: '6px' }}>No clients found. Please create clients first.</div>}
 
       {/* ── Main content ──────────────────────────────────────── */}
-      <div style={{ paddingTop: '84px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: '16px' }}>
-        <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}>
           {/* ── 3-Column Header Cards (shared components) ──────── */}
           <HeaderFormGrid columns={3}>
             {/* Card 1: Client */}
@@ -867,9 +871,9 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
           </HeaderFormGrid>
 
           {/* ── Line Items Table (same as CreateDC) ────────────── */}
-          <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Line Items</span>
+          <DocumentLineItemsSurface
+            title="Line Items"
+            actions={
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="button" onClick={addItem} style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', fontSize: '12px', fontWeight: 500, color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Plus size={13} /> Add Row
@@ -878,7 +882,8 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
                   <Plus size={13} /> Add Material
                 </button>
               </div>
-            </div>
+            }
+          >
             <div className="grid-table-container">
               <table className="grid-table cq-editable">
                 <thead className="grid-table-header-dark">
@@ -935,7 +940,7 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
                 </tbody>
               </table>
             </div>
-          </div>
+          </DocumentLineItemsSurface>
 
           {/* ── Summary Footer (shared component) ──────────────── */}
           <SummaryFooter
@@ -945,11 +950,10 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
             ]}
             grandTotal={{ label: 'Total Amount', amount: totalAmount }}
           />
-        </form>
-      </div>
+      </form>
 
       {/* ── Item Create Drawer ────────────────────────────────── */}
       {showItemCreateDrawer && <ItemCreateDrawer isOpen={showItemCreateDrawer} onClose={() => setShowItemCreateDrawer(false)} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['materials'] }); queryClient.invalidateQueries({ queryKey: ['dc-init'] }); setShowItemCreateDrawer(false); }} />}
-    </div>
+    </DocumentEditorShell>
   );
 }

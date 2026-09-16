@@ -37,6 +37,7 @@ import {
   CustomDatePicker,
   sharedStyles,
   SummaryFooter,
+  DocumentEditorShell,
 } from '../../components/document-editor';
 import { User, FileText, AlertTriangle } from 'lucide-react';
 
@@ -229,29 +230,35 @@ export function CreditNoteEditorPageV2() {
   if (loadingCN) return <div style={{ padding: '48px', textAlign: 'center', color: '#a3a3a3' }}>Loading credit note...</div>;
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
-      <DocumentActionBar
-        title={isEditing ? `Edit ${existingCN?.cn_number}` : 'New Credit Note'}
-        statusBadge={isEditing && existingCN ? <CNStatusBadge status={existingCN.approval_status} size="md" /> : undefined}
-        fixed={{ top: 32, left: 220 }}
-        rightActions={
-          <>
-            <SecondaryButton onClick={() => doSave('Pending')} disabled={saving}><FileDown size={14} /> Save as Draft</SecondaryButton>
-            <PrimaryButton onClick={() => doSave('Approved')} disabled={saving}>{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {saving ? 'Saving...' : 'Save'}</PrimaryButton>
-          </>
-        }
-      />
+    <DocumentEditorShell
+      maxWidth="1200px"
+      contentStyle={{ paddingLeft: '32px', paddingRight: '32px', paddingBottom: '100px' }}
+      beforeContent={
+        <>
+          {formError && <div style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', color: '#dc2626', fontSize: '13px', margin: '16px 32px 0' }}>{formError}</div>}
 
-      {formError && <div style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', color: '#dc2626', fontSize: '13px', margin: '16px 32px 0' }}>{formError}</div>}
-
-      {isConversion && rateAlerts.length > 0 && (
-        <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', margin: '16px 32px 0' }}>
-          <div style={{ fontSize: '13px', fontWeight: 700, color: '#92400e', marginBottom: '6px' }}><AlertTriangle size={14} style={{ display: 'inline', marginRight: '4px' }} /> Rate Differences Detected</div>
-          <div style={{ fontSize: '12px', color: '#78350f' }}>{rateAlerts.map((a, i) => <div key={i}><strong>{a.description}</strong>: Invoice ₹{a.invoiceRate.toFixed(2)} → Current ₹{a.currentRate.toFixed(2)} ({a.diff > 0 ? '+' : ''}₹{a.diff.toFixed(2)})</div>)}</div>
-        </div>
-      )}
-
-      <div style={{ paddingTop: '84px', paddingLeft: '32px', paddingRight: '32px', paddingBottom: '100px', maxWidth: '1200px', margin: '0 auto' }}>
+          {isConversion && rateAlerts.length > 0 && (
+            <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', margin: '16px 32px 0' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#92400e', marginBottom: '6px' }}><AlertTriangle size={14} style={{ display: 'inline', marginRight: '4px' }} /> Rate Differences Detected</div>
+              <div style={{ fontSize: '12px', color: '#78350f' }}>{rateAlerts.map((a, i) => <div key={i}><strong>{a.description}</strong>: Invoice ₹{a.invoiceRate.toFixed(2)} → Current ₹{a.currentRate.toFixed(2)} ({a.diff > 0 ? '+' : ''}₹{a.diff.toFixed(2)})</div>)}</div>
+            </div>
+          )}
+        </>
+      }
+      actionBar={
+        <DocumentActionBar
+          title={isEditing ? `Edit ${existingCN?.cn_number}` : 'New Credit Note'}
+          statusBadge={isEditing && existingCN ? <CNStatusBadge status={existingCN.approval_status} size="md" /> : undefined}
+          fixed={{ top: 32, left: 220 }}
+          rightActions={
+            <>
+              <SecondaryButton onClick={() => doSave('Pending')} disabled={saving}><FileDown size={14} /> Save as Draft</SecondaryButton>
+              <PrimaryButton onClick={() => doSave('Approved')} disabled={saving}>{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {saving ? 'Saving...' : 'Save'}</PrimaryButton>
+            </>
+          }
+        />
+      }
+    >
         <HeaderFormGrid columns={3}>
           <HeaderCard icon={<FileText size={14} style={{ color: '#2563eb' }} />} title="Credit Note">
             <HeaderField label="CN Number" required labelWidth="110px"><input className="form-input" style={sharedStyles.inputStyle} {...register('cn_number', { required: 'Required' })} /></HeaderField>
@@ -307,8 +314,6 @@ export function CreditNoteEditorPageV2() {
             </div>
           </div>
         </SummaryFooter>
-      </div>
-
       {/* Sticky footer */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #e5e5e5', padding: '12px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 100 }}>
         <span style={{ fontSize: '13px', color: '#737373' }}>{isEditing ? `Editing ${existingCN?.cn_number}` : 'New Credit Note'}</span>
@@ -322,6 +327,6 @@ export function CreditNoteEditorPageV2() {
         <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}><DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><span className="text-green-600 text-lg">✓</span> Using ARC Pricing</DialogTitle></DialogHeader><div style={{ padding: '16px 10px' }}><p className="text-sm text-zinc-600">Item rates will now use ARC pricing configured for this client.</p></div></DialogContent>
       </Dialog>
       <ArcConfirmationDialog open={arcPricingConfirmOpen} onClose={() => setArcPricingConfirmOpen(false)} onApplyAll={() => { setUseArcPricing(true); setArcPricingConfirmOpen(false); }} onApplySelected={() => { setUseArcPricing(true); setArcPricingConfirmOpen(false); }} items={fields.map((field, index) => ({ id: field.id || `item-${index}`, description: fields[index]?.meta_json?.material_name || fields[index]?.description || `Item ${index + 1}`, currentRate: Number(fields[index]?.rate) || 0, arcRate: arcPricingMap[fields[index]?.meta_json?.material_id]?.[0]?.arc_rate || null, hasArcRate: Boolean(arcPricingMap[fields[index]?.meta_json?.material_id]?.length > 0), variantId: fields[index]?.meta_json?.variant_id, materialId: fields[index]?.meta_json?.material_id }))} />
-    </div>
+    </DocumentEditorShell>
   );
 }

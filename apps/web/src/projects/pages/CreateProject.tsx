@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../App';
-import { ChevronLeft, Check, X, ChevronDown, Pencil, Building2, DollarSign, Layers, Users } from 'lucide-react';
+import { ChevronLeft, Check, X, ChevronDown, Pencil, Building2, DollarSign, Layers, Users, AlertCircle } from 'lucide-react';
 import { Drawer } from '../../components/ui/Drawer';
 import { useProjectFormDraft } from '../../hooks/useProjectFormDraft';
 import { useAuditLog } from '../../hooks/useAuditLog';
@@ -48,13 +48,17 @@ function FormSelect({
   onChange,
   options,
   placeholder = "Select...",
-  required = false
+  required = false,
+  name,
+  hasError = false
 }: {
   value: string;
   onChange: (val: string) => void;
   options: { value: string; label: string }[];
   placeholder?: string;
   required?: boolean;
+  name?: string;
+  hasError?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState<string | null>(null);
@@ -67,10 +71,12 @@ function FormSelect({
   );
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full" data-field={name}>
       <div className="relative flex items-center">
         <input
           type="text"
+          name={name}
+          id={name ? `field-${name}` : undefined}
           value={displayValue}
           onChange={(e) => {
             setSearchTerm(e.target.value);
@@ -86,7 +92,11 @@ function FormSelect({
           }}
           placeholder={placeholder}
           style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '36px' }}
-          className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm text-slate-900 transition-all cursor-pointer rounded-lg"
+          className={`w-full h-10 bg-white border ${
+            hasError
+              ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+              : 'border-slate-200 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600'
+          } text-sm text-slate-900 transition-all cursor-pointer rounded-lg`}
           required={required && !value}
         />
         <ChevronDown className="absolute right-3 pointer-events-none w-4 h-4 text-slate-400" />
@@ -280,7 +290,7 @@ function ProjectCreationLiveSummary({
         </h3>
         <div className="flex items-center gap-2 mt-2 flex-wrap text-xs text-slate-300">
           {formData.project_code && (
-            <span className="font-mono bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700 text-slate-200">
+            <span className="font-medium bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700 text-slate-200">
               {formData.project_code}
             </span>
           )}
@@ -356,7 +366,7 @@ function ProjectCreationLiveSummary({
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <span className="text-slate-500 font-medium block">Est. Value / Budget</span>
-                <span className="font-bold text-slate-900 font-mono text-sm text-emerald-700">
+                <span className="font-bold text-sm text-emerald-700">
                   {formattedVal || '—'}
                 </span>
               </div>
@@ -389,7 +399,7 @@ function ProjectCreationLiveSummary({
               <div className="col-span-2 pt-1">
                 <div className="flex items-center justify-between text-[11px] font-medium text-slate-600 mb-1">
                   <span>Initial Completion</span>
-                  <span className="font-mono font-bold text-slate-800">{formData.completion_percentage || 0}%</span>
+                  <span className="font-bold text-slate-800">{formData.completion_percentage || 0}%</span>
                 </div>
                 <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
                   <div
@@ -513,6 +523,75 @@ function ProjectCreationLiveSummary({
   );
 }
 
+const FIELD_STEP_MAP: Record<string, number> = {
+  client_id: 0,
+  project_name: 0,
+  project_code: 0,
+  project_type: 0,
+  project_category: 0,
+  parent_project_id: 0,
+  site_location: 0,
+  site_address: 0,
+  project_estimated_value: 1,
+  budget: 1,
+  target_margin_percent: 1,
+  cost_center_id: 1,
+  po_required: 1,
+  po_status: 1,
+  start_date: 1,
+  expected_end_date: 1,
+  actual_end_date: 1,
+  completion_percentage: 1,
+  liquidated_damages: 1,
+  contractor_scope: 2,
+  client_scope: 2,
+  excluded_scope: 2,
+  pending_approval: 2,
+  site_instructions: 2,
+  project_manager_id: 3,
+  site_engineer_id: 3,
+  status: 3,
+  remarks: 3,
+  description: 3
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  client_id: 'Client',
+  project_name: 'Project Name',
+  project_code: 'Project Code',
+  project_type: 'Project Type',
+  project_category: 'Project Category',
+  parent_project_id: 'Parent Project',
+  site_location: 'Site Location',
+  project_estimated_value: 'Estimated Value / Budget',
+  target_margin_percent: 'Target Margin %',
+  cost_center_id: 'Cost Center',
+  start_date: 'Start Date',
+  expected_end_date: 'Expected End Date',
+  actual_end_date: 'Actual End Date',
+  completion_percentage: 'Completion %',
+  liquidated_damages: 'Liquidated Damages',
+  contractor_scope: 'Contractor Scope',
+  client_scope: 'Client Scope',
+  excluded_scope: 'Excluded Scope',
+  project_manager_id: 'Project Manager',
+  site_engineer_id: 'Site Engineer',
+  status: 'Project Status',
+  remarks: 'Remarks'
+};
+
+const validateProjectCode = (code: string): string | null => {
+  const trimmed = code.trim();
+  if (!trimmed) return null;
+  if (/\s/.test(trimmed)) {
+    return 'Project code cannot contain spaces';
+  }
+  if (!/^[A-Za-z0-9-_/.]+$/.test(trimmed)) {
+    return 'Project code contains invalid characters (use alphanumeric, hyphens, or underscores)';
+  }
+  return null;
+};
+
 export default function CreateProject({
   onSuccess,
   onCancel
@@ -540,6 +619,46 @@ export default function CreateProject({
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [addClientModalOpen, setAddClientModalOpen] = useState(false);
   const [addPOModalOpen, setAddPOModalOpen] = useState(false);
+  const [suggestedCode, setSuggestedCode] = useState('');
+  const [draftCleared, setDraftCleared] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const clearFieldError = (fieldName: string) => {
+    setErrors(prev => {
+      if (!prev[fieldName]) return prev;
+      const next = { ...prev };
+      delete next[fieldName];
+      return next;
+    });
+  };
+
+  const focusFieldError = (fieldName: string) => {
+    const targetStep = FIELD_STEP_MAP[fieldName] ?? 0;
+    if (currentStep !== targetStep) {
+      setCurrentStep(targetStep);
+    }
+    setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(
+        `[name="${fieldName}"], [data-field="${fieldName}"], #field-${fieldName}, [id="${fieldName}"]`
+      );
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (typeof el.focus === 'function') {
+          if (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.hasAttribute('tabindex')) {
+            el.focus();
+          } else {
+            const inputInside = el.querySelector<HTMLElement>('input, select, textarea');
+            if (inputInside) inputInside.focus();
+            else el.focus();
+          }
+        }
+        el.classList.add('ring-4', 'ring-red-400', 'ring-opacity-70', 'border-red-500');
+        setTimeout(() => {
+          el.classList.remove('ring-4', 'ring-red-400', 'ring-opacity-70');
+        }, 3000);
+      }
+    }, 150);
+  };
 
   const wizardSteps = ['Identity & Location', 'Commercials & Risk', 'Scope Setup', 'Team & Finalize'];
 
@@ -609,6 +728,8 @@ export default function CreateProject({
     loadCostCenters();
     if (editId) {
       loadProject(editId);
+    } else {
+      fetchSuggestedCode();
     }
   }, [editId, organisation?.id]);
 
@@ -620,7 +741,7 @@ export default function CreateProject({
 
   const loadEmployees = async () => {
     if (!organisation?.id) return;
-    const { data } = await supabase.from('employees').select('id, name').order('name');
+    const { data } = await supabase.from('employees').select('id, name').eq('organisation_id', organisation.id).order('name');
     setEmployees(data || []);
   };
 
@@ -645,6 +766,7 @@ export default function CreateProject({
       .from('client_purchase_orders')
       .select('id, po_number, po_date, po_total_value, status')
       .eq('client_id', clientId)
+      .eq('organisation_id', organisation.id)
       .order('po_date', { ascending: false });
     setClientPOs(data || []);
   };
@@ -657,6 +779,76 @@ export default function CreateProject({
       .eq('organisation_id', organisation.id)
       .order('project_name');
     setProjects(data || []);
+  };
+
+  const fetchSuggestedCode = async () => {
+    try {
+      const year = new Date().getFullYear();
+      const prefix = `PRJ-${year}-`;
+      const { data } = await supabase
+        .from('projects')
+        .select('project_code')
+        .like('project_code', `${prefix}%`);
+
+      let maxNum = 0;
+      if (data && data.length > 0) {
+        data.forEach((p: any) => {
+          if (p.project_code) {
+            const numPart = p.project_code.replace(prefix, '');
+            const parsed = parseInt(numPart, 10);
+            if (!isNaN(parsed) && parsed > maxNum) {
+              maxNum = parsed;
+            }
+          }
+        });
+      }
+      const nextCode = `${prefix}${String(maxNum + 1).padStart(4, '0')}`;
+      setSuggestedCode(nextCode);
+      return nextCode;
+    } catch (err) {
+      console.error('Error calculating suggested project code:', err);
+      const fallback = `PRJ-${new Date().getFullYear()}-0001`;
+      setSuggestedCode(fallback);
+      return fallback;
+    }
+  };
+
+  const checkCodeUniqueness = async (code: string): Promise<boolean> => {
+    const trimmed = code.trim();
+    if (!trimmed) {
+      clearFieldError('project_code');
+      return true;
+    }
+    const formatErr = validateProjectCode(trimmed);
+    if (formatErr) {
+      setErrors(prev => ({ ...prev, project_code: formatErr }));
+      return false;
+    }
+    try {
+      let query = supabase
+        .from('projects')
+        .select('id')
+        .eq('project_code', trimmed);
+
+      if (editId) {
+        query = query.neq('id', editId);
+      }
+
+      const { data } = await query.limit(1);
+      if (data && data.length > 0) {
+        setErrors(prev => ({
+          ...prev,
+          project_code: `Project code "${trimmed}" is already in use. Please choose another code or leave blank to auto-generate.`
+        }));
+        return false;
+      } else {
+        clearFieldError('project_code');
+        return true;
+      }
+    } catch (err) {
+      console.warn('Error checking code uniqueness:', err);
+      return true;
+    }
   };
 
   const loadProject = async (id: string) => {
@@ -723,6 +915,12 @@ export default function CreateProject({
   const handleInputChange = (e: any) => {
     const { name, value, type } = e.target;
 
+    clearFieldError(name);
+
+    if (name === 'project_code') {
+      checkCodeUniqueness(value);
+    }
+
     if (name === 'completion_percentage') {
       const pct = Math.min(100, Math.max(0, parseFloat(value) || 0));
       setFormData((prev: any) => {
@@ -784,25 +982,101 @@ export default function CreateProject({
     }
   };
 
-  const validateForm = (isDraft: boolean) => {
+  const validateForm = async (isDraft: boolean): Promise<boolean> => {
+    const newErrors: Record<string, string> = {};
+
     if (!formData.project_name.trim()) {
-      alert('Project Name is required');
-      return false;
+      newErrors.project_name = 'Project Name is required';
     }
     
     if (!isDraft) {
       if (!formData.client_id) {
-        alert('Please select a client');
-        return false;
+        newErrors.client_id = 'Please select a client';
       }
     }
+
+    if (formData.project_code && formData.project_code.trim()) {
+      const formatErr = validateProjectCode(formData.project_code.trim());
+      if (formatErr) {
+        newErrors.project_code = formatErr;
+      } else {
+        const isUnique = await checkCodeUniqueness(formData.project_code);
+        if (!isUnique) {
+          newErrors.project_code = `Project code "${formData.project_code.trim()}" is already in use. Please enter a different code or leave blank to auto-generate.`;
+        }
+      }
+    }
+
+    if (formData.start_date && formData.expected_end_date) {
+      if (new Date(formData.expected_end_date) < new Date(formData.start_date)) {
+        newErrors.expected_end_date = 'Target end date cannot be earlier than start date';
+      }
+    }
+
+    if (formData.completion_percentage !== undefined && formData.completion_percentage !== '') {
+      const pct = Number(formData.completion_percentage);
+      if (isNaN(pct) || pct < 0 || pct > 100) {
+        newErrors.completion_percentage = 'Completion percentage must be between 0 and 100';
+      }
+    }
+
+    setErrors(newErrors);
+
+    const errorKeys = Object.keys(newErrors);
+    if (errorKeys.length > 0) {
+      focusFieldError(errorKeys[0]);
+      return false;
+    }
+
     return true;
+  };
+
+  const handleNextStep = async () => {
+    const stepErrors: Record<string, string> = {};
+    if (currentStep === 0) {
+      if (!formData.project_name.trim()) {
+        stepErrors.project_name = 'Project Name is required';
+      }
+      if (!formData.client_id) {
+        stepErrors.client_id = 'Please select a client';
+      }
+      if (formData.project_code && formData.project_code.trim()) {
+        const formatErr = validateProjectCode(formData.project_code.trim());
+        if (formatErr) {
+          stepErrors.project_code = formatErr;
+        } else {
+          const isUnique = await checkCodeUniqueness(formData.project_code);
+          if (!isUnique) {
+            stepErrors.project_code = `Project code "${formData.project_code.trim()}" is already in use.`;
+          }
+        }
+      }
+    } else if (currentStep === 1) {
+      if (formData.start_date && formData.expected_end_date && new Date(formData.expected_end_date) < new Date(formData.start_date)) {
+        stepErrors.expected_end_date = 'Target end date cannot be earlier than start date';
+      }
+      if (formData.completion_percentage !== undefined && formData.completion_percentage !== '') {
+        const pct = Number(formData.completion_percentage);
+        if (isNaN(pct) || pct < 0 || pct > 100) {
+          stepErrors.completion_percentage = 'Completion percentage must be between 0 and 100';
+        }
+      }
+    }
+
+    if (Object.keys(stepErrors).length > 0) {
+      setErrors(prev => ({ ...prev, ...stepErrors }));
+      focusFieldError(Object.keys(stepErrors)[0]);
+      return;
+    }
+
+    setCurrentStep(Math.min(wizardSteps.length - 1, currentStep + 1));
   };
 
   const handleSaveClick = async (e: React.MouseEvent | React.FormEvent, isDraft: boolean) => {
     e.preventDefault();
     if (saving) return;
-    if (!validateForm(isDraft)) return;
+    const isValid = await validateForm(isDraft);
+    if (!isValid) return;
 
     setSaving(true);
     try {
@@ -835,7 +1109,7 @@ export default function CreateProject({
         client_id: formData.client_id,
         name: formData.project_name.trim(),
         project_name: formData.project_name.trim(),
-        project_code: formData.project_code || null,
+        project_code: formData.project_code?.trim() || null,
         project_category: formData.project_category || null,
         is_free_of_cost: false,
         site_location: formData.site_location || formData.site_address || null,
@@ -917,7 +1191,13 @@ export default function CreateProject({
       }
     } catch (err: any) {
       console.error('Error saving project:', err);
-      alert('Error: ' + err.message);
+      if (err?.message?.includes('projects_project_code_key') || err?.message?.includes('duplicate key')) {
+        const msg = 'Project code is already in use. Please enter a different code or leave blank to auto-generate.';
+        setErrors(prev => ({ ...prev, project_code: msg }));
+        focusFieldError('project_code');
+      } else {
+        alert('Error: ' + err.message);
+      }
     } finally {
       setSaving(false);
     }
@@ -932,7 +1212,7 @@ export default function CreateProject({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 pt-2 pb-12 px-4 sm:px-6 lg:px-8">
       <CreateClientDrawer 
         isOpen={addClientModalOpen} 
         onClose={() => setAddClientModalOpen(false)} 
@@ -980,82 +1260,159 @@ export default function CreateProject({
         />
       </Drawer>
 
-      <div className={`mx-auto space-y-6 transition-all duration-300 ${currentStep >= 1 ? 'max-w-7xl' : 'max-w-4xl'}`} style={{ padding: '0 16px' }}>
-        {/* Header Block & Navigation Row */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4" style={{ padding: '20px 24px' }}>
-          <div className="flex items-center gap-3">
-            <button 
-              type="button"
-              onClick={() => { 
-                if (window.confirm("Data will be lost. Are you sure you want to go back?")) {
-                  clearDraft();
-                  if (onCancel) onCancel();
-                  else navigate('/projects'); 
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors shrink-0"
-            >
-              <ChevronLeft className="w-4 h-4 text-slate-500 shrink-0" />
-              <span>Back</span>
-            </button>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 font-heading flex items-center gap-2">
-                {editId ? 'Edit Project' : 'Create New Project'}
-                {formData.status === 'Draft' && (
-                  <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200">DRAFT</span>
-                )}
-              </h1>
-              <p className="text-xs text-slate-500 mt-0.5">Step {currentStep + 1} of {wizardSteps.length}: {wizardSteps[currentStep]}</p>
+      <div className={`space-y-4 transition-all duration-300 ${currentStep >= 1 ? 'max-w-7xl' : 'max-w-5xl'}`}>
+        {/* Sticky Header Toolbar: Back/Title on Left, Creation Stages in Center, Save Actions on Right */}
+        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-xs border border-slate-200 px-4 py-2.5 transition-all">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+            {/* Left: Back & Title (Compact font) */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <button 
+                type="button"
+                onClick={() => { 
+                  if (window.confirm("Data will be lost. Are you sure you want to go back?")) {
+                    clearDraft();
+                    if (onCancel) onCancel();
+                    else navigate('/projects'); 
+                  }
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors shrink-0 cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <span>Back</span>
+              </button>
+              <div>
+                <h1 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-1.5 leading-tight">
+                  {editId ? 'Edit Project' : 'Create New Project'}
+                  {formData.status === 'Draft' && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 text-[10px] font-semibold border border-slate-200">DRAFT</span>
+                  )}
+                </h1>
+                <p className="text-[11px] text-slate-500 leading-none mt-0.5">Step {currentStep + 1} of {wizardSteps.length}: {wizardSteps[currentStep]}</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2 self-end md:self-auto">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={(e) => handleSaveClick(e, true)} 
-              disabled={saving}
-              className="border-slate-300 hover:bg-slate-50 text-slate-700 text-xs"
-            >
-              {saving ? 'Saving...' : 'Save as Draft'}
-            </Button>
+
+            {/* Center: Creation Stage Stepper */}
+            <div className="flex-1 max-w-xl mx-auto lg:mx-4 w-full">
+              <div className="flex items-center justify-between">
+                {wizardSteps.map((step, idx) => {
+                  const isActive = idx === currentStep;
+                  const isCompleted = idx < currentStep;
+                  const stepErrors = Object.keys(errors).filter(k => (FIELD_STEP_MAP[k] ?? 0) === idx);
+                  const hasErrors = stepErrors.length > 0;
+                  
+                  return (
+                    <div 
+                      key={step} 
+                      onClick={() => setCurrentStep(idx)} 
+                      className="flex-1 flex flex-col items-center gap-1 cursor-pointer relative group"
+                    >
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold transition-all duration-200 z-10 relative ${
+                        hasErrors
+                          ? 'bg-red-600 text-white ring-2 ring-red-100 shadow-xs'
+                          : (isActive 
+                              ? 'bg-blue-600 text-white ring-2 ring-blue-100 shadow-xs' 
+                              : (isCompleted ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'))
+                      }`}>
+                        {hasErrors ? (
+                          <AlertCircle className="w-3 h-3 text-white" />
+                        ) : (
+                          isCompleted ? <Check className="w-3 h-3 stroke-[3]" /> : (idx + 1)
+                        )}
+
+                        {hasErrors && (
+                          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-700 text-white text-[9px] font-bold rounded-full flex items-center justify-center border border-white shadow-xs">
+                            {stepErrors.length}
+                          </span>
+                        )}
+                      </div>
+                      <span className={`text-[11px] text-center px-1 font-medium transition-colors flex items-center gap-1 leading-tight ${
+                        hasErrors 
+                          ? 'text-red-600 font-bold' 
+                          : (isActive ? 'text-blue-700 font-bold' : (isCompleted ? 'text-emerald-600' : 'text-slate-500'))
+                      }`}>
+                        {step}
+                      </span>
+                      {idx < wizardSteps.length - 1 && (
+                        <div className={`absolute top-3 left-1/2 w-full h-[2px] z-0 transition-colors ${
+                          isCompleted ? 'bg-emerald-500' : 'bg-slate-200'
+                        }`} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Right: Action Buttons with Fixed Spacing */}
+            <div className="flex items-center gap-2.5 self-end lg:self-auto shrink-0">
+              <Button 
+                type="button"
+                variant="outline" 
+                size="sm"
+                onClick={(e) => handleSaveClick(e, true)} 
+                disabled={saving}
+                className="h-8 px-3.5 border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-xs cursor-pointer"
+              >
+                {saving ? 'Saving...' : 'Save as Draft'}
+              </Button>
+              <Button 
+                type="button"
+                variant="default" 
+                size="sm"
+                onClick={(e) => handleSaveClick(e, false)} 
+                disabled={saving}
+                className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
+              >
+                {saving ? 'Saving...' : (editId ? 'Update Project' : 'Save Project')}
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Wizard Progress Stepper */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200" style={{ padding: '20px 24px' }}>
-          <div className="flex items-center justify-between">
-            {wizardSteps.map((step, idx) => {
-              const isActive = idx === currentStep;
-              const isCompleted = idx < currentStep;
-              
-              return (
-                <div 
-                  key={step} 
-                  onClick={() => setCurrentStep(idx)} 
-                  className="flex-1 flex flex-col items-center gap-2 cursor-pointer relative group"
-                >
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 z-10 ${
-                    isActive 
-                      ? 'bg-blue-600 text-white ring-4 ring-blue-100 shadow-sm' 
-                      : (isCompleted ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200')
-                  }`}>
-                    {isCompleted ? <Check className="w-4 h-4 stroke-[3]" /> : (idx + 1)}
-                  </div>
-                  <span className={`text-xs text-center px-1 font-medium transition-colors ${
-                    isActive ? 'text-blue-700 font-bold' : (isCompleted ? 'text-emerald-600' : 'text-slate-500')
-                  }`}>
-                    {step}
-                  </span>
-                  {idx < wizardSteps.length - 1 && (
-                    <div className={`absolute top-4 left-1/2 w-full h-[2px] z-0 transition-colors ${
-                      isCompleted ? 'bg-emerald-500' : 'bg-slate-200'
-                    }`} />
-                  )}
+        {/* Multi-Error Summary Banner */}
+        {Object.keys(errors).length > 0 && (
+          <div className="bg-red-50 border border-red-200 border-l-4 border-l-red-600 rounded-xl p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-bold text-red-900">
+                    Please resolve {Object.keys(errors).length} {Object.keys(errors).length === 1 ? 'error' : 'errors'} before saving:
+                  </h4>
+                  <p className="text-xs text-red-700 mt-0.5">Click any issue below to automatically navigate and focus the field:</p>
+                  <ul className="mt-2.5 space-y-1.5">
+                    {Object.entries(errors).map(([fieldKey, errorMsg]) => {
+                      const stepIdx = FIELD_STEP_MAP[fieldKey] ?? 0;
+                      const stepName = wizardSteps[stepIdx] || `Step ${stepIdx + 1}`;
+                      const label = FIELD_LABELS[fieldKey] || fieldKey;
+                      return (
+                        <li key={fieldKey}>
+                          <button
+                            type="button"
+                            onClick={() => focusFieldError(fieldKey)}
+                            className="text-xs text-red-800 hover:text-red-950 font-medium flex items-center gap-2 hover:underline cursor-pointer group text-left transition-colors"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 group-hover:scale-125 transition-transform shrink-0" />
+                            <span className="font-semibold text-red-900">[{stepName}] {label}:</span>
+                            <span>{errorMsg}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
-              );
-            })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setErrors({})}
+                className="p-1 rounded text-red-400 hover:text-red-700 hover:bg-red-100 transition-colors"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Content Area with Split Layout for Step 2+ */}
         <div className={currentStep >= 1 ? "grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" : ""}>
@@ -1074,38 +1431,89 @@ export default function CreateProject({
                   <div className="md:col-span-2 flex flex-col gap-2">
                     <ClientLabel onAddClick={() => setAddClientModalOpen(true)} />
                     <FormSelect
+                      name="client_id"
+                      hasError={!!errors.client_id}
                       value={formData.client_id}
-                      onChange={(v) => setFormData((prev: any) => ({ ...prev, client_id: v }))}
+                      onChange={(v) => {
+                        setFormData((prev: any) => ({ ...prev, client_id: v }));
+                        clearFieldError('client_id');
+                      }}
                       placeholder="Search or select client..."
                       required
                       options={clients.map(c => ({ value: c.id, label: c.client_name }))}
                     />
+                    {errors.client_id && (
+                      <p className="text-xs text-red-600 font-medium flex items-center gap-1 mt-0.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        {errors.client_id}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-2">
                     <Label className="text-sm font-semibold text-slate-700">Project Name *</Label>
                     <Input
                       name="project_name"
+                      id="field-project_name"
                       value={formData.project_name}
-                      onChange={handleInputChange}
+                      onChange={(e) => {
+                        handleInputChange(e);
+                        if (e.target.value.trim()) clearFieldError('project_name');
+                      }}
                       placeholder="Enter project name"
                       style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
-                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition-all text-slate-900"
+                      className={`w-full h-10 bg-white border ${
+                        errors.project_name
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                          : 'border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600'
+                      } text-sm transition-all text-slate-900`}
                       required
                     />
+                    {errors.project_name && (
+                      <p className="text-xs text-red-600 font-medium flex items-center gap-1 mt-0.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        {errors.project_name}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <Label className="text-sm font-semibold text-slate-700">Project Code *</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-semibold text-slate-700">
+                        Project Code <span className="text-xs font-normal text-slate-400">(Auto-generated if empty)</span>
+                      </Label>
+                      {!formData.project_code && suggestedCode && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, project_code: suggestedCode }));
+                            clearFieldError('project_code');
+                          }}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline cursor-pointer"
+                        >
+                          Use {suggestedCode}
+                        </button>
+                      )}
+                    </div>
                     <Input
                       name="project_code"
+                      id="field-project_code"
                       value={formData.project_code || ''}
                       onChange={handleInputChange}
-                      placeholder="e.g. PRJ-2026-001"
+                      placeholder={suggestedCode ? `e.g. ${suggestedCode} (or leave blank)` : 'Auto-generated if empty'}
                       style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
-                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition-all text-slate-900"
-                      required
+                      className={`w-full h-10 bg-white border ${
+                        errors.project_code
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                          : 'border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600'
+                      } text-sm transition-all text-slate-900`}
                     />
+                    {errors.project_code && (
+                      <p className="text-xs text-red-600 font-medium flex items-center gap-1 mt-0.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        {errors.project_code}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-2">
@@ -1186,7 +1594,7 @@ export default function CreateProject({
                       onChange={(e) => setFormData((prev: any) => ({ ...prev, project_estimated_value: e.target.value, budget: e.target.value }))}
                       placeholder="0.00"
                       style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
-                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm font-mono transition-all text-slate-900"
+                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm font-medium transition-all text-slate-900"
                     />
                   </div>
 
@@ -1199,7 +1607,7 @@ export default function CreateProject({
                       onChange={handleInputChange}
                       placeholder="e.g. 15"
                       style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
-                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm font-mono transition-all text-slate-900"
+                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm font-medium transition-all text-slate-900"
                     />
                   </div>
 
@@ -1278,11 +1686,25 @@ export default function CreateProject({
                     <Input
                       type="date"
                       name="expected_end_date"
+                      id="field-expected_end_date"
                       value={formData.expected_end_date || ''}
-                      onChange={handleInputChange}
+                      onChange={(e) => {
+                        handleInputChange(e);
+                        clearFieldError('expected_end_date');
+                      }}
                       style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
-                      className="w-full h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm transition-all text-slate-900"
+                      className={`w-full h-10 bg-white border ${
+                        errors.expected_end_date
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                          : 'border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600'
+                      } text-sm transition-all text-slate-900`}
                     />
+                    {errors.expected_end_date && (
+                      <p className="text-xs text-red-600 font-medium flex items-center gap-1 mt-0.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        {errors.expected_end_date}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-2">
@@ -1303,16 +1725,30 @@ export default function CreateProject({
                       <Input
                         type="number"
                         name="completion_percentage"
+                        id="field-completion_percentage"
                         value={formData.completion_percentage}
-                        onChange={handleInputChange}
+                        onChange={(e) => {
+                          handleInputChange(e);
+                          clearFieldError('completion_percentage');
+                        }}
                         min="0"
                         max="100"
                         step="1"
                         style={{ borderRadius: '8px', paddingLeft: '16px', paddingRight: '16px' }}
-                        className="w-32 h-10 bg-white border border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-sm font-mono transition-all text-slate-900"
+                        className={`w-32 h-10 bg-white border ${
+                          errors.completion_percentage
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-slate-200 hover:border-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600'
+                        } text-sm font-medium transition-all text-slate-900`}
                       />
                       <span className="text-sm text-slate-500 font-semibold">%</span>
                     </div>
+                    {errors.completion_percentage && (
+                      <p className="text-xs text-red-600 font-medium flex items-center gap-1 mt-0.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        {errors.completion_percentage}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1480,7 +1916,7 @@ export default function CreateProject({
             {currentStep < wizardSteps.length - 1 ? (
               <Button
                 type="button"
-                onClick={() => setCurrentStep(Math.min(wizardSteps.length - 1, currentStep + 1))}
+                onClick={handleNextStep}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 cursor-pointer"
               >
                 Next Step

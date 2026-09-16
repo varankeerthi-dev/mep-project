@@ -10,3 +10,5 @@ export {
   ImportButton,
 } from './DocumentActionBar';
 export { SummaryFooter } from './SummaryFooter';
+export { DocumentEditorShell } from './DocumentEditorShell';
+export { DocumentLineItemsSurface } from './DocumentLineItemsSurface';

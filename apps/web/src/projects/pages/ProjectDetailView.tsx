@@ -13,7 +13,6 @@ import {
   useDeleteMilestone, 
 } from '../../hooks/useMilestones';
 import {
-  useProjectTransactions,
   buildProjectTransactionSummary,
   type ProjectInvoice,
 } from '../../hooks/useProjectTransactions';
@@ -222,8 +221,15 @@ export default function ProjectDetailView({
   const projectJointMeasurements = jointMeasurementsQuery.data ?? [];
   const projectTcProtocols = tcProtocolsQuery.data ?? [];
 
-  // Linked transaction view: POs joined with their invoices
-  const { data: linkedData, isLoading: linkedLoading } = useProjectTransactions(selectedProject.id);
+  // Linked transaction view (POs joined with their invoices) is derived from the
+  // canonical transactions query — one fetch, one cache. Previously this ran
+  // useProjectTransactions(), which re-fetched client_purchase_orders and
+  // project_invoices into a second cache.
+  const linkedData = useMemo(() => {
+    if (!projectDetails) return null;
+    return { pos: projectDetails.pos, invoices: projectDetails.invoices };
+  }, [projectDetails]);
+  const linkedLoading = transactionsQuery.isLoading;
   const linkedSummary = useMemo(() => {
     if (!linkedData) return null;
     return buildProjectTransactionSummary(linkedData.pos, linkedData.invoices);

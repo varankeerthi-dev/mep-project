@@ -9,6 +9,12 @@ interface TableCellProps {
   align?: 'left' | 'right' | 'center';
   secondaryText?: string;
   statusType?: StatusType;
+  /** CSS padding shorthand (density tokens). Defaults to '12px 16px' */
+  cellPadding?: string;
+  /** Fixed column width in px */
+  width?: number;
+  /** Minimum column width in px */
+  minWidth?: number;
 }
 
 export const TableCell: React.FC<TableCellProps> = ({
@@ -17,17 +23,22 @@ export const TableCell: React.FC<TableCellProps> = ({
   align,
   secondaryText,
   statusType = 'neutral',
+  cellPadding = '12px 16px',
+  width,
+  minWidth,
 }) => {
   const isNumeric = type === 'money' || type === 'number';
   const defaultAlign = align || (isNumeric ? 'right' : type === 'checkbox' || type === 'status' || type === 'actions' ? 'center' : 'left');
 
   const getStyle = (): React.CSSProperties => {
     const base: React.CSSProperties = {
-      padding: '12px 16px',
+      padding: cellPadding,
       fontSize: '13px',
       verticalAlign: 'middle',
       boxSizing: 'border-box',
       textAlign: defaultAlign,
+      width: width ? `${width}px` : undefined,
+      minWidth: minWidth ? `${minWidth}px` : undefined,
     };
 
     if (type === 'id') {

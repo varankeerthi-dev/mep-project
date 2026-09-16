@@ -144,18 +144,38 @@ CREATE FUNCTION generate_project_code()
 RETURNS TRIGGER AS $$
 DECLARE
   year_part TEXT;
-  count_num INTEGER;
-  count_part TEXT;
+  max_num INTEGER;
+  candidate_code TEXT;
+  code_exists BOOLEAN;
 BEGIN
+  -- If project_code was provided as non-empty, trim it
+  IF NEW.project_code IS NOT NULL AND TRIM(NEW.project_code) <> '' THEN
+    NEW.project_code := TRIM(NEW.project_code);
+    RETURN NEW;
+  END IF;
+
   year_part := EXTRACT(YEAR FROM CURRENT_DATE)::TEXT;
-  
-  SELECT COUNT(*) INTO count_num
+
+  -- Find highest existing numeric sequence for current year
+  SELECT COALESCE(MAX(SUBSTRING(project_code FROM 10)::INTEGER), 0) INTO max_num
   FROM projects
-  WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE);
-  
-  count_part := LPAD((count_num + 1)::TEXT, 4, '0');
-  
-  NEW.project_code := 'PRJ-' || year_part || '-' || count_part;
+  WHERE project_code ~ ('^PRJ-' || year_part || '-[0-9]+$');
+
+  -- Ensure candidate_code does not collide with any existing record
+  LOOP
+    max_num := max_num + 1;
+    candidate_code := 'PRJ-' || year_part || '-' || LPAD(max_num::TEXT, 4, '0');
+
+    SELECT EXISTS(
+      SELECT 1 FROM projects WHERE project_code = candidate_code
+    ) INTO code_exists;
+
+    IF NOT code_exists THEN
+      NEW.project_code := candidate_code;
+      EXIT;
+    END IF;
+  END LOOP;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -165,7 +185,6 @@ DROP TRIGGER IF EXISTS trigger_generate_project_code ON projects;
 CREATE TRIGGER trigger_generate_project_code
   BEFORE INSERT ON projects
   FOR EACH ROW
-  WHEN (NEW.project_code IS NULL)
   EXECUTE FUNCTION generate_project_code();
 
 -- Step 4: Add project_id to client_purchase_orders

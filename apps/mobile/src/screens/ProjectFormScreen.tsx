@@ -55,16 +55,55 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'status', label: 'Status & Notes' },
 ];
 
+const FIELD_TAB_MAP: Record<string, Tab> = {
+  client_id: 'identity',
+  project_name: 'identity',
+  project_code: 'identity',
+  project_type: 'identity',
+  parent_project_id: 'identity',
+  project_estimated_value: 'commercial',
+  po_required: 'commercial',
+  po_status: 'commercial',
+  po_number: 'commercial',
+  po_date: 'commercial',
+  start_date: 'timeline',
+  expected_end_date: 'timeline',
+  actual_end_date: 'timeline',
+  completion_percentage: 'timeline',
+  contractor_scope: 'scope',
+  client_scope: 'scope',
+  excluded_scope: 'scope',
+  pending_approval: 'scope',
+  site_instructions: 'scope',
+  status: 'status',
+  remarks: 'status'
+};
+
 export const ProjectFormScreen: React.FC<ProjectFormScreenProps> = ({ onBack, projectData, isDemo = false, onFormDirtyChange }) => {
   const editMode = !!projectData?.id;
   const [tab, setTab] = useState<Tab>('identity');
   const [form, setForm] = useState<any>({ ...INITIAL_FORM });
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [clients, setClients] = useState<any[]>([]);
   const [parentProjects, setParentProjects] = useState<any[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const focusField = (field: string) => {
+    const targetTab = FIELD_TAB_MAP[field] ?? 'identity';
+    setTab(targetTab);
+    setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[name="${field}"], #field-${field}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+        el.classList.add('ring-2', 'ring-destructive');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-destructive'), 3000);
+      }
+    }, 150);
+  };
 
   useEffect(() => {
     if (projectData) {
@@ -137,10 +176,25 @@ export const ProjectFormScreen: React.FC<ProjectFormScreenProps> = ({ onBack, pr
   const set = (field: string) => (e: any) => setForm({ ...form, [field]: e.target.value });
 
   const handleSave = async () => {
+    const newErrors: Record<string, string> = {};
     if (!form.project_name?.trim()) {
-      setSaveMsg('Project name is required');
+      newErrors.project_name = 'Project name is required';
+    }
+    if (!form.client_id) {
+      newErrors.client_id = 'Client is required';
+    }
+    if (form.start_date && form.expected_end_date && new Date(form.expected_end_date) < new Date(form.start_date)) {
+      newErrors.expected_end_date = 'Target end date cannot be earlier than start date';
+    }
+
+    const errKeys = Object.keys(newErrors);
+    if (errKeys.length > 0) {
+      setErrors(newErrors);
+      setSaveMsg(newErrors[errKeys[0]]);
+      focusField(errKeys[0]);
       return;
     }
+
     setSaving(true);
     setSaveMsg('');
     try {
@@ -162,21 +216,35 @@ export const ProjectFormScreen: React.FC<ProjectFormScreenProps> = ({ onBack, pr
       if (!orgId) throw new Error('No organisation');
 
       if (editMode) {
-        await supabase
+        const { error: updateErr } = await supabase
           .from('projects')
           .update({ ...form, updated_at: new Date().toISOString(), updated_by: user.id })
           .eq('id', projectData.id)
           .eq('organisation_id', orgId);
+        if (updateErr) throw updateErr;
       } else {
-        const code = 'PRJ-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-4);
-        await supabase
+        const { error: insertErr } = await supabase
           .from('projects')
-          .insert({ ...form, project_code: code, organisation_id: orgId, created_by: user.id, name: form.project_name });
+          .insert({
+            ...form,
+            project_code: form.project_code?.trim() || null,
+            organisation_id: orgId,
+            created_by: user.id,
+            name: form.project_name
+          });
+        if (insertErr) throw insertErr;
       }
       setSaveMsg(editMode ? 'Project updated!' : 'Project created!');
       setTimeout(onBack, 800);
     } catch (err: any) {
-      setSaveMsg('Error: ' + (err?.message || err));
+      if (err?.message?.includes('projects_project_code_key') || err?.message?.includes('duplicate key')) {
+        const msg = 'Project code is already in use. Please choose another code or leave blank to auto-generate.';
+        setErrors(prev => ({ ...prev, project_code: msg }));
+        setSaveMsg(msg);
+        focusField('project_code');
+      } else {
+        setSaveMsg('Error: ' + (err?.message || err));
+      }
     } finally {
       setSaving(false);
     }
@@ -210,19 +278,54 @@ export const ProjectFormScreen: React.FC<ProjectFormScreenProps> = ({ onBack, pr
           Project Identity
         </div>
         <div className="space-y-3">
-          <div>
+          <div id="field-client_id">
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Client *</label>
             <BottomSheetPicker
               label="Select Client"
               options={clients.map(c => ({ id: c.id, name: c.client_name }))}
               value={form.client_id}
-              onChange={(id) => setForm({ ...form, client_id: id })}
+              onChange={(id) => {
+                setForm({ ...form, client_id: id });
+                if (errors.client_id) setErrors(prev => { const n = { ...prev }; delete n.client_id; return n; });
+              }}
               placeholder="Choose a client"
             />
+            {errors.client_id && <p className="text-xs text-destructive mt-1">{errors.client_id}</p>}
           </div>
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Project Name *</label>
-            <input type="text" required value={form.project_name} onChange={set('project_name')} placeholder="Enter project name" className={inputCn} />
+            <input
+              type="text"
+              name="project_name"
+              id="field-project_name"
+              required
+              value={form.project_name}
+              onChange={(e) => {
+                setForm({ ...form, project_name: e.target.value });
+                if (errors.project_name) setErrors(prev => { const n = { ...prev }; delete n.project_name; return n; });
+              }}
+              placeholder="Enter project name"
+              className={`${inputCn} ${errors.project_name ? 'border-destructive ring-1 ring-destructive' : ''}`}
+            />
+            {errors.project_name && <p className="text-xs text-destructive mt-1">{errors.project_name}</p>}
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+              Project Code <span className="font-normal text-muted-foreground/70">(Auto-generated if empty)</span>
+            </label>
+            <input
+              type="text"
+              name="project_code"
+              id="field-project_code"
+              value={form.project_code || ''}
+              onChange={(e) => {
+                setForm({ ...form, project_code: e.target.value });
+                if (errors.project_code) setErrors(prev => { const n = { ...prev }; delete n.project_code; return n; });
+              }}
+              placeholder="Auto-generated if empty"
+              className={`${inputCn} ${errors.project_code ? 'border-destructive ring-1 ring-destructive' : ''}`}
+            />
+            {errors.project_code && <p className="text-xs text-destructive mt-1">{errors.project_code}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

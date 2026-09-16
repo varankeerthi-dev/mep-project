@@ -11,6 +11,14 @@ import { TableActions, RowAction } from './TableActions';
 import { TableBulkActions, BulkAction } from './TableBulkActions';
 import { StatusType } from './StatusBadge';
 
+export type TableDensity = 'compact' | 'default' | 'expanded';
+
+const DENSITY_TOKENS: Record<TableDensity, { rowMinHeight: number; cellPadding: string; headerPadding: string }> = {
+  compact: { rowMinHeight: 38, cellPadding: '8px 12px', headerPadding: '8px 12px' },
+  default: { rowMinHeight: 46, cellPadding: '12px 16px', headerPadding: '10px 16px' },
+  expanded: { rowMinHeight: 60, cellPadding: '16px 16px', headerPadding: '14px 16px' },
+};
+
 export interface ColumnDef<T> {
   header: string;
   accessorKey?: keyof T;
@@ -20,6 +28,10 @@ export interface ColumnDef<T> {
   cell?: (info: { row: T; getValue: () => any }) => React.ReactNode;
   secondaryText?: (row: T) => string;
   statusType?: (row: T) => StatusType;
+  /** Fixed column width in px (reference column spec), e.g. 100 */
+  width?: number;
+  /** Minimum column width in px for flex columns, e.g. 260 */
+  minWidth?: number;
 }
 
 export interface DataTableProps<T> {
@@ -36,6 +48,11 @@ export interface DataTableProps<T> {
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
   onSearch?: (value: string) => void;
+
+  /** Density mode: compact (36–40px rows), default (44–48px), expanded (56–64px). */
+  density?: TableDensity;
+  /** Optional footer slot rendered at the bottom of the table card. */
+  footer?: React.ReactNode;
 
   // Toolbar Filter Pills
   filterOptions?: { id: string; label: string }[];
@@ -104,7 +121,10 @@ export function Table<T extends { id?: string | number }>({
   hiddenColumnIds = [],
   onColumnVisibilityChange,
   mandatoryColumnIds = [],
+  density = 'default',
+  footer,
 }: DataTableProps<T>) {
+  const densityTokens = DENSITY_TOKENS[density] ?? DENSITY_TOKENS.default;
   const [searchValue, setSearchValue] = useState('');
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDesc, setSortDesc] = useState<boolean>(false);
@@ -253,6 +273,7 @@ export function Table<T extends { id?: string | number }>({
             sortDesc={sortDesc}
             onSort={handleSort}
             sortable={sortable}
+            headerPadding={densityTokens.headerPadding}
           />
           <tbody>
             {loading ? (
@@ -272,14 +293,14 @@ export function Table<T extends { id?: string | number }>({
                   <TableRow
                     key={row.id || rIdx}
                     selected={isSelected}
+                    minHeight={densityTokens.rowMinHeight}
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
                   >
                     {selectable && (
                       <td
                         style={{
                           textAlign: 'center',
-                          paddingLeft: '16px',
-                          paddingRight: '16px',
+                          padding: densityTokens.cellPadding,
                           verticalAlign: 'middle',
                           borderBottom: rIdx === data.length - 1 ? 'none' : '1px solid #F3F4F6',
                         }}
@@ -362,6 +383,9 @@ export function Table<T extends { id?: string | number }>({
                           align={col.align}
                           secondaryText={secondaryText}
                           statusType={statusType}
+                          cellPadding={densityTokens.cellPadding}
+                          width={col.width}
+                          minWidth={col.minWidth}
                         />
                       );
                     })}
@@ -383,6 +407,9 @@ export function Table<T extends { id?: string | number }>({
           onPageSizeChange={onPageSizeChange}
         />
       )}
+
+      {/* Optional footer slot (selection rail, keyboard legend, compact pagination) */}
+      {footer}
       <style>{`
         .table-row-item:hover {
           background-color: #F3F4F6 !important;

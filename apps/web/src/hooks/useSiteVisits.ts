@@ -1,50 +1,33 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { toast } from '@/lib/logger';
+export { useClients } from './useClients';
 
-export function useSiteVisits() {
+export interface UseSiteVisitsOptions {
+  refetchInterval?: number | false;
+}
+
+export function useSiteVisits(options?: UseSiteVisitsOptions) {
   const { organisation } = useAuth();
 
   return useQuery({
     queryKey: ['site-visits', organisation?.id],
     queryFn: async () => {
-      let query = supabase
+      if (!organisation?.id) return [];
+
+      const { data, error } = await supabase
         .from('site_visits')
-        .select('*, clients (*), lead:leads!lead_id(id, contact_name, company_name)');
-      
-      if (organisation?.id) {
-        query = query.eq('organisation_id', organisation?.id);
-      }
-
-      const { data, error } = await query.order('visit_date', { ascending: false });
+        .select('*, clients(id, client_name), lead:leads!lead_id(id, contact_name, company_name)')
+        .eq('organisation_id', organisation.id)
+        .order('visit_date', { ascending: false });
       
       if (error) throw error;
       return data || [];
     },
     enabled: !!organisation?.id,
-    refetchInterval: 30000
-  });
-}
-
-export function useClients() {
-  const { organisation } = useAuth();
-
-  return useQuery({
-    queryKey: ['clients', organisation?.id],
-    queryFn: async () => {
-      let query = supabase.from('clients').select('id, client_name');
-      
-      if (organisation?.id) {
-        query = query.eq('organisation_id', organisation?.id);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!organisation?.id,
-    refetchInterval: 30000
+    staleTime: 60 * 1000,
+    refetchInterval: options?.refetchInterval ?? false,
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -54,10 +37,12 @@ export function useVisitPurposes() {
   return useQuery({
     queryKey: ['visit-purposes', organisation?.id],
     queryFn: async () => {
+      if (!organisation?.id) return [];
+
       const { data, error } = await supabase
         .from('visit_purposes')
-        .select('id, name')
-        .eq('organisation_id', organisation?.id)
+        .select('id, name, organisation_id')
+        .or(`organisation_id.eq.${organisation.id},organisation_id.is.null`)
         .order('name');
       
       if (error) {
@@ -69,9 +54,10 @@ export function useVisitPurposes() {
           { id: '5', name: 'Meeting' }
         ];
       }
-      return data;
+      return data || [];
     },
-    enabled: !!organisation?.id
+    enabled: !!organisation?.id,
+    staleTime: 10 * 60 * 1000,
   });
 }
 
@@ -81,15 +67,33 @@ export function useProjectManagers() {
   return useQuery({
     queryKey: ['project-managers', organisation?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      if (!organisation?.id) return [];
+
+      // 1. Fetch active member user IDs in this organisation
+      const { data: members, error: membersError } = await supabase
+        .from('org_members')
+        .select('user_id')
+        .eq('organisation_id', organisation.id)
+        .eq('status', 'active');
+      
+      if (membersError) throw membersError;
+      if (!members || members.length === 0) return [];
+
+      const userIds = members.map((m: any) => m.user_id).filter(Boolean);
+      if (userIds.length === 0) return [];
+
+      // 2. Fetch profiles strictly for those users belonging to this organisation
+      const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
-        .select('id, full_name, email')
+        .select('id, user_id, full_name, email')
+        .in('user_id', userIds)
         .order('full_name');
       
-      if (error) throw error;
-      return data || [];
+      if (profilesError) throw profilesError;
+      return profiles || [];
     },
-    enabled: !!organisation?.id
+    enabled: !!organisation?.id,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -99,9 +103,17 @@ export function useAddSiteVisit() {
 
   return useMutation({
     mutationFn: async (newVisit: any) => {
+      if (!organisation?.id) throw new Error('Organisation context required');
+      const payload = {
+        ...newVisit,
+        organisation_id: newVisit.organisation_id || organisation.id,
+      };
+      delete (payload as any).clients;
+      delete (payload as any).lead;
+
       const { data, error } = await supabase
         .from('site_visits')
-        .insert([newVisit])
+        .insert([payload])
         .select();
       
       if (error) throw error;
@@ -121,12 +133,18 @@ export function useUpdateSiteVisit() {
     mutationFn: async (updatedVisit: any) => {
       const { id, ...updateData } = updatedVisit;
       delete (updateData as any).clients;
+      delete (updateData as any).lead;
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('site_visits')
         .update(updateData)
-        .eq('id', id)
-        .select();
+        .eq('id', id);
+
+      if (organisation?.id) {
+        query = query.eq('organisation_id', organisation.id);
+      }
+      
+      const { data, error } = await query.select();
       
       if (error) throw error;
       return data[0];
@@ -143,15 +161,16 @@ export function useAddPurpose() {
 
   return useMutation({
     mutationFn: async (name: string) => {
+      if (!organisation?.id) throw new Error('Organisation context required');
       const { data, error } = await supabase
         .from('visit_purposes')
-        .insert([{ name, organisation_id: organisation?.id }])
+        .insert([{ name, organisation_id: organisation.id }])
         .select();
       if (error) throw error;
       return data[0];
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visit-purposes'] });
+      queryClient.invalidateQueries({ queryKey: ['visit-purposes', organisation?.id] });
     },
   });
 }

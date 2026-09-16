@@ -136,6 +136,12 @@ export type InvoiceClientOption = {
   name: string;
   state: string | null;
   gst_number: string | null;
+  contact?: string | null;
+  email?: string | null;
+  address1?: string | null;
+  address2?: string | null;
+  city?: string | null;
+  pincode?: string | null;
   default_template_id: string | null;
   discount_type: string | null;
   standard_pricelist_id: string | null;

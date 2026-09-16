@@ -21,6 +21,8 @@ import {
   CustomDatePicker,
   sharedStyles,
   SummaryFooter,
+  DocumentEditorShell,
+  DocumentLineItemsSurface,
 } from '../../../components/document-editor';
 import { User, FileText, Briefcase } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
@@ -111,52 +113,55 @@ export default function DebitNoteViewV2() {
   };
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
-      <DocumentActionBar
-        title="Create Debit Note"
-        fixed={{ top: 32, left: 220 }}
-        rightActions={
-          <>
-            <SecondaryButton onClick={() => navigate('/purchase/debit-notes')} disabled={saving}>Cancel</SecondaryButton>
-            <PrimaryButton onClick={handleSave} disabled={saving}>{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {saving ? 'Saving...' : 'Save'}</PrimaryButton>
-          </>
-        }
-      />
+    <DocumentEditorShell
+      contentStyle={{ paddingBottom: '16px' }}
+      actionBar={
+        <DocumentActionBar
+          title="Create Debit Note"
+          fixed={{ top: 32, left: 220 }}
+          rightActions={
+            <>
+              <SecondaryButton onClick={() => navigate('/purchase/debit-notes')} disabled={saving}>Cancel</SecondaryButton>
+              <PrimaryButton onClick={handleSave} disabled={saving}>{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} {saving ? 'Saving...' : 'Save'}</PrimaryButton>
+            </>
+          }
+        />
+      }
+    >
+      <HeaderFormGrid columns={3}>
 
-      <div style={{ paddingTop: '84px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: '16px', maxWidth: '1400px', margin: '0 auto' }}>
-        <HeaderFormGrid columns={3}>
-          <HeaderCard icon={<User size={14} style={{ color: '#2563eb' }} />} title="Vendor">
-            <HeaderField label="Vendor" required labelWidth="100px">
-              <select className="form-select" style={sharedStyles.inputStyle} value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
-                <option value="">Select vendor</option>
-                {vendors.map((v: any) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
-              </select>
-            </HeaderField>
-          </HeaderCard>
+      <HeaderCard icon={<User size={14} style={{ color: '#2563eb' }} />} title="Vendor">
+        <HeaderField label="Vendor" required labelWidth="100px">
+          <select className="form-select" style={sharedStyles.inputStyle} value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
+            <option value="">Select vendor</option>
+            {vendors.map((v: any) => <option key={v.id} value={v.id}>{v.company_name}</option>)}
+          </select>
+        </HeaderField>
+      </HeaderCard>
 
-          <HeaderCard icon={<FileText size={14} style={{ color: '#2563eb' }} />} title="Document">
-            <HeaderField label="DN Number" labelWidth="100px"><input type="text" className="form-input" style={{ ...sharedStyles.inputStyle, background: '#f3f4f6' }} value={dnNumber} onChange={(e) => setDnNumber(e.target.value)} placeholder="Auto" /></HeaderField>
-            <HeaderField label="Date" required labelWidth="100px"><CustomDatePicker value={dnDate} onChange={setDnDate} inputStyle={sharedStyles.inputStyle} /></HeaderField>
-            <HeaderField label="Type" labelWidth="100px">
-              <select className="form-select" style={sharedStyles.inputStyle} value={dnType} onChange={(e) => setDnType(e.target.value)}>
-                {['Purchase Return', 'Rate Difference', 'Discount', 'Rejection', 'Other'].map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </HeaderField>
-          </HeaderCard>
+      <HeaderCard icon={<FileText size={14} style={{ color: '#2563eb' }} />} title="Document">
+        <HeaderField label="DN Number" labelWidth="100px"><input type="text" className="form-input" style={{ ...sharedStyles.inputStyle, background: '#f3f4f6' }} value={dnNumber} onChange={(e) => setDnNumber(e.target.value)} placeholder="Auto" /></HeaderField>
+        <HeaderField label="Date" required labelWidth="100px"><CustomDatePicker value={dnDate} onChange={setDnDate} inputStyle={sharedStyles.inputStyle} /></HeaderField>
+        <HeaderField label="Type" labelWidth="100px">
+          <select className="form-select" style={sharedStyles.inputStyle} value={dnType} onChange={(e) => setDnType(e.target.value)}>
+            {['Purchase Return', 'Rate Difference', 'Discount', 'Rejection', 'Other'].map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </HeaderField>
+      </HeaderCard>
 
-          <HeaderCard icon={<Briefcase size={14} style={{ color: '#2563eb' }} />} title="Details">
-            <HeaderField label="Reason" labelWidth="100px"><textarea className="form-input" style={{ ...sharedStyles.inputStyle, minHeight: '36px', resize: 'vertical', fontFamily: 'inherit' }} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for debit note..." /></HeaderField>
-          </HeaderCard>
-        </HeaderFormGrid>
+      <HeaderCard icon={<Briefcase size={14} style={{ color: '#2563eb' }} />} title="Details">
+        <HeaderField label="Reason" labelWidth="100px"><textarea className="form-input" style={{ ...sharedStyles.inputStyle, minHeight: '36px', resize: 'vertical', fontFamily: 'inherit' }} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for debit note..." /></HeaderField>
+      </HeaderCard>
+    </HeaderFormGrid>
 
-        {/* Line Items */}
-        <div className="bg-white rounded-none border border-zinc-200 shadow-sm mb-6 mt-8">
-          <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50">
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#1e3a8a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Line Items</span>
-            <button type="button" onClick={addItem} style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', fontSize: '12px', fontWeight: 500, color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Plus size={13} /> Add Item
-            </button>
-          </div>
+    <DocumentLineItemsSurface
+      title="Line Items"
+      actions={
+        <button type="button" onClick={addItem} style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '4px', background: '#fff', fontSize: '12px', fontWeight: 500, color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Plus size={13} /> Add Item
+        </button>
+      }
+    >
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
@@ -187,13 +192,12 @@ export default function DebitNoteViewV2() {
               </tbody>
             </table>
           </div>
-        </div>
+    </DocumentLineItemsSurface>
 
-        <SummaryFooter
-          rows={[{ label: 'Taxable Amount', value: totals.subtotal }, { label: 'Tax', value: totals.taxTotal }]}
-          grandTotal={{ label: 'Total Amount', amount: totals.grandTotal }}
-        />
-      </div>
-    </div>
+      <SummaryFooter
+        rows={[{ label: 'Taxable Amount', value: totals.subtotal }, { label: 'Tax', value: totals.taxTotal }]}
+        grandTotal={{ label: 'Total Amount', amount: totals.grandTotal }}
+      />
+    </DocumentEditorShell>
   );
 }

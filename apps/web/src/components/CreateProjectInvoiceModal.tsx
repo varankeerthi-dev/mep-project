@@ -8,6 +8,7 @@ import {
   type ProjectInvoice,
   type ProjectPO,
 } from '../hooks/useProjectTransactions';
+import { projectKeys } from '../projects/hooks/useProjectDetails';
 
 type Mode = 'create' | 'edit';
 
@@ -197,6 +198,9 @@ export default function CreateProjectInvoiceModal({
       return data as ProjectInvoice;
     },
     onSuccess: (saved) => {
+      // Canonical live detail-view transaction cache
+      queryClient.invalidateQueries({ queryKey: projectKeys.transactions(projectId) });
+      // Legacy detail view cache
       queryClient.invalidateQueries({ queryKey: projectTransactionKeys.detail(projectId) });
       queryClient.invalidateQueries({ queryKey: ['project-details', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projects', organisation?.id] });

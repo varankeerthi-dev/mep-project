@@ -10,6 +10,8 @@ interface TableHeaderProps<T> {
   sortDesc?: boolean;
   onSort?: (colId: string) => void;
   sortable?: boolean;
+  /** CSS padding shorthand for header cells (density tokens). Defaults to '10px 16px' */
+  headerPadding?: string;
 }
 
 export function TableHeader<T>({
@@ -21,19 +23,19 @@ export function TableHeader<T>({
   sortDesc,
   onSort,
   sortable = false,
+  headerPadding = '10px 16px',
 }: TableHeaderProps<T>) {
   return (
     <thead>
-      <tr style={{ height: '42px', backgroundColor: '#FAFAFA', borderBottom: '1px solid #ECECEC' }}>
+      <tr style={{ height: '38px', backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
         {selectable && (
           <th
             style={{
               width: '40px',
               textAlign: 'center',
-              paddingLeft: '16px',
-              paddingRight: '16px',
+              padding: headerPadding,
               verticalAlign: 'middle',
-              borderBottom: '1px solid #ECECEC',
+              borderBottom: '1px solid #e2e8f0',
             }}
           >
             <input
@@ -60,18 +62,21 @@ export function TableHeader<T>({
               key={col.id || String(col.accessorKey) || idx}
               onClick={() => sortable && onSort && (col.id || col.accessorKey) && onSort(col.id || String(col.accessorKey))}
               style={{
-                paddingLeft: '16px',
-                paddingRight: '16px',
-                fontSize: '12px',
-                fontWeight: 500,
-                letterSpacing: '0.02em',
-                color: '#6B7280',
+                padding: headerPadding,
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                color: '#64748b',
                 textAlign: align,
                 cursor: sortable && (col.id || col.accessorKey) ? 'pointer' : 'default',
                 position: 'relative',
                 verticalAlign: 'middle',
-                borderBottom: '1px solid #ECECEC',
+                borderBottom: '1px solid #e2e8f0',
                 userSelect: 'none',
+                width: col.width ? `${col.width}px` : undefined,
+                minWidth: col.minWidth ? `${col.minWidth}px` : undefined,
+                whiteSpace: 'nowrap',
               }}
               className="th-header-cell"
             >

@@ -33,6 +33,7 @@ export default function ProjectList() {
   const queryClient = useQueryClient();
   const { organisation } = useAuth();
 
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
@@ -43,6 +44,15 @@ export default function ProjectList() {
   const itemsPerPage = 20;
 
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Debounce search input (~300ms) so typing does not fire a DB query per keystroke
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   // Close menu on outside click
   useEffect(() => {
@@ -114,18 +124,28 @@ export default function ProjectList() {
   const currentItems = projects;
 
   const deleteProject = async (id: string) => {
-    const [posRes, invoicesRes, expensesRes, paymentsRes] = await Promise.all([
-      supabase.from('client_purchase_orders').select('id').eq('project_id', id),
-      supabase.from('project_invoices').select('id').eq('project_id', id),
-      supabase.from('project_expenses').select('id').eq('project_id', id),
-      supabase.from('project_payments').select('id').eq('project_id', id),
-    ]);
-    if (
-      (posRes.data?.length ?? 0) > 0 ||
-      (invoicesRes.data?.length ?? 0) > 0 ||
-      (expensesRes.data?.length ?? 0) > 0 ||
-      (paymentsRes.data?.length ?? 0) > 0
-    ) {
+    // Preferred: single server-side existence check via the existing
+    // can_delete_project RPC (same business rule: no POs/invoices/expenses/payments).
+    const { data: canDelete, error: rpcError } = await supabase.rpc('can_delete_project', { p_id: id });
+    if (rpcError) {
+      // Fallback: original per-table existence checks (keeps current behaviour
+      // if the RPC is unavailable).
+      const [posRes, invoicesRes, expensesRes, paymentsRes] = await Promise.all([
+        supabase.from('client_purchase_orders').select('id').eq('project_id', id),
+        supabase.from('project_invoices').select('id').eq('project_id', id),
+        supabase.from('project_expenses').select('id').eq('project_id', id),
+        supabase.from('project_payments').select('id').eq('project_id', id),
+      ]);
+      if (
+        (posRes.data?.length ?? 0) > 0 ||
+        (invoicesRes.data?.length ?? 0) > 0 ||
+        (expensesRes.data?.length ?? 0) > 0 ||
+        (paymentsRes.data?.length ?? 0) > 0
+      ) {
+        alert('Cannot delete project: Related records exist');
+        return;
+      }
+    } else if (canDelete === false) {
       alert('Cannot delete project: Related records exist');
       return;
     }
@@ -204,8 +224,8 @@ export default function ProjectList() {
             <input
               type="text"
               placeholder="Search projects..."
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>

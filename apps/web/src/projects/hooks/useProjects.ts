@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { Project } from '../types';
 import { projectKeys } from './useProjectDetails';
@@ -32,7 +32,14 @@ export function useProjects(options: {
         query = query.eq('status', status);
       }
       if (search) {
-        query = query.or(`project_name.ilike.%${search}%,project_code.ilike.%${search}%`);
+        // Sanitize the value for the PostgREST or() expression: characters such
+        // as "," "(" ")" quotes or backslashes would otherwise break or alter
+        // the filter. Removed characters are replaced with a space so the rest
+        // of the term still matches. ilike wildcard semantics (%, _) unchanged.
+        const safe = search.replace(/[,"\\()]/g, ' ').trim();
+        if (safe) {
+          query = query.or(`project_name.ilike.%${safe}%,project_code.ilike.%${safe}%`);
+        }
       }
 
       const { data, error, count } = await query
@@ -48,27 +55,39 @@ export function useProjects(options: {
     enabled: !!organisationId,
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
   });
 }
 
-// Lightweight custom hook to query project status stats for stats badges
+// Lightweight custom hook to query project status stats for stats badges.
+// Uses head-only COUNT queries (no row payload) instead of downloading every
+// project row and counting in the browser.
 export function useProjectStats(organisationId: string) {
   return useQuery({
     queryKey: projectKeys.list({ organisationId, type: 'stats' }),
     queryFn: async () => {
       if (!organisationId) return {} as Record<string, number>;
-      const { data, error } = await supabase
-        .from('projects')
-        .select('status')
-        .eq('organisation_id', organisationId);
+      const statuses = ['Active', 'Draft', 'Execution Completed', 'Financially Closed', 'Closed', 'Archived'];
 
-      if (error) throw error;
+      const countFor = async (status?: string) => {
+        let q = supabase
+          .from('projects')
+          .select('id', { count: 'exact', head: true })
+          .eq('organisation_id', organisationId);
+        if (status) q = q.eq('status', status);
+        const { count, error } = await q;
+        if (error) throw error;
+        return count ?? 0;
+      };
 
-      const counts: Record<string, number> = { All: data.length };
-      data.forEach(p => {
-        if (p.status) {
-          counts[p.status] = (counts[p.status] || 0) + 1;
-        }
+      const [all, ...statusCounts] = await Promise.all([
+        countFor(),
+        ...statuses.map(s => countFor(s)),
+      ]);
+
+      const counts: Record<string, number> = { All: all };
+      statuses.forEach((s, i) => {
+        counts[s] = statusCounts[i];
       });
       return counts;
     },

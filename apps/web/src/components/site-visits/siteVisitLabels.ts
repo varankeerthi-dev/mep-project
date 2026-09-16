@@ -1,0 +1,233 @@
+// ── Site Visits UI copy + design tokens ─────────────────────────────────────────
+// Single source of truth for every user-facing string in the Site Visits
+// table, toolbar, drawer and footer. No component in the module should contain
+// hardcoded UI copy — import LABELS instead.
+
+export const SITE_VISIT_LABELS = {
+  page: {
+    title: 'Site Visits',
+    newVisit: 'New Site Visit',
+  },
+  metrics: {
+    total: 'Total',
+    scheduled: 'Scheduled',
+    inProgress: 'In Progress',
+    criticalPending: 'Critical Pending',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+    activityLog: 'Activity Log',
+    quickUpdate: 'Site Visit Update',
+  },
+  toolbar: {
+    allVisits: 'All Visits',
+    calendar: 'Calendar',
+    updates: 'Updates',
+    searchPlaceholder: 'Search visits…',
+    searchShortcutHint: '⌘K',
+    allStatuses: 'All Status',
+    densityCompact: 'Compact',
+    densityDefault: 'Default',
+    densityExpanded: 'Expanded',
+    clearFilter: 'Clear',
+  },
+  table: {
+    headers: {
+      visitId: 'Visit ID',
+      purpose: 'Primary Purpose & Sub-Context',
+      client: 'Client Organization',
+      location: 'Facility / Location',
+      scheduledTime: 'Scheduled Time',
+      status: 'Status',
+      assignedTo: 'Assigned To',
+    },
+    emptyTitle: 'No site visits found',
+    emptySubtitle: 'Try adjusting your search or filters, or schedule a new visit.',
+    emptyAction: 'Schedule Visit',
+    followUpPrefix: 'Follow-up',
+    unassigned: 'Unassigned',
+    missingValue: '--',
+  },
+  status: {
+    scheduled: 'Scheduled',
+    in_progress: 'In Progress',
+    pending: 'Pending',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+    postponed: 'Postponed',
+  },
+  actions: {
+    inspect: 'Inspect',
+    viewDetails: 'View details',
+    editVisit: 'Edit visit',
+    downloadPdf: 'Download PDF',
+    delete: 'Delete',
+    moreOptions: 'More options',
+    close: 'Close',
+    openFullView: 'Open in full view',
+    previous: 'Previous',
+    next: 'Next',
+    showing: 'Showing',
+    of: 'of',
+    visits: 'visits',
+    selected: 'selected',
+  },
+  drawer: {
+    title: 'Site Visit Details',
+    narrativeFallback: 'No visit notes recorded.',
+    followUpIn: 'Follow-up',
+    params: {
+      title: 'Visit Parameters',
+      client: 'Client Account',
+      location: 'Location Node',
+      asset: 'Asset / Equipment',
+      dispatched: 'Dispatched At',
+    },
+    specialist: {
+      title: 'Dispatched Field Specialist',
+      roleFallback: 'Field Engineer',
+      reassign: 'Edit Assignment',
+    },
+    checklist: {
+      title: 'Safety Action Checklist',
+      doneSuffix: 'Done',
+      empty: 'No checklist items for this visit type.',
+    },
+    footer: {
+      resolve: 'Mark Resolved',
+      edit: 'Edit Record',
+    },
+    sections: {
+      scheduling: 'Scheduling & Site Details',
+      operations: 'Site Operations & Reports',
+      expenses: 'Expenses',
+      geo: 'Location & Geotag Verification',
+      checklist: 'Checklist Responses',
+      jms: 'Joint Measurement Sheet',
+      tc: 'T&C Protocols',
+      activity: 'Activity Log',
+    },
+    fields: {
+      client: 'Client',
+      fromLead: 'From Lead',
+      visitDateTime: 'Visit Date & Time',
+      meetingType: 'Meeting Type',
+      siteVisit: 'Site Visit',
+      clientMeeting: 'Client Meeting',
+      relatedProject: 'Related Project',
+      assignedTo: 'Visited By / Engineer',
+      purposeOfVisit: 'Purpose of Visit',
+      status: 'Status',
+      projectManager: 'Project Manager',
+      visitType: 'Visit Type',
+      priority: 'Priority',
+      poWoContract: 'PO / WO / Contract',
+      isChargeable: 'Is Chargeable',
+      ppeRequirements: 'PPE Requirements',
+      accessRestrictions: 'Access Restrictions',
+      siteContact: 'Site Contact Info',
+      siteAddress: 'Site Address',
+      outTime: 'Out Time',
+      weather: 'Weather Conditions',
+      travelTime: 'Travel Time',
+      manHours: 'Total Man Hours',
+      equipment: 'Equipment / Tools Used',
+      hazards: 'Safety Hazards Identified',
+      discussion: 'Discussion Points / MoM',
+      measurements: 'Measurements / Dimensions',
+      recommendations: 'Recommendations',
+      travelExpense: 'Travel Expense',
+      accommodationExpense: 'Accommodation Expense',
+      miscExpense: 'Misc Expense',
+      totalExpense: 'Total Expense',
+      checkInStatus: 'Check In Status',
+      checkOutStatus: 'Check Out Status',
+      checkedIn: 'Checked In',
+      checkedOut: 'Checked Out',
+      coordinates: 'Coordinates',
+      locationDenied: 'Location Denied',
+      checkIn: 'Check In (Start Visit)',
+    },
+    values: {
+      yes: 'Yes',
+      no: 'No',
+      none: 'None',
+      notAvailable: 'N/A',
+      missingValue: '--',
+      noPhone: 'No phone',
+      contactFallback: 'Contact',
+      directNone: 'Direct / None',
+      minutes: 'mins',
+      hours: 'hrs',
+      googleCalendar: 'Google Cal',
+      downloadIcs: 'ICS File',
+      clientSignoff: 'Client Sign-off',
+      clientSignature: 'Client Signature',
+      noGps: 'No GPS Coordinates captured',
+      checkOut: 'Check Out (Sign-off)',
+      checkInFirst: 'Please check in first.',
+      noActivity: 'No activity recorded yet.',
+      zeroAmount: '₹ 0.00',
+      loading: 'Loading...',
+      subcontractor: 'Subcontractor',
+      itemDescription: 'Item Description',
+      unit: 'Unit',
+      agreedQty: 'Agreed Qty',
+      rate: 'Rate',
+      amount: 'Amount',
+      totalJmsAmount: 'Total JMS Amount',
+      equipmentName: 'Equipment',
+      protocolType: 'Protocol Type',
+      witness: 'Witness Representative',
+      linkedEquipment: 'Linked Equipment',
+      witnessNone: 'None / N/A',
+      parameterName: 'Parameter Name',
+      requiredValue: 'Required Value',
+      actualValue: 'Actual Value',
+      readingStatus: 'Status',
+    },
+  },
+  footer: {
+    itemSelected: 'item selected',
+    itemsSelected: 'items selected',
+    navigateHint: 'Navigate',
+    inspectHint: 'Inspect',
+    selectHint: 'Select',
+    closeHint: 'Close',
+  },
+  drawerFooter: {
+    close: 'Close',
+    downloadPdf: 'Download PDF',
+    editDetails: 'Edit Details',
+  },
+} as const;
+
+// ── Status → palette (reference design system §2) ─────────────────────────────
+export type VisitStatusTone = 'blue' | 'amber' | 'red' | 'emerald' | 'slate';
+
+export const VISIT_STATUS_PALETTE: Record<string, { dot: string; text: string; bg: string; tone: VisitStatusTone }> = {
+  scheduled: { dot: '#3b82f6', text: '#1d4ed8', bg: '#eff6ff', tone: 'blue' },
+  in_progress: { dot: '#f59e0b', text: '#b45309', bg: '#fef3c7', tone: 'amber' },
+  pending: { dot: '#ef4444', text: '#b91c1c', bg: '#fef2f2', tone: 'red' },
+  completed: { dot: '#10b981', text: '#047857', bg: '#ecfdf5', tone: 'emerald' },
+  cancelled: { dot: '#ef4444', text: '#b91c1c', bg: '#fef2f2', tone: 'red' },
+  postponed: { dot: '#f59e0b', text: '#b45309', bg: '#fef3c7', tone: 'amber' },
+};
+
+export const FALLBACK_STATUS = { dot: '#64748b', text: '#475569', bg: '#f1f5f9', tone: 'slate' as VisitStatusTone };
+
+// ── Density tokens (reference design system §3) ───────────────────────────────
+export type VisitTableDensity = 'compact' | 'default' | 'expanded';
+
+export const VISIT_DENSITY: Record<
+  VisitTableDensity,
+  { rowMinHeight: number; cellPy: string; cellPx: string; rowClass: string }
+> = {
+  compact: { rowMinHeight: 38, cellPy: 'py-2', cellPx: 'px-3', rowClass: 'compact' },
+  default: { rowMinHeight: 46, cellPy: 'py-3', cellPx: 'px-3.5', rowClass: 'default' },
+  expanded: { rowMinHeight: 60, cellPy: 'py-4', cellPx: 'px-4', rowClass: 'expanded' },
+};
+
+// ── Short visit token, e.g. SV-F25D0E ─────────────────────────────────────────
+export function visitToken(id?: string | null): string {
+  return `SV-${(id ?? '').slice(0, 6).toUpperCase() || '------'}`;
+}

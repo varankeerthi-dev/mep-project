@@ -14,7 +14,7 @@ import { createProforma, updateProforma, getProformaById, sendProforma, markAcce
 import type { ProformaStatus } from '../types';
 import type { ProformaInput, ProformaItem } from '../schemas';
 import { FileText, Download, Trash2, Plus, ArrowLeft, Save, Send, CheckCircle, FileCheck, Loader2, Briefcase, User, Info, RotateCcw, ArrowUpDown, Columns } from 'lucide-react';
-import { CustomDatePicker, DocumentActionBar, HeaderFormGrid, HeaderCard, HeaderField, PrimaryButton, SecondaryButton, ImportButton } from '../../components/document-editor';
+import { CustomDatePicker, DocumentActionBar, DocumentEditorShell, HeaderFormGrid, HeaderCard, HeaderField, PrimaryButton, SecondaryButton, ImportButton } from '../../components/document-editor';
 import ItemSelectorDrawer from '../../components/ItemSelectorDrawer';
 import ItemCreateDrawer from '../../components/ItemCreateDrawer';
 import { useClientPOs } from '../hooks';
@@ -1556,28 +1556,33 @@ export default function ProformaEditorPage() {
   }
 
   return (
-    <div>
-      <DocumentActionBar
-        title={isNew ? 'Create Proforma' : 'Edit Proforma'}
-        fixed={{ top: 32, left: 220 }}
-        rightActions={
-          <>
-            <ImportButton onClick={() => setIsParserOpen(true)} />
-            <SecondaryButton onClick={() => navigate('/proforma-invoices')}>Cancel</SecondaryButton>
-            <SecondaryButton onClick={() => handleSave(false)} disabled={saving || !clientId}>
-              {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
-              Save as Draft
-            </SecondaryButton>
-            <PrimaryButton onClick={() => handleSave(true)} disabled={saving || !clientId}>
-              {saving ? <Loader2 className="animate-spin" size={14} /> : <FileCheck size={14} />}
-              Save & Print
-            </PrimaryButton>
-          </>
-        }
-      />
+    <DocumentEditorShell
+      maxWidth="none"
+      contentStyle={{ paddingTop: '100px', paddingBottom: '16px' }}
+      actionBar={
+        <DocumentActionBar
+          title={isNew ? 'Create Proforma' : 'Edit Proforma'}
+          fixed={{ top: 32, left: 220 }}
+          rightActions={
+            <>
+              <ImportButton onClick={() => setIsParserOpen(true)} />
+              <SecondaryButton onClick={() => navigate('/proforma-invoices')}>Cancel</SecondaryButton>
+              <SecondaryButton onClick={() => handleSave(false)} disabled={saving || !clientId}>
+                {saving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                Save as Draft
+              </SecondaryButton>
+              <PrimaryButton onClick={() => handleSave(true)} disabled={saving || !clientId}>
+                {saving ? <Loader2 className="animate-spin" size={14} /> : <FileCheck size={14} />}
+                Save & Print
+              </PrimaryButton>
+            </>
+          }
+        />
+      }
+    >
 
       {/* Main page layout (paddingTop offsets the fixed action bar at top:32 + ~68px height = 100px) */}
-      <div style={{ background: '#f8fafc', padding: '100px 16px 16px', minHeight: 'calc(100vh - 64px)' }}>
+      <div>
         {activeImportSessionId && (
           <div className="bg-indigo-900/40 border border-indigo-800/60 text-indigo-200 px-6 py-3 rounded-lg flex items-center justify-between text-xs font-semibold mb-4 animate-in slide-in-from-top">
             <div className="flex items-center gap-2">
@@ -2524,6 +2529,6 @@ export default function ProformaEditorPage() {
         currentTotal={totals?.total || 0}
         documentNumber={proformaNumber || 'PRO-0001'}
       />
-    </div>
+    </DocumentEditorShell>
   );
 }

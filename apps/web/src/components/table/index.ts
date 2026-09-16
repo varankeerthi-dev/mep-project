@@ -1,5 +1,5 @@
 export { Table } from './Table';
-export type { DataTableProps, ColumnDef } from './Table';
+export type { DataTableProps, ColumnDef, TableDensity } from './Table';
 export { StatusBadge } from './StatusBadge';
 export type { StatusType } from './StatusBadge';
 export { TableToolbar } from './TableToolbar';
