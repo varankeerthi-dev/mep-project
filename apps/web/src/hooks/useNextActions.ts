@@ -372,8 +372,8 @@ export function useNextActions() {
     const items: NextActionItem[] = [];
 
     try {
-      // Fetch recently resolved or noted communications
-      const [q1, q2] = await Promise.all([
+      // Fetch recently resolved/noted communications AND site visits concurrently
+      const [q1, q2, v1, v2] = await Promise.all([
         supabase
           .from('client_communication')
           .select('id, next_action, subject, call_brief, follow_up_date, created_at, status, party_type, call_category, call_regarding, client_id, call_entered_by, call_received_by, assigned_to, next_action_acknowledged_by, is_resolved, client:clients!client_communication_client_id_fkey(client_name), replies:client_communication!parent_communication_id(id, call_brief, created_at, call_entered_by)')
@@ -387,7 +387,21 @@ export function useNextActions() {
           .eq('organisation_id', orgId)
           .contains('next_action_acknowledged_by', [userEmail])
           .order('created_at', { ascending: false })
-          .limit(20)
+          .limit(20),
+        supabase
+          .from('site_visits')
+          .select('id, organisation_id, status, visit_date, next_step, purpose, visited_by, engineer, project_manager_id, created_by, created_at, next_action_acknowledged_by, clients(client_name), projects(project_name)')
+          .eq('organisation_id', orgId)
+          .in('status', ['completed', 'cancelled'])
+          .order('visit_date', { ascending: false })
+          .limit(10),
+        supabase
+          .from('site_visits')
+          .select('id, organisation_id, status, visit_date, next_step, purpose, visited_by, engineer, project_manager_id, created_by, created_at, next_action_acknowledged_by, clients(client_name), projects(project_name)')
+          .eq('organisation_id', orgId)
+          .contains('next_action_acknowledged_by', [userEmail])
+          .order('visit_date', { ascending: false })
+          .limit(10)
       ]);
 
       const commsMap = new Map<string, any>();
@@ -414,28 +428,6 @@ export function useNextActions() {
           });
         });
       }
-    } catch (e) {
-      console.error('Error fetching history comms:', e);
-    }
-
-    try {
-      // Fetch recently noted site visits
-      const [v1, v2] = await Promise.all([
-        supabase
-          .from('site_visits')
-          .select('id, organisation_id, status, visit_date, next_step, purpose, visited_by, engineer, project_manager_id, created_by, created_at, next_action_acknowledged_by, clients(client_name), projects(project_name)')
-          .eq('organisation_id', orgId)
-          .in('status', ['completed', 'cancelled'])
-          .order('visit_date', { ascending: false })
-          .limit(10),
-        supabase
-          .from('site_visits')
-          .select('id, organisation_id, status, visit_date, next_step, purpose, visited_by, engineer, project_manager_id, created_by, created_at, next_action_acknowledged_by, clients(client_name), projects(project_name)')
-          .eq('organisation_id', orgId)
-          .contains('next_action_acknowledged_by', [userEmail])
-          .order('visit_date', { ascending: false })
-          .limit(10)
-      ]);
 
       const visitsMap = new Map<string, any>();
       if (v1.data) v1.data.forEach(item => visitsMap.set(item.id, item));
@@ -459,7 +451,7 @@ export function useNextActions() {
         });
       }
     } catch (e) {
-      console.error('Error fetching history visits:', e);
+      console.error('Error fetching history items:', e);
     }
 
     // Sort items by creation date descending (recent one on the top)
