@@ -1240,7 +1240,7 @@ export const usePaymentsForApproval = (organisationId: string | undefined) => {
       if (!organisationId) return [];
       const { data, error } = await supabase
         .from('purchase_payments')
-        .select('*, vendor:purchase_vendors(company_name)')
+        .select('id, organisation_id, voucher_no, vendor_id, payment_date, payment_mode, amount, status, created_by, created_at, workflow_step, is_deleted, reference_no, amount_approved, vendor:purchase_vendors(company_name)')
         .eq('organisation_id', organisationId)
         .eq('workflow_step', 'pending_approval')
         .eq('is_deleted', false)

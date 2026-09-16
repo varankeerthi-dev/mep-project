@@ -503,8 +503,8 @@ const Approvals: React.FC = () => {
     let cancelled = false;
     (async () => {
       const base = refType === 'purchase_payments'
-        ? supabase.from('purchase_payments').select('*, vendor:purchase_vendors(company_name)').eq('id', refId).maybeSingle()
-        : supabase.from('subcontractor_payments').select('*, subcontractor:subcontractors(company_name)').eq('id', refId).maybeSingle();
+        ? supabase.from('purchase_payments').select('id, organisation_id, payment_mode, reference_no, narration, amount, status, payment_date, vendor:purchase_vendors(company_name)').eq('id', refId).maybeSingle()
+        : supabase.from('subcontractor_payments').select('id, organisation_id, payment_mode, reference_no, description, amount, approval_status, payment_date, subcontractor:subcontractors(company_name)').eq('id', refId).maybeSingle();
 
       const links = supabase
         .from('purchase_payment_bills')
