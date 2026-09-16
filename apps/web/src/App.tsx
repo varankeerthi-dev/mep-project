@@ -903,6 +903,7 @@ export default function App() {
 
     try {
       if (resolvedUser) {
+        refreshMembershipsGateRef.current = Date.now();
         setUser(resolvedUser);
 
         let { data: orgs } = await getUserOrganisations(resolvedUser.id);
@@ -926,6 +927,7 @@ export default function App() {
         }
 
         setOrganisations(orgs || []);
+        refreshMembershipsGateRef.current = Date.now();
 
         if (orgs && orgs.length > 0) {
           setOrganisation(orgs[0].organisation as Organisation);
@@ -1025,7 +1027,7 @@ export default function App() {
   useEffect(() => {
     if (!user?.id) return;
     const now = Date.now();
-    if (now - refreshMembershipsGateRef.current < 500) return;
+    if (now - refreshMembershipsGateRef.current < 3000) return;
     refreshMembershipsGateRef.current = now;
     refreshMemberships();
   }, [user?.id]);
