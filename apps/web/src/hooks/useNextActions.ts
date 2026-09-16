@@ -56,7 +56,7 @@ export function useNextActions() {
     // 3. Submitted Site Reports
     let reportsQuery = supabase
       .from('site_reports')
-      .select('id, organisation_id, pm_status, report_date, work_plan_next_day, created_by, created_at, next_action_acknowledged_by, projects(project_name)')
+      .select('id, organisation_id, pm_status, report_date, work_plan_next_day, created_at, next_action_acknowledged_by, projects(project_name)')
       .eq('organisation_id', orgId)
       .neq('pm_status', 'Draft');
 
@@ -98,7 +98,7 @@ export function useNextActions() {
     // 8. Active Leads
     let leadsQuery = supabase
       .from('leads')
-      .select('id, organisation_id, status, owner_user_id, contact_name, company_name, requirement_summary, owner_name, next_action_at, next_action_label, created_at, next_action_acknowledged_by')
+      .select('id, organisation_id, status, owner_user_id, contact_name, company_name, requirement_summary, next_action_at, next_action_label, created_at, next_action_acknowledged_by')
       .eq('organisation_id', orgId)
       .not('status', 'in', '("converted","lost")');
 
