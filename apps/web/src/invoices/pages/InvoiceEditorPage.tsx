@@ -34,7 +34,6 @@ import { updatePoLineItemBilling, extractInvoicePoItems } from '../../lib/poBill
 import QuotationLineItemsSelector from '../components/QuotationLineItemsSelector';
 import ProformaLineItemsSelector from '../components/ProformaLineItemsSelector';
 import { useCreateInvoice, useInvoice, useInvoiceTemplates, useUpdateInvoice } from '../hooks';
-import { downloadInvoicePDF, emailInvoicePDF, previewInvoicePDF, printInvoicePDF } from '../pdf';
 import type { InvoiceEditorFormValues, InvoiceClientOption, InvoiceMaterialOption, ClientShippingAddress } from '../ui-utils';
 import { useWarehouses } from '@/hooks/useWarehouses';
 import { useVariants } from '@/hooks/useVariants';
@@ -281,6 +280,17 @@ export default function InvoiceEditorPage() {
   const duplicateFrom = queryParam(location.search, 'from');
   const isDuplicating = Boolean(duplicateFrom && !isEditMode);
   const [pdfAction, setPdfAction] = useState<'preview' | 'download' | 'print' | 'email' | null>(null);
+
+  const prefetchInvoicePdf = useCallback(() => {
+    import('../pdf');
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      prefetchInvoicePdf();
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [prefetchInvoicePdf]);
   const [isShippingAddressModalOpen, setIsShippingAddressModalOpen] = useState(false);
   const [isPOSelectorOpen, setIsPOSelectorOpen] = useState(false);
   const [selectedPOLineItems, setSelectedPOLineItems] = useState<any[]>([]);
@@ -1444,6 +1454,7 @@ export default function InvoiceEditorPage() {
 
     setPdfAction('preview');
     try {
+      const { previewInvoicePDF } = await import('../pdf');
       await previewInvoicePDF(invoiceId);
     } catch (error) {
       console.error('Failed to preview PDF:', error);
@@ -1461,6 +1472,7 @@ export default function InvoiceEditorPage() {
 
     setPdfAction('download');
     try {
+      const { downloadInvoicePDF } = await import('../pdf');
       await downloadInvoicePDF(invoiceId);
     } catch (error) {
       console.error('Failed to download PDF:', error);
@@ -1478,6 +1490,7 @@ export default function InvoiceEditorPage() {
 
     setPdfAction('print');
     try {
+      const { printInvoicePDF } = await import('../pdf');
       await printInvoicePDF(invoiceId);
     } catch (error) {
       console.error('Failed to print PDF:', error);
@@ -1562,7 +1575,11 @@ export default function InvoiceEditorPage() {
 
     setPdfAction('email');
     try {
+      const { emailInvoicePDF } = await import('../pdf');
       await emailInvoicePDF(invoiceId);
+    } catch (error) {
+      console.error('Failed to email PDF:', error);
+      alert('Failed to email PDF: ' + (error as Error).message);
     } finally {
       setPdfAction(null);
     }
@@ -1602,16 +1619,52 @@ export default function InvoiceEditorPage() {
         }
         rightActions={
           <>
-            <Button variant="outline" size="icon-xs" type="button" onClick={handlePreviewPdf} disabled={!isEditMode || pdfAction !== null} title="Preview PDF">
+            <Button
+              variant="outline"
+              size="icon-xs"
+              type="button"
+              onMouseEnter={prefetchInvoicePdf}
+              onFocus={prefetchInvoicePdf}
+              onClick={handlePreviewPdf}
+              disabled={!isEditMode || pdfAction !== null}
+              title={pdfAction === 'preview' ? 'Preparing PDF...' : 'Preview PDF'}
+            >
               {pdfAction === 'preview' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Eye size={14} />}
             </Button>
-            <Button variant="outline" size="icon-xs" type="button" onClick={handleDownloadPdf} disabled={!isEditMode || pdfAction !== null} title="Download PDF">
+            <Button
+              variant="outline"
+              size="icon-xs"
+              type="button"
+              onMouseEnter={prefetchInvoicePdf}
+              onFocus={prefetchInvoicePdf}
+              onClick={handleDownloadPdf}
+              disabled={!isEditMode || pdfAction !== null}
+              title={pdfAction === 'download' ? 'Preparing PDF...' : 'Download PDF'}
+            >
               {pdfAction === 'download' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Download size={14} />}
             </Button>
-            <Button variant="outline" size="icon-xs" type="button" onClick={handlePrintPdf} disabled={!isEditMode || pdfAction !== null} title="Print">
+            <Button
+              variant="outline"
+              size="icon-xs"
+              type="button"
+              onMouseEnter={prefetchInvoicePdf}
+              onFocus={prefetchInvoicePdf}
+              onClick={handlePrintPdf}
+              disabled={!isEditMode || pdfAction !== null}
+              title={pdfAction === 'print' ? 'Preparing PDF...' : 'Print'}
+            >
               {pdfAction === 'print' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Printer size={14} />}
             </Button>
-            <Button variant="outline" size="icon-xs" type="button" onClick={handleEmailPdf} disabled={!isEditMode || pdfAction !== null} title="Email">
+            <Button
+              variant="outline"
+              size="icon-xs"
+              type="button"
+              onMouseEnter={prefetchInvoicePdf}
+              onFocus={prefetchInvoicePdf}
+              onClick={handleEmailPdf}
+              disabled={!isEditMode || pdfAction !== null}
+              title={pdfAction === 'email' ? 'Preparing PDF...' : 'Email'}
+            >
               {pdfAction === 'email' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Mail size={14} />}
             </Button>
             <Button variant="secondary" size="sm" type="button" onClick={() => navigate('/invoices')}>Cancel</Button>

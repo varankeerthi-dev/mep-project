@@ -10,17 +10,8 @@ import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { ApprovalAPI } from '../approvals/api';
 import { initiateQuotationRevision } from '../lib/quotation-workflow';
 import { duplicateQuotation } from '../api';
-import { jsPDF } from 'jspdf';
-import { PDFDocument } from 'pdf-lib';
-import { generateQuotationTally } from './QuotationTallyTemplate';
-import { generateProfessionalTemplate } from './ProfessionalTemplate';
-import { generateZohoTemplate } from './ZohoTemplate';
-import { renderTemplateToPdf } from '../utils/htmlTemplateRenderer';
-import { generateClassicQuotationTemplate } from './ClassicQuotationTemplate';
-import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
-import { generateSakthiPdf } from '../pdf/sakthiTemplatePdf';
-import { generateGridMinimalQuotationPdfBlobWithTerms } from '../pdf/grid-minimal/quotation-with-terms';
 import {
+
   Search as SearchIcon,
   Plus as PlusIcon,
   Download as DownloadIcon,
@@ -263,24 +254,31 @@ export default function QuotationList() {
 
       if (!template) return null;
 
-      let doc: jsPDF | null = null;
+      let doc: any = null;
 
       if (template.template_code === 'QTN_TALLY') {
+        const { generateQuotationTally } = await import('./QuotationTallyTemplate');
         doc = generateQuotationTally(quotation, org, template);
       } else if (template.template_code === 'QTN_PROFESSIONAL') {
+        const { generateProfessionalTemplate } = await import('./ProfessionalTemplate');
         doc = generateProfessionalTemplate(quotation, org, template);
       } else if (template.template_code === 'QTN_ZOHO') {
+        const { generateZohoTemplate } = await import('./ZohoTemplate');
         doc = generateZohoTemplate(quotation, org, template);
       } else if (template.template_code === 'QTN_CLASSIC') {
+        const { generateClassicQuotationTemplate } = await import('./ClassicQuotationTemplate');
         const quotationWithTerms = { ...quotation, terms_conditions: termsConditions?.custom_content || null };
         doc = generateClassicQuotationTemplate(quotationWithTerms, org, template);
       } else if (template.template_code === 'QTN_GRID_PRO') {
+        const { generateProGridQuotationPdf } = await import('../pdf/proGridQuotationPdf');
         const quotationWithTerms = { ...quotation, terms_conditions: termsConditions?.custom_content || null };
         doc = generateProGridQuotationPdf(quotationWithTerms, org, template);
       } else if (template.column_settings?.print?.style === 'sakthi' || template.template_code === 'QTN_SAKTHI') {
+        const { generateSakthiPdf } = await import('../pdf/sakthiTemplatePdf');
         const quotationWithTerms = { ...quotation, terms_conditions: termsConditions?.custom_content || null };
         doc = await generateSakthiPdf(quotationWithTerms, org, 'Quotation', template);
       } else {
+        const { jsPDF } = await import('jspdf');
         doc = new jsPDF();
         doc.setFontSize(16);
         doc.text('Quotation', 10, 10);
@@ -307,6 +305,7 @@ export default function QuotationList() {
     if (!confirm(confirmMessage)) return;
 
     try {
+      const { PDFDocument } = await import('pdf-lib');
       const mergedPdf = await PDFDocument.create();
       const ids = Array.from(selectedIds);
       let successCount = 0;

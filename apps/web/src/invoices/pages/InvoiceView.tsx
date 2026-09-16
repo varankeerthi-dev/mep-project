@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../supabase';
@@ -6,7 +6,6 @@ import { useAuth } from '../../App';
 import { useInvoices, useInvoiceTemplates } from '../hooks';
 import { useInvoicePayments } from '../../ledger/hooks';
 import { formatDate, formatCurrency } from '../ui-utils';
-import { downloadInvoicePDF, printInvoicePDF, getInvoicePdfBlobUrl } from '../pdf';
 import type { InvoiceTemplateRecord } from '../api';
 import {
   Printer,
@@ -68,6 +67,17 @@ export default function InvoiceView() {
 
   const printMenuRef = useRef<HTMLDivElement>(null);
 
+  const prefetchInvoicePdf = useCallback(() => {
+    import('../pdf');
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      prefetchInvoicePdf();
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [prefetchInvoicePdf]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (printMenuRef.current && !printMenuRef.current.contains(event.target as Node)) {
@@ -113,12 +123,15 @@ export default function InvoiceView() {
     try {
       const selectedTemplate = selectedTemplateId ? templates.find((t) => t.id === selectedTemplateId) ?? null : null;
       if (action === 'preview') {
+        const { getInvoicePdfBlobUrl } = await import('../pdf');
         const url = await getInvoicePdfBlobUrl(selectedInvoice, { template: selectedTemplate });
         setPreviewPdfUrl(url);
         setPreviewModalOpen(true);
       } else if (action === 'download') {
+        const { downloadInvoicePDF } = await import('../pdf');
         await downloadInvoicePDF(selectedInvoice, { template: selectedTemplate });
       } else if (action === 'print') {
+        const { printInvoicePDF } = await import('../pdf');
         await printInvoicePDF(selectedInvoice, { template: selectedTemplate });
       }
     } finally {
@@ -970,6 +983,7 @@ export default function InvoiceView() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Button variant="default" size="sm" type="button" onClick={async () => {
                     if (selectedInvoice?.id) {
+                      const { downloadInvoicePDF } = await import('../pdf');
                       const selTpl = selectedTemplateId ? templates.find((t) => t.id === selectedTemplateId) ?? null : null;
                       await downloadInvoicePDF(selectedInvoice, { template: selTpl });
                     }
@@ -987,7 +1001,11 @@ export default function InvoiceView() {
                     fontWeight: 500,
                     cursor: 'pointer',
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#f3f4f6';
+                    prefetchInvoicePdf();
+                  }}
+                  onFocus={prefetchInvoicePdf}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
                   <Download size={14} />
@@ -995,6 +1013,7 @@ export default function InvoiceView() {
                 </Button>
                 <Button variant="default" size="sm" type="button" onClick={async () => {
                     if (selectedInvoice?.id) {
+                      const { printInvoicePDF } = await import('../pdf');
                       const selTpl = selectedTemplateId ? templates.find((t) => t.id === selectedTemplateId) ?? null : null;
                       await printInvoicePDF(selectedInvoice, { template: selTpl });
                     }
@@ -1012,7 +1031,11 @@ export default function InvoiceView() {
                     fontWeight: 500,
                     cursor: 'pointer',
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#f3f4f6';
+                    prefetchInvoicePdf();
+                  }}
+                  onFocus={prefetchInvoicePdf}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
                   <Printer size={14} />

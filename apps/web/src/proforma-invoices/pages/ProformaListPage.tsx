@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../supabase';
@@ -23,9 +23,7 @@ import {
   FileCheck as FileCheckIcon
 } from 'lucide-react';
 import { useProformaInvoices, useCloneProforma, useSendProforma, useMarkAccepted, useMarkRejected, useDeleteProforma } from '../hooks';
-import { downloadProformaPdf, emailProformaInvoice } from '../pdf';
 import { DocumentStatusBadge } from '../../components/DocumentStatusBadge';
-import { PDFDocument } from 'pdf-lib';
 import ProformaTemplateSelector from '../components/ProformaTemplateSelector';
 import { Button } from '@/components/ui/button';
 
@@ -76,6 +74,18 @@ export default function ProformaListPage() {
   const columnCustomizerRef = useRef<HTMLDivElement>(null);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const prefetchProformaPdf = useCallback(() => {
+    import('../pdf');
+    import('pdf-lib');
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      prefetchProformaPdf();
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [prefetchProformaPdf]);
 
   // Mutations
   const { mutate: cloneMutate } = useCloneProforma();
@@ -267,6 +277,7 @@ export default function ProformaListPage() {
     if (!confirm(`Generate a single document for ${selectedIds.size} selected proforma(s)?`)) return;
 
     try {
+      const { PDFDocument } = await import('pdf-lib');
       const mergedPdf = await PDFDocument.create();
       const ids = Array.from(selectedIds);
       let successCount = 0;
@@ -312,7 +323,13 @@ export default function ProformaListPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button variant="secondary" size="sm" onClick={handleBulkPrint} >
+              <Button
+                variant="secondary"
+                size="sm"
+                onMouseEnter={prefetchProformaPdf}
+                onFocus={prefetchProformaPdf}
+                onClick={handleBulkPrint}
+              >
                 <PrinterIcon className="w-3.5 h-3.5" />
                 Print Selected
               </Button>
@@ -615,6 +632,7 @@ export default function ProformaListPage() {
             console.error('Template not found:', templateId);
             return;
           }
+          const { downloadProformaPdf } = await import('../pdf');
           const proformaId = downloadForProformaId;
           if (proformaId) {
             const proforma = proformas.find(p => p.id === proformaId);
@@ -644,6 +662,7 @@ export default function ProformaListPage() {
           if (!fullTemplate) return;
           const firstProforma = filteredProformas[0];
           if (firstProforma) {
+            const { downloadProformaPdf } = await import('../pdf');
             await downloadProformaPdf(firstProforma, { 
               organisationId: organisation?.id!, 
               template: fullTemplate 

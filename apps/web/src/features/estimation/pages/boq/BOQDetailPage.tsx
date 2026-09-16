@@ -1,11 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useBOQ, useSections, useAllItems, useCreateSection, useUpdateSection, useDeleteSection, useCreateItem, useUpdateItem, useDeleteItem } from '../../hooks/useBOQ';
 import { PermissionGuard } from '../../../../rbac';
-import { ArrowLeft, Plus, Trash2, Edit3, Save, X, GripVertical, FileDown, FileSpreadsheet, Table } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { openSansRegular, openSansBold } from '../../../../fonts/openSans';
+import { ArrowLeft, Plus, Trash2, Edit3, Save, X, GripVertical, FileDown, FileSpreadsheet, Table, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const calcRow = (rate: any, discountPercent: any, quantity: any) => {
@@ -37,6 +34,21 @@ export default function BOQDetailPage() {
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [editItemData, setEditItemData] = useState<any>({});
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [isPreparingPdf, setIsPreparingPdf] = useState(false);
+  const [showPdfSpinner, setShowPdfSpinner] = useState(false);
+
+  const prefetchPdfBundle = useCallback(() => {
+    import('jspdf');
+    import('jspdf-autotable');
+    import('../../../../fonts/openSans');
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      prefetchPdfBundle();
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [prefetchPdfBundle]);
 
   const handleAddSection = () => {
     if (!newSectionName.trim() || !id) return;
@@ -90,103 +102,123 @@ export default function BOQDetailPage() {
 
   // ─── Export ─────────────────────────────────────────────────────────────────
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (!boq) return;
-    const doc = new jsPDF('landscape', 'mm', 'a4');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const marginX = 10;
-    if (openSansRegular && openSansBold) {
-      try {
-        doc.addFileToVFS('OpenSans-Regular.ttf', openSansRegular);
-        doc.addFileToVFS('OpenSans-Bold.ttf', openSansBold);
-        doc.addFont('OpenSans-Regular.ttf', 'OpenSans', 'normal');
-        doc.addFont('OpenSans-Bold.ttf', 'OpenSans', 'bold');
-        doc.setFont('OpenSans', 'normal');
-      } catch { }
+    setIsPreparingPdf(true);
+    const spinnerTimer = setTimeout(() => {
+      setShowPdfSpinner(true);
+    }, 400);
+
+    try {
+      const [{ jsPDF }, { default: autoTable }, { openSansRegular, openSansBold }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable'),
+        import('../../../../fonts/openSans'),
+      ]);
+
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const marginX = 10;
+      if (openSansRegular && openSansBold) {
+        try {
+          doc.addFileToVFS('OpenSans-Regular.ttf', openSansRegular);
+          doc.addFileToVFS('OpenSans-Bold.ttf', openSansBold);
+          doc.addFont('OpenSans-Regular.ttf', 'OpenSans', 'normal');
+          doc.addFont('OpenSans-Bold.ttf', 'OpenSans', 'bold');
+          doc.setFont('OpenSans', 'normal');
+        } catch { }
+      }
+
+      const columns = [
+        { key: 'sno', title: 'S.No', width: 12 },
+        { key: 'description', title: 'Description', width: 80 },
+        { key: 'specification', title: 'Specification', width: 30 },
+        { key: 'unit', title: 'Unit', width: 15 },
+        { key: 'quantity', title: 'Qty', width: 15 },
+        { key: 'rate', title: 'Rate', width: 20 },
+        { key: 'discount_percent', title: 'Disc %', width: 15 },
+        { key: 'total', title: 'Amount', width: 25 },
+      ];
+      const totalWidth = columns.reduce((s, c) => s + c.width, 0);
+      const scale = (pageWidth - marginX * 2) / totalWidth;
+      const columnStyles: Record<number, any> = {};
+      columns.forEach((c, i) => { columnStyles[i] = { cellWidth: c.width * scale, halign: c.key === 'description' ? 'left' : 'center' }; });
+
+      const clientName = (boq as any)?.client?.client_name || '';
+      const projectName = (boq as any)?.project?.project_name || '';
+
+      (sections || []).forEach((section: any, idx: number) => {
+        if (idx > 0) doc.addPage();
+        doc.setFont('OpenSans', 'normal'); doc.setFontSize(12);
+        doc.text('BILL OF QUANTITIES', marginX, 12);
+        doc.setFont('OpenSans', 'bold');
+        doc.text(section.name || '', pageWidth / 2, 12, { align: 'center' });
+        const labelW = 26;
+        const valueW = (pageWidth - marginX * 2 - labelW * 2) / 2;
+        autoTable(doc, {
+          startY: 16, theme: 'grid',
+          styles: { font: 'OpenSans', fontSize: 9, cellPadding: 1.2, textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.1 },
+          head: [],
+          body: [
+            ['Client:', clientName, 'Project:', projectName],
+            ['BoQ No:', boq.boq_no || '', 'Date:', boq.date ? new Date(boq.date).toLocaleDateString() : ''],
+          ],
+          columnStyles: {
+            0: { cellWidth: labelW, halign: 'left', fontStyle: 'bold' },
+            1: { cellWidth: valueW, halign: 'left' },
+            2: { cellWidth: labelW, halign: 'left', fontStyle: 'bold' },
+            3: { cellWidth: valueW, halign: 'left' },
+          },
+        });
+
+        const items = (allItems || []).filter((i: any) => i.section_id === section.id);
+        const rows: any[][] = [];
+        let sno = 0, totalQty = 0, totalAmount = 0;
+        items.forEach((item: any) => {
+          sno++;
+          const qty = parseFloat(item.quantity) || 0;
+          const { totalAmount: ta } = calcRow(item.rate, item.discount_percent, item.quantity);
+          totalQty += qty;
+          totalAmount += ta;
+          rows.push([
+            sno, item.description || '', item.specification || '', item.unit || '',
+            qty, item.rate || 0, item.discount_percent || 0, ta,
+          ]);
+        });
+        rows.push(columns.map((c) => {
+          if (c.key === 'description') return 'Total';
+          if (c.key === 'quantity') return totalQty;
+          if (c.key === 'total') return totalAmount;
+          return '';
+        }));
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 5,
+          head: [columns.map((c) => c.title)],
+          body: rows,
+          theme: 'grid',
+          styles: { font: 'OpenSans', fontSize: 8, cellPadding: 1.2, textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.1 },
+          headStyles: { fontStyle: 'bold', fillColor: [245, 245, 245], textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
+          columnStyles,
+          didParseCell: (data: any) => {
+            if (data.section === 'body' && data.row.index === rows.length - 1) {
+              data.cell.styles.fillColor = [216, 232, 247];
+              data.cell.styles.fontStyle = 'bold';
+            }
+          },
+        });
+      });
+
+      doc.save(`${boq.boq_no || 'BOQ'}.pdf`);
+    } catch (err: any) {
+      console.error('Failed to export PDF:', err);
+      alert('Failed to generate PDF: ' + (err.message || 'Unknown error'));
+    } finally {
+      clearTimeout(spinnerTimer);
+      setShowPdfSpinner(false);
+      setIsPreparingPdf(false);
+      setShowExportMenu(false);
     }
-
-    const columns = [
-      { key: 'sno', title: 'S.No', width: 12 },
-      { key: 'description', title: 'Description', width: 80 },
-      { key: 'specification', title: 'Specification', width: 30 },
-      { key: 'unit', title: 'Unit', width: 15 },
-      { key: 'quantity', title: 'Qty', width: 15 },
-      { key: 'rate', title: 'Rate', width: 20 },
-      { key: 'discount_percent', title: 'Disc %', width: 15 },
-      { key: 'total', title: 'Amount', width: 25 },
-    ];
-    const totalWidth = columns.reduce((s, c) => s + c.width, 0);
-    const scale = (pageWidth - marginX * 2) / totalWidth;
-    const columnStyles: Record<number, any> = {};
-    columns.forEach((c, i) => { columnStyles[i] = { cellWidth: c.width * scale, halign: c.key === 'description' ? 'left' : 'center' }; });
-
-    const clientName = (boq as any)?.client?.client_name || '';
-    const projectName = (boq as any)?.project?.project_name || '';
-
-    (sections || []).forEach((section: any, idx: number) => {
-      if (idx > 0) doc.addPage();
-      doc.setFont('OpenSans', 'normal'); doc.setFontSize(12);
-      doc.text('BILL OF QUANTITIES', marginX, 12);
-      doc.setFont('OpenSans', 'bold');
-      doc.text(section.name || '', pageWidth / 2, 12, { align: 'center' });
-      const labelW = 26;
-      const valueW = (pageWidth - marginX * 2 - labelW * 2) / 2;
-      autoTable(doc, {
-        startY: 16, theme: 'grid',
-        styles: { font: 'OpenSans', fontSize: 9, cellPadding: 1.2, textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.1 },
-        head: [],
-        body: [
-          ['Client:', clientName, 'Project:', projectName],
-          ['BoQ No:', boq.boq_no || '', 'Date:', boq.date ? new Date(boq.date).toLocaleDateString() : ''],
-        ],
-        columnStyles: {
-          0: { cellWidth: labelW, halign: 'left', fontStyle: 'bold' },
-          1: { cellWidth: valueW, halign: 'left' },
-          2: { cellWidth: labelW, halign: 'left', fontStyle: 'bold' },
-          3: { cellWidth: valueW, halign: 'left' },
-        },
-      });
-
-      const items = (allItems || []).filter((i: any) => i.section_id === section.id);
-      const rows: any[][] = [];
-      let sno = 0, totalQty = 0, totalAmount = 0;
-      items.forEach((item: any) => {
-        sno++;
-        const qty = parseFloat(item.quantity) || 0;
-        const { totalAmount: ta } = calcRow(item.rate, item.discount_percent, item.quantity);
-        totalQty += qty;
-        totalAmount += ta;
-        rows.push([
-          sno, item.description || '', item.specification || '', item.unit || '',
-          qty, item.rate || 0, item.discount_percent || 0, ta,
-        ]);
-      });
-      rows.push(columns.map((c) => {
-        if (c.key === 'description') return 'Total';
-        if (c.key === 'quantity') return totalQty;
-        if (c.key === 'total') return totalAmount;
-        return '';
-      }));
-
-      autoTable(doc, {
-        startY: doc.lastAutoTable.finalY + 5,
-        head: [columns.map((c) => c.title)],
-        body: rows,
-        theme: 'grid',
-        styles: { font: 'OpenSans', fontSize: 8, cellPadding: 1.2, textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.1 },
-        headStyles: { fontStyle: 'bold', fillColor: [245, 245, 245], textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
-        columnStyles,
-        didParseCell: (data: any) => {
-          if (data.section === 'body' && data.row.index === rows.length - 1) {
-            data.cell.styles.fillColor = [216, 232, 247];
-            data.cell.styles.fontStyle = 'bold';
-          }
-        },
-      });
-    });
-
-    doc.save(`${boq.boq_no || 'BOQ'}.pdf`);
-    setShowExportMenu(false);
   };
 
   const exportToExcel = async () => {
@@ -237,13 +269,30 @@ export default function BOQDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Button variant="default" size="sm" onClick={() => setShowExportMenu(!showExportMenu)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">
+            <Button
+              variant="default"
+              size="sm"
+              onMouseEnter={prefetchPdfBundle}
+              onFocus={prefetchPdfBundle}
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50"
+            >
               <FileDown className="h-4 w-4" /> Export
             </Button>
             {showExportMenu && (
               <div className="absolute right-0 top-full mt-1 bg-white border border-zinc-200 rounded-lg shadow-lg z-50 min-w-[160px]">
-                <Button variant="default" size="sm" onClick={exportToPDF}>
-                  <FileSpreadsheet className="h-4 w-4" /> Export to PDF
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={exportToPDF}
+                  disabled={isPreparingPdf}
+                >
+                  {showPdfSpinner ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="h-4 w-4" />
+                  )}
+                  {isPreparingPdf ? 'Preparing PDF...' : 'Export to PDF'}
                 </Button>
                 <Button variant="default" size="sm" onClick={exportToExcel}>
                   <Table className="h-4 w-4" /> Export to Excel

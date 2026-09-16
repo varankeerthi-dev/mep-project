@@ -9,13 +9,10 @@ import { useVariants } from '../../../../hooks/useVariants';
 import { supabase } from '@/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import {
   Save, FileDown, Plus, Trash2, Sheet, Table, X,
   Settings, FileSpreadsheet, Loader2, GripVertical, ArrowLeft,
 } from 'lucide-react';
-import { openSansRegular, openSansBold } from '../../../../fonts/openSans';
 import {
   getBOQWithSections, createBOQ, updateBOQ,
   createSection, replaceSectionItems,
@@ -180,6 +177,21 @@ export default function BOQFormPage() {
   const [showStockCheckModal, setShowStockCheckModal] = useState(false);
   const [selectedSheets, setSelectedSheets] = useState<Record<string, boolean>>({});
   const [launchingStockCheck, setLaunchingStockCheck] = useState(false);
+  const [isPreparingPdf, setIsPreparingPdf] = useState(false);
+  const [showPdfSpinner, setShowPdfSpinner] = useState(false);
+
+  const prefetchPdfBundle = useCallback(() => {
+    import('jspdf');
+    import('jspdf-autotable');
+    import('../../../../fonts/openSans');
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      prefetchPdfBundle();
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [prefetchPdfBundle]);
 
   const inputRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>>({});
   const prevDefaultVariantRef = useRef('');
@@ -735,145 +747,165 @@ export default function BOQFormPage() {
 
   // ─── Export ──────────────────────────────────────────────────────────────────
 
-  const exportToPDF = useCallback(() => {
-    const doc = new jsPDF(exportOrientation as any, 'mm', 'a4');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const marginX = 10;
-    if (openSansRegular && openSansBold) {
-      try {
-        doc.addFileToVFS('OpenSans-Regular.ttf', openSansRegular);
-        doc.addFileToVFS('OpenSans-Bold.ttf', openSansBold);
-        doc.addFont('OpenSans-Regular.ttf', 'OpenSans', 'normal');
-        doc.addFont('OpenSans-Bold.ttf', 'OpenSans', 'bold');
-        doc.setFont('OpenSans', 'normal');
-      } catch { }
-    }
+  const exportToPDF = useCallback(async () => {
+    setIsPreparingPdf(true);
+    const spinnerTimer = setTimeout(() => {
+      setShowPdfSpinner(true);
+    }, 400);
 
-    const orderedColumns = (exportColumnList.length ? exportColumnList : columnSettings).filter((c) => c.key !== 'rowControl');
-    const colWidths: Record<string, number> = {
-      sno: 12, hsn_sac: 18, description: 80, variant: 20, make: 20,
-      quantity: 15, unit: 18, rate: 20, discountPercent: 18, rateAfterDiscount: 22,
-      totalAmount: 22, specification: 24, remarks: 24, pressure: 18, thickness: 18, schedule: 18, material: 22,
-    };
-    const columns = orderedColumns.map((col) => ({
-      key: col.key, title: col.label,
-      width: colWidths[col.key] || col.width || 20,
-      align: col.key === 'description' ? 'left' : 'center',
-    }));
-    const totalWidth = columns.reduce((s, c) => s + c.width, 0) || 1;
-    const scale = (pageWidth - marginX * 2) / totalWidth;
-    const columnStyles: Record<number, any> = {};
-    columns.forEach((c, i) => { columnStyles[i] = { cellWidth: c.width * scale, halign: c.align }; });
+    try {
+      const [{ jsPDF }, { default: autoTable }, { openSansRegular, openSansBold }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable'),
+        import('../../../../fonts/openSans'),
+      ]);
 
-    const renderHeader = (name: string) => {
-      doc.setFont('OpenSans', 'normal'); doc.setFontSize(12);
-      doc.text('BILL OF QUANTITIES', marginX, 12);
-      doc.setFont('OpenSans', 'bold');
-      doc.text(name, pageWidth / 2, 12, { align: 'center' });
-      const labelW = 26;
-      const valueW = (pageWidth - marginX * 2 - labelW * 2) / 2;
-      autoTable(doc, {
-        startY: 16, theme: 'grid',
-        styles: { font: 'OpenSans', fontSize: 9, cellPadding: 1.2, textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.1 },
-        head: [],
-        body: [
-          ['Client:', currentClient?.client_name || '', 'Project:', currentProject?.project_name || ''],
-          ['BoQ No:', form.boq_no || '', 'Date:', form.date || ''],
-          ['Revision no:', String(form.revision_no || ''), 'Date:', form.date || ''],
-        ],
-        columnStyles: {
-          0: { cellWidth: labelW, halign: 'left', fontStyle: 'bold' },
-          1: { cellWidth: valueW, halign: 'left' },
-          2: { cellWidth: labelW, halign: 'left', fontStyle: 'bold' },
-          3: { cellWidth: valueW, halign: 'left' },
-        },
-      });
-    };
+      const doc = new jsPDF(exportOrientation as any, 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const marginX = 10;
+      if (openSansRegular && openSansBold) {
+        try {
+          doc.addFileToVFS('OpenSans-Regular.ttf', openSansRegular);
+          doc.addFileToVFS('OpenSans-Bold.ttf', openSansBold);
+          doc.addFont('OpenSans-Regular.ttf', 'OpenSans', 'normal');
+          doc.addFont('OpenSans-Bold.ttf', 'OpenSans', 'bold');
+          doc.setFont('OpenSans', 'normal');
+        } catch { }
+      }
 
-    const renderTable = (items: LocalItem[]) => {
-      const rows: any[][] = [];
-      let sno = 0, sheetTotalQty = 0, sheetTotalAmount = 0;
-      const dataRows = items.filter((i) => i.description || i.quantity || i.rate);
-      const targetRows = Math.max(20, dataRows.length);
-      dataRows.forEach((item) => {
-        const empty = !item.description && !item.quantity && !item.rate;
-        if (!empty) sno++;
-        const { rateAfterDiscount, totalAmount } = calcRow(item.rate, item.discount_percent, item.quantity);
-        sheetTotalQty += parseFloat(item.quantity) || 0;
-        sheetTotalAmount += totalAmount;
-        rows.push(columns.map((c) => {
-          switch (c.key) {
-            case 'sno': return empty ? '' : sno;
-            case 'description': return item.description || '';
-            case 'hsn_sac': return item.hsn_sac || '';
-            case 'variant': return '';
-            case 'make': return item.make || '';
-            case 'quantity': return item.quantity || '';
-            case 'unit': return item.unit || '';
-            case 'rate': return item.rate || '';
-            case 'discountPercent': return item.discount_percent || '';
-            case 'rateAfterDiscount': return rateAfterDiscount || '';
-            case 'totalAmount': return totalAmount || '';
-            case 'specification': return item.specification || '';
-            case 'remarks': return item.remarks || '';
-            case 'pressure': return item.pressure || '';
-            case 'thickness': return item.thickness || '';
-            case 'schedule': return item.schedule || '';
-            case 'material': return item.material || '';
-            default: return '';
-          }
-        }));
-      });
-      while (rows.length < targetRows) rows.push(columns.map(() => ''));
-      rows.push(columns.map((c) => {
-        if (c.key === 'description') return 'Total';
-        if (c.key === 'quantity') return sheetTotalQty || '';
-        if (c.key === 'totalAmount') return sheetTotalAmount ? sheetTotalAmount.toLocaleString() : '';
-        return '';
+      const orderedColumns = (exportColumnList.length ? exportColumnList : columnSettings).filter((c) => c.key !== 'rowControl');
+      const colWidths: Record<string, number> = {
+        sno: 12, hsn_sac: 18, description: 80, variant: 20, make: 20,
+        quantity: 15, unit: 18, rate: 20, discountPercent: 18, rateAfterDiscount: 22,
+        totalAmount: 22, specification: 24, remarks: 24, pressure: 18, thickness: 18, schedule: 18, material: 22,
+      };
+      const columns = orderedColumns.map((col) => ({
+        key: col.key, title: col.label,
+        width: colWidths[col.key] || col.width || 20,
+        align: col.key === 'description' ? 'left' : 'center',
       }));
-      autoTable(doc, {
-        startY: 38, head: [columns.map((c) => c.title)], body: rows, theme: 'grid',
-        styles: { font: 'OpenSans', fontSize: 8, cellPadding: 1.2, textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.1 },
-        headStyles: { fontStyle: 'bold', fillColor: [245, 245, 245], textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
-        columnStyles,
-        didParseCell: (data: any) => {
-          if (data.section === 'head' && columns[data.column.index]?.key === 'discountPercent') {
-            data.cell.styles.fillColor = [255, 244, 194];
-          }
-          if (data.section === 'body' && data.row.index === rows.length - 1) {
-            data.cell.styles.fillColor = [216, 232, 247];
-            data.cell.styles.fontStyle = 'bold';
-          }
-        },
+      const totalWidth = columns.reduce((s, c) => s + c.width, 0) || 1;
+      const scale = (pageWidth - marginX * 2) / totalWidth;
+      const columnStyles: Record<number, any> = {};
+      columns.forEach((c, i) => { columnStyles[i] = { cellWidth: c.width * scale, halign: c.align }; });
+
+      const renderHeader = (name: string) => {
+        doc.setFont('OpenSans', 'normal'); doc.setFontSize(12);
+        doc.text('BILL OF QUANTITIES', marginX, 12);
+        doc.setFont('OpenSans', 'bold');
+        doc.text(name, pageWidth / 2, 12, { align: 'center' });
+        const labelW = 26;
+        const valueW = (pageWidth - marginX * 2 - labelW * 2) / 2;
+        autoTable(doc, {
+          startY: 16, theme: 'grid',
+          styles: { font: 'OpenSans', fontSize: 9, cellPadding: 1.2, textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.1 },
+          head: [],
+          body: [
+            ['Client:', currentClient?.client_name || '', 'Project:', currentProject?.project_name || ''],
+            ['BoQ No:', form.boq_no || '', 'Date:', form.date || ''],
+            ['Revision no:', String(form.revision_no || ''), 'Date:', form.date || ''],
+          ],
+          columnStyles: {
+            0: { cellWidth: labelW, halign: 'left', fontStyle: 'bold' },
+            1: { cellWidth: valueW, halign: 'left' },
+            2: { cellWidth: labelW, halign: 'left', fontStyle: 'bold' },
+            3: { cellWidth: valueW, halign: 'left' },
+          },
+        });
+      };
+
+      const renderTable = (items: LocalItem[]) => {
+        const rows: any[][] = [];
+        let sno = 0, sheetTotalQty = 0, sheetTotalAmount = 0;
+        const dataRows = items.filter((i) => i.description || i.quantity || i.rate);
+        const targetRows = Math.max(20, dataRows.length);
+        dataRows.forEach((item) => {
+          const empty = !item.description && !item.quantity && !item.rate;
+          if (!empty) sno++;
+          const { rateAfterDiscount, totalAmount } = calcRow(item.rate, item.discount_percent, item.quantity);
+          sheetTotalQty += parseFloat(item.quantity) || 0;
+          sheetTotalAmount += totalAmount;
+          rows.push(columns.map((c) => {
+            switch (c.key) {
+              case 'sno': return empty ? '' : sno;
+              case 'description': return item.description || '';
+              case 'hsn_sac': return item.hsn_sac || '';
+              case 'variant': return '';
+              case 'make': return item.make || '';
+              case 'quantity': return item.quantity || '';
+              case 'unit': return item.unit || '';
+              case 'rate': return item.rate || '';
+              case 'discountPercent': return item.discount_percent || '';
+              case 'rateAfterDiscount': return rateAfterDiscount || '';
+              case 'totalAmount': return totalAmount || '';
+              case 'specification': return item.specification || '';
+              case 'remarks': return item.remarks || '';
+              case 'pressure': return item.pressure || '';
+              case 'thickness': return item.thickness || '';
+              case 'schedule': return item.schedule || '';
+              case 'material': return item.material || '';
+              default: return '';
+            }
+          }));
+        });
+        while (rows.length < targetRows) rows.push(columns.map(() => ''));
+        rows.push(columns.map((c) => {
+          if (c.key === 'description') return 'Total';
+          if (c.key === 'quantity') return sheetTotalQty || '';
+          if (c.key === 'totalAmount') return sheetTotalAmount ? sheetTotalAmount.toLocaleString() : '';
+          return '';
+        }));
+        autoTable(doc, {
+          startY: 38, head: [columns.map((c) => c.title)], body: rows, theme: 'grid',
+          styles: { font: 'OpenSans', fontSize: 8, cellPadding: 1.2, textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.1 },
+          headStyles: { fontStyle: 'bold', fillColor: [245, 245, 245], textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
+          columnStyles,
+          didParseCell: (data: any) => {
+            if (data.section === 'head' && columns[data.column.index]?.key === 'discountPercent') {
+              data.cell.styles.fillColor = [255, 244, 194];
+            }
+            if (data.section === 'body' && data.row.index === rows.length - 1) {
+              data.cell.styles.fillColor = [216, 232, 247];
+              data.cell.styles.fontStyle = 'bold';
+            }
+          },
+        });
+      };
+
+      sections.forEach((section, idx) => {
+        const name = section.name.toLowerCase();
+        if (name.includes('terms') || name.includes('preface')) return;
+        if (idx > 0) doc.addPage();
+        renderHeader(section.name);
+        renderTable(section.items);
       });
-    };
 
-    sections.forEach((section, idx) => {
-      const name = section.name.toLowerCase();
-      if (name.includes('terms') || name.includes('preface')) return;
-      if (idx > 0) doc.addPage();
-      renderHeader(section.name);
-      renderTable(section.items);
-    });
+      // Terms/Preface pages
+      if (form.terms_conditions) {
+        doc.addPage();
+        doc.setFont('OpenSans', 'bold'); doc.setFontSize(14);
+        doc.text('Terms', marginX, 12);
+        doc.setFont('OpenSans', 'normal'); doc.setFontSize(9);
+        doc.text(doc.splitTextToSize(form.terms_conditions, pageWidth - marginX * 2), marginX, 20);
+      }
+      if (form.preface) {
+        doc.addPage();
+        doc.setFont('OpenSans', 'bold'); doc.setFontSize(14);
+        doc.text('Preface', marginX, 12);
+        doc.setFont('OpenSans', 'normal'); doc.setFontSize(9);
+        doc.text(doc.splitTextToSize(form.preface, pageWidth - marginX * 2), marginX, 20);
+      }
 
-    // Terms/Preface pages
-    if (form.terms_conditions) {
-      doc.addPage();
-      doc.setFont('OpenSans', 'bold'); doc.setFontSize(14);
-      doc.text('Terms', marginX, 12);
-      doc.setFont('OpenSans', 'normal'); doc.setFontSize(9);
-      doc.text(doc.splitTextToSize(form.terms_conditions, pageWidth - marginX * 2), marginX, 20);
+      doc.save(`${form.boq_no || 'BOQ'}.pdf`);
+    } catch (err: any) {
+      console.error('Failed to export PDF:', err);
+      alert('Failed to generate PDF: ' + (err.message || 'Unknown error'));
+    } finally {
+      clearTimeout(spinnerTimer);
+      setShowPdfSpinner(false);
+      setIsPreparingPdf(false);
+      setShowExportMenu(false);
     }
-    if (form.preface) {
-      doc.addPage();
-      doc.setFont('OpenSans', 'bold'); doc.setFontSize(14);
-      doc.text('Preface', marginX, 12);
-      doc.setFont('OpenSans', 'normal'); doc.setFontSize(9);
-      doc.text(doc.splitTextToSize(form.preface, pageWidth - marginX * 2), marginX, 20);
-    }
-
-    doc.save(`${form.boq_no || 'BOQ'}.pdf`);
-    setShowExportMenu(false);
   }, [form, currentClient, currentProject, sections, exportColumnList, exportOrientation, columnSettings]);
 
   const exportToExcel = useCallback(async () => {
@@ -999,13 +1031,31 @@ export default function BOQFormPage() {
             <Settings className="h-4 w-4" /> Columns
           </Button>
           <div className="relative">
-            <Button variant="default" size="sm" onClick={() => setShowExportMenu(!showExportMenu)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50">
+            <Button
+              variant="default"
+              size="sm"
+              onMouseEnter={prefetchPdfBundle}
+              onFocus={prefetchPdfBundle}
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-zinc-300 rounded-lg hover:bg-zinc-50"
+            >
               <FileDown className="h-4 w-4" /> Export
             </Button>
             {showExportMenu && (
               <div className="absolute right-0 top-full mt-1 bg-white border border-zinc-200 rounded-lg shadow-lg z-50 min-w-[160px]">
-                <Button variant="secondary" size="sm" onClick={exportToPDF} className="w-full justify-start px-3 border-0">
-                  <FileSpreadsheet className="h-4 w-4" /> Export to PDF
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={exportToPDF}
+                  disabled={isPreparingPdf}
+                  className="w-full justify-start px-3 border-0"
+                >
+                  {showPdfSpinner ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="h-4 w-4" />
+                  )}
+                  {isPreparingPdf ? 'Preparing PDF...' : 'Export to PDF'}
                 </Button>
                 <Button variant="secondary" size="sm" onClick={exportToExcel} className="w-full justify-start px-3 border-0">
                   <Table className="h-4 w-4" /> Export to Excel
