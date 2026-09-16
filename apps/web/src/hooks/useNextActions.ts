@@ -49,14 +49,14 @@ export function useNextActions() {
     // 2. Active Site Visits
     const visitsQuery = supabase
       .from('site_visits')
-      .select('*, clients(client_name), projects(project_name)')
+      .select('id, organisation_id, status, visit_date, next_step, purpose, visited_by, engineer, project_manager_id, created_by, created_at, next_action_acknowledged_by, clients(client_name), projects(project_name)')
       .eq('organisation_id', orgId)
       .not('status', 'in', '("completed","cancelled")');
 
     // 3. Submitted Site Reports
     let reportsQuery = supabase
       .from('site_reports')
-      .select('*, projects(project_name)')
+      .select('id, organisation_id, pm_status, report_date, work_plan_next_day, created_by, created_at, next_action_acknowledged_by, projects(project_name)')
       .eq('organisation_id', orgId)
       .neq('pm_status', 'Draft');
 
@@ -67,7 +67,7 @@ export function useNextActions() {
     // 4. Active Issues
     let issuesQuery = supabase
       .from('issues')
-      .select('*, clients(client_name), projects(project_name)')
+      .select('id, organisation_id, status, assigned_to, title, due_date, reported_by_name, created_at, next_action_acknowledged_by, clients(client_name), projects(project_name)')
       .eq('organisation_id', orgId)
       .not('status', 'in', '("closed","resolved")');
 
@@ -78,27 +78,27 @@ export function useNextActions() {
     // 5. Quotation Follow-ups
     const qFollowUpQuery = supabase
       .from('follow_up_quotation_tracking')
-      .select('*, quotation_header(quotation_no, clients(client_name))')
+      .select('id, organisation_id, follow_up_status, notes, created_at, next_action_acknowledged_by, quotation_header(quotation_no, clients(client_name))')
       .eq('organisation_id', orgId)
       .not('follow_up_status', 'in', '("lost_to_competitor")');
 
     // 6. PO/DC Backlog Follow-ups
     const podcQuery = supabase
       .from('follow_up_podc_backlog')
-      .select('*')
+      .select('id, organisation_id, dc_wo_number, client_name, project_name, site_engineer, days_pending_po, is_active, created_at, next_action_acknowledged_by')
       .eq('organisation_id', orgId)
       .eq('is_active', true);
 
     // 7. Invoice Follow-ups
     const invQuery = supabase
       .from('follow_up_invoice_tracking')
-      .select('*, invoices(invoice_no, clients(client_name))')
+      .select('id, organisation_id, collection_risk, created_at, next_action_acknowledged_by, invoices(invoice_no, clients(client_name))')
       .eq('organisation_id', orgId);
 
     // 8. Active Leads
     let leadsQuery = supabase
       .from('leads')
-      .select('*')
+      .select('id, organisation_id, status, owner_user_id, contact_name, company_name, requirement_summary, owner_name, next_action_at, next_action_label, created_at, next_action_acknowledged_by')
       .eq('organisation_id', orgId)
       .not('status', 'in', '("converted","lost")');
 
@@ -423,14 +423,14 @@ export function useNextActions() {
       const [v1, v2] = await Promise.all([
         supabase
           .from('site_visits')
-          .select('*, clients(client_name), projects(project_name)')
+          .select('id, organisation_id, status, visit_date, next_step, purpose, visited_by, engineer, project_manager_id, created_by, created_at, next_action_acknowledged_by, clients(client_name), projects(project_name)')
           .eq('organisation_id', orgId)
           .in('status', ['completed', 'cancelled'])
           .order('visit_date', { ascending: false })
           .limit(10),
         supabase
           .from('site_visits')
-          .select('*, clients(client_name), projects(project_name)')
+          .select('id, organisation_id, status, visit_date, next_step, purpose, visited_by, engineer, project_manager_id, created_by, created_at, next_action_acknowledged_by, clients(client_name), projects(project_name)')
           .eq('organisation_id', orgId)
           .contains('next_action_acknowledged_by', [userEmail])
           .order('visit_date', { ascending: false })
