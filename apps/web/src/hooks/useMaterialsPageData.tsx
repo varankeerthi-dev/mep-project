@@ -38,7 +38,10 @@ export function useMaterialsPageData(orgId?: string | null) {
       ] = await Promise.all([
         timedSupabaseQuery(
           (() => {
-            let query = supabase.from('materials').select('*, mappings:material_client_mappings(*), material_units(*)').order('name');
+            let query = supabase
+              .from('materials')
+              .select('id, organisation_id, item_code, name, display_name, main_category, sub_category, size, pressure_class, make, material, end_connection, unit, sale_price, purchase_price, hsn_code, gst_rate, is_active, uses_variant, discount_category_id, dimension, dimension_unit, weight, weight_unit, item_classification, allow_purchase, allow_sales, show_in_bom, is_manufactured, created_at, updated_at, material_units(*)')
+              .order('name');
             if (orgId) {
               query = query.eq('organisation_id', orgId);
             }
@@ -49,7 +52,9 @@ export function useMaterialsPageData(orgId?: string | null) {
 
         (async () => {
           try {
-            let query = supabase.from('item_stock').select('*');
+            let query = supabase
+              .from('item_stock')
+              .select('id, item_id, warehouse_id, company_variant_id, make, current_stock, low_stock_level, organisation_id');
             if (orgId) {
               query = query.eq('organisation_id', orgId);
             }
@@ -65,7 +70,11 @@ export function useMaterialsPageData(orgId?: string | null) {
 
         (async () => {
           try {
-            let query = supabase.from('item_categories').select('*').eq('is_active', true).order('category_name');
+            let query = supabase
+              .from('item_categories')
+              .select('id, category_name, is_active, organisation_id')
+              .eq('is_active', true)
+              .order('category_name');
             return await timedSupabaseQuery(query, 'Item Categories');
           } catch (error) {
             if (isMissingRelationError(error)) {
@@ -78,7 +87,11 @@ export function useMaterialsPageData(orgId?: string | null) {
 
         (async () => {
           try {
-            let query = supabase.from('item_units').select('*').eq('is_active', true).order('unit_name');
+            let query = supabase
+              .from('item_units')
+              .select('id, unit_name, unit_code, is_active, organisation_id')
+              .eq('is_active', true)
+              .order('unit_name');
             return await timedSupabaseQuery(query, 'Item Units');
           } catch (error) {
             if (isMissingRelationError(error)) {
@@ -91,7 +104,11 @@ export function useMaterialsPageData(orgId?: string | null) {
 
         (async () => {
           try {
-            let query = supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name');
+            let query = supabase
+              .from('company_variants')
+              .select('id, variant_name, is_active, organisation_id')
+              .eq('is_active', true)
+              .order('variant_name');
             if (orgId) {
               query = query.eq('organisation_id', orgId);
             }
@@ -107,7 +124,11 @@ export function useMaterialsPageData(orgId?: string | null) {
 
         (async () => {
           try {
-            let query = supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name');
+            let query = supabase
+              .from('warehouses')
+              .select('id, warehouse_code, warehouse_name, name, is_active, organisation_id')
+              .eq('is_active', true)
+              .order('warehouse_name');
             if (orgId) {
               query = query.eq('organisation_id', orgId);
             }
@@ -122,7 +143,10 @@ export function useMaterialsPageData(orgId?: string | null) {
         })(),
         (async () => {
           try {
-            let query = supabase.from('clients').select('*').order('client_name');
+            let query = supabase
+              .from('clients')
+              .select('id, client_name, name, organisation_id')
+              .order('client_name');
             if (orgId) {
               query = query.eq('organisation_id', orgId);
             }
@@ -135,7 +159,12 @@ export function useMaterialsPageData(orgId?: string | null) {
 
         (async () => {
           try {
-            let query = supabase.from('discount_categories').select('*').or(`organisation_id.eq.${orgId},organisation_id.is.null`).eq('is_active', true).order('name');
+            let query = supabase
+              .from('discount_categories')
+              .select('id, name, default_discount_percent, is_active, organisation_id')
+              .or(`organisation_id.eq.${orgId},organisation_id.is.null`)
+              .eq('is_active', true)
+              .order('name');
             return await timedSupabaseQuery(query, 'Discount Categories');
           } catch (error) {
             console.log('discount_categories table not found');
