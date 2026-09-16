@@ -54,7 +54,7 @@ export function useMaterialsPageData(orgId?: string | null) {
           try {
             let query = supabase
               .from('item_stock')
-              .select('id, item_id, warehouse_id, company_variant_id, make, current_stock, low_stock_level, organisation_id');
+              .select('id, item_id, warehouse_id, company_variant_id, current_stock, low_stock_level, organisation_id');
             if (orgId) {
               query = query.eq('organisation_id', orgId);
             }
