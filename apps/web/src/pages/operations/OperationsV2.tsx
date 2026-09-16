@@ -1,20 +1,12 @@
 import './operations.css';
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useLiveDate } from '../../hooks/useLiveDate';
 import { NeedsAttentionZone } from './components/NeedsAttentionZoneV2';
 import { LiveNowZone } from './components/LiveNowZoneV2';
 import { SalesZone } from './components/SalesZoneV2';
 import { ProjectsZone } from './components/ProjectsZoneV2';
 import { FinancialPulseZone } from './components/FinancialPulseZoneV2';
 import { UpcomingVisitsZone } from './components/UpcomingVisitsZone';
-
-const useLiveDate = () => {
-  const [date, setDate] = useState(new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setDate(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-  return date;
-};
 
 const CARD_SHADOW = '0 1px 3px rgba(15,23,42,.05), 0 8px 24px rgba(15,23,42,.06)';
 const CARD_SHADOW_HOVER = '0 16px 40px rgba(15,23,42,.10)';

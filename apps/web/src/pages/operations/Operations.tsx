@@ -1,19 +1,11 @@
 import './operations.css';
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useLiveDate } from '../../hooks/useLiveDate';
 import { NeedsAttentionZone } from './components/NeedsAttentionZone';
 import { LiveNowZone } from './components/LiveNowZone';
 import { SalesZone } from './components/SalesZone';
 import { ProjectsZone } from './components/ProjectsZone';
 import { FinancialPulseZone } from './components/FinancialPulseZone';
-
-const useLiveDate = () => {
-  const [date, setDate] = useState(new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setDate(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-  return date;
-};
 
 const Header: React.FC = () => {
   const date = useLiveDate();
