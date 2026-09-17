@@ -41,14 +41,14 @@ const CATEGORIES = [
 function SourceBadge({ entry }: { entry: UnifiedTimelineEntry }) {
   if (entry.source === 'follow_up') {
     return (
-      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
         <Clock className="w-3 h-3" /> Follow-Up
       </span>
     );
   }
   const callType = entry.metadata?.call_type || 'Communication';
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
       <MessageSquare className="w-3 h-3" /> {callType}
     </span>
   );
@@ -68,9 +68,9 @@ function formatEntryDate(dateStr: string) {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <AlertCircle className="w-8 h-8 text-zinc-300 mb-2" />
-      <p className="text-sm text-zinc-500">No activity yet</p>
-      <p className="text-xs text-zinc-400 mt-1">Follow-up actions and client communications will appear here</p>
+      <AlertCircle className="w-8 h-8 text-slate-300 mb-2" />
+      <p className="text-sm text-slate-500">No activity yet</p>
+      <p className="text-xs text-slate-400 mt-1">Follow-up actions and client communications will appear here</p>
     </div>
   );
 }
@@ -99,13 +99,6 @@ export function ItemHistoryDrawer({
   const [priority, setPriority] = useState('normal');
   const [status, setStatus] = useState('open');
 
-  // Hover states for DESIGN.md buttons
-  const [hoverCancel, setHoverCancel] = useState(false);
-  const [hoverSave, setHoverSave] = useState(false);
-  const [hoverBack, setHoverBack] = useState(false);
-  const [hoverLogBtn, setHoverLogBtn] = useState(false);
-
-  // DESIGN.md tokens
   const sectionHeaderStyle = {
     fontWeight: 600,
     fontSize: '11px',
@@ -120,7 +113,7 @@ export function ItemHistoryDrawer({
     maxWidth: '90px',
     fontWeight: 600,
     fontSize: '11px',
-    color: '#374151',
+    color: '#334155',
     textAlign: 'right' as const,
   };
 
@@ -128,7 +121,7 @@ export function ItemHistoryDrawer({
     padding: '4px 8px',
     fontSize: '12px',
     borderRadius: '4px',
-    border: '1px solid #d4d4d8',
+    border: '1px solid #cbd5e1',
     background: '#fff',
     width: '100%',
     outline: 'none',
@@ -138,7 +131,7 @@ export function ItemHistoryDrawer({
     padding: '6px 8px',
     fontSize: '12px',
     borderRadius: '4px',
-    border: '1px solid #d4d4d8',
+    border: '1px solid #cbd5e1',
     background: '#fff',
     width: '100%',
     outline: 'none',
@@ -283,12 +276,12 @@ export function ItemHistoryDrawer({
   if (!open) return null;
 
   return (
-    <aside className="fixed right-0 top-0 z-50 h-full w-96 border-l border-zinc-200 bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
+    <aside className="fixed right-0 top-0 z-50 h-full w-96 border-l border-slate-200 bg-white shadow-[0_20px_25px_-5px_rgba(15,23,42,0.10),0_8px_10px_-6px_rgba(15,23,42,0.05)] flex flex-col animate-in slide-in-from-right duration-200" aria-label={`History for ${itemLabel}`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 shrink-0 bg-white">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0 bg-white">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-zinc-900 truncate">{itemLabel}</p>
-          <p className="text-xs text-zinc-500 truncate">{clientName}</p>
+          <p className="text-sm font-semibold text-slate-900 truncate">{itemLabel}</p>
+          <p className="text-xs text-slate-500 truncate">{clientName}</p>
         </div>
         <Button variant="secondary" size="icon-xs" onClick={onClose} >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
@@ -308,50 +301,31 @@ export function ItemHistoryDrawer({
         >
           <div className="flex-1 overflow-auto px-4 py-4 space-y-4">
             <Button variant="default" size="sm" type="button" onClick={() => setIsLogging(false)}
-              onMouseEnter={() => setHoverBack(true)}
-              onMouseLeave={() => setHoverBack(false)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '6px 14px',
-                border: hoverBack ? '1px solid #9ca3af' : '1px solid #d1d5db',
-                background: hoverBack ? '#f3f4f6' : '#fff',
-                color: '#374151',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                marginBottom: '4px',
-              }}
+              className="inline-flex items-center gap-1 rounded-lg border border-[#cbd5e1] bg-white text-slate-700 hover:border-[#94a3b8] hover:bg-slate-50 hover:text-slate-700 transition-colors duration-150 px-3.5 py-1.5 text-xs font-semibold cursor-pointer mb-1"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Back to History
             </Button>
 
             {/* Section 1: Interaction Details */}
-            <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <div style={sectionHeaderStyle}>Interaction</div>
               
               {renderHeaderField('Type', (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                <div className="grid grid-cols-2 gap-1.5">
                   {CATEGORIES.map((c) => (
-                    <Button variant="default" size="sm" key={c.value} type="button" onClick={() => setCallCategory(c.value)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '6px 8px',
-                        borderRadius: '6px',
-                        border: callCategory === c.value ? '1px solid #185FA5' : '1px solid #d4d4d8',
-                        background: callCategory === c.value ? '#eff6ff' : '#fff',
-                        color: callCategory === c.value ? '#1e3a8a' : '#374151',
-                        fontSize: '11px',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        width: '100%',
-                        transition: 'all 0.15s',
-                      }}
+                    <Button
+                      variant="default"
+                      size="sm"
+                      key={c.value}
+                      type="button"
+                      onClick={() => setCallCategory(c.value)}
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-md border text-[11px] transition-colors duration-150',
+                        callCategory === c.value
+                          ? 'border-[#2563eb] bg-[#eff6ff] text-[#1e40af]'
+                          : 'border-[#cbd5e1] bg-white text-slate-700 hover:border-slate-400',
+                        'w-full justify-start px-2 py-1.5 cursor-pointer'
+                      )}
                     >
                       <span className="text-sm shrink-0">{c.icon}</span>
                       <span className="truncate">{c.label}</span>
@@ -365,7 +339,7 @@ export function ItemHistoryDrawer({
                   type="text"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="focus:border-[#185FA5] focus:ring-1 focus:ring-[#185FA5] transition-all font-medium text-zinc-800"
+                  className="focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] transition-colors duration-150 font-medium text-slate-800"
                   style={inputStyle}
                   required
                 />
@@ -378,14 +352,14 @@ export function ItemHistoryDrawer({
                   rows={4}
                   required
                   placeholder="What did you discuss?"
-                  className="focus:border-[#185FA5] focus:ring-1 focus:ring-[#185FA5] transition-all text-zinc-800"
+                  className="focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] transition-colors duration-150 text-slate-800"
                   style={textareaStyle}
                 />
               ), true, true)}
             </div>
 
             {/* Section 2: Follow-up Details */}
-            <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <div style={sectionHeaderStyle}>Follow-up Details</div>
 
               {renderHeaderField('Next Action', (
@@ -394,7 +368,7 @@ export function ItemHistoryDrawer({
                   value={nextAction}
                   onChange={(e) => setNextAction(e.target.value)}
                   placeholder="e.g. Schedule callback"
-                  className="focus:border-[#185FA5] focus:ring-1 focus:ring-[#185FA5] transition-all text-zinc-800"
+                  className="focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] transition-colors duration-150 text-slate-800"
                   style={inputStyle}
                 />
               ))}
@@ -404,7 +378,7 @@ export function ItemHistoryDrawer({
                   type="date"
                   value={followUpDate}
                   onChange={(e) => setFollowUpDate(e.target.value)}
-                  className="focus:border-[#185FA5] focus:ring-1 focus:ring-[#185FA5] transition-all text-zinc-800"
+                  className="focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] transition-colors duration-150 text-slate-800"
                   style={inputStyle}
                 />
               ))}
@@ -413,7 +387,7 @@ export function ItemHistoryDrawer({
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value)}
-                  className="focus:border-[#185FA5] focus:ring-1 focus:ring-[#185FA5] transition-all text-zinc-800"
+                  className="focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] transition-colors duration-150 text-slate-800"
                   style={{ ...inputStyle, height: '26px', padding: '2px 8px' }}
                 >
                   <option value="low">Low</option>
@@ -427,7 +401,7 @@ export function ItemHistoryDrawer({
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className="focus:border-[#185FA5] focus:ring-1 focus:ring-[#185FA5] transition-all text-zinc-800"
+                  className="focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] transition-colors duration-150 text-slate-800"
                   style={{ ...inputStyle, height: '26px', padding: '2px 8px' }}
                 >
                   <option value="open">Open</option>
@@ -440,48 +414,27 @@ export function ItemHistoryDrawer({
           </div>
 
           {/* Footer Submit */}
-          <div className="px-4 py-3 border-t border-zinc-100 bg-[#f8f9fa] flex gap-2 shrink-0">
-            <Button variant="default" size="sm" type="button" onClick={() => setIsLogging(false)}
-              onMouseEnter={() => setHoverCancel(true)}
-              onMouseLeave={() => setHoverCancel(false)}
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-                padding: '7px 16px',
-                border: hoverCancel ? '1px solid #9ca3af' : '1px solid #d1d5db',
-                background: hoverCancel ? '#f3f4f6' : '#fff',
-                color: '#374151',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
+          <div className="px-4 py-3 border-t border-slate-100 bg-[#f8fafc] flex gap-2 shrink-0">
+            <Button
+              variant="default"
+              size="sm"
+              type="button"
+              onClick={() => setIsLogging(false)}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#cbd5e1] bg-white text-slate-700 hover:border-[#94a3b8] hover:bg-slate-50 hover:text-slate-700 transition-colors duration-150 px-3.5 py-1.5 text-xs font-semibold cursor-pointer"
             >
               Cancel
             </Button>
-            <Button variant="default" size="sm" type="submit" disabled={createMutation.isPending || !callBrief.trim()} onMouseEnter={() => setHoverSave(true)}
-              onMouseLeave={() => setHoverSave(false)}
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-                padding: '7px 16px',
-                background: createMutation.isPending || !callBrief.trim() ? '#185FA5' : (hoverSave ? '#0C447C' : '#185FA5'),
-                border: createMutation.isPending || !callBrief.trim() ? '1px solid #185FA5' : (hoverSave ? '1px solid #0C447C' : '1px solid #185FA5'),
-                color: '#fff',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: createMutation.isPending || !callBrief.trim() ? 'not-allowed' : 'pointer',
-                opacity: createMutation.isPending || !callBrief.trim() ? 0.6 : 1,
-                transition: 'all 0.15s',
-              }}
+            <Button
+              variant="default"
+              size="sm"
+              type="submit"
+              disabled={createMutation.isPending || !callBrief.trim()}
+              className={cn(
+                'flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg text-white font-semibold text-xs transition-colors duration-150 px-3.5 py-1.5 cursor-pointer',
+                createMutation.isPending || !callBrief.trim()
+                  ? 'bg-[#2563eb] border-[#2563eb] opacity-60 cursor-not-allowed'
+                  : 'bg-[#2563eb] border-[#2563eb] hover:bg-[#1d4ed8] hover:border-[#1d4ed8]'
+              )}
             >
               {createMutation.isPending ? (
                 <>
@@ -495,9 +448,9 @@ export function ItemHistoryDrawer({
         /* History Timeline View */
         <>
           {followUpStatus && (
-            <div className="px-4 py-2 border-b border-zinc-100 bg-zinc-50/50 shrink-0">
-              <span className="text-[10px] font-semibold uppercase text-zinc-500 tracking-wide">Status</span>
-              <span className="ml-2 inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-indigo-50 text-indigo-700">
+            <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 shrink-0">
+              <span className="text-[10px] font-semibold uppercase text-slate-500 tracking-wide">Status</span>
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-blue-50 text-blue-700">
                 {followUpStatus}
               </span>
             </div>
@@ -506,7 +459,7 @@ export function ItemHistoryDrawer({
           <div className="flex-1 overflow-auto px-4 py-3">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+                <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
               </div>
             ) : !entries || entries.length === 0 ? (
               <EmptyState />
@@ -515,16 +468,16 @@ export function ItemHistoryDrawer({
                 {entries.map((entry, i) => (
                   <div key={entry.id} className="relative pl-5">
                     {i < entries.length - 1 && (
-                      <div className="absolute left-[7px] top-5 bottom-0 w-px bg-zinc-200" />
+                      <div className="absolute left-[7px] top-5 bottom-0 w-px bg-slate-200" />
                     )}
-                    <div className="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-zinc-200 bg-white" />
+                    <div className="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-slate-200 bg-white" />
                     <div className="flex items-center gap-2 mb-1">
                       <SourceBadge entry={entry} />
-                      <span className="text-[10px] text-zinc-400">{formatEntryDate(entry.created_at)}</span>
+                      <span className="text-[10px] text-slate-400">{formatEntryDate(entry.created_at)}</span>
                     </div>
-                    <p className="text-sm font-medium text-zinc-800">{entry.title}</p>
+                    <p className="text-sm font-medium text-slate-800">{entry.title}</p>
                     {entry.description && (
-                      <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{entry.description}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{entry.description}</p>
                     )}
                     {entry.metadata?.next_action && (
                       <div className="mt-1.5 px-2 py-1 rounded bg-amber-50 border border-amber-100">
@@ -532,40 +485,24 @@ export function ItemHistoryDrawer({
                         <span className="text-[10px] text-amber-800">{entry.metadata.next_action}</span>
                       </div>
                     )}
-                    <p className="text-[10px] text-zinc-400 mt-0.5">by {entry.actor_name}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">by {entry.actor_name}</p>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="px-4 py-3 border-t border-zinc-100 bg-[#f8f9fa] shrink-0 flex gap-2">
-            <Button variant="outline" size="sm" onClick={onClose} onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
-            >
+          <div className="px-4 py-3 border-t border-slate-100 bg-[#f8fafc] shrink-0 flex gap-2">
+            <Button variant="outline" size="sm" onClick={onClose} className="hover:bg-slate-100">
               Close
             </Button>
-            <Button variant="default" size="sm" onClick={() => setIsLogging(true)}
-              onMouseEnter={() => setHoverLogBtn(true)}
-              onMouseLeave={() => setHoverLogBtn(false)}
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                padding: '7px 16px',
-                background: hoverLogBtn ? '#0C447C' : '#185FA5',
-                border: hoverLogBtn ? '1px solid #0C447C' : '1px solid #185FA5',
-                color: '#fff',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsLogging(true)}
+              className="flex-1 rounded-lg bg-[#2563eb] hover:bg-[#1d4ed8] border border-[#2563eb] hover:border-[#1d4ed8] text-white font-semibold text-xs px-4 py-2 transition-colors duration-150"
             >
-              <MessageSquare className="w-3.5 h-3.5" />
+              <MessageSquare className="h-3.5 w-3.5" />
               Log Communication
             </Button>
           </div>

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../../supabase';
 import { useAuth } from '../../../../App';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileText, Plus, ShieldCheck, ChevronRight, X } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { SUBCONTRACTOR_V2_QUERY_KEYS } from '../../hooks/queryKeys';
 import { SubcontractorModuleNav } from '../Shared/SubcontractorModuleNav';
+import { subcontractorService } from '../../services/subcontractorService';
 
 interface DocumentsTabProps {
   subcontractorId?: string | null;
@@ -15,47 +15,33 @@ export function DocumentsTab({ subcontractorId, onNavigate }: DocumentsTabProps)
   const { organisation } = useAuth();
   const queryClient = useQueryClient();
   const [subId, setSubId] = useState(subcontractorId || '');
-  const [subcontractors, setSubcontractors] = useState<any[]>([]);
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [loadingDocs, setLoadingDocs] = useState(false);
 
-  useEffect(() => {
-    if (subcontractorId) {
-      setSubId(subcontractorId);
-    }
-  }, [subcontractorId]);
+  const { data: subcontractors = [] } = useQuery({
+    queryKey: ['v2-subcontractors', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      return subcontractorService.getSubcontractors(organisation.id, 'all');
+    },
+    enabled: !!organisation?.id && !subcontractorId,
+  });
 
-  useEffect(() => {
-    if (organisation?.id && !subcontractorId) {
-      supabase
-        .from('subcontractors')
-        .select('*')
-        .eq('organisation_id', organisation.id)
-        .order('company_name')
-        .then(({ data }) => setSubcontractors(data || []));
-    }
-  }, [organisation?.id, subcontractorId]);
+  const { data: documents = [], refetch: refetchDocuments } = useQuery({
+    queryKey: ['v2-documents', subId],
+    queryFn: async () => {
+      if (!subId || !organisation?.id) return [];
+      return subcontractorService.getDocuments(subId, organisation.id);
+    },
+    enabled: !!subId && !!organisation?.id,
+  });
 
-  const loadDocuments = async () => {
-    if (subId && organisation?.id) {
-      setLoadingDocs(true);
-      const { data } = await supabase
-        .from('subcontractor_documents')
-        .select('*')
-        .eq('subcontractor_id', subId)
-        .eq('organisation_id', organisation.id)
-        .order('created_at', { ascending: false });
-      setDocuments(data || []);
-      setLoadingDocs(false);
-    }
-  };
-
-  useEffect(() => {
-    if (subId) {
-      loadDocuments();
-    }
-  }, [subId]);
+  const createDocument = useMutation({
+    mutationFn: async (payload: any) => {
+      return subcontractorService.createDocument(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['v2-documents'] });
+    },
+  });
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []) as File[];
@@ -72,7 +58,7 @@ export function DocumentsTab({ subcontractorId, onNavigate }: DocumentsTabProps)
 
         if (!error && data) {
           const { data: urlData } = supabase.storage.from('subcontractor-documents').getPublicUrl(fileName);
-          await supabase.from('subcontractor_documents').insert({
+          await createDocument.mutateAsync({
             organisation_id: organisation.id,
             subcontractor_id: subId,
             document_name: file.name,
@@ -85,8 +71,7 @@ export function DocumentsTab({ subcontractorId, onNavigate }: DocumentsTabProps)
       }
     }
     setUploading(false);
-    loadDocuments();
-    queryClient.invalidateQueries({ queryKey: SUBCONTRACTOR_V2_QUERY_KEYS.documents(subId) });
+    refetchDocuments();
   };
 
   const isGeneralView = !subcontractorId;

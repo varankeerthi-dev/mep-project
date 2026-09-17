@@ -152,9 +152,9 @@ export const useSalesQuotes = () => {
     queryKey: ['operations', 'sales', 'quotes'],
     queryFn: async (): Promise<SalesQuote[]> => {
       const { data, error } = await supabase
-        .from('quotation_headers')
+        .from('quotation_header')
         .select('*, client:client_id(client_name)')
-        .in('status', ['draft', 'pending'])
+        .in('status', ['Draft', 'Pending'])
         .limit(10);
         
       if (error) return [];
@@ -203,9 +203,9 @@ export const useConfirmedAwaitingPO = () => {
     queryKey: ['operations', 'sales', 'awaitingPO'],
     queryFn: async (): Promise<SalesConfirmedAwaitingPO[]> => {
       const { data, error } = await supabase
-        .from('quotation_headers')
+        .from('quotation_header')
         .select('*, client:client_id(client_name)')
-        .eq('status', 'approved')
+        .eq('status', 'Approved')
         .limit(10);
         
       if (error) return [];

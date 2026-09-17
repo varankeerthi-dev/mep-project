@@ -1,0 +1,508 @@
+{
+ "generatedAt": "2026-09-16T11:34:41.521Z",
+ "reachableFiles": 930,
+ "objects": {
+  "attachments": {
+   "kind": "tables",
+   "hits": 5,
+   "callers": [
+    {
+     "f": "pages/CreatePO.tsx",
+     "mode": "from"
+    },
+    {
+     "f": "issues/hooks.ts",
+     "mode": "mention"
+    },
+    {
+     "f": "modules/Purchase/components/PurchaseOrders.tsx",
+     "mode": "from"
+    },
+    {
+     "f": "meetings/hooks/useMeetings.ts",
+     "mode": "mention"
+    },
+    {
+     "f": "components/tasks/hooks.ts",
+     "mode": "mention"
+    }
+   ]
+  },
+  "avatars": {
+   "kind": "tables",
+   "hits": 0,
+   "callers": []
+  },
+  "boms": {
+   "kind": "tables",
+   "hits": 6,
+   "callers": [
+    {
+     "f": "pages/manufacturing-v0/ManufacturingShell.tsx",
+     "mode": "mention"
+    },
+    {
+     "f": "pages/manufacturing/ManufacturingShell.tsx",
+     "mode": "mention"
+    },
+    {
+     "f": "features/manufacturing/hooks/useBoms.ts",
+     "mode": "mention"
+    },
+    {
+     "f": "pages/manufacturing-v0/BOMList.tsx",
+     "mode": "mention"
+    },
+    {
+     "f": "pages/manufacturing-v0/BOMEditor.tsx",
+     "mode": "mention"
+    },
+    {
+     "f": "pages/sales/components/StockCheckPanel.tsx",
+     "mode": "from"
+    }
+   ]
+  },
+  "client_communication_entries": {
+   "kind": "tables",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "pages/ClientLookup.tsx",
+     "mode": "from"
+    }
+   ]
+  },
+  "expense_claims": {
+   "kind": "tables",
+   "hits": 2,
+   "callers": [
+    {
+     "f": "approvals/integration.ts",
+     "mode": "from"
+    },
+    {
+     "f": "approvals/api.ts",
+     "mode": "mention"
+    }
+   ]
+  },
+  "feature_flags": {
+   "kind": "tables",
+   "hits": 0,
+   "callers": []
+  },
+  "inventory_lots": {
+   "kind": "tables",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "features/manufacturing/persistence/productionEntryPersistence.ts",
+     "mode": "from"
+    }
+   ]
+  },
+  "invoice_line_items": {
+   "kind": "tables",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "reports/invoiceApi.ts",
+     "mode": "from"
+    }
+   ]
+  },
+  "manager_alerts": {
+   "kind": "tables",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "pages/ManagerAlerts.tsx",
+     "mode": "from"
+    }
+   ]
+  },
+  "material_dispatches": {
+   "kind": "tables",
+   "hits": 3,
+   "callers": [
+    {
+     "f": "pages/Approvals.tsx",
+     "mode": "mention"
+    },
+    {
+     "f": "approvals/integration.ts",
+     "mode": "from"
+    },
+    {
+     "f": "approvals/api.ts",
+     "mode": "mention"
+    }
+   ]
+  },
+  "notifications": {
+   "kind": "tables",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "pages/ClientLookup.tsx",
+     "mode": "from"
+    }
+   ]
+  },
+  "plan_features": {
+   "kind": "tables",
+   "hits": 0,
+   "callers": []
+  },
+  "pricing_plans": {
+   "kind": "tables",
+   "hits": 0,
+   "callers": []
+  },
+  "project_closure_checklists": {
+   "kind": "tables",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "hooks/useProjectClosureChecklist.ts",
+     "mode": "from"
+    }
+   ]
+  },
+  "project_closure_gates": {
+   "kind": "tables",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "hooks/useProjectClosureChecklist.ts",
+     "mode": "from"
+    }
+   ]
+  },
+  "project_closure_templates": {
+   "kind": "tables",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "hooks/useProjectClosureChecklist.ts",
+     "mode": "from"
+    }
+   ]
+  },
+  "project_comments": {
+   "kind": "tables",
+   "hits": 0,
+   "callers": []
+  },
+  "project_scope_item_versions": {
+   "kind": "tables",
+   "hits": 0,
+   "callers": []
+  },
+  "project_scope_items": {
+   "kind": "tables",
+   "hits": 0,
+   "callers": []
+  },
+  "project_tasks": {
+   "kind": "tables",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "pages/SiteStoppageTaskIntents.tsx",
+     "mode": "from"
+    }
+   ]
+  },
+  "quotation_headers": {
+   "kind": "tables",
+   "hits": 2,
+   "callers": [
+    {
+     "f": "pages/operations/api/useOperationsQueriesV2.ts",
+     "mode": "from"
+    },
+    {
+     "f": "pages/operations/api/useOperationsQueries.ts",
+     "mode": "from"
+    }
+   ]
+  },
+  "quotation_variant_discounts": {
+   "kind": "tables",
+   "hits": 2,
+   "callers": [
+    {
+     "f": "pages/CreateQuotation/index.tsx",
+     "mode": "from"
+    },
+    {
+     "f": "pages/CreateQuotationV2/index.tsx",
+     "mode": "from"
+    }
+   ]
+  },
+  "quotations": {
+   "kind": "tables",
+   "hits": 11,
+   "callers": [
+    {
+     "f": "components/Sidebar.tsx",
+     "mode": "mention"
+    },
+    {
+     "f": "pages/QuotationList.tsx",
+     "mode": "mention"
+    },
+    {
+     "f": "pages/CreateQuotation/index.tsx",
+     "mode": "mention"
+    },
+    {
+     "f": "pages/CreateQuotationV2/index.tsx",
+     "mode": "mention"
+    },
+    {
+     "f": "pages/QuotationView.tsx",
+     "mode": "mention"
+    },
+    {
+     "f": "pages/Approvals.tsx",
+     "mode": "mention"
+    },
+    {
+     "f": "pages/ClientLookup.tsx",
+     "mode": "from"
+    },
+    {
+     "f": "approvals/integration.ts",
+     "mode": "mention"
+    }
+   ]
+  },
+  "reminders": {
+   "kind": "tables",
+   "hits": 2,
+   "callers": [
+    {
+     "f": "pages/TodoList.tsx",
+     "mode": "from"
+    },
+    {
+     "f": "pages/RemindMe.tsx",
+     "mode": "from"
+    }
+   ]
+  },
+  "salary_increments": {
+   "kind": "tables",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "hooks/useSalarySlip.ts",
+     "mode": "from"
+    }
+   ]
+  },
+  "subcontractor_attendance": {
+   "kind": "tables",
+   "hits": 2,
+   "callers": [
+    {
+     "f": "pages/Subcontractors.tsx",
+     "mode": "from"
+    },
+    {
+     "f": "features/subcontractor-v2/services/subcontractorService.ts",
+     "mode": "from"
+    }
+   ]
+  },
+  "subscription_events": {
+   "kind": "tables",
+   "hits": 0,
+   "callers": []
+  },
+  "subscriptions": {
+   "kind": "tables",
+   "hits": 0,
+   "callers": []
+  },
+  "work_instructions": {
+   "kind": "tables",
+   "hits": 0,
+   "callers": []
+  },
+  "work_items": {
+   "kind": "tables",
+   "hits": 0,
+   "callers": []
+  },
+  "approval_transition": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "approvals/rpc.ts",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "backfill_approval_denorm": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "components/ApprovalSettings.tsx",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "calculate_job_card_variances": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "features/manufacturing/repository/jobCardRepository.ts",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "create_complete_site_report": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "pages/SiteReport.tsx",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "ensure_site_report_photos_bucket": {
+   "kind": "rpcs",
+   "hits": 0,
+   "callers": []
+  },
+  "execute_standard_cost_rollup_run": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "features/manufacturing/repository/bomRepository.ts",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "increment_measurement_count": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "hooks/useMeasurementSheets.ts",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "payment_request_approve": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "payment-requests/api/rpc.ts",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "payment_request_bind_approval": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "payment-requests/api/rpc.ts",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "payment_request_create": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "payment-requests/api/rpc.ts",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "payment_request_release": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "payment-requests/api/rpc.ts",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "payment_requests_list": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "payment-requests/api/rpc.ts",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "release_job_card": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "features/manufacturing/repository/jobCardRepository.ts",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "rollup_item_standard_cost": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "features/manufacturing/repository/bomRepository.ts",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "update_complete_site_report": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "pages/SiteReport.tsx",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "update_purchase_requisition_header_status": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "purchase-inquiries/api.ts",
+     "mode": "rpc"
+    }
+   ]
+  },
+  "work_order_approve": {
+   "kind": "rpcs",
+   "hits": 1,
+   "callers": [
+    {
+     "f": "work-orders/api/rpc.ts",
+     "mode": "rpc"
+    }
+   ]
+  }
+ }
+}

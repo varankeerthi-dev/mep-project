@@ -10,6 +10,11 @@ function humanEventLabel(eventType: string): string {
     case 'podc_issue_flagged': return 'Issue flagged';
     case 'invoice_reminder_sent': return 'Payment reminder';
     case 'invoice_escalation_changed': return 'Escalation updated';
+    case 'procurement_reminder_sent': return 'PO reminder sent';
+    case 'po_created': return 'PO created';
+    case 'po_expected_updated': return 'Expected date updated';
+    case 'po_supplier_call_logged': return 'Supplier call logged';
+    case 'followup_reassigned': return 'Follow-up reassigned';
     default: return eventType;
   }
 }

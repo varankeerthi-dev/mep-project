@@ -279,7 +279,7 @@ export function WorkOrderDetailView({ onBack, workOrderId: propWorkOrderId, onNa
           )}
           <button
             onClick={() => {
-              onNavigate?.(`/subcontractors/workorders/${workOrderId}/create-measurement`);
+               onNavigate?.(`/subcontractors-v2/workorders/${workOrderId}/create-measurement`);
             }}
             style={{
               padding: '8px 16px',
@@ -583,7 +583,7 @@ export function WorkOrderDetailView({ onBack, workOrderId: propWorkOrderId, onNa
               workOrderId={workOrderId}
               workOrderNo={workOrder.work_order_no}
               currentContractValue={contractValue}
-              onCreateNew={() => onNavigate?.(`/subcontractors/workorders/${workOrderId}/create-measurement`)}
+               onCreateNew={() => onNavigate?.(`/subcontractors-v2/workorders/${workOrderId}/create-measurement`)}
             />
           )}
 

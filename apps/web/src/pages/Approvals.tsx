@@ -693,9 +693,9 @@ const Approvals: React.FC = () => {
     const routes: Record<string, string> = {
       payment_requests: '/purchase/payments',
       purchase_payments: '/purchase/payments',
-      subcontractor_payments: '/subcontractors/payments',
+      subcontractor_payments: '/subcontractors-v2/payments',
       purchase_orders: '/purchase/orders',
-      work_orders: '/subcontractors/workorders',
+      work_orders: '/subcontractors-v2/workorders',
       invoices: '/invoices',
       quotations: '/quotation/view',
       quotation_header: '/quotation/view',

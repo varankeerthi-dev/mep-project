@@ -4,6 +4,7 @@ import type { ProcurementFollowUp } from '@/types/followup';
 import type { FollowUpAssigneeOption } from '@/hooks/use-followup-assignees';
 import { AssigneeSelect } from './assignee-select';
 import { formatFollowUpCurrency } from '@/lib/followup/currency-format';
+import { formatFollowUpDate } from '@/lib/followup/date-format';
 import { cn } from '@/lib/utils';
 
 type ProcurementFollowupRowProps = {
@@ -28,10 +29,10 @@ export const ProcurementFollowupRow = memo(function ProcurementFollowupRow({
 
   const statusColors = {
     pending_inquiry: 'bg-blue-50 text-blue-700 border-blue-100',
-    po_draft: 'bg-zinc-50 text-zinc-600 border-zinc-200',
+    po_draft: 'bg-slate-50 text-slate-600 border-slate-200',
     pending_delivery: 'bg-amber-50 text-amber-700 border-amber-100',
     delayed: 'bg-red-50 text-red-700 border-red-100',
-    completed: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    completed: 'bg-green-50 text-green-700 border-green-100',
   };
 
   const statusLabels = {
@@ -45,22 +46,22 @@ export const ProcurementFollowupRow = memo(function ProcurementFollowupRow({
   return (
     <div
       className={cn(
-        'grid grid-cols-[minmax(96px,1fr)_minmax(110px,1.1fr)_minmax(120px,1.2fr)_80px_110px_90px_minmax(108px,120px)_1fr] items-center gap-2 border-b border-zinc-100 px-3 py-[14px] text-xs hover:bg-zinc-50/80',
-        isCompleted && 'bg-zinc-50/40 opacity-80',
+        'grid grid-cols-[minmax(96px,1fr)_minmax(110px,1.1fr)_minmax(120px,1.2fr)_80px_110px_90px_minmax(108px,120px)_1fr] items-center gap-2 border-b border-slate-200 px-3 py-2 text-xs hover:bg-slate-50 transition duration-150',
+        isCompleted && 'bg-slate-50/40 opacity-80',
         isDelayed && 'bg-red-50/10'
       )}
       onClick={isCompleted ? undefined : onSelect}
       role={onSelect && !isCompleted ? 'button' : undefined}
       tabIndex={onSelect && !isCompleted ? 0 : undefined}
     >
-      <span className="font-mono font-medium text-indigo-700">{item.po_no}</span>
-      <span className="truncate font-medium text-zinc-900" title={item.vendor_name}>
+      <span className="font-mono font-medium text-blue-700">{item.po_no}</span>
+      <span className="truncate font-medium text-slate-900" title={item.vendor_name}>
         {item.vendor_name}
       </span>
-      <span className="truncate text-zinc-600" title={item.project_name}>
+      <span className="truncate text-slate-600" title={item.project_name}>
         {item.project_name}
       </span>
-      <span className="tabular-nums font-medium text-zinc-900 text-right">
+      <span className="tabular-nums font-medium text-slate-900 text-left">
         {formatFollowUpCurrency(item.total_value)}
       </span>
       <span
@@ -71,8 +72,18 @@ export const ProcurementFollowupRow = memo(function ProcurementFollowupRow({
       >
         {statusLabels[item.status]}
       </span>
-      <span className={cn('tabular-nums font-medium', isDelayed && 'text-red-600 font-semibold')}>
-        {item.days_pending_vendor}d pending
+      <span className="flex flex-col leading-tight">
+        <span className={cn('tabular-nums font-medium', isDelayed && 'text-red-600 font-semibold')}>
+          {item.days_pending_vendor}d pending
+        </span>
+        <span className="tabular-nums text-slate-600">Exp {formatFollowUpDate(item.expected_date)}</span>
+        {(item.call_count || 0) > 0 ? (
+          <span className="text-[10px] text-slate-400">
+            {item.call_count} call{item.call_count === 1 ? '' : 's'} · last {formatFollowUpDate(item.last_call_at)}
+          </span>
+        ) : (
+          <span className="text-[10px] text-slate-300">no calls logged</span>
+        )}
       </span>
       <AssigneeSelect
         value={item.assignee_user_id}
@@ -90,7 +101,7 @@ export const ProcurementFollowupRow = memo(function ProcurementFollowupRow({
               e.stopPropagation();
               onReminder(item);
             }}
-            className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2 text-[11px] font-medium text-green-800 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <MessageCircle className="h-3 w-3" />
             Remind
@@ -102,11 +113,11 @@ export const ProcurementFollowupRow = memo(function ProcurementFollowupRow({
 });
 
 export const procurementTableHeader = (
-  <div className="grid grid-cols-[minmax(96px,1fr)_minmax(110px,1.1fr)_minmax(120px,1.2fr)_80px_110px_90px_minmax(108px,120px)_1fr] gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+  <div className="grid grid-cols-[minmax(96px,1fr)_minmax(110px,1.1fr)_minmax(120px,1.2fr)_80px_110px_90px_minmax(108px,120px)_1fr] gap-2 px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-600 leading-normal select-none">
     <span>PO #</span>
     <span>Vendor</span>
     <span>Project</span>
-    <span className="text-right">Value</span>
+    <span className="text-left">Value</span>
     <span>Status</span>
     <span>Timeline</span>
     <span>Assignee</span>

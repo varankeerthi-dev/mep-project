@@ -23,7 +23,7 @@ export function AssigneeSelect({
       onClick={(e) => e.stopPropagation()}
       onChange={(e) => onChange(e.target.value || null)}
       className={cn(
-        'max-w-full truncate rounded-md border border-zinc-200 bg-white text-zinc-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50',
+        'max-w-full truncate rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15 disabled:cursor-not-allowed disabled:opacity-50',
         compact ? 'h-7 min-w-[120px] px-1.5 text-[11px]' : 'h-8 min-w-[140px] px-2 text-xs'
       )}
       title="Assign follow-up owner"
@@ -50,7 +50,7 @@ export function AssigneeBadge({
     <span
       className={cn(
         'inline-block max-w-[120px] truncate rounded px-1.5 py-0.5 text-[10px] font-medium',
-        unassigned ? 'bg-zinc-100 text-zinc-500 italic' : 'bg-violet-50 text-violet-800'
+        unassigned ? 'bg-slate-100 text-slate-500 italic' : 'bg-blue-50 text-blue-800'
       )}
       title={name}
     >

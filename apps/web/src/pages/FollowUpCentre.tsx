@@ -661,36 +661,40 @@ export default function FollowUpCentre() {
     ]
   );
 
+  // Industry standard React Query caching:
+  // Only display skeleton on true initial load when there is no cached data yet.
+  // When cached data is present, display rows immediately with zero delay while background revalidation occurs.
+  const hasQueueData = quotations.length > 0 || podc.length > 0 || invoices.length > 0 || procurements.length > 0 || leads.length > 0;
   const isLoading =
-    (filters.tab === 'queue' && (loadingQ || loadingP || loadingI || loadingPR || loadingL)) ||
-    (filters.tab === 'quotation' && loadingQ) ||
-    (filters.tab === 'podc' && loadingP) ||
-    (filters.tab === 'invoice' && loadingI) ||
-    (filters.tab === 'activity' && loadingA) ||
-    (filters.tab === 'lead' && loadingL) ||
-    (filters.tab === 'procurement' && loadingPR);
+    (filters.tab === 'queue' && !hasQueueData && (loadingQ || loadingP || loadingI || loadingPR || loadingL)) ||
+    (filters.tab === 'quotation' && quotations.length === 0 && loadingQ) ||
+    (filters.tab === 'podc' && podc.length === 0 && loadingP) ||
+    (filters.tab === 'invoice' && invoices.length === 0 && loadingI) ||
+    (filters.tab === 'activity' && activity.length === 0 && loadingA) ||
+    (filters.tab === 'lead' && leads.length === 0 && loadingL) ||
+    (filters.tab === 'procurement' && procurements.length === 0 && loadingPR);
 
   const PaginationFooter = useCallback(
     ({ page, setPage, pagination }: { page: number; setPage: (p: number) => void; pagination: { totalItems: number; totalPages: number; startIndex: number; endIndex: number; hasNextPage: boolean; hasPrevPage: boolean } }) => {
       return (
-        <div className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50/50 px-6 py-4">
-          <div className="text-sm font-medium text-zinc-600">
-            Showing {pagination.totalItems === 0 ? 0 : pagination.startIndex + 1} to{' '}
-            {Math.min(pagination.endIndex, pagination.totalItems)} of {pagination.totalItems} items
+        <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-3 sticky bottom-0 z-20">
+          <div className="text-xs text-slate-600">
+            Showing <span className="font-semibold text-slate-900">{pagination.totalItems === 0 ? 0 : pagination.startIndex + 1}</span> to{' '}
+            <span className="font-semibold text-slate-900">{Math.min(pagination.endIndex, pagination.totalItems)}</span> of <span className="font-semibold text-slate-900">{pagination.totalItems}</span> items
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => setPage(page - 1)}
               disabled={!pagination.hasPrevPage}
-              className={`flex h-[32px] min-w-[80px] items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              className={`px-2.5 py-1 text-xs rounded border transition-colors ${
                 pagination.hasPrevPage
-                  ? 'border border-zinc-200 bg-white text-zinc-700 shadow-sm hover:bg-zinc-200'
-                  : 'cursor-not-allowed border border-zinc-100 bg-zinc-50 text-zinc-400'
+                  ? 'border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50'
+                  : 'border-slate-300 bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
               }`}
             >
               Previous
             </button>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               {Array.from({ length: Math.max(1, Math.min(5, pagination.totalPages)) }, (_, i) => {
                 const pageNum =
                   pagination.totalPages <= 5
@@ -704,10 +708,10 @@ export default function FollowUpCentre() {
                   <button
                     key={pageNum}
                     onClick={() => setPage(pageNum)}
-                    className={`flex h-[32px] min-w-[32px] items-center justify-center rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                    className={`px-2.5 py-1 text-xs rounded border transition-colors ${
                       page === pageNum
-                        ? 'border border-blue-600/20 bg-blue-600/10 text-blue-600 shadow-sm'
-                        : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100'
+                        ? 'border-blue-600 bg-blue-600 text-white font-semibold shadow-sm'
+                        : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     {pageNum}
@@ -718,10 +722,10 @@ export default function FollowUpCentre() {
             <button
               onClick={() => setPage(page + 1)}
               disabled={!pagination.hasNextPage}
-              className={`flex h-[32px] min-w-[80px] items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              className={`px-2.5 py-1 text-xs rounded border transition-colors ${
                 pagination.hasNextPage
-                  ? 'border border-zinc-200 bg-white text-zinc-700 shadow-sm hover:bg-zinc-200'
-                  : 'cursor-not-allowed border border-zinc-100 bg-zinc-50 text-zinc-400'
+                  ? 'border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50'
+                  : 'border-slate-300 bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
               }`}
             >
               Next
@@ -748,36 +752,36 @@ export default function FollowUpCentre() {
       case 'queue': {
         const isAllSelected = queuePagination.currentItems.length > 0 && queuePagination.currentItems.every(i => selectedRowIds.has(i.id));
         return (
-          <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
-              <div className="flex h-[38px] items-center px-4 text-xs font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-200 bg-zinc-50">
-                <div className="w-[40px] shrink-0 flex items-center justify-center">
+          <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
+              <div className="flex h-[42px] items-center pl-1 pr-3 text-[11px] font-semibold text-slate-600 uppercase tracking-wider leading-normal border-b border-slate-200 bg-slate-50 select-none">
+                <div className="w-6 shrink-0 flex items-center justify-center">
                   <button 
                     type="button" 
                     onClick={() => handleSelectAll(queuePagination.currentItems)} 
-                    className="text-zinc-400 hover:text-zinc-600 transition-colors"
+                    className="text-slate-400 hover:text-slate-600 transition-colors"
                   >
                     {isAllSelected ? (
-                      <CheckSquare className="h-[18px] w-[18px] text-blue-600 fill-blue-50/10" />
+                      <CheckSquare className="h-4 w-4 text-blue-600 fill-blue-50/10" />
                     ) : (
-                      <Square className="h-[18px] w-[18px]" />
+                      <Square className="h-4 w-4" />
                     )}
                   </button>
                 </div>
-                <span className="w-[100px] shrink-0 px-2 text-left">Priority</span>
-                <span className="w-[160px] shrink-0 px-2 text-left">Entity / Reference</span>
-                <span className="w-[240px] shrink-0 px-2 text-left">Client / Project</span>
-                <span className="w-[260px] shrink-0 px-2 text-left">Next Action & Status</span>
-                <span className="w-[130px] shrink-0 px-2 text-right">Amount</span>
-                <span className="w-[120px] shrink-0 px-2 text-center">Timeline</span>
-                <span className="w-[150px] shrink-0 px-2 text-left">Owner</span>
-                <span className="w-[140px] shrink-0 px-2 text-left">Last Activity</span>
-                <span className="w-[120px] shrink-0 text-center">Action</span>
+                <span className="w-[75px] shrink-0 px-1.5 text-left">Priority</span>
+                <span className="w-[130px] shrink-0 px-1.5 text-left">Entity / Reference</span>
+                <span className="w-[160px] shrink-0 px-1.5 text-left">Client / Project</span>
+                <span className="w-[210px] shrink-0 px-1.5 text-left">Next Action & Status</span>
+                <span className="w-[110px] shrink-0 px-1.5 text-left">Amount</span>
+                <span className="w-[95px] shrink-0 px-1.5 text-center">Timeline</span>
+                <span className="w-[125px] shrink-0 px-1.5 text-left">Owner</span>
+                <span className="w-[110px] shrink-0 px-1.5 text-left">Last Activity</span>
+                <span className="w-[85px] shrink-0 text-center">Action</span>
               </div>
             </div>
             <div className="flex-1 overflow-auto">
               {queuePagination.currentItems.length === 0 ? (
-                <p className="px-4 py-12 text-center text-sm text-zinc-500">
+                <p className="px-4 py-12 text-center text-sm text-slate-500">
                   No follow-up items in the queue. Check other tabs or relax filters.
                 </p>
               ) : (
@@ -796,19 +800,48 @@ export default function FollowUpCentre() {
                 ))
               )}
             </div>
+            {/* Bottom Aggregate Metrics Row */}
+            <div className="bg-slate-50 border-t border-slate-200 px-3 py-1.5 flex flex-wrap items-center justify-between text-[11px] leading-tight text-slate-600 select-none">
+              <div className="flex items-center gap-4">
+                <span className="font-medium text-slate-900">
+                  <span className="font-bold text-blue-600">{queuePagination.totalItems}</span> records loaded
+                </span>
+                <span className="text-slate-300">·</span>
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <span>Total Value:</span>
+                  <span className="font-semibold text-emerald-600 font-mono">
+                    {formatCompactCurrency(queueWithFocus.reduce((s, i) => s + (i.amount || 0), 0))}
+                  </span>
+                </div>
+                {(() => {
+                  const overdueItems = queueWithFocus.filter(i => i.urgency_label.toLowerCase().includes('overdue') || i.urgency_label.toLowerCase().includes('delayed'));
+                  return overdueItems.length > 0 ? (
+                    <>
+                      <span className="text-slate-300">·</span>
+                      <div className="flex items-center gap-1.5 text-slate-500">
+                        <span>Overdue Action Items:</span>
+                        <span className="font-semibold text-rose-600 font-mono">
+                          {overdueItems.length} ({formatCompactCurrency(overdueItems.reduce((s, i) => s + (i.amount || 0), 0))})
+                        </span>
+                      </div>
+                    </>
+                  ) : null;
+                })()}
+              </div>
+            </div>
             <PaginationFooter page={queuePage} setPage={setQueuePage} pagination={queuePagination} />
           </div>
         );
       }
       case 'quotation':
         return (
-          <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
+          <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
               {quotationTableHeader}
             </div>
             <div className="flex-1 overflow-auto">
               {quotationPagination.currentItems.length === 0 ? (
-                <p className="px-4 py-12 text-center text-sm text-zinc-500">No quotations match your filters.</p>
+                <p className="px-4 py-12 text-center text-sm text-slate-500">No quotations match your filters.</p>
               ) : (
                 quotationPagination.currentItems.map((item) => (
                   <QuotationFollowupRow
@@ -833,13 +866,13 @@ export default function FollowUpCentre() {
         );
       case 'podc':
         return (
-          <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
+          <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
               {podcTableHeader}
             </div>
             <div className="flex-1 overflow-auto">
               {podcPagination.currentItems.length === 0 ? (
-                <p className="px-4 py-12 text-center text-sm text-zinc-500">No PO/DC backlog items match your filters.</p>
+                <p className="px-4 py-12 text-center text-sm text-slate-500">No PO/DC backlog items match your filters.</p>
               ) : (
                 podcPagination.currentItems.map((item) => (
                   <PodcBacklogRow
@@ -861,13 +894,13 @@ export default function FollowUpCentre() {
       case 'invoice':
         return (
           <div className="flex min-h-0 flex-1 gap-3">
-            <div className="min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white overflow-hidden flex flex-col">
-              <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95">
+            <div className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white overflow-hidden flex flex-col">
+              <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50/95">
                 {invoiceTableHeader}
               </div>
               <div className="flex-1 overflow-auto">
                 {invoicePagination.currentItems.length === 0 ? (
-                  <p className="px-4 py-12 text-center text-sm text-zinc-500">No invoices match your filters.</p>
+                  <p className="px-4 py-12 text-center text-sm text-slate-500">No invoices match your filters.</p>
                 ) : (
                   invoicePagination.currentItems.map((inv) => (
                     <InvoiceEscalationCard
@@ -898,13 +931,13 @@ export default function FollowUpCentre() {
         );
       case 'activity':
         return (
-          <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
+          <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
               {activityTableHeader}
             </div>
             <div className="flex-1 overflow-auto">
               {activityPagination.currentItems.length === 0 ? (
-                <p className="px-4 py-12 text-center text-sm text-zinc-500">No activity logs match your filters.</p>
+                <p className="px-4 py-12 text-center text-sm text-slate-500">No activity logs match your filters.</p>
               ) : (
                 activityPagination.currentItems.map((item) => (
                   <ActivityLogItem key={item.id} log={item} />
@@ -916,15 +949,15 @@ export default function FollowUpCentre() {
         );
       case 'lead':
         return (
-          <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
+          <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
               {leadTableHeader}
             </div>
             <div className="flex-1 overflow-auto">
               {leadPagination.currentItems.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
-                  <p className="text-sm font-medium text-zinc-700">No leads match your filters.</p>
-                  <p className="mt-1 text-xs text-zinc-500">Capture your first lead with the “New lead” button above.</p>
+                  <p className="text-sm font-medium text-slate-700">No leads match your filters.</p>
+                  <p className="mt-1 text-xs text-slate-500">Capture your first lead with the “New lead” button above.</p>
                 </div>
               ) : (
                 leadPagination.currentItems.map((item) => (
@@ -947,13 +980,13 @@ export default function FollowUpCentre() {
         );
       case 'procurement':
         return (
-          <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
+          <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
               {procurementTableHeader}
             </div>
             <div className="flex-1 overflow-auto">
               {procurementPagination.currentItems.length === 0 ? (
-                <p className="px-4 py-12 text-center text-sm text-zinc-500">No procurement items match your filters.</p>
+                <p className="px-4 py-12 text-center text-sm text-slate-500">No procurement items match your filters.</p>
               ) : (
                 procurementPagination.currentItems.map((item) => (
                   <ProcurementFollowupRow
@@ -987,14 +1020,14 @@ export default function FollowUpCentre() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-zinc-50/80">
-      <header className="shrink-0 border-b border-zinc-200 bg-white px-4 py-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="flex h-full min-h-0 flex-col bg-[#f8fafc]">
+      <header className="shrink-0 border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-30 px-6 py-4">
+        <div className="max-w-[1680px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setMobileTabsOpen(true)}
-              className="lg:hidden p-2 rounded-lg hover:bg-zinc-100 text-zinc-600"
+              className="lg:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-600"
               aria-label="Open tabs"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1002,24 +1035,24 @@ export default function FollowUpCentre() {
                 <path d="M9 9h6v6H9z" />
               </svg>
             </button>
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight text-zinc-900">Follow-Up Centre</h1>
-              <p className="text-xs text-zinc-500">
+            <div className="flex items-baseline gap-3">
+              <h1 className="text-xl font-bold tracking-tight text-slate-900">Follow-Up Centre</h1>
+              <p className="text-xs text-slate-500 hidden sm:inline">
                 Operational follow-up for quotations, PO/DC gaps, and invoice collections
                 {organisation?.name ? ` · ${organisation.name}` : ''}
                 {role ? ` · ${role}` : ''}
               </p>
             </div>
           </div>
-          <div className="flex flex-col items-end gap-1.5">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
-                leftIcon={<MessageSquare className="h-3.5 w-3.5" />}
+                leftIcon={<MessageSquare className="h-3.5 w-3.5 text-slate-500" />}
                 onClick={() => window.open('/client-communication', '_blank')}
                 title="Go to Client Communication page"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-900 border border-slate-300 rounded-md shadow-sm transition duration-150"
               >
                 Communication Log
               </Button>
@@ -1031,12 +1064,12 @@ export default function FollowUpCentre() {
                 onClick={() => setLeadModalOpen(true)}
                 disabled={!canManage}
                 title={canManage ? 'Capture a new lead' : 'Manager/admin only'}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm shadow-blue-500/20 transition duration-150 active:scale-[0.98]"
               >
                 New lead
               </Button>
-            </div>
             {isReadOnly && (
-              <span className="text-[11px] text-zinc-500">Read-only (manager/admin required to act)</span>
+              <span className="text-[11px] text-slate-500">Read-only (manager/admin required to act)</span>
             )}
           </div>
         </div>
@@ -1056,153 +1089,51 @@ export default function FollowUpCentre() {
           counts={tabCounts}
           orientation="horizontal"
         />
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden px-4 pb-5 pt-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden px-4 py-1.5">
           <section className="sticky top-0 z-20 shrink-0">
-            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-[10px] shadow-sm">
+            <div className="flex flex-wrap items-center gap-1.5 py-0">
               <FollowupSearch value={search} onChange={setSearch} />
               <FollowupFilterBar
                 tab={filters.tab}
                 filters={filters}
                 assignees={assignees}
                 onChange={setFilters}
+                quickFilter={quickFilter}
+                onQuickFilterChange={setQuickFilter}
+                quickFilterCounts={quickFilterCounts}
+                queueTotalCount={filteredQueue.length}
+                focusMode={focusMode}
+                onFocusModeChange={setFocusMode}
               />
             </div>
-            {filters.tab === 'queue' && (
-              <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 shadow-sm">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mr-1">Quick Filters:</span>
-                  {[
-                    { value: 'all', label: 'All Items', count: filteredQueue.length },
-                    { value: 'due_today', label: 'Due Today/Tomorrow', count: quickFilterCounts.due_today },
-                    { value: 'overdue', label: 'Overdue/Delayed', count: quickFilterCounts.overdue },
-                    { value: 'waiting', label: 'Waiting on Customer', count: quickFilterCounts.waiting },
-                    { value: 'upcoming', label: 'Upcoming / Close', count: quickFilterCounts.upcoming },
-                    { value: 'unassigned', label: 'Unassigned', count: quickFilterCounts.unassigned },
-                  ].map((pill) => (
-                    <button
-                      key={pill.value}
-                      type="button"
-                      onClick={() => setQuickFilter(pill.value as any)}
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all ${
-                        quickFilter === pill.value
-                          ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-700/20'
-                          : 'bg-zinc-50 text-zinc-600 border border-zinc-200 hover:bg-zinc-100 hover:text-zinc-900'
-                      }`}
-                    >
-                      <span>{pill.label}</span>
-                      <span className={`inline-flex items-center justify-center rounded-full px-1.5 py-0.25 text-[9px] font-bold ${
-                        quickFilter === pill.value
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-zinc-200 text-zinc-600'
-                      }`}>
-                        {pill.count}
-                      </span>
-                    </button>
-                  ))}
-                  {quickFilter !== 'all' && (
-                    <button
-                      type="button"
-                      onClick={() => setQuickFilter('all')}
-                      className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-600 transition-colors ml-1 font-medium"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                      Reset
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <label className="relative inline-flex items-center cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={focusMode}
-                      onChange={(e) => setFocusMode(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-8 h-4 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
-                    <span className="ml-2 text-xs font-semibold text-zinc-700 flex items-center gap-1">
-                      Focus Mode
-                      <span className="text-[10px] font-normal text-zinc-400">(Critical/High)</span>
-                    </span>
-                  </label>
-                </div>
-              </div>
-            )}
           </section>
 
-          <section className="min-h-0 flex-1 overflow-hidden pt-1">
+          <section className="min-h-0 flex-1 overflow-hidden">
             {renderTabContent(filters.tab)}
           </section>
         </div>
       </div>
 
-      <div className="lg:hidden flex min-h-0 flex-1 flex-col gap-5 overflow-hidden px-4 pb-5 pt-5">
+      <div className="lg:hidden flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden px-3 py-1.5">
         <section className="sticky top-0 z-20 shrink-0">
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-[10px] shadow-sm">
+          <div className="flex flex-wrap items-center gap-1.5 py-0">
             <FollowupSearch value={search} onChange={setSearch} />
             <FollowupFilterBar
               tab={filters.tab}
               filters={filters}
               assignees={assignees}
               onChange={setFilters}
+              quickFilter={quickFilter}
+              onQuickFilterChange={setQuickFilter}
+              quickFilterCounts={quickFilterCounts}
+              queueTotalCount={filteredQueue.length}
+              focusMode={focusMode}
+              onFocusModeChange={setFocusMode}
             />
           </div>
-          {filters.tab === 'queue' && (
-            <div className="mt-2 flex flex-col gap-2.5 rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-sm">
-              <div className="flex flex-wrap items-center gap-1.5">
-                {[
-                  { value: 'all', label: 'All', count: filteredQueue.length },
-                  { value: 'due_today', label: 'Due', count: quickFilterCounts.due_today },
-                  { value: 'overdue', label: 'Overdue', count: quickFilterCounts.overdue },
-                  { value: 'waiting', label: 'Waiting', count: quickFilterCounts.waiting },
-                  { value: 'unassigned', label: 'Unassigned', count: quickFilterCounts.unassigned },
-                ].map((pill) => (
-                  <button
-                    key={pill.value}
-                    type="button"
-                    onClick={() => setQuickFilter(pill.value as any)}
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-all ${
-                      quickFilter === pill.value
-                        ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-700/20'
-                        : 'bg-zinc-50 text-zinc-500 border border-zinc-200'
-                    }`}
-                  >
-                    <span>{pill.label}</span>
-                    <span className="text-[9px] font-bold text-zinc-400">
-                      ({pill.count})
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center justify-between border-t border-zinc-100 pt-2">
-                <label className="relative inline-flex items-center cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={focusMode}
-                    onChange={(e) => setFocusMode(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-8 h-4 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-600"></div>
-                  <span className="ml-2 text-xs font-semibold text-zinc-700">
-                    Focus Mode
-                  </span>
-                </label>
-                {quickFilter !== 'all' && (
-                  <button
-                    type="button"
-                    onClick={() => setQuickFilter('all')}
-                    className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-600"
-                  >
-                    <RotateCcw className="h-3 w-3" />
-                    Reset
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
         </section>
 
-        <section className="min-h-0 flex-1 overflow-hidden pt-1">
+        <section className="min-h-0 flex-1 overflow-hidden">
           {renderTabContent(filters.tab)}
         </section>
       </div>
@@ -1270,12 +1201,12 @@ export default function FollowUpCentre() {
 
       {/* Floating Bulk Actions Bar */}
       {selectedRowIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-4 rounded-xl border border-zinc-200 bg-zinc-900 px-6 py-3.5 shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="flex items-center gap-2 border-r border-zinc-700 pr-4">
+        <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-4 rounded-lg border border-slate-200 bg-slate-900 px-6 py-3.5 shadow-2xl transition-opacity duration-300 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center gap-2 border-r border-slate-700 pr-4">
             <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-500 px-1 text-[11px] font-bold text-white">
               {selectedRowIds.size}
             </span>
-            <span className="text-xs font-semibold text-zinc-100">
+            <span className="text-xs font-semibold text-slate-100">
               items selected
             </span>
           </div>
@@ -1288,7 +1219,7 @@ export default function FollowUpCentre() {
                   description: `Reassigning ${selectedRowIds.size} items...`
                 });
               }}
-              className="inline-flex h-8 items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 px-3 text-xs font-semibold text-zinc-200 hover:bg-zinc-700 transition-colors disabled:opacity-50"
+              className="inline-flex h-8 items-center justify-center rounded-lg bg-slate-800 border border-slate-700 px-3 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors disabled:opacity-50"
             >
               Bulk Reassign
             </button>
@@ -1300,14 +1231,14 @@ export default function FollowUpCentre() {
                   description: `Preparing templates for ${selectedRowIds.size} clients...`
                 });
               }}
-              className="inline-flex h-8 items-center justify-center rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-500 transition-colors disabled:opacity-50"
+              className="inline-flex h-8 items-center justify-center rounded-lg bg-green-600 px-3 text-xs font-semibold text-white hover:bg-green-500 transition-colors disabled:opacity-50"
             >
               WhatsApp Batch
             </button>
             <button
               type="button"
               onClick={() => setSelectedRowIds(new Set())}
-              className="inline-flex h-8 items-center justify-center rounded-lg border border-transparent px-3 text-xs font-semibold text-zinc-400 hover:text-zinc-200 transition-colors"
+              className="inline-flex h-8 items-center justify-center rounded-lg border border-transparent px-3 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors"
             >
               Cancel
             </button>

@@ -77,7 +77,7 @@ export const LeadRow = memo(function LeadRow({
   return (
     <div
       className={cn(
-        'flex items-center border-b border-zinc-100 bg-white px-4 py-3 transition-colors',
+        'flex items-center border-b border-slate-200 bg-white px-4 py-2.5 transition-colors duration-150',
         !isClosed && 'hover:bg-zinc-50'
       )}
     >
@@ -226,12 +226,12 @@ export const LeadRow = memo(function LeadRow({
 });
 
 export const leadTableHeader = (
-  <div className="flex h-[36px] items-center px-4 text-[13px] font-semibold tracking-tight text-zinc-700">
+  <div className="flex h-[42px] items-center px-4 text-[11px] font-semibold uppercase tracking-wider text-slate-600 leading-normal select-none">
     <span className="w-[110px] shrink-0 text-left">Status</span>
     <div className="w-[260px] shrink-0 px-3 text-left">Contact / Company</div>
     <div className="w-[200px] shrink-0 px-3 text-left">Project</div>
     <div className="w-[180px] shrink-0 px-3 text-left">Reach</div>
-    <span className="w-[110px] shrink-0 px-3 text-right">Value</span>
+    <span className="w-[110px] shrink-0 px-3 text-left">Value</span>
     <div className="min-w-[200px] flex-1 px-3 text-left">Next action</div>
     <span className="w-[140px] shrink-0 px-3 text-right">Actions</span>
   </div>

@@ -25,7 +25,8 @@ import {
   X,
   Edit3,
   Download,
-  Check
+  Check,
+  Link2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import html2canvas from 'html2canvas';
@@ -56,6 +57,9 @@ type ProcurementItem = {
   vendor_id: string | null;
   notes: string;
   status: Status;
+  expected_date: string | null;
+  po_id: string | null;
+  po_item_id: string | null;
   display_order: number;
   is_header_row: boolean;
   header_text: string;
@@ -79,6 +83,97 @@ export default function ProcurementDetail() {
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Linked PO numbers for badge display
+  const [poMap, setPoMap] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const ids = [...new Set(items.filter((i) => i.po_id && !i._isNew).map((i) => i.po_id as string))];
+    const missing = ids.filter((id) => !poMap[id]);
+    if (missing.length === 0) return;
+    supabase.from('purchase_orders').select('id, po_number').in('id', missing).then(({ data }) => {
+      if (data) setPoMap((prev) => ({ ...prev, ...Object.fromEntries(data.map((p: any) => [p.id, p.po_number])) }));
+    });
+  }, [items]);
+
+  // Link PO dialog
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkPOs, setLinkPOs] = useState<any[]>([]);
+  const [linkPoId, setLinkPoId] = useState('');
+  const [linkLines, setLinkLines] = useState<any[]>([]);
+  const [linking, setLinking] = useState(false);
+
+  const openLinkDialog = async () => {
+    setLinkOpen(true);
+    setLinkPoId('');
+    setLinkLines([]);
+    const { data } = await supabase
+      .from('purchase_orders')
+      .select('id, po_number, po_date, delivery_date, vendor_id')
+      .eq('organisation_id', orgId)
+      .order('po_date', { ascending: false })
+      .limit(200);
+    setLinkPOs((data || []).map((p: any) => ({
+      ...p,
+      vendor_name: vendors.find((v: any) => v.id === p.vendor_id)?.company_name || '-',
+    })));
+  };
+
+  const normName = (s: string) => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+  const previewLink = async (poId: string) => {
+    setLinkPoId(poId);
+    if (!poId) { setLinkLines([]); return; }
+    const po = linkPOs.find((p) => p.id === poId);
+    const { data: lines } = await supabase
+      .from('purchase_order_items')
+      .select('id, item_name, quantity, expected_delivery_date')
+      .eq('po_id', poId);
+    const used = new Set<string>();
+    const dataRows = items.filter((i) => !i.is_header_row && !i._isNew && i.item_name);
+    setLinkLines(dataRows.map((item) => {
+      const match = (lines || []).find((l: any) => !used.has(l.id) && normName(l.item_name) === normName(item.item_name));
+      if (match) used.add(match.id);
+      return { item, match: match || null, fallbackDate: po?.delivery_date || null };
+    }));
+  };
+
+  const confirmLink = async () => {
+    const matched = linkLines.filter((p) => p.match);
+    if (matched.length === 0) { alert('No matching lines found — item names must match the PO lines'); return; }
+    setLinking(true);
+    try {
+      await Promise.all(matched.map((p) =>
+        supabase.from('procurement_items').update({
+          po_id: linkPoId,
+          po_item_id: p.match.id,
+          expected_date: p.match.expected_delivery_date || p.fallbackDate || null,
+          status: (p.item.status === 'Pending' || p.item.status === 'Sourcing') ? 'PO Raised' : p.item.status,
+          updated_at: new Date().toISOString(),
+        }).eq('id', p.item.id)
+      ));
+      setItems((prev) => prev.map((it) => {
+        const m = matched.find((x) => x.item.id === it.id);
+        if (!m) return it;
+        return {
+          ...it,
+          po_id: linkPoId,
+          po_item_id: m.match.id,
+          expected_date: m.match.expected_delivery_date || m.fallbackDate || it.expected_date,
+          status: (it.status === 'Pending' || it.status === 'Sourcing') ? 'PO Raised' as Status : it.status,
+          _dirty: false,
+        };
+      }));
+      const poNo = linkPOs.find((p) => p.id === linkPoId)?.po_number || '';
+      setPoMap((prev) => ({ ...prev, [linkPoId]: poNo }));
+      queryClient.invalidateQueries({ queryKey: ['procurement-items', listId] });
+      alert(`Linked ${matched.length} of ${linkLines.length} lines to ${poNo}`);
+      setLinkOpen(false);
+    } catch (e: any) {
+      alert('Link failed: ' + e.message);
+    } finally {
+      setLinking(false);
+    }
+  };
 
   // User-specific column visibility preferences
   const [pdfColumns, setPdfColumns] = useState<Record<string, boolean>>({});
@@ -251,6 +346,9 @@ export default function ProcurementDetail() {
       vendor_id: null,
       notes: '',
       status: 'Pending',
+      expected_date: null,
+      po_id: null,
+      po_item_id: null,
       display_order: items.length,
       is_header_row: false,
       header_text: '',
@@ -276,6 +374,9 @@ export default function ProcurementDetail() {
       vendor_id: null,
       notes: '',
       status: 'Pending',
+      expected_date: null,
+      po_id: null,
+      po_item_id: null,
       display_order: items.length,
       is_header_row: true,
       header_text: 'New Section',
@@ -312,6 +413,9 @@ export default function ProcurementDetail() {
         vendor_id: item.vendor_id || null,
         notes: item.notes || null,
         status: item.status,
+        expected_date: item.expected_date || null,
+        po_id: item.po_id || null,
+        po_item_id: item.po_item_id || null,
         display_order: item.display_order ?? idx,
         is_header_row: item.is_header_row || false,
         header_text: item.header_text || null,
@@ -460,6 +564,13 @@ export default function ProcurementDetail() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={openLinkDialog}
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 text-[13px] font-bold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 active:scale-95"
+          >
+            <Link2 size={18} className="text-blue-500" />
+            Link PO
+          </button>
           <button 
             onClick={() => setShowPdfPreview(true)}
             className="inline-flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 text-[13px] font-bold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 active:scale-95"
@@ -520,6 +631,8 @@ export default function ProcurementDetail() {
                 <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-rose-500 w-20">Gap</th>
                 <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[140px]">Vendor</th>
                 <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[120px]">Status</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[110px]">Expected</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[110px]">PO</th>
                 <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[140px]">Notes</th>
                 <th className="border border-zinc-300 px-3 py-2.5 text-center w-10"></th>
               </tr>
@@ -527,7 +640,7 @@ export default function ProcurementDetail() {
             <tbody>
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={15 + warehouses.length} className="py-20 text-center">
+                  <td colSpan={17 + warehouses.length} className="py-20 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Package size={32} className="text-zinc-200" />
                       <p className="text-sm font-medium text-zinc-400">No items found.</p>
@@ -542,7 +655,7 @@ export default function ProcurementDetail() {
                         <td className="border border-zinc-300 px-3 py-4 text-center">
                           <Layout size={14} className="mx-auto text-blue-400" />
                         </td>
-                        <td colSpan={13 + warehouses.length} className="border border-zinc-300 px-3 py-4">
+                        <td colSpan={15 + warehouses.length} className="border border-zinc-300 px-3 py-4">
                           <input
                             type="text"
                             value={item.header_text || ''}
@@ -713,6 +826,26 @@ export default function ProcurementDetail() {
 
                       <td className="border border-zinc-300 px-2 py-5">
                         <input
+                          type="date"
+                          value={item.expected_date || ''}
+                          onChange={(e) => updateItem(item.id, 'expected_date', e.target.value || null)}
+                          disabled={isDispatched}
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[10px] text-center tabular-nums text-zinc-900 outline-none focus:ring-1 focus:ring-blue-500/20 rounded"
+                        />
+                      </td>
+
+                      <td className="border border-zinc-300 px-2 py-5 text-center">
+                        {item.po_id ? (
+                          <span className="inline-flex items-center rounded border border-violet-200 bg-violet-50 px-2 py-1 text-[10px] font-bold text-violet-700" title={poMap[item.po_id] || item.po_id}>
+                            {poMap[item.po_id] || 'PO'}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-zinc-300">—</span>
+                        )}
+                      </td>
+
+                      <td className="border border-zinc-300 px-2 py-5">
+                        <input
                           type="text"
                           value={item.notes || ''}
                           onChange={(e) => updateItem(item.id, 'notes', e.target.value)}
@@ -754,6 +887,66 @@ export default function ProcurementDetail() {
             {saving ? <RefreshCcw size={16} className="animate-spin" /> : <Save size={16} />}
             {saving ? 'Saving...' : 'Commit Changes'}
           </button>
+        </div>
+      )}
+
+      {/* Link PO Modal */}
+      {linkOpen && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40 p-4" onClick={() => setLinkOpen(false)}>
+          <div className="w-full max-w-[560px] rounded-xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-zinc-900">Link Purchase Order</h3>
+            <p className="mt-1 text-xs text-zinc-500">Lines auto-match by item name. Matched lines get the PO link, expected date and move to PO Raised.</p>
+            <label className="mt-4 block">
+              <span className="text-xs font-medium text-zinc-600">Purchase Order</span>
+              <select value={linkPoId} onChange={(e) => previewLink(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Select PO...</option>
+                {linkPOs.map((p) => (
+                  <option key={p.id} value={p.id}>{p.po_number} · {p.vendor_name} · {p.po_date}</option>
+                ))}
+              </select>
+            </label>
+            {linkPoId && (
+              <div className="mt-3 max-h-[280px] overflow-auto rounded-lg border border-zinc-100">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-zinc-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold text-zinc-500">List item</th>
+                      <th className="px-3 py-2 text-left font-semibold text-zinc-500">PO line</th>
+                      <th className="px-3 py-2 text-left font-semibold text-zinc-500">Expected</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {linkLines.map((p) => (
+                      <tr key={p.item.id} className="border-t border-zinc-100">
+                        <td className="px-3 py-2 text-zinc-800">{p.item.item_name}</td>
+                        <td className="px-3 py-2">
+                          {p.match ? (
+                            <span className="text-zinc-700">{p.match.item_name} <span className="text-zinc-400">× {p.match.quantity}</span></span>
+                          ) : (
+                            <span className="text-zinc-300">no match</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 tabular-nums text-zinc-600">
+                          {p.match ? (p.match.expected_delivery_date || p.fallbackDate || '—') : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button onClick={() => setLinkOpen(false)}
+                className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100">
+                Cancel
+              </button>
+              <button onClick={confirmLink} disabled={linking || !linkPoId}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50">
+                {linking ? 'Linking...' : `Link ${linkLines.filter((p) => p.match).length} lines`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

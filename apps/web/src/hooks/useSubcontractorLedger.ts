@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import type { LedgerEntry, LedgerSummary, WorkOrderWithValue, LedgerEntryType } from '../types/subcontractor';
-import { calculateLedger } from '../features/subcontractor/domain/ledgerCalculator';
+import { calculateLedger } from '../features/subcontractor-v2/domain/ledgerCalculator';
 
 export type { LedgerEntry, LedgerSummary, WorkOrderWithValue, LedgerEntryType };
 

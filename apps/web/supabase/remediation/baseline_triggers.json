@@ -1,0 +1,2116 @@
+[
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_advances_expenses_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "advances_expenses",
+    "trigger_name": "trg_prevent_posted_advances_expenses_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_advances_expenses_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "advances_expenses",
+    "trigger_name": "trg_prevent_posted_advances_expenses_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "approval_workflows",
+    "trigger_name": "update_approval_workflows_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "approvals",
+    "trigger_name": "update_approvals_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "attendance",
+    "trigger_name": "update_attendance_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "attendance",
+    "trigger_name": "update_hr_attendance_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "bills_not_in_2b",
+    "trigger_name": "trigger_bills_not_in_2b_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "bills_not_in_2b",
+    "trigger_name": "trigger_bills_not_in_2b_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "bills_not_in_2b",
+    "trigger_name": "trigger_bills_not_in_2b_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_gst_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "bills_not_in_2b",
+    "trigger_name": "trigger_bills_not_in_2b_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "bills_not_in_books",
+    "trigger_name": "trigger_bills_not_in_books_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "bills_not_in_books",
+    "trigger_name": "trigger_bills_not_in_books_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "bills_not_in_books",
+    "trigger_name": "trigger_bills_not_in_books_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_gst_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "bills_not_in_books",
+    "trigger_name": "trigger_bills_not_in_books_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION prevent_published_bom_header_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "bom_headers",
+    "trigger_name": "trigger_prevent_published_bom_header_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION prevent_published_bom_item_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "bom_items",
+    "trigger_name": "trigger_prevent_published_bom_item_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION prevent_published_bom_item_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "bom_items",
+    "trigger_name": "trigger_prevent_published_bom_item_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION prevent_published_bom_item_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "bom_items",
+    "trigger_name": "trigger_prevent_published_bom_item_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_boq_revision()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "boq_headers",
+    "trigger_name": "trg_boq_revision"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION follow_up_set_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "cadence_rules",
+    "trigger_name": "trg_cadence_rules_updated"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION audit_client_communication_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "client_communication",
+    "trigger_name": "trg_audit_client_communication"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION check_comm_parent_cycle()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "client_communication",
+    "trigger_name": "trg_comm_no_self_parent"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION check_comm_parent_cycle()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "client_communication",
+    "trigger_name": "trg_comm_no_self_parent"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION validate_tenant_fk_ownership()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "client_communication",
+    "trigger_name": "trg_validate_client_comm_fk"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION validate_tenant_fk_ownership()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "client_communication",
+    "trigger_name": "trg_validate_client_comm_fk"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_client_contacts_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "client_contacts",
+    "trigger_name": "set_client_contacts_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_ob_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "client_opening_balances",
+    "trigger_name": "update_client_opening_balances_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "client_payment_terms",
+    "trigger_name": "update_client_payment_terms_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_po_status()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "client_purchase_orders",
+    "trigger_name": "trigger_update_po_status"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_po_status()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "client_purchase_orders",
+    "trigger_name": "trigger_update_po_status"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "clients",
+    "trigger_name": "update_clients_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION handle_new_variant_discount_settings()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "company_variants",
+    "trigger_name": "trigger_new_variant_discount_settings"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "context_modifiers",
+    "trigger_name": "update_context_modifiers_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_validate_document_party_role_fn()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "credit_notes",
+    "trigger_name": "trg_credit_note_party_role_val"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_validate_document_party_role_fn()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "credit_notes",
+    "trigger_name": "trg_credit_note_party_role_val"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_update_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "credit_notes",
+    "trigger_name": "trg_credit_notes_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_enforce_posted_cn_creation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "credit_notes",
+    "trigger_name": "trg_enforce_posted_cn_creation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_cn_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "credit_notes",
+    "trigger_name": "trg_prevent_posted_cn_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_cn_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "credit_notes",
+    "trigger_name": "trg_prevent_posted_cn_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_material_consumption_summary()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "daily_material_usage",
+    "trigger_name": "trigger_update_consumption_on_usage"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_material_consumption_summary()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "daily_material_usage",
+    "trigger_name": "trigger_update_consumption_on_usage"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION cleanup_consumption_summary_on_usage_delete()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "daily_material_usage",
+    "trigger_name": "trigger_update_consumption_on_usage_delete"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "daily_material_usage",
+    "trigger_name": "update_daily_material_usage_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_daily_report_apply_progress()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "daily_report_work_items",
+    "trigger_name": "trg_daily_report_apply_progress"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_daily_report_apply_progress()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "daily_report_work_items",
+    "trigger_name": "trg_daily_report_apply_progress"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "daily_report_work_items",
+    "trigger_name": "trg_drwi_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_validate_document_party_role_fn()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "debit_notes",
+    "trigger_name": "trg_debit_note_party_role_val"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_validate_document_party_role_fn()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "debit_notes",
+    "trigger_name": "trg_debit_note_party_role_val"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_update_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "debit_notes",
+    "trigger_name": "trg_debit_notes_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_enforce_posted_dn_creation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "debit_notes",
+    "trigger_name": "trg_enforce_posted_dn_creation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_dn_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "debit_notes",
+    "trigger_name": "trg_prevent_posted_dn_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_dn_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "debit_notes",
+    "trigger_name": "trg_prevent_posted_dn_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_active_dc_deletion()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "delivery_challans",
+    "trigger_name": "trg_prevent_active_dc_deletion"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "employees",
+    "trigger_name": "update_employees_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_est_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "est_boq_headers",
+    "trigger_name": "trg_est_boq_headers_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_est_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "est_tenders",
+    "trigger_name": "trg_est_tenders_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "filing_status",
+    "trigger_name": "trigger_filing_status_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "filing_status",
+    "trigger_name": "trigger_filing_status_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "filing_status",
+    "trigger_name": "trigger_filing_status_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_gst_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "filing_status",
+    "trigger_name": "trigger_filing_status_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION follow_up_set_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "follow_up_invoice_tracking",
+    "trigger_name": "trg_follow_up_invoice_updated"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION follow_up_set_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "follow_up_podc_backlog",
+    "trigger_name": "trg_follow_up_podc_updated"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION follow_up_set_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "follow_up_quotation_tracking",
+    "trigger_name": "trg_follow_up_quotation_updated"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "generated_reports",
+    "trigger_name": "update_generated_reports_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_gst_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "gst_configurations",
+    "trigger_name": "trigger_gst_configurations_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "gst_inward_supply",
+    "trigger_name": "update_gst_inward_supply_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "gst_itc_ledger",
+    "trigger_name": "update_gst_itc_ledger_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "gst_outward_supply",
+    "trigger_name": "update_gst_outward_supply_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "gst_rcm_liability",
+    "trigger_name": "update_gst_rcm_liability_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "gst_reconciliation",
+    "trigger_name": "update_gst_reconciliation_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "gst_returns",
+    "trigger_name": "update_gst_returns_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_gst_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "gstr1_documents",
+    "trigger_name": "trigger_gstr1_documents_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "gstr1_imports",
+    "trigger_name": "trigger_gstr1_imports_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "gstr1_imports",
+    "trigger_name": "trigger_gstr1_imports_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "gstr1_imports",
+    "trigger_name": "trigger_gstr1_imports_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_gst_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "gstr1_imports",
+    "trigger_name": "trigger_gstr1_imports_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_gst_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "gstr2b_documents",
+    "trigger_name": "trigger_gstr2b_documents_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "gstr2b_imports",
+    "trigger_name": "trigger_gstr2b_imports_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "gstr2b_imports",
+    "trigger_name": "trigger_gstr2b_imports_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "gstr2b_imports",
+    "trigger_name": "trigger_gstr2b_imports_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_gst_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "gstr2b_imports",
+    "trigger_name": "trigger_gstr2b_imports_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_intent_assignments_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "intent_assignments",
+    "trigger_name": "trigger_update_intent_assignments_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_final_invoice_item_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "invoice_items",
+    "trigger_name": "trg_prevent_final_invoice_item_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_final_invoice_item_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "invoice_items",
+    "trigger_name": "trg_prevent_final_invoice_item_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_final_invoice_item_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "invoice_items",
+    "trigger_name": "trg_prevent_final_invoice_item_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_validate_document_party_role_fn()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "invoices",
+    "trigger_name": "trg_invoice_party_role_val"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_validate_document_party_role_fn()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "invoices",
+    "trigger_name": "trg_invoice_party_role_val"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION ensure_ledger_client_org_match()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "invoices",
+    "trigger_name": "trg_invoices_validate_client_org"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION ensure_ledger_client_org_match()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "invoices",
+    "trigger_name": "trg_invoices_validate_client_org"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_final_invoice_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "invoices",
+    "trigger_name": "trg_prevent_final_invoice_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_final_invoice_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "invoices",
+    "trigger_name": "trg_prevent_final_invoice_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION set_invoice_date()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "invoices",
+    "trigger_name": "trigger_set_invoice_date"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION set_issue_number()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "issues",
+    "trigger_name": "issue_number_trigger"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "itc_summaries",
+    "trigger_name": "trigger_itc_summaries_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "itc_summaries",
+    "trigger_name": "trigger_itc_summaries_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "itc_summaries",
+    "trigger_name": "trigger_itc_summaries_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_gst_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "itc_summaries",
+    "trigger_name": "trigger_itc_summaries_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_journal_audit()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "journal_entries",
+    "trigger_name": "trg_journal_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_journal_audit()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "journal_entries",
+    "trigger_name": "trg_journal_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_journal_audit()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "journal_entries",
+    "trigger_name": "trg_journal_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_journal_audit()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "journal_entry_lines",
+    "trigger_name": "trg_journal_lines_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_journal_audit()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "journal_entry_lines",
+    "trigger_name": "trg_journal_lines_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_journal_audit()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "journal_entry_lines",
+    "trigger_name": "trg_journal_lines_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "labour_categories",
+    "trigger_name": "update_labour_categories_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "lead_allocations",
+    "trigger_name": "set_lead_allocations_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION follow_up_set_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "lead_assignment_rules",
+    "trigger_name": "trg_lead_assignment_rules_updated"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION follow_up_set_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "leads",
+    "trigger_name": "trg_leads_updated"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "leave_requests",
+    "trigger_name": "update_leave_requests_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "legacy_project_tasks",
+    "trigger_name": "update_project_tasks_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "legacy_task_groups",
+    "trigger_name": "update_task_groups_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "legacy_task_views",
+    "trigger_name": "update_task_views_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "legacy_tasks",
+    "trigger_name": "update_tasks_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "manpower_attendance",
+    "trigger_name": "update_manpower_attendance_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "manpower_billing",
+    "trigger_name": "update_manpower_billing_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION set_quick_quote_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "material_attributes",
+    "trigger_name": "trg_material_attributes_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "material_client_mappings",
+    "trigger_name": "set_updated_at_mappings"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_client_pricing_change()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "material_client_pricing",
+    "trigger_name": "trg_log_client_pricing_change"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_client_pricing_change()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "material_client_pricing",
+    "trigger_name": "trg_log_client_pricing_change"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_client_pricing_change()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "material_client_pricing",
+    "trigger_name": "trg_log_client_pricing_change"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_material_client_pricing_history()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "material_client_pricing",
+    "trigger_name": "trg_material_client_pricing_history"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_material_client_pricing_history()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "material_client_pricing",
+    "trigger_name": "trg_material_client_pricing_history"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_material_client_pricing_history()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "material_client_pricing",
+    "trigger_name": "trg_material_client_pricing_history"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trigger_refresh_received_qty()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "material_intents",
+    "trigger_name": "trg_received_qty_on_delete"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trigger_refresh_received_qty()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "material_intents",
+    "trigger_name": "trg_received_qty_on_insert"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trigger_refresh_received_qty()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "material_intents",
+    "trigger_name": "trg_received_qty_on_update"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_intent_status_on_receive()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "material_intents",
+    "trigger_name": "trigger_update_intent_status_on_receive"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_active_inward_deletion()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "material_inward",
+    "trigger_name": "trg_prevent_active_inward_deletion"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_active_outward_deletion()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "material_outward",
+    "trigger_name": "trg_prevent_active_outward_deletion"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION refresh_meeting_search_from_action_item()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "meeting_action_items",
+    "trigger_name": "trg_meeting_search_action_item"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION refresh_meeting_search_from_action_item()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "meeting_action_items",
+    "trigger_name": "trg_meeting_search_action_item"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION refresh_meeting_search_from_action_item()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "meeting_action_items",
+    "trigger_name": "trg_meeting_search_action_item"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION refresh_meeting_search_from_decision()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "meeting_decisions",
+    "trigger_name": "trg_meeting_search_decision"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION refresh_meeting_search_from_decision()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "meeting_decisions",
+    "trigger_name": "trg_meeting_search_decision"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION refresh_meeting_search_from_decision()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "meeting_decisions",
+    "trigger_name": "trg_meeting_search_decision"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION refresh_meeting_search_from_topic()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "meeting_topics",
+    "trigger_name": "trg_meeting_search_topic"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION refresh_meeting_search_from_topic()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "meeting_topics",
+    "trigger_name": "trg_meeting_search_topic"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION refresh_meeting_search_from_topic()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "meeting_topics",
+    "trigger_name": "trg_meeting_search_topic"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION refresh_meeting_search_from_meeting()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "meetings",
+    "trigger_name": "trg_meeting_search_meeting"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION refresh_meeting_search_from_meeting()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "meetings",
+    "trigger_name": "trg_meeting_search_meeting"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_fn_org_members_collab_sync()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "org_members",
+    "trigger_name": "trg_org_members_collab_sync"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_fn_org_members_collab_sync()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "org_members",
+    "trigger_name": "trg_org_members_collab_sync"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION prevent_last_admin_change()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "org_members",
+    "trigger_name": "trg_prevent_last_admin_change"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION prevent_last_admin_change()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "org_members",
+    "trigger_name": "trg_prevent_last_admin_change"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION sync_org_members_to_user_organisations()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "org_members",
+    "trigger_name": "trg_sync_user_organisations"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION sync_org_members_to_user_organisations()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "org_members",
+    "trigger_name": "trg_sync_user_organisations"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION sync_org_members_to_user_organisations()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "org_members",
+    "trigger_name": "trg_sync_user_organisations"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_organisations_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "organisations",
+    "trigger_name": "update_organisations_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "partners",
+    "trigger_name": "set_partners_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION common_bridge_guard_active_payment_request()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "payment_request_source_links",
+    "trigger_name": "common_bridge_guard_active_payment_request"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION common_bridge_guard_active_payment_request()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "payment_request_source_links",
+    "trigger_name": "common_bridge_guard_active_payment_request"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_po_total_from_line_items()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "po_line_items",
+    "trigger_name": "trigger_update_po_total_from_line_items"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_po_total_from_line_items()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "po_line_items",
+    "trigger_name": "trigger_update_po_total_from_line_items"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_po_total_from_line_items()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "po_line_items",
+    "trigger_name": "trigger_update_po_total_from_line_items"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION calculate_milestone_amount()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "po_payment_milestones",
+    "trigger_name": "trigger_calculate_milestone_amount"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION calculate_milestone_amount()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "po_payment_milestones",
+    "trigger_name": "trigger_calculate_milestone_amount"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_milestone_payment_status()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "po_payment_transactions",
+    "trigger_name": "trigger_update_milestone_payment_status"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_milestone_payment_status()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "po_payment_transactions",
+    "trigger_name": "trigger_update_milestone_payment_status"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION auto_reserve_on_production_receipt()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "production_entries",
+    "trigger_name": "trigger_auto_reserve_on_prod"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_production_entry_activity()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "production_entries",
+    "trigger_name": "trigger_production_entry_activity"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION set_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "production_schedule_items",
+    "trigger_name": "trg_production_schedule_items_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION set_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "production_schedules",
+    "trigger_name": "trg_production_schedules_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_enforce_posted_proforma_creation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "proforma_invoices",
+    "trigger_name": "trg_enforce_posted_proforma_creation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_final_proforma_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "proforma_invoices",
+    "trigger_name": "trg_prevent_final_proforma_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_final_proforma_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "proforma_invoices",
+    "trigger_name": "trg_prevent_final_proforma_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_proforma_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "proforma_invoices",
+    "trigger_name": "trg_prevent_posted_proforma_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_proforma_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "proforma_invoices",
+    "trigger_name": "trg_prevent_posted_proforma_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_validate_document_party_role_fn()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "proforma_invoices",
+    "trigger_name": "trg_proforma_party_role_val"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_validate_document_party_role_fn()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "proforma_invoices",
+    "trigger_name": "trg_proforma_party_role_val"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_fn_collab_touch_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "project_collaboration_channels",
+    "trigger_name": "trg_collab_channels_touch"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_fn_collab_mention_notify()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "project_collaboration_messages",
+    "trigger_name": "trg_collab_mention_notify"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_fn_collab_messages_audit()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "project_collaboration_messages",
+    "trigger_name": "trg_collab_messages_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_fn_collab_messages_audit()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "project_collaboration_messages",
+    "trigger_name": "trg_collab_messages_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION calculate_warranty_end_date()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "project_equipment",
+    "trigger_name": "set_warranty_end_date"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION calculate_warranty_end_date()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "project_equipment",
+    "trigger_name": "set_warranty_end_date"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "project_handovers",
+    "trigger_name": "trg_project_handovers_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_project_insights_resolved_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "project_insights",
+    "trigger_name": "trg_project_insights_resolved_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_project_invoices_sync_po_utilization()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "project_invoices",
+    "trigger_name": "trg_project_invoices_sync_po_utilization"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_project_invoices_sync_po_utilization()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "project_invoices",
+    "trigger_name": "trg_project_invoices_sync_po_utilization"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_project_invoices_sync_po_utilization()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "project_invoices",
+    "trigger_name": "trg_project_invoices_sync_po_utilization"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION delete_consumption_summary_on_material_delete()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "project_material_list",
+    "trigger_name": "trigger_delete_consumption_on_material_list"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_material_consumption_summary()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "project_material_list",
+    "trigger_name": "trigger_update_consumption_on_material_list"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_material_consumption_summary()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "project_material_list",
+    "trigger_name": "trigger_update_consumption_on_material_list"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "project_material_list",
+    "trigger_name": "update_project_material_list_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_invoice_status()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "project_payments",
+    "trigger_name": "trigger_update_invoice_status"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_invoice_status()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "project_payments",
+    "trigger_name": "trigger_update_invoice_status"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_fn_projects_status_archival()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "projects",
+    "trigger_name": "trg_projects_status_archival"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION generate_project_code()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "projects",
+    "trigger_name": "trigger_generate_project_code"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_purchase_bill_item_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "purchase_bill_items",
+    "trigger_name": "trg_prevent_posted_purchase_bill_item_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_purchase_bill_item_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "purchase_bill_items",
+    "trigger_name": "trg_prevent_posted_purchase_bill_item_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_purchase_bill_item_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "purchase_bill_items",
+    "trigger_name": "trg_prevent_posted_purchase_bill_item_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_enforce_posted_purchase_bill_creation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "purchase_bills",
+    "trigger_name": "trg_enforce_posted_purchase_bill_creation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_purchase_bill_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "purchase_bills",
+    "trigger_name": "trg_prevent_posted_purchase_bill_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_purchase_bill_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "purchase_bills",
+    "trigger_name": "trg_prevent_posted_purchase_bill_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_purchase_order_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "purchase_orders",
+    "trigger_name": "trg_prevent_posted_purchase_order_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_purchase_order_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "purchase_orders",
+    "trigger_name": "trg_prevent_posted_purchase_order_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_enforce_posted_purchase_payment_creation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "purchase_payments",
+    "trigger_name": "trg_enforce_posted_purchase_payment_creation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_purchase_payment_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "purchase_payments",
+    "trigger_name": "trg_prevent_posted_purchase_payment_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_purchase_payment_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "purchase_payments",
+    "trigger_name": "trg_prevent_posted_purchase_payment_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION set_updated_at_purchase_requisitions()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "purchase_requisition_lines",
+    "trigger_name": "trg_purchase_requisition_lines_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION set_updated_at_purchase_requisitions()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "purchase_requisitions",
+    "trigger_name": "trg_purchase_requisitions_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION set_quick_quote_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "quick_quote_settings",
+    "trigger_name": "trg_qq_settings_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION set_quick_quote_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "quick_quote_size_mappings",
+    "trigger_name": "trg_qq_size_map_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION set_quick_quote_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "quick_quote_template_items",
+    "trigger_name": "trg_qq_template_items_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION set_quick_quote_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "quick_quote_templates",
+    "trigger_name": "trg_qq_templates_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_quotation_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "quotation_header",
+    "trigger_name": "trg_prevent_posted_quotation_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_quotation_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "quotation_header",
+    "trigger_name": "trg_prevent_posted_quotation_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_validate_document_party_role_fn()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "quotation_header",
+    "trigger_name": "trg_quotation_party_role_val"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION trg_validate_document_party_role_fn()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "quotation_header",
+    "trigger_name": "trg_quotation_party_role_val"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "quotation_terms_conditions",
+    "trigger_name": "update_quotation_terms_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "rate_cards",
+    "trigger_name": "update_rate_cards_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "rcm_data",
+    "trigger_name": "trigger_rcm_data_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "rcm_data",
+    "trigger_name": "trigger_rcm_data_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_gst_table_changes()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "rcm_data",
+    "trigger_name": "trigger_rcm_data_audit"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_gst_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "rcm_data",
+    "trigger_name": "trigger_rcm_data_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_gst_updated_at()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "rcm_masters",
+    "trigger_name": "trigger_rcm_masters_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_enforce_posted_receipt_creation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "receipts",
+    "trigger_name": "trg_enforce_posted_receipt_creation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_receipt_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "receipts",
+    "trigger_name": "trg_prevent_posted_receipt_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_receipt_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "receipts",
+    "trigger_name": "trg_prevent_posted_receipt_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION ensure_ledger_client_org_match()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "receipts",
+    "trigger_name": "trg_receipts_validate_client_org"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION ensure_ledger_client_org_match()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "receipts",
+    "trigger_name": "trg_receipts_validate_client_org"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_update_invoice_paid_amount()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "receipts",
+    "trigger_name": "trg_update_invoice_paid_amount"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_update_invoice_paid_amount()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "receipts",
+    "trigger_name": "trg_update_invoice_paid_amount"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_update_invoice_paid_amount()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "receipts",
+    "trigger_name": "trg_update_invoice_paid_amount"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "report_templates",
+    "trigger_name": "update_report_templates_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION lock_return_child_items()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "return_items",
+    "trigger_name": "trigger_lock_return_child_items"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION lock_return_child_items()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "return_items",
+    "trigger_name": "trigger_lock_return_child_items"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION lock_return_child_items()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "return_items",
+    "trigger_name": "trigger_lock_return_child_items"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION lock_return_sources()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "return_sources",
+    "trigger_name": "trigger_lock_return_sources"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION lock_return_sources()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "return_sources",
+    "trigger_name": "trigger_lock_return_sources"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION lock_return_sources()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "return_sources",
+    "trigger_name": "trigger_lock_return_sources"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION validate_return_quantity()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "return_sources",
+    "trigger_name": "trigger_validate_return_quantity"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION validate_return_quantity()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "return_sources",
+    "trigger_name": "trigger_validate_return_quantity"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION lock_completed_returns()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "returns",
+    "trigger_name": "trigger_lock_completed_returns"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION lock_completed_returns()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "returns",
+    "trigger_name": "trigger_lock_completed_returns"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_warehouse_stock_on_return_complete()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "returns",
+    "trigger_name": "trigger_update_warehouse_stock_on_return_complete"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_warehouse_stock_on_return_complete()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "returns",
+    "trigger_name": "trigger_update_warehouse_stock_on_return_complete"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION validate_return_on_complete()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "returns",
+    "trigger_name": "trigger_validate_return_on_complete"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION calculate_sales_order_item_status()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "sales_order_items",
+    "trigger_name": "trigger_calculate_so_item_status"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION calculate_sales_order_item_status()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "sales_order_items",
+    "trigger_name": "trigger_calculate_so_item_status"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION sync_so_stock_status()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "sales_order_items",
+    "trigger_name": "trigger_sync_so_stock_status_items"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION sync_so_stock_status()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "sales_order_items",
+    "trigger_name": "trigger_sync_so_stock_status_items"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION sync_so_stock_status()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "sales_order_items",
+    "trigger_name": "trigger_sync_so_stock_status_items"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_so_item_reserved_qty()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "sales_order_reservations",
+    "trigger_name": "trigger_update_reserved_qty"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_so_item_reserved_qty()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "sales_order_reservations",
+    "trigger_name": "trigger_update_reserved_qty"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_so_item_reserved_qty()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "sales_order_reservations",
+    "trigger_name": "trigger_update_reserved_qty"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION sync_quotation_conversion_status()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "sales_orders",
+    "trigger_name": "trigger_sync_quotation_conversion"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION sync_quotation_conversion_status()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "sales_orders",
+    "trigger_name": "trigger_sync_quotation_conversion"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION sync_quotation_conversion_status()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "sales_orders",
+    "trigger_name": "trigger_sync_quotation_conversion"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "saved_filters",
+    "trigger_name": "update_saved_filters_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "scheduled_reports",
+    "trigger_name": "update_scheduled_reports_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "service_rates",
+    "trigger_name": "update_service_rates_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "site_checkins",
+    "trigger_name": "update_site_checkins_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "site_report_work_stoppages",
+    "trigger_name": "trg_sr_stoppages_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION prevent_locked_site_report_insert()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "site_reports",
+    "trigger_name": "trg_prevent_locked_report_insert"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION prevent_locked_site_report_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "site_reports",
+    "trigger_name": "trg_prevent_locked_report_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION prevent_locked_site_report_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "site_reports",
+    "trigger_name": "trg_prevent_locked_report_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION validate_tenant_fk_ownership()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "site_reports",
+    "trigger_name": "trg_validate_site_reports_fk"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION validate_tenant_fk_ownership()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "site_reports",
+    "trigger_name": "trg_validate_site_reports_fk"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "site_reports",
+    "trigger_name": "update_site_reports_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION validate_tenant_fk_ownership()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "site_visits",
+    "trigger_name": "trg_validate_site_visits_fk"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION validate_tenant_fk_ownership()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "site_visits",
+    "trigger_name": "trg_validate_site_visits_fk"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "sites",
+    "trigger_name": "update_sites_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_active_stock_transfer_deletion()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "stock_transfers",
+    "trigger_name": "trg_prevent_active_stock_transfer_deletion"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION validate_tenant_fk_ownership()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "stock_transfers",
+    "trigger_name": "trg_validate_stock_transfers_fk"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION validate_tenant_fk_ownership()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "stock_transfers",
+    "trigger_name": "trg_validate_stock_transfers_fk"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_enforce_posted_subcontractor_bill_creation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "subcontractor_invoices",
+    "trigger_name": "trg_enforce_posted_subcontractor_bill_creation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_subcontractor_bill_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "subcontractor_invoices",
+    "trigger_name": "trg_prevent_posted_subcontractor_bill_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_subcontractor_bill_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "subcontractor_invoices",
+    "trigger_name": "trg_prevent_posted_subcontractor_bill_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_measurement_sheet_timestamp()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "subcontractor_measurement_sheets",
+    "trigger_name": "update_measurement_sheet_timestamp"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_enforce_posted_subcontractor_payment_creation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "subcontractor_payments",
+    "trigger_name": "trg_enforce_posted_subcontractor_payment_creation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_subcontractor_payment_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "subcontractor_payments",
+    "trigger_name": "trg_prevent_posted_subcontractor_payment_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_subcontractor_payment_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "subcontractor_payments",
+    "trigger_name": "trg_prevent_posted_subcontractor_payment_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_measurement_sheet_timestamp()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "subcontractor_retention",
+    "trigger_name": "update_retention_timestamp"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_tds_payment_timestamp()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "subcontractor_tds_payments",
+    "trigger_name": "update_tds_payment_timestamp"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_amendment_timestamp()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "subcontractor_work_order_amendments",
+    "trigger_name": "update_amendment_timestamp"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_work_order_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "subcontractor_work_orders",
+    "trigger_name": "trg_prevent_posted_work_order_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_prevent_posted_work_order_mutation()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "DELETE",
+    "table_name": "subcontractor_work_orders",
+    "trigger_name": "trg_prevent_posted_work_order_mutation"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_work_order_timestamp()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "subcontractor_work_orders",
+    "trigger_name": "update_work_order_timestamp"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "task_comments",
+    "trigger_name": "update_task_comments_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "task_groups",
+    "trigger_name": "update_task_groups_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_task_actual_hours()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "task_time_logs",
+    "trigger_name": "update_task_actual_hours_on_delete"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_task_actual_hours()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "task_time_logs",
+    "trigger_name": "update_task_actual_hours_on_insert"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_task_actual_hours()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "task_time_logs",
+    "trigger_name": "update_task_actual_hours_on_update"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "task_views",
+    "trigger_name": "update_task_views_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_task_activity()",
+    "action_timing": "AFTER",
+    "event_manipulation": "DELETE",
+    "table_name": "tasks",
+    "trigger_name": "log_task_activity_trigger"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_task_activity()",
+    "action_timing": "AFTER",
+    "event_manipulation": "UPDATE",
+    "table_name": "tasks",
+    "trigger_name": "log_task_activity_trigger"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION log_task_activity()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "tasks",
+    "trigger_name": "log_task_activity_trigger"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION set_task_completed_date()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "tasks",
+    "trigger_name": "set_task_completed_date"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION fn_task_assign_task_no()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "tasks",
+    "trigger_name": "trg_task_assign_no"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "tasks",
+    "trigger_name": "update_tasks_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "terms_conditions_items",
+    "trigger_name": "update_terms_conditions_items_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "terms_conditions_items",
+    "trigger_name": "update_terms_items_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "terms_conditions_sections",
+    "trigger_name": "update_terms_conditions_sections_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "terms_conditions_sections",
+    "trigger_name": "update_terms_sections_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "terms_conditions_templates",
+    "trigger_name": "update_terms_conditions_templates_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "terms_conditions_templates",
+    "trigger_name": "update_terms_templates_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION create_tool_stock_movement()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "tool_transactions",
+    "trigger_name": "create_tool_stock_movement_trigger"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_tool_stock_on_transaction()",
+    "action_timing": "AFTER",
+    "event_manipulation": "INSERT",
+    "table_name": "tool_transactions",
+    "trigger_name": "update_tool_stock_on_transaction_trigger"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_updated_at_column()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "user_report_preferences",
+    "trigger_name": "update_user_report_preferences_updated_at"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION validate_tenant_fk_ownership()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "INSERT",
+    "table_name": "warehouse_transfers",
+    "trigger_name": "trg_validate_warehouse_transfers_fk"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION validate_tenant_fk_ownership()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "warehouse_transfers",
+    "trigger_name": "trg_validate_warehouse_transfers_fk"
+  },
+  {
+    "action_statement": "EXECUTE FUNCTION update_work_completion_certificate_timestamp()",
+    "action_timing": "BEFORE",
+    "event_manipulation": "UPDATE",
+    "table_name": "work_completion_certificates",
+    "trigger_name": "work_completion_certificates_updated_at"
+  }
+]

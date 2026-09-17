@@ -83,10 +83,13 @@ export function useFollowupFilters() {
         (prev) => {
           const next = new URLSearchParams();
           next.set('tab', tab);
-          const q = prev.get('q');
-          if (q) next.set('q', q);
-          const assignee = prev.get('assignee');
-          if (assignee) next.set('assignee', assignee);
+          // Preserve every current filter value when switching tabs.
+          // Tab-specific filters (e.g. quotation status) are kept in the URL
+          // so the user can return to the previous tab and find their filters intact.
+          const keys = new Set(prev.keys());
+          for (const key of keys) {
+            if (key !== 'tab') next.set(key, prev.get(key)!);
+          }
           return next;
         },
         { replace: true }

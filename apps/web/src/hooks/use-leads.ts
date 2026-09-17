@@ -3,7 +3,7 @@
 // Hooks layer for the ambient follow-up wedge.
 // =============================================================================
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import * as leadsApi from '../follow-up/leads-api';
 import type {
@@ -46,7 +46,9 @@ export function useLeads() {
     queryKey: KEYS.leads(orgId),
     queryFn: () => (orgId ? leadsApi.fetchLeads(orgId) : []),
     enabled: !!orgId,
-    staleTime: 30_000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -58,7 +60,9 @@ export function useLeadsWithStatus(): { data: Lead[]; isLoading: boolean } {
     queryKey: KEYS.leads(orgId),
     queryFn: () => (orgId ? leadsApi.fetchLeads(orgId) : []),
     enabled: !!orgId,
-    staleTime: 30_000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 
   return { data: q.data ?? [], isLoading: q.isLoading };

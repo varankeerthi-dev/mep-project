@@ -308,20 +308,25 @@ async function logActivity(
     p_actor_name: payload.actor_name ?? null,
   });
 
-  if (error) {
-    const { error: insertError } = await supabase.from('follow_up_activity_log').insert({
-      organisation_id: organisationId,
-      event_type: payload.event_type,
-      tab_source: payload.tab_source,
-      title: payload.title,
-      description: payload.description ?? '',
-      reference_id: payload.reference_id ?? null,
-      reference_label: payload.reference_label ?? '',
-      metadata: payload.metadata ?? {},
-      actor_name: payload.actor_name ?? 'User',
-    });
-    if (insertError) throw insertError;
+  // Fail closed: activity logging goes through the guarded RPC only.
+  // A direct browser insert must never be used as a fallback when the RPC
+  // fails (bypasses server-side authorisation and constraint enforcement).
+  // RPC missing => deployment defect => surface the error.
+  if (error) throw error;
+}
+
+export async function logProcurementActivity(
+  organisationId: string,
+  payload: {
+    event_type: ActivityEventType;
+    title: string;
+    description?: string;
+    reference_id?: string;
+    reference_label?: string;
+    metadata?: Record<string, string>;
   }
+) {
+  return logActivity(organisationId, { ...payload, tab_source: 'procurement' });
 }
 
 export async function upsertQuotationResponse(
@@ -587,6 +592,42 @@ export async function fetchFollowUpProcurement(
 
   if (error) throw error;
 
+  const poIds = (data || []).map((row: any) => String(row.id));
+  const etasByPo = new Map<string, string[]>();
+  const openByPo = new Map<string, number>();
+  const callsByPo = new Map<string, string[]>();
+  if (poIds.length > 0) {
+    const [itemsRes, commsRes] = await Promise.all([
+      supabase
+        .from('purchase_order_items')
+        .select('po_id, quantity, received_qty, expected_delivery_date')
+        .in('po_id', poIds),
+      supabase
+        .from('client_communication')
+        .select('linked_id, created_at')
+        .eq('organisation_id', organisationId)
+        .eq('linked_type', 'procurement')
+        .in('linked_id', poIds)
+        .order('created_at', { ascending: false }),
+    ]);
+    for (const it of itemsRes.data || []) {
+      const pid = String((it as any).po_id);
+      if ((it as any).expected_delivery_date) {
+        const arr = etasByPo.get(pid) || [];
+        arr.push(String((it as any).expected_delivery_date).slice(0, 10));
+        etasByPo.set(pid, arr);
+      }
+      const bal = (Number((it as any).quantity) || 0) - (Number((it as any).received_qty) || 0);
+      if (bal > 0) openByPo.set(pid, (openByPo.get(pid) || 0) + 1);
+    }
+    for (const c of commsRes.data || []) {
+      const pid = String((c as any).linked_id);
+      const arr = callsByPo.get(pid) || [];
+      arr.push(String((c as any).created_at));
+      callsByPo.set(pid, arr);
+    }
+  }
+
   return (data || []).map((row: any) => {
     const tracking = Array.isArray(row.tracking) ? row.tracking[0] : row.tracking;
     const vendor = row.vendor as any;
@@ -595,6 +636,9 @@ export async function fetchFollowUpProcurement(
 
     const today = new Date();
     const dueStr = String(row.delivery_date || row.date || '').split('T')[0];
+    const etas = etasByPo.get(String(row.id)) || [];
+    const expectedStr = etas.length > 0 ? etas.sort()[etas.length - 1] : null;
+    const poCalls = callsByPo.get(String(row.id)) || [];
     let daysPending = 0;
     try {
       if (row.status !== 'completed' && row.date) {
@@ -620,6 +664,10 @@ export async function fetchFollowUpProcurement(
         : null,
       assignee_user_id: track?.assignee_user_id || null,
       assignee_name: null,
+      expected_date: expectedStr,
+      last_call_at: poCalls.length > 0 ? poCalls[0].split('T')[0] : null,
+      call_count: poCalls.length,
+      open_lines: openByPo.get(String(row.id)) || 0,
     };
   });
 }

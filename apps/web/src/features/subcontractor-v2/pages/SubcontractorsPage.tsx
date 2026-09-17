@@ -5,7 +5,9 @@ import { WorkOrdersPage } from '../components/WorkOrders/WorkOrdersPage';
 import { SubcontractorWorkOrderCreate } from '../components/WorkOrders/SubcontractorWorkOrderCreate';
 import { WorkOrderDetailView } from '../components/WorkOrders/WorkOrderDetailView';
 import { AttendancePage } from '../components/Attendance/AttendancePage';
+import { AttendanceListPage } from '../components/Attendance/AttendanceListPage';
 import { PaymentsPage } from '../components/Payments/PaymentsPage';
+import { InvoicesPage } from '../components/Invoices/InvoicesPage';
 import { DocumentsTab } from '../components/Documents/DocumentsTab';
 import { MeasurementSheetWrapper } from '../../../pages/MeasurementSheetWrapper';
 
@@ -72,8 +74,14 @@ export function SubcontractorsPage({ onNavigate }: SubcontractorsPageProps) {
     case '/subcontractors-v2/attendance':
       return <AttendancePage onNavigate={onNavigate} />;
 
+    case '/subcontractors-v2/attendance/list':
+      return <AttendanceListPage onNavigate={onNavigate} />;
+
     case '/subcontractors-v2/payments':
       return <PaymentsPage onNavigate={onNavigate} />;
+
+    case '/subcontractors-v2/invoices':
+      return <InvoicesPage onNavigate={onNavigate} />;
 
     case '/subcontractors-v2/documents':
       return <DocumentsTab onNavigate={onNavigate} />;

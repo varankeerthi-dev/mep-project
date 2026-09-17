@@ -1,0 +1,2077 @@
+[
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "account_mappings"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "accounts"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "activity_logs"
+  },
+  {
+    "policy_count": 3,
+    "rls_enabled": true,
+    "table_name": "advances_expenses"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "amc_contracts"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "approval_actions"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "approval_approvers"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "approval_notifications"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "approval_settings"
+  },
+  {
+    "policy_count": 3,
+    "rls_enabled": true,
+    "table_name": "approval_workflows"
+  },
+  {
+    "policy_count": 6,
+    "rls_enabled": true,
+    "table_name": "approvals"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "asset_disposal_entries"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "asset_register"
+  },
+  {
+    "policy_count": 5,
+    "rls_enabled": true,
+    "table_name": "attendance"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "attendance_plans"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "attribute_definitions"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "audit_log"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "availability_inquiries"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "availability_inquiry_lines"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "availability_responses"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "benchmark_runs"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "billing_overage_log"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "bills_not_in_2b"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "bills_not_in_books"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "bom_cost_lines"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "bom_headers"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "bom_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "bom_routing_operations"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "bom_work_centers"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "boq_column_settings"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "boq_headers"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "boq_items"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "boq_sheets"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "boq_variant_discounts"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "cadence_rules"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "catalog_alias_stats"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "catalog_aliases"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "category_access_control"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "client_communication"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "client_contacts"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "client_opening_balances"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "client_payment_terms"
+  },
+  {
+    "policy_count": 8,
+    "rls_enabled": true,
+    "table_name": "client_purchase_orders"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "client_requests"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "client_shipping_addresses"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "clients"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "company_variants"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "consumable_catalog"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "context_modifiers"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "cost_centers"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "credit_note_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "credit_notes"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "custom_field_values"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "custom_fields"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "custom_units"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "daily_material_usage"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "daily_report_audit"
+  },
+  {
+    "policy_count": 3,
+    "rls_enabled": true,
+    "table_name": "daily_report_channel_links"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "daily_report_work_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "daily_update_documents"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "daily_update_images"
+  },
+  {
+    "policy_count": 5,
+    "rls_enabled": true,
+    "table_name": "daily_updates"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "dc_line_allocations"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "debit_note_items"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "debit_notes"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "delivery_challan_items"
+  },
+  {
+    "policy_count": 5,
+    "rls_enabled": true,
+    "table_name": "delivery_challans"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "depreciation_schedules"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "discount_approval"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "discount_approval_log"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "discount_categories"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "discount_settings"
+  },
+  {
+    "policy_count": 5,
+    "rls_enabled": true,
+    "table_name": "discount_structures"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "discount_variant_settings"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "dispatch_count_verification"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "dispatch_items"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "dispatch_orders"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "dispatch_packing"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "document_extractions"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "document_files"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "document_import_items"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "document_review_sessions"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "document_series"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "document_settings"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "document_snapshots"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "document_templates"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "domain_idempotency_keys"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "domain_number_series"
+  },
+  {
+    "policy_count": 3,
+    "rls_enabled": true,
+    "table_name": "employees"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "est_boq_headers"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "est_boq_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "est_boq_sections"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "est_equipment_catalog"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "est_labour_catalog"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "est_rate_analysis"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "est_rate_resources"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "est_rate_template_resources"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "est_rate_templates"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "est_settings"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "est_tender_documents"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "est_tenders"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "expense_entries"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "fg_qc_inspections"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "field_variation_intents"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "filing_status"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "financial_periods"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "fines"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "follow_up_activity_log"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "follow_up_invoice_tracking"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "follow_up_podc_backlog"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "follow_up_procurement_tracking"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "follow_up_quotation_tracking"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "generated_reports"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "goods_receipt_lines"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "goods_receipt_notes"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "goods_receipts"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "grn_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "gst_audit_log"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "gst_configurations"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "gst_inward_supply"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "gst_itc_ledger"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "gst_outward_supply"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "gst_rcm_liability"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "gst_reconciliation"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "gst_reports"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "gst_returns"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "gstr1_documents"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "gstr1_imports"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "gstr2b_documents"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "gstr2b_imports"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "hr_advances_expenses"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "intent_assignments"
+  },
+  {
+    "policy_count": 3,
+    "rls_enabled": true,
+    "table_name": "invitations"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "invoice_dc_links"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "invoice_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "invoice_materials"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "invoice_stock_deductions"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "invoice_templates"
+  },
+  {
+    "policy_count": 9,
+    "rls_enabled": true,
+    "table_name": "invoices"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "ipqc_checkpoints"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "ipqc_inspections"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "issue_activity_logs"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "issue_attachments"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "issue_comments"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "issues"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "itc_summaries"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "item_audit_logs"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "item_categories"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "item_standard_costs"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "item_stock"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "item_units"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "item_variant_pricing"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "job_card_materials"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "job_cards"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "joint_measurements"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "journal_audit_logs"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "journal_entries"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "journal_entry_lines"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "labour_categories"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "lead_allocations"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "lead_assignment_rules"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "lead_history"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "lead_industries"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "lead_statuses"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "leads"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "leave_requests"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "legacy_project_tasks"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "legacy_task_groups"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "legacy_task_views"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "legacy_tasks"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "loan_overrides"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "loans"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "machine_downtime"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "manpower_attendance"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "manpower_billing"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "manufacturing_activity_log"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "manufacturing_tooling"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "manufacturing_tooling_maintenance"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "manufacturing_tooling_products"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "material_attributes"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "material_client_mappings"
+  },
+  {
+    "policy_count": 5,
+    "rls_enabled": true,
+    "table_name": "material_client_pricing"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "material_client_pricing_history"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "material_consumption_summary"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "material_custom_attributes"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "material_intents"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "material_inward"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "material_inward_items"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "material_logs"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "material_outward"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "material_outward_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "material_requisition_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "material_requisitions"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "material_return_handshakes"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "material_units"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "materials"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "meeting_action_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "meeting_attachments"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "meeting_attendees"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "meeting_audit_events"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "meeting_decisions"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "meeting_links"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "meeting_minutes_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "meeting_search_documents"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "meeting_templates"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "meeting_topics"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "meeting_versions"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "meetings"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "milestones_completed"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "org_access_requests"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "org_members"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "org_modules"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "organisations"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "ot_adjustments"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "parties"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "partners"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "party_opening_balances"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "party_roles"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "payment_request_source_links"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "payment_requests"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "payroll_runs"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "pdc_register"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "permissions"
+  },
+  {
+    "policy_count": 3,
+    "rls_enabled": true,
+    "table_name": "petty_cash_floats"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "po_activity_log"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "po_line_items"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "po_payment_milestones"
+  },
+  {
+    "policy_count": 3,
+    "rls_enabled": true,
+    "table_name": "po_payment_transactions"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "po_variant_discounts"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "posting_rule_lines"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "posting_rules"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "procurement_items"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "procurement_lists"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "production_entries"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "production_entry_items"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "production_plan_items"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "production_plans"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "production_schedule_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "production_schedules"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "proforma_dc_links"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "proforma_invoices"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "proforma_items"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "project_boq"
+  },
+  {
+    "policy_count": 3,
+    "rls_enabled": true,
+    "table_name": "project_collaboration_attachments"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "project_collaboration_channels"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "project_collaboration_members"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "project_collaboration_messages"
+  },
+  {
+    "policy_count": 3,
+    "rls_enabled": true,
+    "table_name": "project_collaboration_reactions"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "project_collaboration_read_state"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "project_drawings"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "project_equipment"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "project_expenses"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "project_handovers"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "project_insights"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "project_invoices"
+  },
+  {
+    "policy_count": 5,
+    "rls_enabled": true,
+    "table_name": "project_material_list"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "project_milestones"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "project_payment_terms"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "project_payments"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "project_rates"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "project_schedule_baselines"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "project_snags"
+  },
+  {
+    "policy_count": 5,
+    "rls_enabled": true,
+    "table_name": "projects"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "purchase_audit_log"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "purchase_bill_items"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "purchase_bills"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "purchase_invoice_verifications"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "purchase_iv_settings"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "purchase_order_items"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "purchase_orders"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "purchase_payment_bills"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "purchase_payments"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "purchase_release_rules"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "purchase_requisition_lines"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "purchase_requisitions"
+  },
+  {
+    "policy_count": 3,
+    "rls_enabled": true,
+    "table_name": "purchase_vendors"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "qc_parameter_results"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "qc_parameters"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "quick_check_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "quick_checks"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "quick_quote_settings"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "quick_quote_size_mappings"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "quick_quote_template_items"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "quick_quote_templates"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "quotation_dc_links"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "quotation_dc_mapping"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "quotation_header"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "quotation_items"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "quotation_revision_audit_logs"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "quotation_revision_variant_discount"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "quotation_revisions"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "quotation_terms_conditions"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "rate_cards"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "rcm_data"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "rcm_masters"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "receipts"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "report_access_permissions"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "report_metrics"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "report_parameters"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "report_task_links"
+  },
+  {
+    "policy_count": 3,
+    "rls_enabled": true,
+    "table_name": "report_templates"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "return_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "return_sources"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "returns"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "rm_qc_inspections"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "role_permissions"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "roles"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "safety_incidents"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "sales_order_items"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "sales_order_production_link"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "sales_order_reservations"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "sales_orders"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "sandwich_deductions"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "saved_filters"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "schedule_execution_logs"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "scheduled_reports"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "service_rates"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "services"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "settings"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_checkins"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_report_client_requirements"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_report_issues_faced"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_report_photos"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_report_special_instructions"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_report_stoppages"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_report_work_plan_next_day"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_report_work_stoppages"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_reports"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_tool_transfers"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_visit_activity_log"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_visit_documents"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_visit_photos"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "site_visits"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "sites"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "standard_cost_calculation_runs"
+  },
+  {
+    "policy_count": 5,
+    "rls_enabled": true,
+    "table_name": "standard_discount_pricelists"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "stock_transfer_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "stock_transfers"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "sub_contractors"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "subcontractor_daily_logs"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "subcontractor_documents"
+  },
+  {
+    "policy_count": 7,
+    "rls_enabled": true,
+    "table_name": "subcontractor_invoices"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "subcontractor_issues"
+  },
+  {
+    "policy_count": 8,
+    "rls_enabled": true,
+    "table_name": "subcontractor_measurement_sheets"
+  },
+  {
+    "policy_count": 7,
+    "rls_enabled": true,
+    "table_name": "subcontractor_payments"
+  },
+  {
+    "policy_count": 6,
+    "rls_enabled": true,
+    "table_name": "subcontractor_retention"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "subcontractor_tds_payments"
+  },
+  {
+    "policy_count": 8,
+    "rls_enabled": true,
+    "table_name": "subcontractor_work_order_amendments"
+  },
+  {
+    "policy_count": 7,
+    "rls_enabled": true,
+    "table_name": "subcontractor_work_orders"
+  },
+  {
+    "policy_count": 6,
+    "rls_enabled": true,
+    "table_name": "subcontractors"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "supplier_profiles"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "task_activity_log"
+  },
+  {
+    "policy_count": 3,
+    "rls_enabled": true,
+    "table_name": "task_attachments"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "task_comments"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "task_custom_field_values"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "task_custom_fields"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "task_dependencies"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "task_groups"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "task_time_logs"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "task_views"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "tasks"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "tc_protocols"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "terms_conditions_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "terms_conditions_sections"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "terms_conditions_templates"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "todos"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "tool_stock_movements"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "tool_transaction_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "tool_transactions"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "tools_catalog"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "user_organisations"
+  },
+  {
+    "policy_count": 5,
+    "rls_enabled": true,
+    "table_name": "user_profiles"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "user_report_preferences"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "users"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "variable_pay_logs"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "vendor_discounts"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "vendor_dispute_logs"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "vendor_material_pricing"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "visit_checklist_responses"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "visit_checklist_templates"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "visit_purposes"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_bin_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_bins"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_capacity_profiles"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_cycle_count_batches"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_cycle_count_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_dispatches"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_floors"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_layouts"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_movements"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_naming_rules"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_pick_list_items"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_pick_lists"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_racks"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_replenishment_rules"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_storage_roles"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_tiers"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_transfers"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouse_zones"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "warehouses"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "warranty_claims"
+  },
+  {
+    "policy_count": 4,
+    "rls_enabled": true,
+    "table_name": "warranty_notifications"
+  },
+  {
+    "policy_count": 2,
+    "rls_enabled": true,
+    "table_name": "win_loss_reasons"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "wip_valuation_snapshots"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "work_carried_out"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "work_centers"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "work_completion_certificate_counters"
+  },
+  {
+    "policy_count": 1,
+    "rls_enabled": true,
+    "table_name": "work_completion_certificates"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "work_order_audit_events"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "work_order_bill_links"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "work_order_items"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "work_order_links"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "work_order_parties"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "work_order_requirements"
+  },
+  {
+    "policy_count": 0,
+    "rls_enabled": true,
+    "table_name": "work_order_versions"
+  }
+]

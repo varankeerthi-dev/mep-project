@@ -133,16 +133,16 @@ const menuData: MenuSection[] = [
         id: 'subcontractor',
         label: 'Sub-contractor',
         flyout: true,
-        submenu: [
-          { id: 'subcontractor-dashboard', label: 'Dashboard', path: '/subcontractors' },
-          { id: 'subcontractor-create', label: 'Add new', path: '/subcontractors/new' },
-          { id: 'subcontractor-workorders', label: 'Work orders', path: '/subcontractors/workorders' },
-          { id: 'subcontractor-attendance', label: 'Attendance', path: '/subcontractors/attendance' },
-          { id: 'subcontractor-payments', label: 'Payments', path: '/subcontractors/payments' },
-          { id: 'subcontractor-invoices', label: 'Invoices', path: '/subcontractors/invoices' },
-          { id: 'subcontractor-payment-queue', label: 'Payment queue', path: '/subcontractors/payments' },
-          { id: 'subcontractor-documents', label: 'Documents', path: '/subcontractors/documents' }
-        ]
+          submenu: [
+            { id: 'subcontractor-dashboard', label: 'Dashboard', path: '/subcontractors-v2' },
+            { id: 'subcontractor-create', label: 'Add new', path: '/subcontractors-v2/new' },
+            { id: 'subcontractor-workorders', label: 'Work orders', path: '/subcontractors-v2/workorders' },
+            { id: 'subcontractor-attendance', label: 'Attendance', path: '/subcontractors-v2/attendance' },
+            { id: 'subcontractor-payments', label: 'Payments', path: '/subcontractors-v2/payments' },
+            { id: 'subcontractor-invoices', label: 'Invoices', path: '/subcontractors-v2/invoices' },
+            { id: 'subcontractor-payment-queue', label: 'Payment queue', path: '/subcontractors-v2/payments' },
+            { id: 'subcontractor-documents', label: 'Documents', path: '/subcontractors-v2/documents' }
+          ]
       }
     ]
   },

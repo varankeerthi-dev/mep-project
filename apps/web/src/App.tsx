@@ -145,22 +145,7 @@ const SiteVisits = lazyAny(() => import('./pages/SiteVisits').then(m => ({ defau
 const SiteReport = lazyAny(() => import('./pages/SiteReport').then(m => ({ default: m.SiteReport })));
 const ClientCommunication = lazyAny(() => import('./pages/ClientCommunication').then(m => ({ default: m.ClientCommunication })));
 const ManagerAlerts = lazyAny(() => import('./pages/ManagerAlerts'));
-const _subcontractors        = memoLazyModule(() => import('./pages/Subcontractors'));
-const SubcontractorDashboard = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorDashboard })));
-const CreateSubcontractor    = lazyAny(() => _subcontractors().then(m => ({ default: m.CreateSubcontractor })));
-const SubcontractorView      = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorView })));
-const SubcontractorEdit      = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorEdit })));
-const ManpowerAttendance     = lazyAny(() => import('./pages/ManpowerAttendance').then(m => ({ default: m.ManpowerAttendance })));
-const ManpowerAttendanceList = lazyAny(() => import('./pages/ManpowerAttendanceList').then(m => ({ default: m.ManpowerAttendanceList })));
-const SubcontractorWorkOrders     = lazyAny(() => import('./pages/SubcontractorWorkOrderProfessional').then(m => ({ default: m.WorkOrderList })));
-const SubcontractorWorkOrderCreate = lazyAny(() => import('./pages/SubcontractorWorkOrderCreate'));
-const SubcontractorWorkOrderCreateV2 = lazyAny(() => import('./pages/SubcontractorWorkOrderCreateV2'));
-const WorkOrderDetailView    = lazyAny(() => import('./pages/WorkOrderDetailView').then(m => ({ default: m.WorkOrderDetailView })));
 const MeasurementSheetWrapper = lazyAny(() => import('./pages/MeasurementSheetWrapper').then(m => ({ default: m.MeasurementSheetWrapper })));
-const SubcontractorDailyLogs = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorDailyLogs })));
-const SubcontractorPayments  = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorPayments })));
-const SubcontractorInvoices  = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorInvoices })));
-const SubcontractorDocuments = lazyAny(() => _subcontractors().then(m => ({ default: m.SubcontractorDocuments })));
 const SubcontractorsPage = lazyAny(() => import('./features/subcontractor-v2/pages/SubcontractorsPage'));
 
 const _reports       = memoLazyModule(() => import('./pages/Reports'));
@@ -466,19 +451,6 @@ export default function App() {
         return <ProjectOverview />;
       case '/client-communication': return <ClientCommunication />;
       case '/manager-alerts': return <ManagerAlerts />;
-      case '/subcontractors': return <SubcontractorDashboard onNavigate={navigate} />;
-      case '/subcontractors/new': return <CreateSubcontractor onSuccess={() => navigate('/subcontractors')} onCancel={() => navigate('/subcontractors')} />;
-      case '/subcontractors/view': return <SubcontractorView onNavigate={navigate} />;
-      case '/subcontractors/edit': return <SubcontractorEdit onNavigate={navigate} />;
-      case '/subcontractors/workorders': return <SubcontractorWorkOrders onNavigate={navigate} />;
-      case '/subcontractors/workorders/create': return <SubcontractorWorkOrderCreate onNavigate={navigate} />;
-      case '/subcontractors/workorders/create-v2': return <SubcontractorWorkOrderCreateV2 onNavigate={navigate} />;
-      case '/subcontractors/attendance': return <ManpowerAttendance onNavigate={navigate} />;
-      case '/subcontractors/attendance/list': return <ManpowerAttendanceList onNavigate={navigate} />;
-      case '/subcontractors/payments': return <SubcontractorPayments onNavigate={navigate} />;
-      case '/subcontractors/invoices': return <SubcontractorInvoices onNavigate={navigate} />;
-      case '/subcontractors/documents': return <SubcontractorDocuments onNavigate={navigate} />;
-
       case '/subcontractors-v2':
       case '/subcontractors-v2/new':
       case '/subcontractors-v2/view':
@@ -486,6 +458,7 @@ export default function App() {
       case '/subcontractors-v2/workorders':
       case '/subcontractors-v2/workorders/create':
       case '/subcontractors-v2/attendance':
+      case '/subcontractors-v2/attendance/list':
       case '/subcontractors-v2/payments':
       case '/subcontractors-v2/invoices':
       case '/subcontractors-v2/documents':
@@ -608,6 +581,7 @@ export default function App() {
       case '/purchase/requisitions':
       case '/purchase/inquiries':
       case '/purchase/orders':
+      case '/purchase/tracking':
       case '/purchase/bills':
       case '/purchase/invoice-verification':
       case '/purchase/debit-notes':
@@ -742,15 +716,15 @@ export default function App() {
         if (pathKey.startsWith('/client-po/view')) {
           return <PODetails />;
         }
-        if (pathKey.startsWith('/subcontractors/workorders/')) {
-          const parts = pathKey.split('/subcontractors/workorders/')[1].split('/');
+        if (pathKey.startsWith('/subcontractors-v2/workorders/')) {
+          const parts = pathKey.split('/subcontractors-v2/workorders/')[1].split('/');
           const id = parts[0];
           const action = parts[1];
 
           if (action === 'create-measurement') {
-            return <MeasurementSheetWrapper workOrderId={id} onBack={() => navigate(`/subcontractors/workorders/${id}`)} onSuccess={() => navigate(`/subcontractors/workorders/${id}`)} />;
+            return <MeasurementSheetWrapper workOrderId={id} onBack={() => navigate(`/subcontractors-v2/workorders/${id}`)} onSuccess={() => navigate(`/subcontractors-v2/workorders/${id}`)} />;
           }
-          return <WorkOrderDetailView workOrderId={id} onNavigate={navigate} />;
+          return <SubcontractorsPage onNavigate={navigate} />;
         }
         // Redirect legacy /manufacturing-v2 deep links to the clean /manufacturing paths
         if (pathKey === '/manufacturing-v2' || pathKey.startsWith('/manufacturing-v2/')) {

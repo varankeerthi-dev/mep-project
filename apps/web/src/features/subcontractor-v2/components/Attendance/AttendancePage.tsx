@@ -3,11 +3,9 @@
 // ============================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Button } from '../../../../components/ui/button';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../../../App';
 import { supabase } from '../../../../supabase';
-import { useManpower } from '../../../../hooks/useManpower';
 import { calculateAttendanceValues } from '../../../../utils/manpowerBilling';
 import {
   ManpowerAttendance as ManpowerAttendanceType,
@@ -20,6 +18,7 @@ import { EnhancedDataTable } from '../../../../components/ui/table/EnhancedDataT
 import { SubcontractorModuleNav } from '../Shared/SubcontractorModuleNav';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Plus, Trash2, Save, Calendar, Users, Building2, X, ChevronDown, Search, Filter, RefreshCcw, BarChart3 } from 'lucide-react';
+import { subcontractorService } from '../../services/subcontractorService';
 
 const RECORDS_CSS = `
 .records-section {
@@ -210,21 +209,10 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
   const [recDateTo, setRecDateTo] = useState('');
 
   const { data: allAttendance, isLoading: loadingRecords, refetch: refetchRecords } = useQuery({
-    queryKey: ['all-manpower-attendance', organisation?.id],
+    queryKey: ['v2-manpower-attendance', organisation?.id, selectedSubcontractor, recDateFrom, recDateTo],
     queryFn: async () => {
       if (!organisation?.id) return [];
-      const { data, error } = await supabase
-        .from('manpower_attendance')
-        .select(`
-          *,
-          labour_categories(id, name, code, unit),
-          subcontractors(id, company_name),
-          clients(id, client_name)
-        `)
-        .eq('organisation_id', organisation.id)
-        .order('attendance_date', { ascending: false });
-      if (error) throw error;
-      return data as any[];
+      return subcontractorService.getAttendanceByDateRange(organisation.id, selectedSubcontractor || undefined, recDateFrom || undefined, recDateTo || undefined);
     },
     enabled: !!organisation?.id,
   });
@@ -272,24 +260,70 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
     enabled: !!organisation?.id,
   });
 
-  const { data: labourCategories } = useManpower.useLabourCategories(organisation?.id);
-  const createCategory = useManpower.useCreateLabourCategory();
-  const deleteCategory = useManpower.useDeleteLabourCategory();
-  const [showCategoryManager, setShowCategoryManager] = useState(false);
-  const [newCatName, setNewCatName] = useState('');
-  const [newCatRate, setNewCatRate] = useState(800);
-  const [newCatUnit, setNewCatUnit] = useState<'day' | 'hour' | 'piece'>('day');
+  const queryClient = useQueryClient();
 
-  const { data: contextModifiers } = useManpower.useContextModifiers(organisation?.id);
-  const { data: rateCards } = useManpower.useRateCards(organisation?.id, selectedSubcontractor);
-  const { data: existingAttendance } = useManpower.useManpowerAttendance(
-    organisation?.id,
-    selectedSubcontractor,
-    selectedDate,
-    selectedDate
-  );
+  const { data: labourCategories, isLoading: loadingCategories } = useQuery({
+    queryKey: ['v2-labour-categories', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      return subcontractorService.getLabourCategories(organisation.id);
+    },
+    enabled: !!organisation?.id,
+  });
 
-  const createAttendance = useManpower.useCreateManpowerAttendance();
+  const createCategory = useMutation({
+    mutationFn: async (input: { organisation_id: string; name: string; code?: string; base_rate: number; unit: string }) => {
+      return subcontractorService.createLabourCategory(input);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['v2-labour-categories'] });
+    },
+  });
+
+  const deleteCategory = useMutation({
+    mutationFn: async (id: string) => {
+      if (!organisation?.id) throw new Error('No organisation');
+      return subcontractorService.deleteLabourCategory(id, organisation.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['v2-labour-categories'] });
+    },
+  });
+
+  const { data: contextModifiers } = useQuery({
+    queryKey: ['v2-context-modifiers', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      return subcontractorService.getContextModifiers(organisation.id);
+    },
+    enabled: !!organisation?.id,
+  });
+
+  const { data: rateCards } = useQuery({
+    queryKey: ['v2-rate-cards', organisation?.id, selectedSubcontractor],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      return subcontractorService.getRateCards(organisation.id, selectedSubcontractor || undefined);
+    },
+    enabled: !!organisation?.id && !!selectedSubcontractor,
+  });
+  const { data: existingAttendance } = useQuery({
+    queryKey: ['v2-manpower-attendance', organisation?.id, selectedSubcontractor, selectedDate, selectedDate],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      return subcontractorService.getAttendanceByDateRange(organisation.id, selectedSubcontractor || undefined, selectedDate, selectedDate);
+    },
+    enabled: !!organisation?.id && !!selectedSubcontractor,
+  });
+
+  const createAttendance = useMutation({
+    mutationFn: async (input: CreateManpowerAttendanceInput) => {
+      return subcontractorService.saveAttendance(input);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['v2-manpower-attendance'] });
+    },
+  });
 
   const handleAddCategory = async () => {
     if (!newCatName.trim() || !organisation?.id) return;
@@ -630,6 +664,24 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
+          <Button variant="default" size="sm" onClick={() => onNavigate?.('/subcontractors-v2/attendance/list')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              background: '#fff',
+              color: '#0f172a',
+              border: '1px solid #e2e8f0',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: '500',
+            }}
+          >
+            <Users size={16} />
+            Attendance Logs
+          </Button>
           <Button variant="default" size="sm" onClick={() => onNavigate?.('/subcontractors-v2')}
             style={{
               display: 'flex',

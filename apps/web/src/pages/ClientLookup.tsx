@@ -245,10 +245,11 @@ export default function ClientLookup() {
     queryFn: async () => {
       if (!organisation?.id || !selectedClientId) return [];
       const { data, error } = await supabase
-        .from('quotations')
-        .select('id, quotation_no, quotation_date, status, total_value, project_id, projects(name)')
+        .from('quotation_header')
+        .select('id, quotation_no, date as quotation_date, status, grand_total as total_value, project_id, projects(name)')
         .eq('client_id', selectedClientId)
-        .order('quotation_date', { ascending: false });
+        .eq('organisation_id', organisation.id)
+        .order('date', { ascending: false });
       if (error) throw error;
       return data || [];
     },

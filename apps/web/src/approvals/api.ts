@@ -368,12 +368,43 @@ export class ApprovalAPI {
       }
 
       if (newStatus === 'APPROVED') {
-        await this.triggerPostApprovalActions(approval, action.amount_approved);
+        try {
+          await this.triggerPostApprovalActions(approval, action.amount_approved);
+        } catch (transitionError) {
+          // Fail-closed: revert the approval row so the operator can retry.
+          // (The inserted approval_action row remains as the audit trail.)
+          await supabase
+            .from('approvals')
+            .update({ status: approval.status, current_level: approval.current_level, updated_at: new Date().toISOString() })
+            .eq('id', approvalId);
+          return {
+            success: false,
+            error: {
+              code: 'TRANSITION_FAILED',
+              message: transitionError instanceof Error ? transitionError.message : 'Post-approval transition failed; approval reverted.'
+            }
+          };
+        }
       }
 
       if (action.action === 'RETURNED') {
+        // Transition first; only notify after it succeeds (fail-closed).
+        try {
+          await ApprovalAPI.markSourceDocumentAsReturned(approval, action.comments);
+        } catch (returnError) {
+          await supabase
+            .from('approvals')
+            .update({ status: approval.status, current_level: approval.current_level, updated_at: new Date().toISOString() })
+            .eq('id', approvalId);
+          return {
+            success: false,
+            error: {
+              code: 'TRANSITION_FAILED',
+              message: returnError instanceof Error ? returnError.message : 'Return transition failed; approval reverted.'
+            }
+          };
+        }
         await ApprovalNotificationService.sendReturnNotification(approvalId, action.comments);
-        await ApprovalAPI.markSourceDocumentAsReturned(approval, action.comments);
       }
 
       // Log to follow_up_activity_log
@@ -390,6 +421,7 @@ export class ApprovalAPI {
           organisation_id: approval.organisation_id,
           reference_id: approval.reference_id,
           reference_label: approval.reference_type,
+          tab_source: 'activity',
           event_type: 'approval_status_changed',
           title: `Approval ${action.action}`,
           description: action.comments || `Document was marked as ${action.action}`,
@@ -543,16 +575,19 @@ export class ApprovalAPI {
   private static async triggerPostApprovalActions(approval: Approval, amountApproved?: number) {
     try {
       switch (approval.reference_type) {
-        case 'purchase_orders':
-          await supabase.from('purchase_orders').update({ status: 'APPROVED' }).eq('id', approval.reference_id);
+        case 'purchase_orders': {
+          // Fail-closed: transition goes through the protected server-side RPC.
+          // Direct browser updates to financial documents are forbidden (Rule 5).
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'purchase_payments', referenceId: approval.reference_id, action: 'approve', clientRequestId: approval.id });
+          if (result.error) throw new Error(result.error.message);
           break;
+        }
         case 'work_orders': {
           const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'work_orders', referenceId: approval.reference_id, action: 'approve', clientRequestId: approval.id });
           if (result.error) throw new Error(result.error.message);
           break;
-        }
-        case 'invoices':
-          await supabase.from('invoices').update({ status: 'APPROVED' }).eq('id', approval.reference_id);
+        }        case 'invoices':
+          await supabase.from('invoices').update({ status: ' APPROVED' }).eq('id', approval.reference_id); 
           break;
         case 'quotations':
           await supabase.from('quotation_header').update({ status: 'Approved' }).eq('id', approval.reference_id);
@@ -576,7 +611,11 @@ export class ApprovalAPI {
           break;
       }
     } catch (error) {
-      console.error('Error triggering post-approval actions:', error);
+      // Fail-closed (Rule 5): a failed post-approval transition must not be
+      // swallowed — processApproval reverts the approval row so the operator
+      // can retry instead of silently leaving the document untransitioned.
+      console.error('Post-approval transition failed:', error);
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -805,7 +844,11 @@ export class ApprovalExtensions {
         }
       }
     } catch (error) {
+      // Fail-closed (Rule 5): the approvals row was already set to RETURNED —
+      // a failed source-document transition must surface so processApproval
+      // can revert the approval row for retry.
       console.error('Error marking source document as returned:', error);
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 

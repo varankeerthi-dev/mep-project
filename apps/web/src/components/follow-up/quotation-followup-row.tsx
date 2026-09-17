@@ -24,10 +24,10 @@ type QuotationFollowupRowProps = {
 };
 
 const TERMINAL_ICON: Record<string, React.ReactNode> = {
-  approved: <CheckCircle2 className="h-3 w-3 text-emerald-600" />,
+  approved: <CheckCircle2 className="h-3 w-3 text-green-600" />,
   lost_to_competitor: <XCircle className="h-3 w-3 text-red-600" />,
-  cancelled: <Ban className="h-3 w-3 text-gray-500" />,
-  expired: <Clock className="h-3 w-3 text-purple-600" />,
+  cancelled: <Ban className="h-3 w-3 text-slate-500" />,
+  expired: <Clock className="h-3 w-3 text-blue-600" />,
 };
 
 export const QuotationFollowupRow = memo(function QuotationFollowupRow({
@@ -65,11 +65,16 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
     if (menuOpen) {
       updatePosition();
       const onScroll = () => setMenuOpen(false);
+      const onEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') setMenuOpen(false);
+      };
       window.addEventListener('scroll', onScroll, true);
       window.addEventListener('resize', updatePosition);
+      window.addEventListener('keydown', onEscape);
       return () => {
         window.removeEventListener('scroll', onScroll, true);
         window.removeEventListener('resize', updatePosition);
+        window.removeEventListener('keydown', onEscape);
       };
     }
   }, [menuOpen, updatePosition]);
@@ -77,22 +82,22 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
   return (
     <div
       className={cn(
-        'grid grid-cols-[minmax(96px,1fr)_minmax(110px,1.1fr)_minmax(120px,1.2fr)_80px_88px_80px_minmax(108px,120px)_1fr] items-center gap-2 border-b border-zinc-100 px-3 py-[14px] text-xs hover:bg-zinc-50/80',
-        terminal && 'bg-zinc-50/40 opacity-80',
-        expired && !terminal && 'bg-purple-50/30'
+        'grid grid-cols-[minmax(96px,1fr)_minmax(110px,1.1fr)_minmax(120px,1.2fr)_80px_88px_80px_minmax(108px,120px)_1fr] items-center gap-2 border-b border-slate-200 px-3 py-2 text-xs hover:bg-slate-50 transition duration-150',
+        terminal && 'bg-slate-50/40 opacity-80',
+        expired && !terminal && 'bg-blue-50/30'
       )}
       onClick={onSelect}
       role={onSelect ? 'button' : undefined}
       tabIndex={onSelect ? 0 : undefined}
     >
-      <span className="font-mono font-medium text-indigo-700">{item.quotation_no}</span>
-      <span className="truncate font-medium text-zinc-900" title={item.client_name}>
+      <span className="font-mono font-medium text-blue-700">{item.quotation_no}</span>
+      <span className="truncate font-medium text-slate-900" title={item.client_name}>
         {item.client_name}
       </span>
-      <span className="truncate text-zinc-600" title={item.project_name}>
+      <span className="truncate text-slate-600" title={item.project_name}>
         {item.project_name}
       </span>
-      <span className="tabular-nums font-medium text-zinc-900 text-left">
+      <span className="tabular-nums font-medium text-slate-900 text-left">
         {formatFollowUpCurrency(item.total_value)}
       </span>
       <span
@@ -104,7 +109,7 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
         {TERMINAL_ICON[item.status]}
         {formatQuotationStatus(item.status)}
       </span>
-      <span className={cn('tabular-nums', expiring && !expired && 'font-semibold text-amber-700', expired && 'font-semibold text-purple-700')}>
+      <span className={cn('tabular-nums', expiring && !expired && 'font-semibold text-amber-700', expired && 'font-semibold text-blue-700')}>
         {formatFollowUpDate(item.valid_till)}
         {expiring && !expired && <span className="ml-1 text-[10px]">&#9888;</span>}
         {expired && <span className="ml-1 text-[10px]">&#9208;</span>}
@@ -122,7 +127,7 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
             type="button"
             disabled={disabled}
             onClick={(e) => { e.stopPropagation(); onReminder(item); }}
-            className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2 text-[11px] font-medium text-green-800 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.96] transition duration-150"
           >
             <MessageCircle className="h-3 w-3" />
             Remind
@@ -161,10 +166,10 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
               disabled={disabled}
               onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); }}
               className={cn(
-                'inline-flex h-7 items-center gap-0.5 rounded-md border px-2 text-[11px] font-medium disabled:cursor-not-allowed disabled:opacity-50',
+                'inline-flex h-7 items-center gap-0.5 rounded-md border px-2 text-[11px] font-medium disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.96] transition duration-150',
                 item.status === 'in_negotiation'
                   ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
-                  : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
               )}
             >
               Update Status
@@ -177,18 +182,18 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
                   onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
                 />
                 <div
-                  className="fixed z-[9999] min-w-[260px] rounded-lg border border-zinc-200 bg-white py-1 shadow-xl"
+                  className="fixed z-[9999] min-w-[260px] rounded-lg border border-slate-200 bg-white py-1 shadow-[0_4px_12px_-2px_rgba(15,23,42,0.08),0_2px_6px_-1px_rgba(15,23,42,0.04)]"
                   style={{ top: menuPos.top, left: Math.min(menuPos.left, window.innerWidth - 280) }}
                 >
                   {item.previous_status && (
-                    <div className="flex items-center gap-1.5 border-b border-zinc-100 px-3 py-2 text-[10px] text-zinc-500">
+                    <div className="flex items-center gap-1.5 border-b border-slate-100 px-3 py-2 text-[10px] text-slate-500">
                       <span>{formatQuotationStatus(item.previous_status)}</span>
                       <ArrowRight className="h-2.5 w-2.5" />
-                      <span className="font-medium text-zinc-800">{formatQuotationStatus(item.status)}</span>
+                      <span className="font-medium text-slate-800">{formatQuotationStatus(item.status)}</span>
                       <span className="ml-auto">(current)</span>
                     </div>
                   )}
-                  <div className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                  <div className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
                     Transition to
                   </div>
                   {availableTransitions.map((opt) => {
@@ -197,7 +202,7 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
                       <button
                         key={opt}
                         type="button"
-                        className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-zinc-50"
+                        className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-slate-50"
                         onClick={(e) => {
                           e.stopPropagation();
                           onLogResponse(item.id, opt);
@@ -206,11 +211,11 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
                       >
                         <span className="mt-0.5 text-sm leading-none">{meta.icon}</span>
                         <div className="min-w-0">
-                          <div className="text-[11px] font-medium text-zinc-900">{meta.label}</div>
-                          <div className="text-[10px] text-zinc-500">{meta.description}</div>
+                          <div className="text-[11px] font-medium text-slate-900">{meta.label}</div>
+                          <div className="text-[10px] text-slate-500">{meta.description}</div>
                         </div>
                         {meta.terminal && (
-                          <span className="ml-auto mt-0.5 rounded bg-zinc-100 px-1 text-[9px] text-zinc-500">Final</span>
+                          <span className="ml-auto mt-0.5 rounded bg-slate-100 px-1 text-[9px] text-slate-500">Final</span>
                         )}
                       </button>
                     );
@@ -222,7 +227,7 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
           </div>
         )}
         {terminal && !hasTransitions && (
-          <span className={cn('text-[10px] font-medium italic text-zinc-400')}>
+          <span className={cn('text-[10px] font-medium italic text-slate-400')}>
             {item.status === 'approved' ? 'Won' : item.status === 'cancelled' ? 'Void' : 'Closed'}
           </span>
         )}
@@ -232,7 +237,7 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
 });
 
 export const quotationTableHeader = (
-  <div className="grid grid-cols-[minmax(96px,1fr)_minmax(110px,1.1fr)_minmax(120px,1.2fr)_80px_88px_80px_minmax(108px,120px)_1fr] gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+  <div className="grid grid-cols-[minmax(96px,1fr)_minmax(110px,1.1fr)_minmax(120px,1.2fr)_80px_88px_80px_minmax(108px,120px)_1fr] gap-2 px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-600 leading-normal select-none">
     <span>Quote #</span>
     <span>Client</span>
     <span>Project</span>

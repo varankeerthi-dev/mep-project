@@ -159,9 +159,9 @@ export const useSalesQuotesV2 = () => {
     queryKey: ['operationsV2', 'sales', 'quotes'],
     queryFn: async (): Promise<SalesQuoteV2[]> => {
       const { data, error } = await supabase
-        .from('quotation_headers')
+        .from('quotation_header')
         .select('*, client:client_id(client_name)')
-        .in('status', ['draft', 'pending'])
+        .in('status', ['Draft', 'Pending'])
         .limit(10);
         
       if (error) return [];

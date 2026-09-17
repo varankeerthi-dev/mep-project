@@ -1,0 +1,72 @@
+[
+  {
+    "reloptions": [
+      "security_invoker=true"
+    ],
+    "view_name": "active_scheduled_reports"
+  },
+  {
+    "reloptions": [
+      "security_invoker=true"
+    ],
+    "view_name": "approvable_members"
+  },
+  {
+    "reloptions": [
+      "security_invoker=true"
+    ],
+    "view_name": "approval_stats"
+  },
+  {
+    "reloptions": [
+      "security_invoker=true"
+    ],
+    "view_name": "approvers_details"
+  },
+  {
+    "reloptions": [
+      "security_invoker=true"
+    ],
+    "view_name": "inventory"
+  },
+  {
+    "reloptions": [
+      "security_invoker=true"
+    ],
+    "view_name": "next_action_index"
+  },
+  {
+    "reloptions": [
+      "security_invoker=true"
+    ],
+    "view_name": "project_financial_summary"
+  },
+  {
+    "reloptions": [
+      "security_invoker=true"
+    ],
+    "view_name": "recent_generated_reports"
+  },
+  {
+    "reloptions": [
+      "security_invoker=true"
+    ],
+    "view_name": "report_usage_statistics"
+  },
+  {
+    "reloptions": null,
+    "view_name": "v_legacy_clients"
+  },
+  {
+    "reloptions": null,
+    "view_name": "v_legacy_subcontractors"
+  },
+  {
+    "reloptions": null,
+    "view_name": "v_legacy_vendors"
+  },
+  {
+    "reloptions": null,
+    "view_name": "v_party_search"
+  }
+]

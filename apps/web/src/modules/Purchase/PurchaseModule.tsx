@@ -13,6 +13,7 @@ import { Payments } from './components/Payments';
 import { PaymentQueue } from './components/PaymentQueue';
 import { AccountantQueue } from './components/AccountantQueue';
 import Dashboard from './components/Dashboard';
+import { Tracking } from './components/Tracking';
 
 interface PurchaseTabItem extends SubTabItem {
   component: React.FC;
@@ -24,6 +25,7 @@ const PURCHASE_TABS: PurchaseTabItem[] = [
   { id: 'requisitions', label: 'Requisitions', path: '/purchase/requisitions', component: Requisitions },
   { id: 'inquiries', label: 'Availability Inquiry', path: '/purchase/inquiries', component: AvailabilityInquiry },
   { id: 'orders', label: 'Purchase Orders', path: '/purchase/orders', component: PurchaseOrders },
+  { id: 'tracking', label: 'Tracking', path: '/purchase/tracking', component: Tracking },
   { id: 'bills', label: 'Bills', path: '/purchase/bills', component: Bills },
   { id: 'invoice-verification', label: 'Invoice Verification', path: '/purchase/invoice-verification', component: InvoiceVerification },
   { id: 'debit-notes', label: 'Debit Notes', path: '/purchase/debit-notes', component: DebitNoteView },
@@ -48,7 +50,7 @@ export const PurchaseModule: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="w-full max-w-[1200px] mx-auto px-4 pt-3">
+      <div className="w-full px-4 pt-3">
         <SubTabsNav tabs={PURCHASE_TABS} activeTabId={activeTabId} />
 
         <TabErrorBoundary tabName={currentTab.label}>

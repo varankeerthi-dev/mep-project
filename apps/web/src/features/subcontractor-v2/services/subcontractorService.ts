@@ -32,21 +32,60 @@ export const subcontractorService = {
 
   async saveSubcontractor(payload: any, editMode: boolean, id?: string) {
     if (editMode && id) {
-      const { data, error } = await supabase
-        .from('subcontractors')
-        .update(payload)
-        .eq('id', id)
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('record_subcontractor', {
+        p_subcontractor_id: id,
+        p_organisation_id: payload.organisation_id,
+        p_company_name: payload.company_name,
+        p_contact_person: payload.contact_person,
+        p_phone: payload.phone,
+        p_email: payload.email,
+        p_address: payload.address,
+        p_state: payload.state,
+        p_gstin: payload.gstin,
+        p_pincode: payload.pincode,
+        p_pan_card: payload.pan_card,
+        p_bank_name: payload.bank_name,
+        p_bank_account_number: payload.bank_account_number,
+        p_bank_ifsc_code: payload.bank_ifsc_code,
+        p_bank_account_type: payload.bank_account_type,
+        p_previous_projects: payload.previous_projects,
+        p_nature_of_work: payload.nature_of_work,
+        p_internal_remarks: payload.internal_remarks,
+        p_nda_signed: payload.nda_signed,
+        p_contract_signed: payload.contract_signed,
+        p_nda_date: payload.nda_date,
+        p_contract_date: payload.contract_date,
+        p_status: payload.status
+      });
 
       if (error) throw new Error(error.message);
       return data;
     } else {
-      const { data, error } = await supabase
-        .from('subcontractors')
-        .insert([payload])
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('record_subcontractor', {
+        p_subcontractor_id: null,
+        p_organisation_id: payload.organisation_id,
+        p_company_name: payload.company_name,
+        p_contact_person: payload.contact_person,
+        p_phone: payload.phone,
+        p_email: payload.email,
+        p_address: payload.address,
+        p_state: payload.state,
+        p_gstin: payload.gstin,
+        p_pincode: payload.pincode,
+        p_pan_card: payload.pan_card,
+        p_bank_name: payload.bank_name,
+        p_bank_account_number: payload.bank_account_number,
+        p_bank_ifsc_code: payload.bank_ifsc_code,
+        p_bank_account_type: payload.bank_account_type,
+        p_previous_projects: payload.previous_projects,
+        p_nature_of_work: payload.nature_of_work,
+        p_internal_remarks: payload.internal_remarks,
+        p_nda_signed: payload.nda_signed,
+        p_contract_signed: payload.contract_signed,
+        p_nda_date: payload.nda_date,
+        p_contract_date: payload.contract_date,
+        p_status: payload.status
+      });
 
       if (error) throw new Error(error.message);
       return data;
@@ -106,14 +145,95 @@ export const subcontractorService = {
 
   async getAttendance(subcontractorId: string, organisationId: string) {
     const { data, error } = await supabase
-      .from('subcontractor_attendance')
-      .select('*')
+      .from('manpower_attendance')
+      .select('*, labour_categories(id, name, code, unit), subcontractors(id, company_name)')
       .eq('subcontractor_id', subcontractorId)
       .eq('organisation_id', organisationId)
       .order('attendance_date', { ascending: false });
 
     if (error) throw new Error(error.message);
     return data || [];
+  },
+
+  async getAttendanceByDateRange(organisationId: string, subcontractorId?: string, startDate?: string, endDate?: string) {
+    let query = supabase
+      .from('manpower_attendance')
+      .select('*, labour_categories(id, name, code, unit), subcontractors(id, company_name)')
+      .eq('organisation_id', organisationId);
+
+    if (subcontractorId) {
+      query = query.eq('subcontractor_id', subcontractorId);
+    }
+
+    if (startDate) {
+      query = query.gte('attendance_date', startDate);
+    }
+
+    if (endDate) {
+      query = query.lte('attendance_date', endDate);
+    }
+
+    const { data, error } = await query.order('attendance_date', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async saveAttendance(payload: any) {
+    const { data, error } = await supabase.rpc('record_attendance', {
+      p_organisation_id: payload.organisation_id,
+      p_attendance_date: payload.attendance_date,
+      p_labour_category_id: payload.labour_category_id,
+      p_subcontractor_id: payload.subcontractor_id || null,
+      p_client_id: payload.client_id || null,
+      p_work_unit_id: payload.work_unit_id || null,
+      p_work_unit_type: payload.work_unit_type || 'GENERAL',
+      p_workers_count: payload.workers_count || 1,
+      p_hours_worked: payload.hours_worked || 8,
+      p_supervisor_name: payload.supervisor_name || null,
+      p_applied_modifiers: payload.applied_modifiers || [],
+      p_base_rate: payload.base_rate || 0,
+      p_adjusted_rate: payload.adjusted_rate || 0,
+      p_original_amount: payload.original_amount || 0,
+      p_adjusted_amount: payload.adjusted_amount || 0,
+      p_remarks: payload.remarks || null
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async updateAttendance(payload: any) {
+    const { data, error } = await supabase.rpc('update_attendance', {
+      p_attendance_id: payload.id,
+      p_organisation_id: payload.organisation_id,
+      p_workers_count: payload.workers_count,
+      p_hours_worked: payload.hours_worked,
+      p_supervisor_name: payload.supervisor_name || null,
+      p_remarks: payload.remarks || null
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async deleteAttendance(attendanceId: string, organisationId: string) {
+    const { data, error } = await supabase.rpc('delete_attendance', {
+      p_attendance_id: attendanceId,
+      p_organisation_id: organisationId
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async approveAttendance(attendanceId: string, organisationId: string) {
+    const { data, error } = await supabase.rpc('approve_attendance', {
+      p_attendance_id: attendanceId,
+      p_organisation_id: organisationId
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
   },
 
   async getDailyLogs(subcontractorId: string, organisationId: string) {
@@ -139,17 +259,6 @@ export const subcontractorService = {
     return data || [];
   },
 
-  async getLabourCategories(organisationId: string) {
-    const { data, error } = await supabase
-      .from('labour_categories')
-      .select('*')
-      .eq('organisation_id', organisationId)
-      .eq('is_active', true);
-
-    if (error) throw new Error(error.message);
-    return data || [];
-  },
-
   async getDocuments(subcontractorId: string, organisationId: string) {
     const { data, error } = await supabase
       .from('subcontractor_documents')
@@ -157,6 +266,108 @@ export const subcontractorService = {
       .eq('subcontractor_id', subcontractorId)
       .eq('organisation_id', organisationId)
       .order('created_at', { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async createDocument(payload: any) {
+    const { data, error } = await supabase.rpc('create_subcontractor_document', {
+      p_organisation_id: payload.organisation_id,
+      p_subcontractor_id: payload.subcontractor_id,
+      p_document_name: payload.document_name,
+      p_document_url: payload.document_url,
+      p_document_type: payload.document_type || null
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async deleteInvoice(invoiceId: string, organisationId: string) {
+    const { data, error } = await supabase.rpc('delete_subcontractor_invoice', {
+      p_invoice_id: invoiceId,
+      p_organisation_id: organisationId
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async recordIssueActivityLog(payload: any) {
+    const { data, error } = await supabase.rpc('record_issue_activity_log', {
+      p_organisation_id: payload.organisation_id,
+      p_issue_id: payload.issue_id,
+      p_action: payload.action,
+      p_old_value: payload.old_value || null,
+      p_new_value: payload.new_value || null,
+      p_done_by: payload.done_by || null,
+      p_done_by_name: payload.done_by_name || null
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async updateWorkOrderStatus(workOrderId: string, organisationId: string, status: string) {
+    const { data, error } = await supabase.rpc('update_subcontractor_work_order_status', {
+      p_work_order_id: workOrderId,
+      p_organisation_id: organisationId,
+      p_status: status
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async getLabourCategories(organisationId: string) {
+    const { data, error } = await supabase.rpc('get_labour_categories', {
+      p_organisation_id: organisationId
+    });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async createLabourCategory(payload: any) {
+    const { data, error } = await supabase.rpc('create_labour_category', {
+      p_organisation_id: payload.organisation_id,
+      p_name: payload.name,
+      p_code: payload.code || null,
+      p_description: payload.description || null,
+      p_base_rate: payload.base_rate || 0,
+      p_unit: payload.unit || 'day',
+      p_is_active: payload.is_active ?? true
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async deleteLabourCategory(categoryId: string, organisationId: string) {
+    const { data, error } = await supabase.rpc('delete_labour_category', {
+      p_category_id: categoryId,
+      p_organisation_id: organisationId
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async getContextModifiers(organisationId: string) {
+    const { data, error } = await supabase.rpc('get_context_modifiers', {
+      p_organisation_id: organisationId
+    });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async getRateCards(organisationId: string, subcontractorId?: string) {
+    const { data, error } = await supabase.rpc('get_rate_cards', {
+      p_organisation_id: organisationId,
+      p_subcontractor_id: subcontractorId || null
+    });
 
     if (error) throw new Error(error.message);
     return data || [];

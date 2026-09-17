@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../../App';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../../../supabase';
 import { SUBCONTRACTOR_V2_QUERY_KEYS } from '../../hooks/queryKeys';
 import { Building2, X, FileText, ShieldCheck, Save, RefreshCcw, Users } from 'lucide-react';
 import type { SubcontractorFormData } from '../../types/subcontractor';
@@ -65,20 +64,8 @@ export function SubcontractorForm({ onSuccess, onCancel, editMode = false, subDa
         contract_date: data.contract_signed ? (data.contract_date || null) : null,
       };
 
-      if (editMode && subData?.id) {
-        const { error } = await supabase
-          .from('subcontractors')
-          .update(payload)
-          .eq('id', subData.id);
-        
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('subcontractors')
-          .insert(payload);
-        
-        if (error) throw error;
-      }
+      const { subcontractorService } = await import('../../services/subcontractorService');
+      return subcontractorService.saveSubcontractor(payload, editMode, subData?.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 

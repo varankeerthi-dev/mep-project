@@ -134,41 +134,59 @@ export const getInvoiceLineItems = async (
     clientIds?: string[];
   }
 ) => {
+  // Live canonical table is invoice_items (name/HSN are plain columns there;
+  // there is no FK to a separate items table). Project the legacy field names
+  // the report consumer expects.
   let query = supabase
-    .from('invoice_line_items')
+    .from('invoice_items')
     .select(`
-      *,
-      invoices(invoice_number, invoice_date, due_date, status),
-      items(name, hsn_code),
-      clients(name)
+      id,
+      description,
+      hsn_code,
+      qty,
+      rate,
+      amount,
+      organisation_id,
+      invoice:invoices!inner(invoice_no, invoice_date, due_date, status, client_id)
     `)
-    .eq('invoice_line_items.organisation_id', organisationId)
-    .order('invoice_date', { ascending: false });
+    .eq('organisation_id', organisationId)
+    .order('invoice.invoice_date', { ascending: false });
 
   // Apply date filters through invoices table
   if (filters?.dateFrom) {
-    query = query.gte('invoices.invoice_date', filters.dateFrom);
+    query = query.gte('invoice.invoice_date', filters.dateFrom);
   }
   if (filters?.dateTo) {
-    query = query.lte('invoices.invoice_date', filters.dateTo);
+    query = query.lte('invoice.invoice_date', filters.dateTo);
   }
 
   // Apply month/year filter
   if (filters?.month && filters?.year) {
     const startDate = `${filters.year}-${String(filters.month).padStart(2, '0')}-01`;
     const endDate = `${filters.year}-${String(filters.month).padStart(2, '0')}-31`;
-    query = query.gte('invoices.invoice_date', startDate).lte('invoices.invoice_date', endDate);
+    query = query.gte('invoice.invoice_date', startDate).lte('invoice.invoice_date', endDate);
   }
 
   // Apply client filter
   if (filters?.clientIds && filters.clientIds.length > 0) {
-    query = query.in('invoices.client_id', filters.clientIds);
+    query = query.in('invoice.client_id', filters.clientIds);
   }
 
   const { data, error } = await query;
 
   if (error) throw error;
-  return data as any[];
+
+  // Project live columns onto the legacy shape used by InvoiceReports.
+  return ((data as any[]) || []).map((r) => ({
+    ...r,
+    invoice_number: r.invoice?.invoice_no,
+    invoice_date: r.invoice?.invoice_date,
+    items: { name: r.description, hsn_code: r.hsn_code },
+    quantity: r.qty,
+    unit_price: r.rate,
+    total_amount: r.amount,
+    tax_amount: 0,
+  }));
 };
 
 // Fetch HSN-wise data for reports

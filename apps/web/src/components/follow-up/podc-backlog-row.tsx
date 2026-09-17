@@ -39,28 +39,28 @@ export const PodcBacklogRow = memo(function PodcBacklogRow({
       ? 'text-red-700 font-bold'
       : item.days_pending_po >= 14
         ? 'text-amber-700 font-semibold'
-        : 'text-zinc-700';
+        : 'text-slate-700';
 
   return (
     <div
-      className="grid grid-cols-[minmax(92px,1fr)_minmax(100px,1fr)_minmax(118px,1.1fr)_72px_64px_92px_92px_72px_72px_minmax(108px,118px)_1fr] items-center gap-2 border-b border-zinc-100 px-3 py-[14px] text-xs hover:bg-zinc-50/80"
+      className="grid grid-cols-[minmax(92px,1fr)_minmax(100px,1fr)_minmax(118px,1.1fr)_72px_64px_92px_92px_72px_72px_minmax(108px,118px)_1fr] items-center gap-2 border-b border-slate-200 px-3 py-2 text-xs hover:bg-slate-50 transition duration-150"
       onClick={onSelect}
       role={onSelect ? 'button' : undefined}
       tabIndex={onSelect ? 0 : undefined}
     >
-      <span className="font-mono font-medium text-zinc-900">{item.dc_wo_number}</span>
+      <span className="font-mono font-medium text-slate-900">{item.dc_wo_number}</span>
       <span className="truncate font-medium" title={item.client_name}>
         {item.client_name}
       </span>
-      <span className="truncate text-zinc-600" title={item.project_name}>
+      <span className="truncate text-slate-600" title={item.project_name}>
         {item.project_name}
       </span>
-      <span className="tabular-nums text-right font-medium">{formatFollowUpCurrency(item.estimated_value)}</span>
+      <span className="tabular-nums text-left font-medium">{formatFollowUpCurrency(item.estimated_value)}</span>
       <span className={cn('tabular-nums text-center', daysClass)}>{item.days_pending_po}d</span>
-      <span className="truncate text-zinc-600" title={item.site_engineer}>
+      <span className="truncate text-slate-600" title={item.site_engineer}>
         {item.site_engineer}
       </span>
-      <span className="truncate text-zinc-500" title={item.client_coordinator}>
+      <span className="truncate text-slate-500" title={item.client_coordinator}>
         {item.client_coordinator}
       </span>
       <span
@@ -97,7 +97,7 @@ export const PodcBacklogRow = memo(function PodcBacklogRow({
           type="button"
           disabled={disabled}
           onClick={() => onSharePack(item)}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 text-[11px] font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-7 items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2 text-[11px] font-medium text-green-800 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.96] transition duration-150"
         >
           <MessageCircle className="h-3 w-3" />
           Share DC
@@ -107,7 +107,7 @@ export const PodcBacklogRow = memo(function PodcBacklogRow({
             type="button"
             disabled={disabled}
             onClick={() => setFlagOpen((o) => !o)}
-            className="inline-flex h-7 items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 text-[11px] font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 text-[11px] font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.96] transition duration-150"
           >
             <Flag className="h-3 w-3" />
             Flag
@@ -115,12 +115,12 @@ export const PodcBacklogRow = memo(function PodcBacklogRow({
           {flagOpen && (
             <>
               <div className="fixed inset-0 z-20" onClick={() => setFlagOpen(false)} />
-              <ul className="absolute right-0 z-30 mt-1 min-w-[180px] rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
+              <ul className="absolute right-0 z-30 mt-1 min-w-[180px] rounded-lg border border-slate-200 bg-white py-1 shadow-[0_4px_12px_-2px_rgba(15,23,42,0.08),0_2px_6px_-1px_rgba(15,23,42,0.04)]">
                 {PODC_ISSUE_OPTIONS.map((opt) => (
                   <li key={opt.value}>
                     <button
                       type="button"
-                      className="w-full px-3 py-1.5 text-left text-[11px] hover:bg-zinc-50"
+                      className="w-full px-3 py-1.5 text-left text-[11px] hover:bg-slate-50"
                       onClick={() => {
                         onFlagIssue(item.id, opt.value);
                         setFlagOpen(false);
@@ -140,11 +140,11 @@ export const PodcBacklogRow = memo(function PodcBacklogRow({
 });
 
 export const podcTableHeader = (
-  <div className="grid grid-cols-[minmax(92px,1fr)_minmax(100px,1fr)_minmax(118px,1.1fr)_72px_64px_92px_92px_72px_72px_minmax(108px,118px)_1fr] gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+  <div className="grid grid-cols-[minmax(92px,1fr)_minmax(100px,1fr)_minmax(118px,1.1fr)_72px_64px_92px_92px_72px_72px_minmax(108px,118px)_1fr] gap-2 px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-600 leading-normal select-none">
     <span>DC / WO</span>
     <span>Client</span>
     <span>Project</span>
-    <span className="text-right">Est. value</span>
+    <span className="text-left">Est. value</span>
     <span className="text-center">Pending</span>
     <span>Site eng.</span>
     <span>Coordinator</span>

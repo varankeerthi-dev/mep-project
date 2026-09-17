@@ -32,9 +32,9 @@ export function VirtualizedTableShell<T>({
 
   if (items.length === 0) {
     return (
-      <div className={cn('rounded-xl border border-zinc-200 bg-white', className)}>
-        <div className="border-b border-zinc-100 bg-zinc-50/80">{header}</div>
-        <p className="px-4 py-12 text-center text-sm text-zinc-500">{emptyMessage}</p>
+      <div className={cn('rounded-lg border border-slate-200 bg-white', className)}>
+        <div className="border-b border-slate-100 bg-slate-50/80">{header}</div>
+        <p className="px-4 py-12 text-center text-sm text-slate-500">{emptyMessage}</p>
       </div>
     );
   }
@@ -42,8 +42,8 @@ export function VirtualizedTableShell<T>({
   const virtualItems = virtualizer.getVirtualItems();
 
   return (
-    <div className={cn('rounded-xl border border-zinc-200 bg-white overflow-hidden', className)}>
-      <div className="sticky top-0 z-30 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm">
+    <div className={cn('rounded-lg border border-slate-200 bg-white overflow-hidden', className)}>
+      <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
         {header}
       </div>
       <div ref={parentRef} style={{ maxHeight, overflow: 'auto' }} className="relative">

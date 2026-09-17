@@ -48,20 +48,21 @@ export const SiteStoppageTaskIntents: React.FC = () => {
 
   const handleApproveAndCreateTask = async (id: string, description: string) => {
     try {
-      // 1. Create task in project_tasks or issues table
+      // 1. Create task in the live tasks table (canonical task store)
+      const { data: orgId } = await supabase.rpc('current_org_id');
       const { data: taskData, error: taskError } = await supabase
-        .from('project_tasks')
+        .from('tasks')
         .insert([{
+          organisation_id: (typeof orgId === 'string' ? orgId : null) as string,
           title: `[Site Stoppage] ${description.slice(0, 80)}`,
           description: description,
-          status: 'todo',
+          status: 'not_started',
           priority: 'high',
           created_by: user?.id
         }])
         .select()
         .single();
 
-      // Fallback if project_tasks schema differs
       const taskId = taskData?.id || null;
 
       // 2. Update stoppage intent status

@@ -69,14 +69,14 @@ export function getEscalationMeta(daysOverdue: number): EscalationStageMeta {
 export function getEscalationRowClass(severity: EscalationStageMeta['severity']): string {
   switch (severity) {
     case 'info':
-      return 'border-l-4 border-l-sky-400 bg-sky-50/40';
+      return 'border-l-4 border-l-blue-400 bg-blue-50/40';
     case 'warning':
       return 'border-l-4 border-l-amber-400 bg-amber-50/40';
     case 'danger':
-      return 'border-l-4 border-l-orange-500 bg-orange-50/50';
+      return 'border-l-4 border-l-amber-500 bg-amber-50/50';
     case 'critical':
       return 'border-l-4 border-l-red-600 bg-red-50/60';
     default:
-      return 'border-l-4 border-l-zinc-200';
+      return 'border-l-4 border-l-slate-200';
   }
 }

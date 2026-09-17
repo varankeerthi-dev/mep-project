@@ -185,9 +185,9 @@ export default function StockCheckPanel({
     try {
       // 1. BOM Guard: Check if active BOM exists for finished good
       const { data: bom, error: bomError } = await supabase
-        .from('boms')
+        .from('bom_headers')
         .select('id')
-        .eq('material_id', check.item_id)
+        .eq('product_id', check.item_id)
         .eq('is_active', true)
         .maybeSingle();
 

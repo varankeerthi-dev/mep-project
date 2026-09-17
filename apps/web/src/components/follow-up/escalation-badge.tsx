@@ -7,9 +7,9 @@ type EscalationBadgeProps = {
 };
 
 const severityClass: Record<EscalationStageMeta['severity'], string> = {
-  info: 'bg-sky-100 text-sky-800 ring-sky-200',
+  info: 'bg-blue-100 text-blue-800 ring-blue-200',
   warning: 'bg-amber-100 text-amber-900 ring-amber-200',
-  danger: 'bg-orange-100 text-orange-900 ring-orange-200',
+  danger: 'bg-amber-100 text-amber-900 ring-amber-200',
   critical: 'bg-red-100 text-red-900 ring-red-300',
 };
 
@@ -17,7 +17,7 @@ export function EscalationBadge({ meta, compact }: EscalationBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset',
+        'inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] ring-1 ring-inset',
         severityClass[meta.severity]
       )}
       title={meta.description}

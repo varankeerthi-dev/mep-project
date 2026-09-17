@@ -220,7 +220,7 @@ BEGIN
       UPDATE standard_cost_calculation_runs
       SET error_log = COALESCE(error_log, '') || 'Error rolling up material ' || v_mat.product_id || ': ' || SQLERRM || E'\n'
       WHERE id = v_run_id;
-    END BEGIN;
+    END;
   END LOOP;
 
   UPDATE standard_cost_calculation_runs

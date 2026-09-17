@@ -67,38 +67,38 @@ export function getActivityEventLabel(type: ActivityEventType): string {
 export function quotationStatusColor(status: QuotationFollowUpStatus): string {
   switch (status) {
     case 'sent':
-      return 'bg-sky-100 text-sky-800';
+      return 'bg-blue-100 text-blue-800';
     case 'under_review':
       return 'bg-blue-100 text-blue-800';
     case 'in_negotiation':
       return 'bg-amber-100 text-amber-800';
     case 'pending':
-      return 'bg-zinc-100 text-zinc-700';
+      return 'bg-slate-100 text-slate-700';
     case 'approved':
-      return 'bg-emerald-100 text-emerald-800';
+      return 'bg-green-100 text-green-800';
     case 'lost_to_competitor':
       return 'bg-red-100 text-red-800';
     case 'expired':
-      return 'bg-purple-100 text-purple-800';
+      return 'bg-blue-100 text-blue-800';
     case 'cancelled':
-      return 'bg-gray-200 text-gray-600';
+      return 'bg-slate-200 text-slate-600';
     case 'on_hold':
-      return 'bg-orange-100 text-orange-800';
+      return 'bg-amber-100 text-amber-800';
     default:
-      return 'bg-zinc-100 text-zinc-700';
+      return 'bg-slate-100 text-slate-700';
   }
 }
 
 export function deliveryProofColor(status: PodcDeliveryProofStatus): string {
   switch (status) {
     case 'verified':
-      return 'bg-emerald-100 text-emerald-800';
+      return 'bg-green-100 text-green-800';
     case 'partial':
       return 'bg-amber-100 text-amber-800';
     case 'missing':
       return 'bg-red-100 text-red-800';
     default:
-      return 'bg-zinc-100 text-zinc-600';
+      return 'bg-slate-100 text-slate-600';
   }
 }
 
@@ -107,8 +107,8 @@ export function disputeColor(status: PodcDisputeStatus): string {
     case 'open':
       return 'bg-red-100 text-red-800';
     case 'resolved':
-      return 'bg-emerald-100 text-emerald-800';
+      return 'bg-green-100 text-green-800';
     default:
-      return 'bg-zinc-100 text-zinc-500';
+      return 'bg-slate-100 text-slate-500';
   }
 }

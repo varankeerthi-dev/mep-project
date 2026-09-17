@@ -1013,7 +1013,7 @@ export function IssueDetailPage() {
                     </button>
                     <button 
                       className="idp-btn idp-btn-secondary" 
-                      onClick={() => navigate(`/subcontractors/workorders?issue_id=${issue.id}&action=create`)}
+                      onClick={() => navigate(`/subcontractors-v2/workorders/create?issue_id=${issue.id}`)}
                       style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}
                     >
                       <Wrench size={14} /> Generate Work Order
@@ -1078,7 +1078,7 @@ export function IssueDetailPage() {
                         <button className="idp-btn idp-btn-secondary" onClick={() => navigate(`/purchase/orders?issue_id=${issue.id}&action=create`)}>
                           <ShoppingCart size={16} /> Create PO
                         </button>
-                        <button className="idp-btn idp-btn-secondary" onClick={() => navigate(`/subcontractors/workorders?issue_id=${issue.id}&action=create`)}>
+                        <button className="idp-btn idp-btn-secondary" onClick={() => navigate(`/subcontractors-v2/workorders/create?issue_id=${issue.id}`)}>
                           <Wrench size={16} /> Generate Work Order
                         </button>
                       </div>

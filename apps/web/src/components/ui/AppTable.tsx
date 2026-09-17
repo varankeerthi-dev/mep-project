@@ -192,30 +192,47 @@ function RowActionsCell<T extends Record<string, any>>({
     }
   }, [isOpen]);
 
+  // Outside-click + Escape close (QuotationList pattern)
+  useEffect(() => {
+    if (!isOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [isOpen, onClose]);
+
   return (
-    <div className="relative flex justify-center pr-4 pl-2 py-2">
-      <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); onToggle(); }}
-        className="inline-flex items-center justify-center rounded-lg w-7 h-7 hover:bg-zinc-100 transition-colors"
-        aria-label="Open row actions"
-        aria-expanded={isOpen}
-        aria-haspopup="menu"
-      >
-        <MoreHorizontal className="w-4 h-4 text-[#0A0A0A]" />
-      </Button>
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={onClose} />
+    <div className="flex justify-center pr-4 pl-2 py-2">
+      <div className="relative inline-block" ref={menuRef}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"
+          aria-label="Open row actions"
+          aria-expanded={isOpen}
+          aria-haspopup="menu"
+        >
+          <MoreHorizontal className="w-4 h-4 text-zinc-500" />
+        </button>
+        {isOpen && (
           <div
-            ref={menuRef}
             role="menu"
             onKeyDown={handleKeyDown}
+            onClick={(e) => e.stopPropagation()}
             className={cn(
-              'absolute right-4 z-[100] w-44 rounded-lg border border-[#E5E5E5] bg-white p-1 shadow-lg shadow-black/5',
+              'absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5',
               isLastThree ? 'bottom-full mb-1' : 'top-full mt-1'
             )}
           >
             {actions.map((action, i) => (
-              <Button variant="default" size="sm" key={i} role="menuitem" onClick={(e) => {
+              <button key={i} role="menuitem" onClick={(e) => {
                   e.stopPropagation();
                   onClose();
                   action.onClick(row.original);
@@ -223,16 +240,16 @@ function RowActionsCell<T extends Record<string, any>>({
                 className={cn(
                   'flex w-full items-center gap-2 rounded-md px-2 text-[12px] py-[6px] transition-colors active:scale-[0.98]',
                   action.variant === 'danger'
-                    ? 'text-zinc-600 hover:bg-red-50 hover:text-red-600'
-                    : 'text-zinc-600 hover:bg-zinc-50 hover:text-[#0A0A0A]'
+                    ? 'text-red-600 hover:bg-red-50'
+                    : 'text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700'
                 )}
               >
                 {action.label}
-              </Button>
+              </button>
             ))}
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -463,7 +480,7 @@ export function AppTable<T extends Record<string, any>>({
         cell: ({ row, table }) => {
           const sortedRows = table.getSortedRowModel().rows;
           const rowIndex = sortedRows.findIndex((r) => r.id === row.id);
-          const isLastThree = rowIndex >= sortedRows.length - 3;
+          const isLastThree = rowIndex >= sortedRows.length - 3 && rowIndex > 3;
           return (
             <RowActionsCell
               row={row}

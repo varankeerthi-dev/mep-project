@@ -60,7 +60,7 @@ export default function HelpPage({ onNavigate }: HelpPageProps) {
   return (
     <div className="help-page">
       <div className="help-header">
-        <button className="help-back-btn" onClick={() => onNavigate?.('/subcontractors/attendance')}>
+        <button className="help-back-btn" onClick={() => onNavigate?.('/subcontractors-v2/attendance')}>
           <ArrowLeft size={16} />
           Back to Attendance
         </button>

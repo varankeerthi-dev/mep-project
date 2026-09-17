@@ -16,6 +16,7 @@ import {
   useReleaseSubcontractorPayment 
 } from '../../../../hooks/useApprovals';
 import { SubcontractorModuleNav } from '../Shared/SubcontractorModuleNav';
+import { subcontractorService } from '../../services/subcontractorService';
 
 interface PaymentsPageProps {
   onNavigate?: (path: string) => void;
@@ -369,8 +370,7 @@ export function PaymentsPage({ onNavigate }: PaymentsPageProps) {
     // Approved/posted bills are immutable; deletion will be blocked by the database.
     if (!confirm('Delete this subcontractor bill? Approved or posted bills cannot be deleted.')) return;
     try {
-      const { error } = await supabase.from('subcontractor_invoices').delete().eq('id', id);
-      if (error) throw error;
+      await subcontractorService.deleteInvoice(id, organisation?.id as string);
       toast.success('Bill removed.');
       loadData();
     } catch (err: any) {

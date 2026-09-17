@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
-  Plus, 
-  FileText, 
-  Mail, 
-  Printer, 
-  Eye, 
-  ShoppingCart, 
-  Edit, 
+  Plus,
+  FileText,
+  Mail,
+  Eye,
+  ShoppingCart,
+  Edit,
   Trash2,
   Filter,
   Search,
@@ -14,7 +13,6 @@ import {
   ChevronLeft,
   X,
   CheckSquare,
-  Square,
   ChevronUp,
   ChevronDown,
   MoreHorizontal,
@@ -37,10 +35,10 @@ import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalList
 import { CSS } from '@dnd-kit/utilities';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
 import { Button as ShadcnButton } from '../../../components/ui/button';
-import { PageSkeleton } from '../../../components/ui/skeleton';
 import { Badge } from '../../../components/ui/Badge';
-import { AppTable } from '../../../components/ui/AppTable';
+import { Pagination } from '../../../features/materials/components/table/Pagination';
 import { 
   Dialog, 
   DialogContent, 
@@ -202,7 +200,6 @@ export const PurchaseOrders: React.FC = () => {
   const [selectedPO, setSelectedPO] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm);
-  const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [poNumber, setPoNumber] = useState('');
   const [currency, setCurrency] = useState('INR');
   const [exchangeRate, setExchangeRate] = useState(1);
@@ -350,8 +347,8 @@ export const PurchaseOrders: React.FC = () => {
   );
   const [colCustomiserOpen, setColCustomiserOpen] = useState(false);
   const colCustomiserRef = useRef<HTMLDivElement>(null);
-  const [actionMenuPO, setActionMenuPO] = useState<string | null>(null);
-  const actionMenuRef = useRef<HTMLDivElement>(null);
+  const [openMenuPO, setOpenMenuPO] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const ITEM_COLUMNS = [
     { key: 'section', label: 'Section', default: false },
@@ -376,18 +373,18 @@ export const PurchaseOrders: React.FC = () => {
       if (colCustomiserRef.current && !colCustomiserRef.current.contains(e.target as Node)) {
         setColCustomiserOpen(false);
       }
-      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) {
-        setActionMenuPO(null);
-      }
       if (itemColMenuRef.current && !itemColMenuRef.current.contains(e.target as Node)) {
         setItemColMenuOpen(false);
       }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuPO(null);
+      }
     };
-    if (colCustomiserOpen || actionMenuPO || itemColMenuOpen) {
+    if (colCustomiserOpen || itemColMenuOpen || openMenuPO) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [colCustomiserOpen, actionMenuPO, itemColMenuOpen]);
+  }, [colCustomiserOpen, itemColMenuOpen, openMenuPO]);
 
   const toggleColumn = (key: string) => {
     setVisibleColumns(prev => {
@@ -425,7 +422,7 @@ export const PurchaseOrders: React.FC = () => {
   const { data: editingPO, isLoading: editingPOLoading } = usePurchaseOrder(editingPOId);
 
   const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize] = useState(25);
 
   const { data: poResult, isLoading } = usePurchaseOrders(organisation?.id, {
     page: pageIndex,
@@ -434,23 +431,8 @@ export const PurchaseOrders: React.FC = () => {
   });
   const poList = poResult?.data ?? [];
   const totalCount = poResult?.count ?? 0;
-  const pageCount = Math.ceil(totalCount / pageSize);
 
   useEffect(() => { setPageIndex(0); }, [debouncedSearch]);
-
-  const getPageNumbers = (current: number, total: number): (number | '...')[] => {
-    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-    const pages: (number | '...')[] = [];
-    const half = Math.floor(7 / 2);
-    let start = Math.max(1, current - half);
-    let end = Math.min(total, current + half);
-    if (start > 2) { pages.push(1, '...'); }
-    else if (start === 2) { pages.push(1); }
-    for (let i = start; i <= end; i++) pages.push(i);
-    if (end < total - 1) { pages.push('...', total); }
-    else if (end === total - 1) { pages.push(total); }
-    return pages;
-  };
 
   // Materials for item select
   const fetchMaterials = useCallback((orgId: string) => {
@@ -578,54 +560,120 @@ export const PurchaseOrders: React.FC = () => {
   };
 
   const getPOSeriesNumber = async () => {
-    if (!organisation?.id) return 'PO-0001';
+    if (!organisation?.id) return { prefix: 'PO-', suffix: '', fy_prefix: getFyPrefix(), padding: 4, current: 1, seriesId: null as string | null };
     try {
-      const { data: existing } = await supabase
+      const { data: rows } = await supabase
         .from('document_series')
         .select('*')
         .eq('organisation_id', organisation.id)
-        .or('series_name.ilike.%PO%,series_name.ilike.%Purchase Order%,is_default.eq.true')
-        .order('is_default', { ascending: false })
-        .limit(1);
-      let series = existing && existing.length > 0 ? existing[0] : null;
-      if (!series) {
-        const fyPrefix = getFyPrefix();
-        const initialCfg = { prefix: 'PO-', suffix: '', fy_prefix: fyPrefix, padding: 4, current: 1 };
-        const { data: newSeries } = await supabase
-          .from('document_series')
-          .insert({ organisation_id: organisation.id, series_name: 'Purchase Order', is_default: true, current_number: 1, configs: initialCfg })
-          .select()
-          .single();
-        if (newSeries) {
-          series = newSeries;
-        }
-      }
-      return series;
+        .order('updated_at', { ascending: false });
+      const list = rows || [];
+      const hasPoCfg = (r: any) => r?.configs?.po && (r.configs.po.enabled !== false);
+      let row = list.find(hasPoCfg)
+        || list.find((r: any) => /po|purchase order/i.test(r?.series_name || ''))
+        || list.find((r: any) => r?.is_default)
+        || list[0]
+        || null;
+      let cfg = row?.configs?.po || {};
+      const legacy = row?.configs && (row.configs.prefix || row.configs.fy_prefix) ? row.configs : {};
+      const { data: settings } = await supabase
+        .from('document_settings')
+        .select('po_prefix, po_start_number, po_suffix, po_padding, po_current_number')
+        .eq('organisation_id', organisation.id)
+        .maybeSingle();
+      const prefix = cfg.prefix || legacy.prefix || (settings as any)?.po_prefix || 'PO-';
+      const suffix = cfg.suffix ?? legacy.suffix ?? (settings as any)?.po_suffix ?? '';
+      const fy_prefix = cfg.fy_prefix || legacy.fy_prefix || getFyPrefix();
+      const padding = cfg.padding || legacy.padding || (settings as any)?.po_padding || 4;
+      const current = cfg.start_number || cfg.current || legacy.current
+        || (settings as any)?.po_current_number || (settings as any)?.po_start_number
+        || row?.current_number || 1;
+      return { prefix, suffix, fy_prefix, padding, current, seriesId: row?.id || null };
     } catch (e) {
       console.warn('Failed to load PO series', e);
-      return null;
+      return { prefix: 'PO-', suffix: '', fy_prefix: getFyPrefix(), padding: 4, current: 1, seriesId: null as string | null };
     }
   };
 
-  const buildPONumber = (series: any): string => {
-    // Match the settings UI contract: per-doc-type config lives under configs.po
-    const cfg = series?.configs?.po || series?.configs || {};
-    const prefix = cfg.prefix || 'PO-';
-    const suffix = cfg.suffix || '';
-    const fyPrefix = cfg.fy_prefix ? cfg.fy_prefix + '-' : '';
-    const padding = cfg.padding || 4;
-    const current = cfg.start_number || cfg.current || series?.current_number || 1;
-    const num = String(current).padStart(padding, '0');
-    return `${fyPrefix}${prefix}${num}${suffix}`;
+  const buildPONumber = (series: any, num?: number): string => {
+    const prefix = series?.prefix || 'PO-';
+    const suffix = series?.suffix || '';
+    const fyPrefix = series?.fy_prefix ? series.fy_prefix + '-' : '';
+    const padding = series?.padding || 4;
+    const current = num ?? series?.current ?? 1;
+    return `${fyPrefix}${prefix}${String(current).padStart(padding, '0')}${suffix}`;
+  };
+
+  const parsePONumeric = (poNumber: string, series: any): number | null => {
+    const head = `${series?.fy_prefix ? series.fy_prefix + '-' : ''}${series?.prefix || 'PO-'}`;
+    const tail = series?.suffix || '';
+    if (!poNumber.startsWith(head)) return null;
+    let mid = poNumber.slice(head.length);
+    if (tail && mid.endsWith(tail)) mid = mid.slice(0, mid.length - tail.length);
+    const n = parseInt(mid, 10);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const resolveNextPONumber = async (series: any): Promise<{ number: string; next: number }> => {
+    let candidate = series?.current || 1;
+    try {
+      const head = `${series?.fy_prefix ? series.fy_prefix + '-' : ''}${series?.prefix || 'PO-'}`;
+      const { data: existing } = await supabase
+        .from('purchase_orders')
+        .select('po_number')
+        .eq('organisation_id', organisation!.id)
+        .like('po_number', `${head}%`);
+      const nums = (existing || []).map((r: any) => parsePONumeric(r.po_number, series)).filter((n: any): n is number => n !== null);
+      const maxExisting = nums.length ? Math.max(...nums) : 0;
+      if (candidate <= maxExisting) {
+        candidate = maxExisting + 1;
+      } else if (candidate > maxExisting + 1 && maxExisting > 0) {
+        const missingTop = candidate - (maxExisting + 1);
+        const { count } = await supabase
+          .from('purchase_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('organisation_id', organisation!.id)
+          .gte('po_number', `${head}${String(maxExisting + 1).padStart(series?.padding || 4, '0')}`)
+          .lt('po_number', `${head}${String(candidate).padStart(series?.padding || 4, '0')}`);
+        if ((count || 0) === 0 && missingTop >= 1) {
+          candidate = maxExisting + 1;
+        }
+      }
+      const taken = new Set(nums);
+      while (taken.has(candidate)) candidate += 1;
+    } catch (e) {
+      console.warn('PO number fallback check failed', e);
+    }
+    return { number: buildPONumber(series, candidate), next: candidate };
+  };
+
+  const persistPOSeries = async (series: any, consumed: number) => {
+    const nextNo = Math.max(consumed + 1, series?.current || 1);
+    try {
+      if (series?.seriesId) {
+        const { data: row } = await supabase.from('document_series').select('configs, current_number').eq('id', series.seriesId).maybeSingle();
+        const base = (row as any)?.configs || {};
+        const poCfg = base.po || {};
+        const updatedCfg = { ...base, po: { ...poCfg, enabled: true, prefix: series.prefix, suffix: series.suffix, fy_prefix: series.fy_prefix, padding: series.padding, start_number: nextNo } };
+        await supabase.from('document_series').update({ current_number: nextNo, configs: updatedCfg }).eq('id', series.seriesId);
+      }
+      await supabase.from('document_settings').upsert({
+        organisation_id: organisation!.id,
+        po_prefix: series.prefix,
+        po_suffix: series.suffix,
+        po_padding: series.padding,
+        po_current_number: nextNo,
+      }, { onConflict: 'organisation_id' });
+    } catch (seriesErr) {
+      console.warn('Failed to increment PO series', seriesErr);
+    }
   };
 
   const generatePONumber = async () => {
     const series = await getPOSeriesNumber();
-    if (series) {
-      const cfg = series.configs || {};
-      poSeriesRef.current = true;
-      setPoNumber(buildPONumber(series));
-    }
+    const resolved = await resolveNextPONumber(series);
+    poSeriesRef.current = true;
+    setPoNumber(resolved.number);
   };
 
   // Pre-generate PO number when form opens
@@ -857,8 +905,9 @@ export const PurchaseOrders: React.FC = () => {
     try {
       await deletePO.mutateAsync({ id: deleteConfirmPO.id, organisationId: organisation.id });
       setDeleteConfirmPO(null);
-    } catch (e) {
-      console.error('Delete failed', e);
+      toast.success('PO deleted. A text copy is kept in the audit log; supplier chat history is untouched.');
+    } catch (e: any) {
+      toast.error(e?.message || 'Delete failed');
     }
   };
 
@@ -952,28 +1001,24 @@ export const PurchaseOrders: React.FC = () => {
         poId = result.id;
         logPOActivity(poId, 'CREATED', `PO created by ${(user as any)?.user_metadata?.full_name || 'System'}`);
 
-        // Advance the series so the next PO gets a fresh number (was previously
-        // never incremented — every new PO form session reused the same number).
-        try {
-          const series = await getPOSeriesNumber();
-          if (series) {
-            const cfg = series.configs?.po || series.configs || {};
-            const nextNo = (cfg.start_number || cfg.current || series.current_number || 1) + 1;
-            const updatedCfg = series.configs?.po
-              ? { ...series.configs, po: { ...cfg, start_number: nextNo } }
-              : { ...series.configs, current: nextNo };
-            await supabase.from('document_series').update({ current_number: nextNo, configs: updatedCfg }).eq('id', series.id);
-          }
-        } catch (seriesErr) {
-          console.warn('Failed to increment PO series', seriesErr);
-        }
+        // Advance both numbering stores so Settings and the PO screen stay linked.
+        const seriesNow = await getPOSeriesNumber();
+        const usedNum = parsePONumeric(poNumber, seriesNow) ?? seriesNow.current ?? 1;
+        await persistPOSeries(seriesNow, usedNum);
       }
 
       toast.success(editingPOId ? 'PO updated successfully' : 'PO created successfully');
     } catch (err: any) {
-      // Unique index (organisation_id, po_number) rejection — surface a friendly message.
+      // Unique index (organisation_id, po_number) rejection — auto-draw the next free number once.
       if (err?.code === '23505' || String(err?.message || '').includes('duplicate key')) {
-        toast.error(`PO number "${poNumber}" already exists. Save again to draw the next number.`);
+        try {
+          const series = await getPOSeriesNumber();
+          const resolved = await resolveNextPONumber({ ...series, current: (parsePONumeric(poNumber, series) ?? series.current) + 1 });
+          setPoNumber(resolved.number);
+          toast.error(`PO number "${poNumber}" already exists. Drew ${resolved.number} — save again.`);
+        } catch {
+          toast.error(`PO number "${poNumber}" already exists. Save again to draw the next number.`);
+        }
       } else {
         toast.error(err instanceof Error ? err.message : 'Failed to save purchase order');
       }
@@ -996,21 +1041,21 @@ export const PurchaseOrders: React.FC = () => {
       accessorKey: 'po_number' as const,
       header: 'PO #',
       cell: ({ getValue }: any) => (
-        <span className="text-xs font-medium text-indigo-600">{getValue()}</span>
+        <span className="font-medium text-zinc-800">{getValue()}</span>
       ),
     }] : []),
     ...(visibleColumns.has('po_date') ? [{
       accessorKey: 'po_date' as const,
       header: 'Date',
       cell: ({ getValue }: any) => (
-        <span className="text-xs text-zinc-600">{formatDate(getValue())}</span>
+        <span className="text-zinc-600">{formatDate(getValue())}</span>
       ),
     }] : []),
     ...(visibleColumns.has('vendor') ? [{
       accessorKey: 'vendor' as const,
       header: 'Vendor',
       cell: ({ row }: any) => (
-        <span className="text-xs text-zinc-800 max-w-[180px] truncate block">{row.original.vendor?.company_name || '-'}</span>
+        <span className="text-zinc-600 max-w-[180px] truncate block" title={row.original.vendor?.company_name || ''}>{row.original.vendor?.company_name || '-'}</span>
       ),
     }] : []),
     ...(visibleColumns.has('currency') ? [{
@@ -1027,9 +1072,9 @@ export const PurchaseOrders: React.FC = () => {
         const amount = Number(getValue());
         const symbol = row.original.currency === 'INR' ? '₹' : row.original.currency + ' ';
         return (
-          <div className="text-xs font-medium text-zinc-900 tabular-nums text-right">
+          <span className="font-medium tabular-nums">
             {symbol}{amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-          </div>
+          </span>
         );
       },
     }] : []),
@@ -1041,7 +1086,73 @@ export const PurchaseOrders: React.FC = () => {
         return <StatusBadge status={val} />;
       },
     }] : []),
+    {
+      id: 'actions' as const,
+      header: 'Actions',
+      cell: ({ row }: any) => {
+        const po = row.original;
+        const flipUp = row.index >= poList.length - 3 && row.index > 3;
+        return (
+          <div className="relative inline-block" ref={openMenuPO === po.id ? menuRef : null} onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenMenuPO(openMenuPO === po.id ? null : po.id);
+              }}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"
+            >
+              <MoreHorizontal className="w-4 h-4 text-zinc-500" />
+            </button>
+            {openMenuPO === po.id && (
+              <div className={`absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${
+                flipUp ? 'bottom-full mb-1' : 'top-full mt-1'
+              }`}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setOpenMenuPO(null); handleViewPDF(po); }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                  style={{ padding: '6px' }}
+                >
+                  <Eye className="w-3.5 h-3.5" /> View PDF
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setOpenMenuPO(null); handleEditPO(po); }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                  style={{ padding: '6px' }}
+                >
+                  <Edit className="w-3.5 h-3.5" /> Edit PO
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setOpenMenuPO(null); handleDuplicatePO(po); }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                  style={{ padding: '6px' }}
+                >
+                  <Copy className="w-3.5 h-3.5" /> Duplicate
+                </button>
+                <div className="my-1 border-t border-zinc-100" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); setOpenMenuPO(null); navigate('/purchase/bills?convertFromPoId=' + po.id); }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                  style={{ padding: '6px' }}
+                >
+                  <Receipt className="w-3.5 h-3.5" /> Convert to Bill
+                </button>
+                <div className="my-1 border-t border-zinc-100" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); setOpenMenuPO(null); setDeleteConfirmPO(po); }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-red-600 transition-all hover:bg-red-50 active:scale-[0.98]"
+                  style={{ padding: '6px' }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete PO
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
   ];
+
+  const poTable = useReactTable({ data: poList, columns, getCoreRowModel: getCoreRowModel() });
 
 
   if (isFormPage) {
@@ -2002,261 +2113,53 @@ export const PurchaseOrders: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
-        <table className="w-full table-fixed border-separate border-spacing-0">
-          <thead>
-            <tr>
-              <th className="sticky top-0 z-10 h-[36px] px-6 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[50px]">
-                <button
-                  onClick={() => {
-                    if (selectedRows.length === poList.length) {
-                      setSelectedRows([]);
-                    } else {
-                      setSelectedRows(poList.map((po: any) => po.id));
-                    }
-                  }}
-                  className="flex items-center justify-center"
-                >
-                  {selectedRows.length === poList.length && poList.length > 0 ? (
-                    <CheckSquare className="h-3.5 w-3.5 text-indigo-600" />
-                  ) : (
-                    <Square className="h-3.5 w-3.5 text-zinc-300" />
-                  )}
-                </button>
-              </th>
-              {visibleColumns.has('po_number') && <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200">PO #</th>}
-              {visibleColumns.has('po_date') && <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200">Date</th>}
-              {visibleColumns.has('vendor') && <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200">Vendor</th>}
-              {visibleColumns.has('currency') && <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200">Curr</th>}
-              {visibleColumns.has('total_amount') && <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 text-right">Amount</th>}
-              {visibleColumns.has('status') && <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200">Status</th>}
-              <th className="sticky top-0 z-10 h-[36px] px-6 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 w-[70px] text-center">Actions</th>
-            </tr>
-          </thead>
-          
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={visibleColumns.size + 2} className="p-0">
-                  <PageSkeleton variant="table" rows={8} />
-                </td>
-              </tr>
-            ) : poList.length === 0 ? (
-              <tr>
-                <td colSpan={visibleColumns.size + 2} className="px-6 py-16 text-center text-sm text-zinc-500">No purchase orders found</td>
-              </tr>
-            ) : (
-              poList.map((po: any, idx: number) => (
-                <tr
-                  key={po.id}
-                  className={cn(
-                    "border-t border-zinc-200/70 transition-all",
-                    idx % 2 === 0 ? "bg-white" : "bg-zinc-50/30",
-                    "hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm",
-                    selectedRows.includes(po.id) && "bg-indigo-50/50"
-                  )}
-                >
-                  <td className="px-6 py-[13px] text-center align-middle w-[50px]">
-                    <button
-                      onClick={() => {
-                        if (selectedRows.includes(po.id)) {
-                          setSelectedRows(prev => prev.filter(id => id !== po.id));
-                        } else {
-                          setSelectedRows(prev => [...prev, po.id]);
-                        }
-                      }}
-                      className="flex items-center justify-center"
-                    >
-                      {selectedRows.includes(po.id) ? (
-                        <CheckSquare className="h-3.5 w-3.5 text-indigo-600" />
-                      ) : (
-                        <Square className="h-3.5 w-3.5 text-zinc-300" />
-                      )}
-                    </button>
-                  </td>
-                  {visibleColumns.has('po_number') && (
-                  <td className="px-6 py-[13px] align-middle">
-                    <span className="text-xs font-medium text-indigo-600">{po.po_number}</span>
-                  </td>
-                )}
-                {visibleColumns.has('po_date') && (
-                  <td className="px-6 py-[13px] align-middle text-xs text-zinc-600">
-                    {formatDate(po.po_date)}
-                  </td>
-                )}
-                {visibleColumns.has('vendor') && (
-                  <td className="px-6 py-[13px] align-middle text-xs text-zinc-800 truncate" title={po.vendor?.company_name}>
-                    {po.vendor?.company_name || '-'}
-                  </td>
-                )}
-                {visibleColumns.has('currency') && (
-                  <td className="px-6 py-[13px] align-middle">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-100 text-zinc-600">{po.currency}</span>
-                  </td>
-                )}
-                {visibleColumns.has('total_amount') && (
-                  <td className="px-6 py-[13px] align-middle text-xs font-medium text-zinc-900 tabular-nums text-right">
-                    {po.currency === 'INR' ? '₹' : po.currency + ' '}{Number(po.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </td>
-                )}
-                {visibleColumns.has('status') && (
-                  <td className="px-6 py-[13px] align-middle">
-                    <StatusBadge status={po.status || po.approval_status} />
-                  </td>
-                )}
-                <td className="px-6 py-[13px] align-middle text-center w-[70px]">
-                    <div className="relative flex items-center justify-center" ref={actionMenuPO === po.id ? actionMenuRef : undefined}>
-                      <button
-                        onClick={() => setActionMenuPO(actionMenuPO === po.id ? null : po.id)}
-                        className="p-1 rounded-md hover:bg-zinc-100 text-zinc-400 transition-colors"
+      <div className="bg-white border border-zinc-200 rounded-xl">
+        {isLoading ? (
+          <div className="p-12 text-center text-sm text-zinc-400">Loading purchase orders...</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full" style={{ fontFamily: '"Geist", "Inter", system-ui, sans-serif' }}>
+              <thead className="sticky top-0 z-10">
+                {poTable.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        className="h-10 px-2 text-left align-middle text-sm font-medium text-black whitespace-nowrap"
                       >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                      {actionMenuPO === po.id && (
-                        <div className="absolute right-0 top-full mt-1 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5">
-                          <button
-                            onClick={() => { handleViewPDF(po); setActionMenuPO(null); }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700"
-                            style={{ padding: '6px' }}
-                          >
-                            <Eye className="w-3.5 h-3.5" /> View PDF
-                          </button>
-                          <button
-                            onClick={() => { handleEditPO(po); setActionMenuPO(null); }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700"
-                            style={{ padding: '6px' }}
-                          >
-                            <Edit className="w-3.5 h-3.5" /> Edit PO
-                          </button>
-                          <button
-                            onClick={() => { handleDuplicatePO(po); setActionMenuPO(null); }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700"
-                            style={{ padding: '6px' }}
-                          >
-                            <Copy className="w-3.5 h-3.5" /> Duplicate
-                          </button>
-                          <div className="h-px bg-zinc-200/60 my-1" />
-                          <button
-                            onClick={() => { setDeleteConfirmPO(po); setActionMenuPO(null); }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-red-600 hover:bg-red-50"
-                            style={{ padding: '6px' }}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" /> Delete PO
-                          </button>
-                          <div className="my-1 border-t border-zinc-100" />
-                          <button
-                            onClick={() => { setActionMenuPO(null); navigate("/purchase/bills?convertFromPoId=" + po.id); }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700"
-                            style={{ padding: '6px' }}
-                          >
-                            <Receipt className="w-3.5 h-3.5" /> Convert to Bill
-                          </button>
-                          <div className="my-1 border-t border-zinc-100" />
-
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {totalCount > 0 && (
-        <div className="sticky bottom-0 flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50 z-10">
-          <div className="flex items-center gap-2 text-sm font-medium text-zinc-600">
-            <span>
-              {pageIndex * pageSize + 1}-{Math.min((pageIndex + 1) * pageSize, totalCount)} of {totalCount}
-            </span>
-            <select
-              value={pageSize}
-              onChange={(e) => { setPageSize(Number(e.target.value)); setPageIndex(0); }}
-              className="ml-2 px-2 py-1 text-xs border border-zinc-200 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-500 bg-white"
-            >
-              {[10, 25, 50, 100].map((size) => (
-                <option key={size} value={size}>{size} per page</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPageIndex(0)}
-              disabled={pageIndex === 0}
-              className="h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors disabled:text-zinc-400 disabled:bg-zinc-50 disabled:border-zinc-100 disabled:cursor-not-allowed text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm active:scale-[0.98]"
-            >
-              First
-            </button>
-            <button
-              onClick={() => setPageIndex(p => Math.max(0, p - 1))}
-              disabled={pageIndex === 0}
-              className="h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors disabled:text-zinc-400 disabled:bg-zinc-50 disabled:border-zinc-100 disabled:cursor-not-allowed text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm active:scale-[0.98]"
-            >
-              Prev
-            </button>
-            <div className="flex items-center gap-1.5 mx-1">
-              {getPageNumbers(pageIndex + 1, pageCount).map((page, idx) =>
-                page === '...' ? (
-                  <span key={`ellipsis-${idx}`} className="px-1 text-xs text-zinc-400">...</span>
-                ) : (
-                  <button
-                    key={page}
-                    onClick={() => setPageIndex(page - 1)}
-                    className={`h-[32px] min-w-[32px] px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                      page === pageIndex + 1
-                        ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm'
-                        : 'text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200 active:scale-[0.98]'
-                    }`}
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {poTable.getRowModel().rows.map((row, i) => (
+                  <tr
+                    key={row.id}
+                    onClick={() => handleEditPO(row.original)}
+                    className={`${i < poTable.getRowModel().rows.length - 1 ? 'border-b border-[#E5E5E5]' : ''} transition-colors cursor-pointer hover:bg-[#F5F5F5]`}
                   >
-                    {page}
-                  </button>
-                )
-              )}
-            </div>
-            <button
-              onClick={() => setPageIndex(p => Math.min(pageCount - 1, p + 1))}
-              disabled={pageIndex >= pageCount - 1}
-              className="h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors disabled:text-zinc-400 disabled:bg-zinc-50 disabled:border-zinc-100 disabled:cursor-not-allowed text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm active:scale-[0.98]"
-            >
-              Next
-            </button>
-            <button
-              onClick={() => setPageIndex(pageCount - 1)}
-              disabled={pageIndex >= pageCount - 1}
-              className="h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors disabled:text-zinc-400 disabled:bg-zinc-50 disabled:border-zinc-100 disabled:cursor-not-allowed text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm active:scale-[0.98]"
-            >
-              Last
-            </button>
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="p-2 align-middle text-sm text-black">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {poTable.getRowModel().rows.length === 0 && (
+              <div className="text-center py-12 text-zinc-400 text-sm">
+                No purchase orders found
+              </div>
+            )}
           </div>
-        </div>
-      )}
-
-      {selectedRows.length > 0 && (
-        <div className="sticky bottom-0 z-[120] w-full bg-zinc-900 text-white px-6 py-[12px] flex items-center justify-between shadow-2xl">
-          <div>
-            <span className="text-sm font-semibold">{selectedRows.length} selected</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => console.log('Bulk print:', selectedRows)}
-              className="bg-white text-zinc-900 text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2"
-            >
-              <Printer className="w-3.5 h-3.5 inline mr-1.5" />
-              Print All
-            </button>
-            <button
-              onClick={() => setSelectedRows([])}
-              className="bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      )}
-
-
-
+        )}
+        <Pagination currentPage={pageIndex + 1} totalPages={Math.max(1, Math.ceil(totalCount / pageSize))} totalItems={totalCount} onPageChange={(p) => setPageIndex(p - 1)} />
+      </div>
 
       {/* Delete Confirmation */}
       {deleteConfirmPO && (

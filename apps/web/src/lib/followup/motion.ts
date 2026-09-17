@@ -17,30 +17,30 @@ export const duration = {
   normal: 200,
   slow: 300,
   entrance: 250,
-  exit: 175,
+  exit: 125,
   stagger: 20,
 } as const;
 
 export const easing = {
   // Spring-like cubic-bezier approximations for CSS
   springOut: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-  springIn: 'cubic-bezier(0.55, 0.055, 0.675, 0.19)',
   easeOut: 'cubic-bezier(0.4, 0, 0.2, 1)',
   easeInOut: 'cubic-bezier(0.4, 0, 0.2, 1)',
   sharp: 'cubic-bezier(0.4, 0, 0.6, 1)',
 } as const;
 
-// Stagger delay calculator with optional jitter
-export function getStaggerDelay(index: number, baseDelay = duration.stagger, jitter = 5): number {
-  return index * baseDelay + Math.random() * jitter;
+// Stagger delay calculator — deterministic cascade, no jitter.
+// Jitter breaks the rhythm of consecutive items and should never be used
+// for sequenced entrances (reserve randomness for decorative particle effects only).
+export function getStaggerDelay(index: number, baseDelay = duration.stagger): number {
+  return index * baseDelay;
 }
 
 // CSS animation keyframes as strings for dynamic injection
 export const keyframes = {
   entrance: `
     @keyframes fu-entrance {
-      0% { opacity: 0; transform: translateY(8px) scale(0.98); }
-      60% { transform: translateY(-2px) scale(1.01); }
+      0% { opacity: 0; transform: translateY(8px) scale(0.95); }
       100% { opacity: 1; transform: translateY(0) scale(1); }
     }
   `,
@@ -87,7 +87,7 @@ export const keyframes = {
 // Animation class generators
 export function getEntranceClass(index: number, reducedMotion = false): string {
   if (reducedMotion) return 'animate-fu-fade-in-reduced';
-  
+
   const delay = getStaggerDelay(index);
   return `animate-fu-entrance`; // Delay applied via inline style
 }
@@ -112,7 +112,7 @@ export const reducedMotionStyles = {
 
 // Hover/active/focus transition utilities
 export const transitions = {
-  // Standard interactive transition
+  // Standard interactive transition — explicit properties only, never `all`
   interactive: `transform ${duration.fast}ms ${easing.easeOut}, box-shadow ${duration.fast}ms ${easing.easeOut}, background-color ${duration.fast}ms ${easing.easeOut}, border-color ${duration.fast}ms ${easing.easeOut}`,
   // Spring-like hover
   springHover: `transform ${duration.normal}ms ${easing.springOut}, box-shadow ${duration.normal}ms ${easing.easeOut}`,
@@ -130,52 +130,5 @@ export function prefersReducedMotion(): boolean {
 
 // Hook for reduced motion (client-side only)
 export function useReducedMotion(): boolean {
-  // This would be implemented with useSyncExternalStore in a real hook
-  // For now, return the static check
   return prefersReducedMotion();
 }
-
-// Motion variants for Framer Motion style usage (if needed later)
-export const motionVariants = {
-  entrance: {
-    hidden: { opacity: 0, y: 8, scale: 0.98 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
-      scale: 1,
-      transition: { type: 'spring', stiffness: 170, damping: 20 }
-    },
-  },
-  slideInRight: {
-    hidden: { opacity: 0, x: 16 },
-    visible: { 
-      opacity: 1, 
-      x: 0,
-      transition: { type: 'spring', stiffness: 170, damping: 20 }
-    },
-  },
-  slideInLeft: {
-    hidden: { opacity: 0, x: -16 },
-    visible: { 
-      opacity: 1, 
-      x: 0,
-      transition: { type: 'spring', stiffness: 170, damping: 20 }
-    },
-  },
-  staggerContainer: {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.02, delayChildren: 0.05 }
-    },
-  },
-  hover: {
-    scale: 1.02,
-    y: -1,
-    transition: { type: 'spring', stiffness: 200, damping: 18 }
-  },
-  active: {
-    scale: 0.98,
-    transition: { type: 'spring', stiffness: 300, damping: 30 }
-  },
-} as const;

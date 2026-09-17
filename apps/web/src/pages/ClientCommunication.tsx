@@ -17,6 +17,7 @@ import { Calendar } from '../components/ui/Calendar';
 import { createIssue } from '../issues/api';
 import type { IssueType, IssueSeverity } from '../issues/types';
 import PartnerSelect from '../features/partner-allocation/components/PartnerSelect';
+import FollowupsTable from './communication/FollowupsTable';
 import {
   Plus,
   Search,
@@ -67,6 +68,7 @@ const CALL_REGARDING = [
   { value: '', label: 'All Topics' },
   { value: 'quotation', label: 'Quotation' },
   { value: 'project', label: 'Project' },
+  { value: 'purchase_order', label: 'Purchase Order' },
   { value: 'issue', label: 'Issue/Complaint' },
   { value: 'operational_feedback', label: 'Operational Feedback' },
   { value: 'site_visit', label: 'Site Visit' },
@@ -339,6 +341,7 @@ export function ClientCommunication() {
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
   const [showSiteVisitModal, setShowSiteVisitModal] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [mainView, setMainView] = useState<'log' | 'followups'>('log');
   const [selectedCommunication, setSelectedCommunication] = useState<any>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentPage, setCurrentPage] = useState(1);
@@ -732,13 +735,64 @@ export function ClientCommunication() {
 
       return result;
     },
-    onSuccess: () => {
+    onSuccess: async (result: any) => {
       queryClient.invalidateQueries({ queryKey: ['client-communications'] });
       queryClient.invalidateQueries({ queryKey: ['all-follow-ups'] });
       queryClient.invalidateQueries({ queryKey: ['party-communication-history'] });
       setShowCreateModal(false);
       resetForm();
       setAttachmentFiles([]);
+      // Vendor call linked to a PO with a follow-up date: move expected dates
+      // of all pending lines in one go (same guarded path as the Tracking tab).
+      try {
+        if (result?.linked_type === 'procurement' && result?.linked_id && result?.follow_up_date) {
+          const poId = result.linked_id;
+          const newDate = String(result.follow_up_date).slice(0, 10);
+          const { data: lines } = await supabase
+            .from('purchase_order_items')
+            .select('id, item_name, quantity, received_qty, expected_delivery_date, purchase_orders!inner(po_number, organisation_id)')
+            .eq('po_id', poId)
+            .eq('purchase_orders.organisation_id', organisation?.id);
+          const open = (lines || []).filter((l: any) => (Number(l.quantity) || 0) - (Number(l.received_qty) || 0) > 0);
+          if (open.length > 0) {
+            await Promise.all(open.map((l: any) =>
+              supabase.from('purchase_order_items').update({ expected_delivery_date: newDate }).eq('id', l.id)
+            ));
+            const poNo = (open[0] as any)?.purchase_orders?.po_number || '';
+            const { data: session } = await supabase.auth.getUser();
+            await supabase.from('purchase_audit_log').insert(open.map((l: any) => ({
+              organisation_id: organisation?.id,
+              entity_type: 'purchase_order_item',
+              entity_id: l.id,
+              action: 'EXPECTED_DATE_UPDATED',
+              actor_id: session?.user?.id || null,
+              details: {
+                po_number: poNo,
+                item_name: l.item_name,
+                old_date: l.expected_delivery_date || null,
+                new_date: newDate,
+                source: 'comm_log',
+                actor_email: session?.user?.email || null,
+              },
+            })));
+            try {
+              const { logProcurementActivity } = await import('../follow-up/api');
+              await logProcurementActivity(organisation!.id, {
+                event_type: 'po_supplier_call_logged',
+                title: `Supplier call logged — PO ${poNo}`,
+                description: `${open.length} pending line(s) set to expect ${newDate}`,
+                reference_id: poId,
+                reference_label: poNo,
+                metadata: { new_date: newDate, source: 'comm_log', lines: String(open.length) },
+              });
+            } catch (e) {
+              console.warn('Centre activity mirror failed', e);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('PO date sync from comm log failed', e);
+      }
     },
     onError: (error: any) => {
       setUploadingAttachments(false);
@@ -860,6 +914,25 @@ export function ClientCommunication() {
     },
     enabled: !!formData.client_id,
     staleTime: 1000 * 60 * 5,
+  });
+
+  // POs of the selected vendor — for linking a vendor call to a purchase order
+  const { data: vendorPOs = [] } = useQuery({
+    queryKey: ['vendor-pos', organisation?.id, formData.vendor_id],
+    queryFn: async () => {
+      if (!organisation?.id || !formData.vendor_id) return [];
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select('id, po_number, po_date, delivery_date')
+        .eq('organisation_id', organisation.id)
+        .eq('vendor_id', formData.vendor_id)
+        .order('po_date', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id && formData.party_type === 'vendor' && !!formData.vendor_id,
+    staleTime: 1000 * 60 * 2,
   });
 
   // Build the unified list of contacts for the selected client:
@@ -1230,6 +1303,7 @@ export function ClientCommunication() {
       invoice: `/invoices/${linked_id}`,
       podc: `/projects/${linked_id}`,
       site_visit: `/site-visits/${linked_id}`,
+      procurement: `/purchase/tracking`,
     };
     return routes[linked_type] || null;
   };
@@ -1807,6 +1881,29 @@ export function ClientCommunication() {
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {/* Log / Follow-ups view toggle */}
+              <div style={{ display: 'flex', border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden', background: '#F1F5F9', padding: '2px', gap: '2px' }}>
+                {(['log', 'followups'] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setMainView(v)}
+                    style={{
+                      padding: '3px 8px',
+                      border: 'none',
+                      borderRadius: '4px',
+                      background: mainView === v ? '#fff' : 'transparent',
+                      color: mainView === v ? '#4F46E5' : '#64748B',
+                      boxShadow: mainView === v ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 150ms',
+                    }}
+                  >
+                    {v === 'log' ? 'Log' : 'Follow-ups'}
+                  </button>
+                ))}
+              </div>
               {/* Group By Filter */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '11px', fontWeight: 500, color: '#64748B' }}>Group by:</span>
@@ -1876,6 +1973,17 @@ export function ClientCommunication() {
             </div>
           )}
 
+          {mainView === 'followups' ? (
+            <FollowupsTable
+              items={displayedFollowUps}
+              users={users}
+              getPartyName={getPartyName}
+              getUserId={getUserId}
+              organisationId={organisation?.id}
+              onSelect={(item: any) => setSelectedCommunication(item)}
+            />
+          ) : (
+          <>
           {/* Table */}
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -1979,6 +2087,7 @@ export function ClientCommunication() {
               </div>
             </div>
           )}
+          </>)}
         </div>
 
         {/* ── RIGHT: SIDEBAR (FOLLOW-UPS / CONVERSATION CHAIN) ── */}
@@ -2391,7 +2500,7 @@ export function ClientCommunication() {
                         name="party_type"
                         value={t.value}
                         checked={formData.party_type === t.value}
-                        onChange={() => setFormData(f => ({ ...f, party_type: t.value, client_id: '', vendor_id: '', lead_id: '', subcontractor_id: '' }))}
+                        onChange={() => setFormData(f => ({ ...f, party_type: t.value, client_id: '', vendor_id: '', lead_id: '', subcontractor_id: '', linked_type: '', linked_id: '' }))}
                         style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
                       />
                       <span className="party-tick-box" style={{ width: '18px', height: '18px', borderRadius: '4px', border: `2px solid ${formData.party_type === t.value ? t.color : '#CBD5E1'}`, background: formData.party_type === t.value ? t.color : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 150ms ease, border-color 150ms ease', flexShrink: 0 }}>
@@ -2422,7 +2531,7 @@ export function ClientCommunication() {
                   )}
                   {formData.party_type === 'vendor' && (
                     <>
-                      <select value={formData.vendor_id} onChange={e => setFormData(f => ({ ...f, vendor_id: e.target.value }))} required style={{ flex: 1, padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
+                      <select value={formData.vendor_id} onChange={e => setFormData(f => ({ ...f, vendor_id: e.target.value, linked_type: '', linked_id: '' }))} required style={{ flex: 1, padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
                         <option value="">Select a vendor...</option>
                         {vendors.map(v => <option key={v.id} value={v.id}>{v.company_name}</option>)}
                       </select>
@@ -2455,32 +2564,6 @@ export function ClientCommunication() {
                   )}
                 </div>
               </div>
-
-              {/* Spoke With — choose the specific contact (CFT) for the selected client */}
-              {formData.party_type === 'client' && hasPartySelected && (
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={labelStyle}>Spoke With (Contact)</label>
-                  <select
-                    value={formData.contacted_contact_id}
-                    onChange={e => setFormData(f => ({ ...f, contacted_contact_id: e.target.value }))}
-                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}
-                  >
-                    <option value="">— Select contact —</option>
-                    {spokeWithOptions.map(o => (
-                      <option key={o.id} value={o.id}>
-                        {o.label}{o.phone ? ` · ${o.phone}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {formData.contacted_contact_id && (
-                    <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#64748b' }}>
-                      {spokeWithOptions.find(o => o.id === formData.contacted_contact_id)?.phone
-                        ? `Contact number: ${spokeWithOptions.find(o => o.id === formData.contacted_contact_id)?.phone}`
-                        : 'No phone recorded for this contact'}
-                    </p>
-                  )}
-                </div>
-              )}
 
               {/* In Reply To */}
               {hasPartySelected && recentPartyComms.length > 0 && (
@@ -2517,6 +2600,34 @@ export function ClientCommunication() {
                     {CALL_CATEGORIES.filter(c => c.value).map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
+                {/* Purchase Order + Regarding in one row for vendor calls */}
+                {formData.party_type === 'vendor' && formData.vendor_id && (
+                  <div>
+                    <label style={labelStyle}>PO Number</label>
+                    <select
+                      value={formData.linked_type === 'procurement' ? formData.linked_id : ''}
+                      onChange={e => setFormData(f => ({
+                        ...f,
+                        linked_type: e.target.value ? 'procurement' : '',
+                        linked_id: e.target.value,
+                        call_regarding: e.target.value ? 'purchase_order' : f.call_regarding,
+                      }))}
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}
+                    >
+                      <option value="">No PO (general)</option>
+                      {vendorPOs.map((p: any) => (
+                        <option key={p.id} value={p.id}>
+                          {p.po_number} · {p.po_date ? format(parseISO(p.po_date), 'dd-MMM-yyyy') : ''}{p.delivery_date ? ` · due ${format(parseISO(p.delivery_date), 'dd-MMM-yyyy')}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {formData.linked_id && (
+                      <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#64748b' }}>
+                        Saving with a Follow Up Date sets it as expected for all pending lines of this PO.
+                      </p>
+                    )}
+                  </div>
+                )}
                 {/* Regarding */}
                 <div>
                   <label style={labelStyle}>Regarding</label>
@@ -2553,12 +2664,14 @@ export function ClientCommunication() {
                     {users.map(u => <option key={u.id} value={getUserId(u)}>{u.full_name || u.email}{u.orgRole ? ` (${u.orgRole})` : ''}</option>)}
                   </select>
                 </div>
-                {/* Referred to Partner */}
+                {/* Referred to Partner — not needed for vendor calls */}
+                {formData.party_type !== 'vendor' && (
                 <PartnerSelect
                   value={formData.referred_to_partner_id}
                   onChange={partnerId => setFormData(f => ({ ...f, referred_to_partner_id: partnerId }))}
                   label="Referred to Partner"
                 />
+                )}
               </div>
 
               {/* Call Brief */}
@@ -2684,8 +2797,8 @@ export function ClientCommunication() {
                 </div>
               )}
 
-              {/* Buttons */}
-              <div style={{ display: 'flex', gap: '10px', paddingTop: '16px', borderTop: '1px solid #F1F5F9' }}>
+              {/* Buttons — sticky at modal bottom */}
+              <div style={{ display: 'flex', gap: '10px', paddingTop: '16px', paddingBottom: '4px', borderTop: '1px solid #F1F5F9', position: 'sticky', bottom: '-24px', background: '#fff', zIndex: 5 }}>
                 <button 
                   type="button" 
                   onClick={() => { setShowCreateModal(false); setEditingCommunication(null); resetForm(); }} 

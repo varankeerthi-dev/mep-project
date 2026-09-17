@@ -18,6 +18,7 @@ import { ApprovalIntegration } from '../../../../approvals/integration';
 import { toast } from '@/lib/logger';
 import { useUnits } from '../../../../hooks/useUnits';
 import { useVendorHolds } from '../../../../modules/Purchase/hooks/usePurchaseQueries';
+import { subcontractorService } from '../../services/subcontractorService';
 
 /* ─── Design tokens: Grey + Blue only ───────────────────────────────────────── */
 const T = {
@@ -564,8 +565,10 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
         if (insertError) throw insertError;
         workOrderId = rpcRes.work_order_id;
         if (issueIdParam && rpcRes) {
-          await supabase.from('issue_activity_logs').insert({
-            issue_id: issueIdParam, action: 'work_order_created',
+          await subcontractorService.recordIssueActivityLog({
+            organisation_id: organisation.id,
+            issue_id: issueIdParam,
+            action: 'work_order_created',
             new_value: { wo_id: rpcRes.work_order_id, wo_number: rpcRes.work_order_no || formData.work_order_no },
             done_by: user?.id || null,
             done_by_name: user?.user_metadata?.full_name || 'System'
@@ -584,7 +587,7 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
           } else if (approvalResult.error && !approvalResult.error.includes('No approval required')) {
             toast.error('Work order saved but approval flow failed: ' + approvalResult.error);
           } else {
-            await supabase.from('subcontractor_work_orders').update({ status: 'Issued' }).eq('id', workOrderId);
+            await subcontractorService.updateWorkOrderStatus(workOrderId, organisation.id, 'Issued');
             toast.success('Work order created successfully.');
           }
         } catch (approvalErr) {

@@ -78,7 +78,11 @@ export type ActivityEventType =
   | 'invoice_escalation_changed'
   | 'invoice_edited'
   | 'invoice_finalized'
-  | 'procurement_reminder_sent';
+  | 'procurement_reminder_sent'
+  | 'po_created'
+  | 'po_expected_updated'
+  | 'po_supplier_call_logged'
+  | 'followup_reassigned';
 
 export type EscalationStage = 0 | 1 | 2 | 3 | 4;
 
@@ -153,6 +157,10 @@ export interface ProcurementFollowUp {
   last_follow_up_at?: string | null;
   assignee_user_id?: string | null;
   assignee_name?: string | null;
+  expected_date?: string | null;
+  last_call_at?: string | null;
+  call_count?: number;
+  open_lines?: number;
 }
 
 export interface FollowUpActivityLog {

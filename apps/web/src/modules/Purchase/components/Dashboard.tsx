@@ -9,7 +9,7 @@ import {
 
 export const Dashboard: React.FC = () => {
   const { organisation } = useAuth();
-  const { data: lines = [], isLoading } = useRequisitionLinesForSourcing(organisation?.id);
+  const { data: lines = [], isLoading, isError, isFetching, refetch } = useRequisitionLinesForSourcing(organisation?.id);
   const navigate = useNavigate();
 
   const stats = useMemo(() => {
@@ -93,6 +93,26 @@ export const Dashboard: React.FC = () => {
           <div className="grid grid-cols-4 gap-4">
             {[1,2,3,4].map(i => <div key={i} className="h-24 bg-zinc-100 rounded-xl" />)}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6">
+        <div className="flex flex-col items-center justify-center py-12 border border-red-200 rounded-xl bg-red-50 text-center">
+          <AlertCircle className="w-8 h-8 text-red-500 mb-3" />
+          <p className="text-sm font-medium text-red-700">Unable to load sourcing data</p>
+          <p className="text-xs text-red-500 mt-1">Please try again. If this persists, contact support.</p>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="mt-4 inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            Retry
+          </button>
         </div>
       </div>
     );

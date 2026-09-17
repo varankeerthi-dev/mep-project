@@ -1,0 +1,80 @@
+[
+  {
+    "allowed_mime_types": null,
+    "file_size_limit": null,
+    "id": "attachments",
+    "name": "attachments",
+    "public": true
+  },
+  {
+    "allowed_mime_types": null,
+    "file_size_limit": null,
+    "id": "avatars",
+    "name": "avatars",
+    "public": true
+  },
+  {
+    "allowed_mime_types": [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/pdf"
+    ],
+    "file_size_limit": 5242880,
+    "id": "invoice-submissions",
+    "name": "invoice-submissions",
+    "public": true
+  },
+  {
+    "allowed_mime_types": null,
+    "file_size_limit": null,
+    "id": "meeting-references",
+    "name": "meeting-references",
+    "public": false
+  },
+  {
+    "allowed_mime_types": [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/svg+xml"
+    ],
+    "file_size_limit": 5242880,
+    "id": "organisation-assets",
+    "name": "organisation-assets",
+    "public": true
+  },
+  {
+    "allowed_mime_types": null,
+    "file_size_limit": null,
+    "id": "project-collab-attachments",
+    "name": "project-collab-attachments",
+    "public": false
+  },
+  {
+    "allowed_mime_types": null,
+    "file_size_limit": null,
+    "id": "subcontractor-documents",
+    "name": "subcontractor-documents",
+    "public": true
+  },
+  {
+    "allowed_mime_types": null,
+    "file_size_limit": null,
+    "id": "task-attachments",
+    "name": "task-attachments",
+    "public": false
+  },
+  {
+    "allowed_mime_types": [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/pdf"
+    ],
+    "file_size_limit": 10485760,
+    "id": "vendor-documents",
+    "name": "vendor-documents",
+    "public": false
+  }
+]

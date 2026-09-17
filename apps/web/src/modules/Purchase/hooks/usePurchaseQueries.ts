@@ -430,6 +430,8 @@ export const useCreatePurchaseOrder = () => {
           ...item,
           po_id: po.id,
           organisation_id: po.organisation_id,
+          received_qty: Number(item.received_qty) || 0,
+          balance_qty: (Number(item.quantity) || 0) - (Number(item.received_qty) || 0),
         }));
 
         const { error: itemsError } = await supabase
@@ -437,6 +439,37 @@ export const useCreatePurchaseOrder = () => {
           .insert(poItems);
 
         if (itemsError) throw itemsError;
+      }
+
+      const { data: session } = await supabase.auth.getUser();
+      await supabase.from('purchase_audit_log').insert({
+        organisation_id: po.organisation_id,
+        entity_type: 'purchase_order',
+        entity_id: po.id,
+        action: 'CREATE',
+        actor_id: session?.user?.id || null,
+        details: {
+          po_number: po.po_number,
+          vendor_id: po.vendor_id || null,
+          total_amount: po.total_amount || null,
+          item_count: (items || []).length,
+          items: (items || []).map((it: any) => `${it.item_name} x ${it.quantity}`),
+          actor_email: session?.user?.email || null,
+        },
+      });
+
+      try {
+        const { logProcurementActivity } = await import('../../../follow-up/api');
+        await logProcurementActivity(po.organisation_id, {
+          event_type: 'po_created',
+          title: `PO created — ${po.po_number}`,
+          description: `${(items || []).length} line(s)${po.total_amount ? ` · ${po.total_amount}` : ''}`,
+          reference_id: po.id,
+          reference_label: po.po_number,
+          metadata: { po_number: po.po_number },
+        });
+      } catch (e) {
+        console.warn('Centre activity mirror failed', e);
       }
 
       return po;
@@ -475,6 +508,8 @@ export const useUpdatePurchaseOrder = () => {
           ...item,
           po_id: id,
           organisation_id: po.organisation_id,
+          received_qty: Number(item.received_qty) || 0,
+          balance_qty: (Number(item.quantity) || 0) - (Number(item.received_qty) || 0),
         }));
 
         const { error: itemsError } = await supabase
@@ -498,6 +533,45 @@ export const useDeletePO = () => {
 
   return useMutation({
     mutationFn: withSessionCheck(async ({ id, organisationId }: { id: string; organisationId: string }) => {
+      const { data: snapshot } = await supabase
+        .from('purchase_orders')
+        .select('po_number, vendor_id, total_amount, status, items:purchase_order_items(item_name, quantity, rate)')
+        .eq('id', id)
+        .eq('organisation_id', organisationId)
+        .maybeSingle();
+      const linked: string[] = [];
+      const checks: Array<[string, string, string]> = [
+        ['purchase_bills', 'po_id', 'bills'],
+        ['goods_receipts', 'po_id', 'goods receipts'],
+        ['goods_receipt_notes', 'purchase_order_id', 'GRN notes'],
+        ['material_inward', 'po_id', 'material inward entries'],
+        ['purchase_invoice_verifications', 'po_id', 'invoice verifications'],
+      ];
+      for (const [table, col, label] of checks) {
+        const { count } = await supabase
+          .from(table)
+          .select('id', { count: 'exact', head: true })
+          .eq('organisation_id', organisationId)
+          .eq(col, id);
+        if ((count || 0) > 0) linked.push(label);
+      }
+      if (linked.length > 0) {
+        throw new Error(`Cannot delete PO ${snapshot?.po_number || ''}: linked ${linked.join(', ')} exist. Cancel those first.`);
+      }
+      await supabase.from('purchase_audit_log').insert({
+        organisation_id: organisationId,
+        entity_type: 'purchase_order',
+        entity_id: id,
+        action: 'DELETE',
+        details: {
+          po_number: (snapshot as any)?.po_number || null,
+          vendor_id: (snapshot as any)?.vendor_id || null,
+          total_amount: (snapshot as any)?.total_amount || null,
+          status: (snapshot as any)?.status || null,
+          items: ((snapshot as any)?.items || []).map((it: any) => `${it.item_name} x ${it.quantity} @ ${it.rate}`),
+          note: 'Text copy retained. Supplier communication log entries are kept and stay visible under Follow-up history.',
+        },
+      });
       const { error: itemsError } = await supabase
         .from('purchase_order_items')
         .delete()

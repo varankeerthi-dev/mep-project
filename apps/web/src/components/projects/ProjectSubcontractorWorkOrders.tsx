@@ -32,7 +32,7 @@ export function ProjectSubcontractorWorkOrders({
   });
 
   const handleCreateWorkOrder = () => {
-    const url = `/subcontractors/workorders/create?projectId=${projectId}`;
+    const url = `/subcontractors-v2/workorders/create?projectId=${projectId}`;
     if (navigate) {
       navigate(url);
     } else {

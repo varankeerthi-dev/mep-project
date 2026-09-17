@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import type { FollowUpFiltersState, FollowUpTab } from '@/types/followup';
 import type { FollowUpAssigneeOption } from '@/hooks/use-followup-assignees';
 import { cn } from '@/lib/utils';
@@ -7,149 +8,142 @@ type FollowupFilterBarProps = {
   filters: FollowUpFiltersState;
   assignees?: FollowUpAssigneeOption[];
   onChange: (patch: Partial<FollowUpFiltersState>) => void;
+  quickFilter?: 'all' | 'due_today' | 'overdue' | 'waiting' | 'upcoming' | 'unassigned';
+  onQuickFilterChange?: (qf: 'all' | 'due_today' | 'overdue' | 'waiting' | 'upcoming' | 'unassigned') => void;
+  quickFilterCounts?: { due_today: number; overdue: number; waiting: number; upcoming: number; unassigned: number };
+  queueTotalCount?: number;
+  focusMode?: boolean;
+  onFocusModeChange?: (focus: boolean) => void;
 };
 
-const selectClass =
-  'h-8 rounded-lg border border-zinc-200 bg-white px-2 text-xs text-zinc-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500';
-
-const chipClass = (active: boolean) =>
-  cn(
-    'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
-    active
-      ? 'bg-primary/10 text-primary border-primary/20 shadow-sm'
-      : 'bg-zinc-50 text-zinc-600 border border-zinc-200 hover:bg-zinc-100 hover:text-zinc-900 hover:border-zinc-300'
-  );
-
-function FilterChip({
-  label,
-  active,
-  onClick,
-  count,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  count?: number;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={chipClass(active)}
-    >
-      {label}
-      {count !== undefined && count > 0 && (
-        <span className={cn('min-w-[18px] h-4 rounded-full px-1 text-[9px] font-semibold', active ? 'bg-primary text-primary-foreground' : 'bg-zinc-200 text-zinc-600')}>
-          {count > 99 ? '99+' : count}
-        </span>
-      )}
-    </button>
-  );
-}
+const dateInputClass =
+  'h-[25px] rounded border border-slate-300 bg-white px-1.5 text-[11px] leading-none text-slate-800 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-colors duration-150 shadow-xs shrink-0';
 
 function FilterSelect({
+  label,
   value,
   options,
   onChange,
-  placeholder,
   className,
 }: {
+  label?: string;
   value: string;
   options: { value: string; label: string }[];
   onChange: (value: string) => void;
-  placeholder?: string;
   className?: string;
 }) {
+  const selected = options.find((o) => o.value === value);
+  const displayLabel = selected?.label || value;
+
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={cn(selectClass, className)}
+    <div
+      className={cn(
+        'relative inline-flex items-center gap-1 h-[25px] rounded border border-slate-300 bg-white px-2 text-[11px] leading-none text-slate-700 shadow-xs hover:border-slate-400 hover:bg-slate-50 transition cursor-pointer select-none group shrink-0',
+        className
+      )}
     >
-      {placeholder && <option value="" disabled>{placeholder}</option>}
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
+      {label && <span className="text-slate-400 font-normal leading-none">{label}:</span>}
+      <span className="font-semibold text-slate-800 truncate max-w-[125px] leading-none">{displayLabel}</span>
+      <ChevronDown className="h-2.5 w-2.5 text-slate-400 shrink-0 group-hover:text-slate-600 transition-colors ml-0.5" />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }
 
-export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: FollowupFilterBarProps) {
+export function FollowupFilterBar({
+  tab,
+  filters,
+  assignees = [],
+  onChange,
+  quickFilter = 'all',
+  onQuickFilterChange,
+  quickFilterCounts,
+  queueTotalCount,
+  focusMode,
+  onFocusModeChange,
+}: FollowupFilterBarProps) {
   // Assignee filter - shown for all tabs except activity
   const assigneeOptions = [
-    { value: 'all', label: 'All assignees' },
+    { value: 'all', label: 'All' },
     { value: 'me', label: 'Assigned to me' },
     { value: 'unassigned', label: 'Unassigned' },
     ...assignees.map((a) => ({ value: a.userId, label: a.label })),
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
       {/* Assignee Filter */}
       {tab !== 'activity' && (
         <FilterSelect
+          label="Filter"
           value={filters.assignee || 'all'}
           options={assigneeOptions}
           onChange={(value) => onChange({ assignee: value })}
-          placeholder="Assignee"
         />
       )}
 
-      {/* Priority Queue specific filters - Type + Sort as chips */}
+      {/* Priority Queue specific filters: Type + Timing / Status + Sort */}
       {tab === 'queue' && (
         <>
-          {/* Type Filter Chips */}
-          <div className="flex items-center gap-1.5" role="group" aria-label="Filter by source type">
-            {[
+          {/* Type Dropdown */}
+          <FilterSelect
+            label="Type"
+            value={filters.status || 'all'}
+            options={[
               { value: 'all', label: 'All types' },
               { value: 'quotation', label: 'Quotations' },
               { value: 'podc', label: 'PO/DC' },
               { value: 'invoice', label: 'Invoices' },
-            ].map((opt) => (
-              <FilterChip
-                key={opt.value}
-                label={opt.label}
-                active={filters.status === opt.value}
-                onClick={() => onChange({ status: opt.value })}
-              />
-            ))}
-          </div>
+            ]}
+            onChange={(value) => onChange({ status: value })}
+          />
 
-          {/* Sort Filter Chips */}
-          <div className="flex items-center gap-1.5 ml-auto" role="group" aria-label="Sort queue">
-            {[
+          {/* Timing / Status Dropdown (collapses the previous 2nd row) */}
+          {onQuickFilterChange && (
+            <FilterSelect
+              label="Status"
+              value={quickFilter}
+              options={[
+                { value: 'all', label: `All${queueTotalCount !== undefined ? ` (${queueTotalCount})` : ''}` },
+                { value: 'due_today', label: `Due${quickFilterCounts ? ` (${quickFilterCounts.due_today})` : ''}` },
+                { value: 'overdue', label: `Overdue${quickFilterCounts ? ` (${quickFilterCounts.overdue})` : ''}` },
+                { value: 'waiting', label: `Waiting${quickFilterCounts ? ` (${quickFilterCounts.waiting})` : ''}` },
+                { value: 'upcoming', label: `Upcoming${quickFilterCounts ? ` (${quickFilterCounts.upcoming})` : ''}` },
+                { value: 'unassigned', label: `Unassigned${quickFilterCounts ? ` (${quickFilterCounts.unassigned})` : ''}` },
+              ]}
+              onChange={(value) => onQuickFilterChange(value as any)}
+            />
+          )}
+
+          {/* Sort Dropdown */}
+          <FilterSelect
+            label="Sort by"
+            value={filters.sort || 'priority_desc'}
+            options={[
               { value: 'priority_desc', label: 'Priority' },
               { value: 'value_desc', label: 'Amount' },
               { value: 'client_asc', label: 'Client' },
-            ].map((opt) => (
-              <FilterChip
-                key={opt.value}
-                label={opt.label}
-                active={filters.sort === opt.value}
-                onClick={() => onChange({ sort: opt.value })}
-              />
-            ))}
-          </div>
+            ]}
+            onChange={(value) => onChange({ sort: value })}
+          />
         </>
       )}
 
       {/* Quotation tab filters */}
       {tab === 'quotation' && (
         <>
-          <label className="flex items-center gap-1.5 text-xs text-zinc-600 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filters.expiringSoon}
-              onChange={(e) => onChange({ expiringSoon: e.target.checked })}
-              className="rounded border-zinc-300 text-primary focus:ring-primary/20"
-            />
-            <span className="hover:text-zinc-900">Expiring ≤7d</span>
-          </label>
-
           <FilterSelect
+            label="Status"
             value={filters.status || 'all'}
             options={[
               { value: 'all', label: 'All statuses' },
@@ -164,10 +158,10 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
               { value: 'cancelled', label: 'Cancelled' },
             ]}
             onChange={(value) => onChange({ status: value })}
-            placeholder="Status"
           />
 
           <FilterSelect
+            label="Sort by"
             value={filters.sort || 'value_desc'}
             options={[
               { value: 'value_desc', label: 'Value: High → Low' },
@@ -176,12 +170,21 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
               { value: 'submitted_desc', label: 'Submitted: Newest' },
             ]}
             onChange={(value) => onChange({ sort: value })}
-            placeholder="Sort"
           />
+
+          <label className="flex items-center gap-1 text-xs text-slate-600 cursor-pointer shrink-0 ml-1">
+            <input
+              type="checkbox"
+              checked={filters.expiringSoon}
+              onChange={(e) => onChange({ expiringSoon: e.target.checked })}
+              className="rounded border-slate-300 text-blue-700 focus:ring-blue-600/20"
+            />
+            <span className="hover:text-slate-900">Expiring ≤7d</span>
+          </label>
 
           <input
             type="date"
-            className={selectClass}
+            className={dateInputClass}
             value={filters.dateFrom}
             onChange={(e) => onChange({ dateFrom: e.target.value })}
             title="Submitted from"
@@ -189,7 +192,7 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
           />
           <input
             type="date"
-            className={selectClass}
+            className={dateInputClass}
             value={filters.dateTo}
             onChange={(e) => onChange({ dateTo: e.target.value })}
             title="Submitted to"
@@ -201,29 +204,25 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
       {/* PO/DC tab filters */}
       {tab === 'podc' && (
         <>
-          <div className="flex items-center gap-1.5" role="group" aria-label="Filter PO/DC backlog">
-            {[
+          <FilterSelect
+            label="Filter"
+            value={filters.status || 'all'}
+            options={[
               { value: 'all', label: 'All backlog' },
               { value: 'disputed', label: 'Disputed' },
               { value: 'flagged', label: 'Flagged' },
-            ].map((opt) => (
-              <FilterChip
-                key={opt.value}
-                label={opt.label}
-                active={filters.status === opt.value}
-                onClick={() => onChange({ status: opt.value })}
-              />
-            ))}
-          </div>
+            ]}
+            onChange={(value) => onChange({ status: value })}
+          />
 
           <FilterSelect
+            label="Sort by"
             value={filters.sort || 'days_desc'}
             options={[
               { value: 'days_desc', label: 'Days: High → Low' },
               { value: 'value_desc', label: 'Value: High → Low' },
             ]}
             onChange={(value) => onChange({ sort: value })}
-            placeholder="Sort"
           />
         </>
       )}
@@ -232,6 +231,7 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
       {tab === 'invoice' && (
         <>
           <FilterSelect
+            label="Stage"
             value={filters.escalationStage || 'all'}
             options={[
               { value: 'all', label: 'All stages' },
@@ -242,10 +242,10 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
               { value: '4', label: 'Tier 4 (30d+)' },
             ]}
             onChange={(value) => onChange({ escalationStage: value })}
-            placeholder="Escalation"
           />
 
           <FilterSelect
+            label="Sort by"
             value={filters.sort || 'overdue_desc'}
             options={[
               { value: 'overdue_desc', label: 'Most overdue' },
@@ -253,7 +253,6 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
               { value: 'due_asc', label: 'Due date: Soonest' },
             ]}
             onChange={(value) => onChange({ sort: value })}
-            placeholder="Sort"
           />
         </>
       )}
@@ -261,6 +260,7 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
       {/* Activity tab filters */}
       {tab === 'activity' && (
         <FilterSelect
+          label="Source"
           value={filters.status || 'all'}
           options={[
             { value: 'all', label: 'All sources' },
@@ -269,32 +269,28 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
             { value: 'invoice', label: 'Invoice' },
           ]}
           onChange={(value) => onChange({ status: value })}
-          placeholder="Source"
         />
       )}
 
       {/* Lead tab filters */}
       {tab === 'lead' && (
         <>
-          <div className="flex items-center gap-1.5" role="group" aria-label="Filter leads by status">
-            {[
+          <FilterSelect
+            label="Status"
+            value={filters.status || 'all'}
+            options={[
               { value: 'all', label: 'All' },
               { value: 'New', label: 'New' },
               { value: 'Qualified', label: 'Qualified' },
               { value: 'On Hold', label: 'On Hold' },
               { value: 'Converted', label: 'Converted' },
               { value: 'Disqualified', label: 'Disqualified' },
-            ].map((opt) => (
-              <FilterChip
-                key={opt.value}
-                label={opt.label}
-                active={filters.status === opt.value}
-                onClick={() => onChange({ status: opt.value })}
-              />
-            ))}
-          </div>
+            ]}
+            onChange={(value) => onChange({ status: value })}
+          />
 
           <FilterSelect
+            label="Sort by"
             value={filters.sort || 'newest_desc'}
             options={[
               { value: 'newest_desc', label: 'Newest first' },
@@ -303,7 +299,6 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
               { value: 'next_action_asc', label: 'Next action: Soonest' },
             ]}
             onChange={(value) => onChange({ sort: value })}
-            placeholder="Sort"
           />
         </>
       )}
@@ -311,32 +306,28 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
       {/* Procurement tab filters */}
       {tab === 'procurement' && (
         <>
-          <div className="flex items-center gap-1.5" role="group" aria-label="Filter procurement by status">
-            {[
+          <FilterSelect
+            label="Status"
+            value={filters.status || 'all'}
+            options={[
               { value: 'all', label: 'All' },
               { value: 'pending_inquiry', label: 'Inquiry' },
               { value: 'po_draft', label: 'Draft' },
               { value: 'pending_delivery', label: 'Pending Delivery' },
               { value: 'delayed', label: 'Delayed' },
               { value: 'completed', label: 'Completed' },
-            ].map((opt) => (
-              <FilterChip
-                key={opt.value}
-                label={opt.label}
-                active={filters.status === opt.value}
-                onClick={() => onChange({ status: opt.value })}
-              />
-            ))}
-          </div>
+            ]}
+            onChange={(value) => onChange({ status: value })}
+          />
 
           <FilterSelect
+            label="Sort by"
             value={filters.sort || 'days_desc'}
             options={[
               { value: 'days_desc', label: 'Days Pending: High → Low' },
               { value: 'value_desc', label: 'Value: High → Low' },
             ]}
             onChange={(value) => onChange({ sort: value })}
-            placeholder="Sort"
           />
         </>
       )}
@@ -344,7 +335,7 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
       {/* Reset button */}
       <button
         type="button"
-        onClick={() =>
+        onClick={() => {
           onChange({
             status: 'all',
             expiringSoon: false,
@@ -362,17 +353,31 @@ export function FollowupFilterBar({ tab, filters, assignees = [], onChange }: Fo
             dateTo: '',
             escalationStage: 'all',
             assignee: 'all',
-          })
-        }
-        className={cn(
-          'h-8 rounded-lg border border-zinc-200 px-3 text-xs font-medium text-zinc-600',
-          'hover:bg-zinc-50 hover:text-zinc-900 hover:border-zinc-300',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
-          'transition-colors duration-150'
-        )}
+          });
+          if (onQuickFilterChange) onQuickFilterChange('all');
+          if (onFocusModeChange) onFocusModeChange(false);
+        }}
+        className="text-[10.5px] leading-none text-slate-500 hover:text-rose-600 px-1 py-0.5 transition flex-shrink-0 font-medium"
       >
         Reset
       </button>
+
+      {/* Focus Mode Toggle */}
+      {tab === 'queue' && focusMode !== undefined && onFocusModeChange && (
+        <div className="flex items-center gap-1 ml-auto shrink-0 pl-1">
+          <div className="h-3.5 w-px bg-slate-300 mx-1 hidden sm:block" />
+          <label className="relative inline-flex items-center cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={focusMode}
+              onChange={(e) => onFocusModeChange(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-7 h-3.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-transform after:duration-200 after:ease-out peer-checked:bg-blue-600"></div>
+            <span className="ml-1 text-[10.5px] font-medium leading-none text-slate-700">Focus</span>
+          </label>
+        </div>
+      )}
     </div>
   );
 }

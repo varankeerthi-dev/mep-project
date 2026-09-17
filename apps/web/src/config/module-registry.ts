@@ -134,7 +134,7 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     description: 'Sub-contractor management, work orders, and payments.',
     icon: 'HardHat',
     category: 'projects',
-    route: '/subcontractors',
+    route: '/subcontractors-v2',
   },
   {
     id: 'meetings',
