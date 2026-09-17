@@ -18,6 +18,20 @@ import {
   priorityQueueTableHeader,
 } from '@/components/follow-up/priority-queue-row';
 import {
+  PriorityQueueBoard,
+  type KanbanGroupBy,
+} from '@/components/follow-up/priority-queue-board';
+import {
+  KanbanViewSwitcher,
+  KanbanGroupBySelect,
+  type KanbanGroupByOption,
+} from '@/components/ui/kanban';
+import {
+  EnterpriseTabNavigation,
+  type TabItem,
+  type SubTabItem,
+} from '@/components/ui/EnterpriseTabNavigation';
+import {
   ProcurementFollowupRow,
   procurementTableHeader,
 } from '@/components/follow-up/procurement-followup-row';
@@ -62,6 +76,14 @@ import {
 import {
   DEFAULT_FOLLOWUP_FILTERS,
 } from '@/types/followup';
+
+const KANBAN_GROUP_OPTIONS: KanbanGroupByOption<KanbanGroupBy>[] = [
+  { key: 'priority', label: 'Priority' },
+  { key: 'category', label: 'Category' },
+  { key: 'party_type', label: 'Party Type' },
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'assignee', label: 'Assignee' },
+];
 import type {
   FollowUpTab,
   InvoiceFollowUp,
@@ -75,6 +97,7 @@ import { LeadCaptureModal } from '@/components/leads/lead-capture-modal';
 import { LeadRow, leadTableHeader } from '@/components/follow-up/lead-row';
 import { WinLossModal } from '@/components/leads/win-loss-modal';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { 
   UserPlus, 
   MessageSquare,
@@ -85,7 +108,10 @@ import {
   UserMinus,
   RotateCcw,
   CheckSquare,
-  Square
+  Square,
+  LayoutList,
+  Columns3,
+  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -135,6 +161,36 @@ export default function FollowUpCentre() {
   const [leadPage, setLeadPage] = useState(1);
   const [procurementPage, setProcurementPage] = useState(1);
   const itemsPerPage = 20;
+
+  const [viewMode, setViewMode] = useState<'table' | 'board'>(() => {
+    try {
+      return (localStorage.getItem('followup_queue_view_mode') as 'table' | 'board') || 'table';
+    } catch {
+      return 'table';
+    }
+  });
+
+  const [kanbanGroupBy, setKanbanGroupBy] = useState<KanbanGroupBy>(() => {
+    try {
+      return (localStorage.getItem('followup_queue_group_by') as KanbanGroupBy) || 'priority';
+    } catch {
+      return 'priority';
+    }
+  });
+
+  const handleViewModeChange = useCallback((mode: 'table' | 'board') => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('followup_queue_view_mode', mode);
+    } catch {}
+  }, []);
+
+  const handleKanbanGroupByChange = useCallback((group: KanbanGroupBy) => {
+    setKanbanGroupBy(group);
+    try {
+      localStorage.setItem('followup_queue_group_by', group);
+    } catch {}
+  }, []);
 
   const [drawerItem, setDrawerItem] = useState<{
     linkedType: LinkedItemType;
@@ -561,6 +617,37 @@ export default function FollowUpCentre() {
     ]
   );
 
+  const tabItems: TabItem[] = useMemo(
+    () => [
+      {
+        id: 'queue',
+        label: 'Priority Queue',
+        count: priorityQueue.length > 0 ? priorityQueue.length : undefined,
+        badgeVariant: 'primary',
+      },
+      { id: 'lead', label: 'Leads', count: leads.length > 0 ? leads.length : undefined },
+      { id: 'quotation', label: 'Quotations', count: quotations.length > 0 ? quotations.length : undefined },
+      { id: 'podc', label: 'PO/DC Backlog', count: podc.length > 0 ? podc.length : undefined },
+      {
+        id: 'invoice',
+        label: 'Invoices',
+        count: invoices.length > 0 ? invoices.length : undefined,
+        badgeVariant: invoices.length > 0 ? 'urgent' : 'neutral',
+      },
+      { id: 'procurement', label: 'Procurement', count: procurements.length > 0 ? procurements.length : undefined },
+      { id: 'activity', label: 'Activity', count: activity.length > 0 ? activity.length : undefined },
+    ],
+    [
+      priorityQueue.length,
+      leads.length,
+      quotations.length,
+      podc.length,
+      invoices.length,
+      procurements.length,
+      activity.length,
+    ]
+  );
+
   const resolveSourceRecords = useCallback(
     (item: PriorityQueueItem) => {
       const quote = quotations.find((q) => q.id === item.source_id);
@@ -750,12 +837,27 @@ export default function FollowUpCentre() {
 
     switch (tab) {
       case 'queue': {
+        if (viewMode === 'board') {
+          return (
+            <div className="h-full min-h-0 flex-1 overflow-hidden pt-1">
+              <PriorityQueueBoard
+                items={queueWithFocus}
+                groupBy={kanbanGroupBy}
+                assignees={assignees}
+                onOpenSource={handleQueueOpen}
+                onQuickAction={handleQueueQuickAction}
+                disabled={isReadOnly}
+              />
+            </div>
+          );
+        }
+
         const isAllSelected = queuePagination.currentItems.length > 0 && queuePagination.currentItems.every(i => selectedRowIds.has(i.id));
         return (
-          <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
-              <div className="flex h-[42px] items-center pl-1 pr-3 text-[11px] font-semibold text-slate-600 uppercase tracking-wider leading-normal border-b border-slate-200 bg-slate-50 select-none">
-                <div className="w-6 shrink-0 flex items-center justify-center">
+          <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+            <div className="sticky top-0 z-30 border-b border-slate-200 bg-[#f8fafc]">
+              <div className="flex h-[42px] items-center pl-1.5 pr-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider select-none">
+                <div className="w-7 shrink-0 flex items-center justify-center">
                   <button 
                     type="button" 
                     onClick={() => handleSelectAll(queuePagination.currentItems)} 
@@ -768,15 +870,14 @@ export default function FollowUpCentre() {
                     )}
                   </button>
                 </div>
-                <span className="w-[75px] shrink-0 px-1.5 text-left">Priority</span>
-                <span className="w-[130px] shrink-0 px-1.5 text-left">Entity / Reference</span>
-                <span className="w-[160px] shrink-0 px-1.5 text-left">Client / Project</span>
-                <span className="w-[210px] shrink-0 px-1.5 text-left">Next Action & Status</span>
-                <span className="w-[110px] shrink-0 px-1.5 text-left">Amount</span>
-                <span className="w-[95px] shrink-0 px-1.5 text-center">Timeline</span>
-                <span className="w-[125px] shrink-0 px-1.5 text-left">Owner</span>
-                <span className="w-[110px] shrink-0 px-1.5 text-left">Last Activity</span>
-                <span className="w-[85px] shrink-0 text-center">Action</span>
+                <span className="w-[80px] shrink-0 px-2 text-left">Priority</span>
+                <span className="w-[200px] shrink-0 px-2 text-left">Entity / Reference</span>
+                <span className="w-[190px] shrink-0 px-3 text-left">Party / Project</span>
+                <span className="w-[240px] shrink-0 px-2 text-left">Next Action & Status</span>
+                <span className="w-[140px] shrink-0 px-2 text-left">Amount / Value</span>
+                <span className="w-[110px] shrink-0 px-2 text-center">Timeline</span>
+                <span className="w-[135px] shrink-0 px-2 text-left">Owner</span>
+                <span className="w-[65px] shrink-0 text-center">Action</span>
               </div>
             </div>
             <div className="flex-1 overflow-auto">
@@ -800,35 +901,58 @@ export default function FollowUpCentre() {
                 ))
               )}
             </div>
-            {/* Bottom Aggregate Metrics Row */}
-            <div className="bg-slate-50 border-t border-slate-200 px-3 py-1.5 flex flex-wrap items-center justify-between text-[11px] leading-tight text-slate-600 select-none">
-              <div className="flex items-center gap-4">
-                <span className="font-medium text-slate-900">
-                  <span className="font-bold text-blue-600">{queuePagination.totalItems}</span> records loaded
-                </span>
-                <span className="text-slate-300">·</span>
-                <div className="flex items-center gap-1.5 text-slate-500">
-                  <span>Total Value:</span>
-                  <span className="font-semibold text-emerald-600 font-mono">
-                    {formatCompactCurrency(queueWithFocus.reduce((s, i) => s + (i.amount || 0), 0))}
-                  </span>
+            {/* Bottom Aggregate Metrics Row - only shown when one or more rows are selected */}
+            {selectedRowIds.size > 0 && (() => {
+              const selectedItems = queueWithFocus.filter((i) => selectedRowIds.has(i.id));
+              const selectedTotalValue = selectedItems.reduce((s, i) => s + (i.amount || 0), 0);
+              const overdueItems = selectedItems.filter(
+                (i) =>
+                  i.urgency_label.toLowerCase().includes('overdue') ||
+                  i.urgency_label.toLowerCase().includes('delayed')
+              );
+              return (
+                <div className="bg-slate-50 border-t border-slate-200 px-4 py-2 flex flex-wrap items-center justify-between text-[11px] leading-tight text-slate-600 select-none animate-in fade-in duration-150">
+                  <div className="flex items-center gap-4">
+                    <span className="font-medium text-slate-900">
+                      <span className="font-bold text-blue-600">{selectedItems.length}</span> {selectedItems.length === 1 ? 'record' : 'records'} selected
+                    </span>
+                    <span className="text-slate-300">·</span>
+                    <div className="flex items-center gap-1.5 text-slate-500">
+                      <span>+ Sum of Total Value:</span>
+                      <span className="font-semibold text-emerald-600 font-mono">
+                        {formatCompactCurrency(selectedTotalValue)}
+                      </span>
+                    </div>
+                    {overdueItems.length > 0 && (
+                      <>
+                        <span className="text-slate-300">·</span>
+                        <div className="flex items-center gap-1.5 text-slate-500">
+                          <span>+ Overdue Action Items:</span>
+                          <span className="font-semibold text-rose-600 font-mono">
+                            {overdueItems.length} ({formatCompactCurrency(overdueItems.reduce((s, i) => s + (i.amount || 0), 0))})
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRowIds(new Set())}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium transition cursor-pointer"
+                    >
+                      Deselect all
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs text-slate-500 hover:text-slate-800 font-medium transition cursor-pointer"
+                    >
+                      + Add Calculation
+                    </button>
+                  </div>
                 </div>
-                {(() => {
-                  const overdueItems = queueWithFocus.filter(i => i.urgency_label.toLowerCase().includes('overdue') || i.urgency_label.toLowerCase().includes('delayed'));
-                  return overdueItems.length > 0 ? (
-                    <>
-                      <span className="text-slate-300">·</span>
-                      <div className="flex items-center gap-1.5 text-slate-500">
-                        <span>Overdue Action Items:</span>
-                        <span className="font-semibold text-rose-600 font-mono">
-                          {overdueItems.length} ({formatCompactCurrency(overdueItems.reduce((s, i) => s + (i.amount || 0), 0))})
-                        </span>
-                      </div>
-                    </>
-                  ) : null;
-                })()}
-              </div>
-            </div>
+              );
+            })()}
             <PaginationFooter page={queuePage} setPage={setQueuePage} pagination={queuePagination} />
           </div>
         );
@@ -1020,7 +1144,7 @@ export default function FollowUpCentre() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#f8fafc]">
+    <div className="flex h-full min-h-0 flex-col bg-white">
       <header className="shrink-0 border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-30 px-6 py-4">
         <div className="max-w-[1680px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -1083,15 +1207,71 @@ export default function FollowUpCentre() {
       />
 
       <div className="hidden lg:flex h-full min-h-0 flex-col">
-        <FollowupTabs
-          activeTab={filters.tab}
-          onTabChange={setTab}
-          counts={tabCounts}
-          orientation="horizontal"
+        <EnterpriseTabNavigation
+          tabs={tabItems}
+          activeTabId={filters.tab}
+          onTabChange={(tabId) => setTab(tabId as FollowUpTab)}
         />
-        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden px-4 py-1.5">
-          <section className="sticky top-0 z-20 shrink-0">
-            <div className="flex flex-wrap items-center gap-1.5 py-0">
+        <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-hidden px-6 pt-3.5 pb-4 bg-white">
+          <section className="sticky top-0 z-20 shrink-0 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between gap-3 py-0 min-w-0">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap min-w-0 flex-1">
+                <FollowupSearch value={search} onChange={setSearch} />
+                <FollowupFilterBar
+                  tab={filters.tab}
+                  filters={filters}
+                  assignees={assignees}
+                  onChange={setFilters}
+                  quickFilter={quickFilter}
+                  onQuickFilterChange={setQuickFilter}
+                  quickFilterCounts={quickFilterCounts}
+                  queueTotalCount={filteredQueue.length}
+                />
+              </div>
+
+              {/* Right: ALWAYS PINNED Table / Board toggle + Group by + Focus switch */}
+              {filters.tab === 'queue' && (
+                <div className="flex items-center gap-2.5 shrink-0 border-l border-slate-200/90 pl-3">
+                  {viewMode === 'board' && (
+                    <KanbanGroupBySelect<KanbanGroupBy>
+                      value={kanbanGroupBy}
+                      onChange={handleKanbanGroupByChange}
+                      options={KANBAN_GROUP_OPTIONS}
+                    />
+                  )}
+
+                  <KanbanViewSwitcher
+                    viewMode={viewMode}
+                    onViewModeChange={handleViewModeChange}
+                  />
+
+                  <label className="relative inline-flex items-center cursor-pointer select-none gap-2 ml-0.5">
+                    <span className="text-xs font-semibold text-slate-600">Focus</span>
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={focusMode}
+                        onChange={(e) => setFocusMode(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-transform after:duration-200 after:ease-out peer-checked:bg-blue-600"></div>
+                    </div>
+                  </label>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="min-h-0 flex-1 overflow-hidden">
+            {renderTabContent(filters.tab)}
+          </section>
+        </div>
+      </div>
+
+      <div className="lg:hidden flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 pt-3 pb-3">
+        <section className="sticky top-0 z-20 shrink-0">
+          <div className="flex items-center justify-between gap-2 py-0 min-w-0">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap min-w-0 flex-1">
               <FollowupSearch value={search} onChange={setSearch} />
               <FollowupFilterBar
                 tab={filters.tab}
@@ -1102,34 +1282,18 @@ export default function FollowUpCentre() {
                 onQuickFilterChange={setQuickFilter}
                 quickFilterCounts={quickFilterCounts}
                 queueTotalCount={filteredQueue.length}
-                focusMode={focusMode}
-                onFocusModeChange={setFocusMode}
               />
             </div>
-          </section>
 
-          <section className="min-h-0 flex-1 overflow-hidden">
-            {renderTabContent(filters.tab)}
-          </section>
-        </div>
-      </div>
-
-      <div className="lg:hidden flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden px-3 py-1.5">
-        <section className="sticky top-0 z-20 shrink-0">
-          <div className="flex flex-wrap items-center gap-1.5 py-0">
-            <FollowupSearch value={search} onChange={setSearch} />
-            <FollowupFilterBar
-              tab={filters.tab}
-              filters={filters}
-              assignees={assignees}
-              onChange={setFilters}
-              quickFilter={quickFilter}
-              onQuickFilterChange={setQuickFilter}
-              quickFilterCounts={quickFilterCounts}
-              queueTotalCount={filteredQueue.length}
-              focusMode={focusMode}
-              onFocusModeChange={setFocusMode}
-            />
+            {/* Right: Pinned View Switcher for mobile */}
+            {filters.tab === 'queue' && (
+              <div className="flex items-center gap-1 shrink-0">
+                <KanbanViewSwitcher
+                  viewMode={viewMode}
+                  onViewModeChange={handleViewModeChange}
+                />
+              </div>
+            )}
           </div>
         </section>
 

@@ -21,3 +21,5 @@ export { DynamicTable, StatusBadge as DynamicTableStatusBadge, type Column as Dy
 export { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './resizable';
 export { NestedSubTabs, NestedSubTab, type NestedSubTabItem, type NestedSubTabsProps } from './NestedSubTabs';
 export { SubTabsNav, type SubTabItem, type SubTabsNavProps } from './SubTabsNav';
+export * from './nested-tabs';
+export * from './kanban';

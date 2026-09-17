@@ -283,7 +283,7 @@ export async function fetchFollowUpActivity(
   }));
 }
 
-async function logActivity(
+export async function logActivity(
   organisationId: string,
   payload: {
     event_type: ActivityEventType;
@@ -521,7 +521,7 @@ export async function recordProcurementReminder(
 
 export async function assignFollowUpOwner(
   organisationId: string,
-  source: 'quotation' | 'podc' | 'invoice' | 'procurement',
+  source: 'quotation' | 'podc' | 'invoice' | 'procurement' | 'lead',
   sourceId: string,
   assigneeUserId: string | null
 ) {
@@ -559,11 +559,82 @@ export async function assignFollowUpOwner(
     return;
   }
 
+  if (source === 'lead') {
+    const { error } = await supabase
+      .from('leads')
+      .update({ assigned_to: assigneeUserId, updated_at: payload.updated_at })
+      .eq('id', sourceId)
+      .eq('organisation_id', organisationId);
+    if (error) throw error;
+    return;
+  }
+
   const { error } = await supabase.from('follow_up_invoice_tracking').upsert(
     { ...payload, invoice_id: sourceId },
     { onConflict: 'organisation_id,invoice_id' }
   );
   if (error) throw error;
+}
+
+export async function updateFollowUpPriority(
+  organisationId: string,
+  source: 'quotation' | 'podc' | 'invoice' | 'procurement' | 'lead',
+  sourceId: string,
+  priorityBand: 'critical' | 'high' | 'medium' | 'low',
+  referenceLabel?: string
+) {
+  const now = new Date().toISOString();
+
+  if (source === 'invoice') {
+    const { error } = await supabase.from('follow_up_invoice_tracking').upsert(
+      {
+        organisation_id: organisationId,
+        invoice_id: sourceId,
+        collection_risk: priorityBand,
+        updated_at: now,
+      },
+      { onConflict: 'organisation_id,invoice_id' }
+    );
+    if (error) throw error;
+  } else if (source === 'lead') {
+    const { error } = await supabase
+      .from('leads')
+      .update({ priority: priorityBand, updated_at: now })
+      .eq('id', sourceId)
+      .eq('organisation_id', organisationId);
+    if (error) throw error;
+  } else if (source === 'quotation') {
+    const { error } = await supabase.from('follow_up_quotation_tracking').upsert(
+      {
+        organisation_id: organisationId,
+        quotation_id: sourceId,
+        notes: `Priority band set to ${priorityBand}`,
+        updated_at: now,
+      },
+      { onConflict: 'organisation_id,quotation_id' }
+    );
+    if (error) throw error;
+  }
+
+  // Call Supabase RPC 'follow_up_log_activity'
+  const tabSourceMap: Record<string, FollowUpTab> = {
+    quotation: 'quotations',
+    podc: 'podc',
+    invoice: 'invoices',
+    procurement: 'procurement',
+    lead: 'leads',
+  };
+
+  await logActivity(organisationId, {
+    event_type: 'escalation',
+    tab_source: tabSourceMap[source] || 'queue',
+    title: `Priority updated to ${priorityBand.toUpperCase()}`,
+    description: `Card moved via Kanban board drag & drop`,
+    reference_id: sourceId,
+    reference_label: referenceLabel || '',
+  }).catch(() => {
+    // Non-blocking log if RPC constraints differ
+  });
 }
 
 export async function fetchFollowUpProcurement(

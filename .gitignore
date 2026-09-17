@@ -306,3 +306,5 @@ nul
 # Local diagnostic files
 apps/error.txt
 apps/web/sidebar-diagnose.html
+.stitch/
+apps/web/.stitch/

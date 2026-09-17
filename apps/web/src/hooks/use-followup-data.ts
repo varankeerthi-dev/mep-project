@@ -259,7 +259,7 @@ export function useAssignFollowUp() {
       sourceId,
       assigneeUserId,
     }: {
-      source: 'quotation' | 'podc' | 'invoice';
+      source: 'quotation' | 'podc' | 'invoice' | 'procurement' | 'lead';
       sourceId: string;
       assigneeUserId: string | null;
     }) => {
@@ -318,3 +318,36 @@ export function useAssignFollowUp() {
     },
   });
 }
+
+export function useUpdateFollowUpPriority() {
+  const { organisation } = useAuth();
+  const orgId = organisation?.id as string | undefined;
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      source,
+      sourceId,
+      priorityBand,
+      referenceLabel,
+    }: {
+      source: 'quotation' | 'podc' | 'invoice' | 'procurement' | 'lead';
+      sourceId: string;
+      priorityBand: 'critical' | 'high' | 'medium' | 'low';
+      referenceLabel?: string;
+    }) => {
+      if (!orgId) throw new Error('No organisation selected');
+      await followUpApi.updateFollowUpPriority(
+        orgId,
+        source,
+        sourceId,
+        priorityBand,
+        referenceLabel
+      );
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: [...FOLLOWUP_KEY] });
+    },
+  });
+}
+

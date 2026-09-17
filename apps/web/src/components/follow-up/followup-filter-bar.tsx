@@ -1,6 +1,7 @@
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, LayoutList, Columns3 } from 'lucide-react';
 import type { FollowUpFiltersState, FollowUpTab } from '@/types/followup';
 import type { FollowUpAssigneeOption } from '@/hooks/use-followup-assignees';
+import type { KanbanGroupBy } from '@/components/follow-up/priority-queue-board';
 import { cn } from '@/lib/utils';
 
 type FollowupFilterBarProps = {
@@ -14,10 +15,14 @@ type FollowupFilterBarProps = {
   queueTotalCount?: number;
   focusMode?: boolean;
   onFocusModeChange?: (focus: boolean) => void;
+  viewMode?: 'table' | 'board';
+  onViewModeChange?: (mode: 'table' | 'board') => void;
+  kanbanGroupBy?: KanbanGroupBy;
+  onKanbanGroupByChange?: (group: KanbanGroupBy) => void;
 };
 
 const dateInputClass =
-  'h-[25px] rounded border border-slate-300 bg-white px-1.5 text-[11px] leading-none text-slate-800 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-colors duration-150 shadow-xs shrink-0';
+  'h-[30px] rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition-colors duration-150 shadow-2xs shrink-0';
 
 function FilterSelect({
   label,
@@ -38,13 +43,13 @@ function FilterSelect({
   return (
     <div
       className={cn(
-        'relative inline-flex items-center gap-1 h-[25px] rounded border border-slate-300 bg-white px-2 text-[11px] leading-none text-slate-700 shadow-xs hover:border-slate-400 hover:bg-slate-50 transition cursor-pointer select-none group shrink-0',
+        'relative inline-flex items-center gap-1.5 h-[30px] rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 shadow-2xs hover:border-slate-300 hover:bg-slate-50 transition cursor-pointer select-none group shrink-0',
         className
       )}
     >
-      {label && <span className="text-slate-400 font-normal leading-none">{label}:</span>}
-      <span className="font-semibold text-slate-800 truncate max-w-[125px] leading-none">{displayLabel}</span>
-      <ChevronDown className="h-2.5 w-2.5 text-slate-400 shrink-0 group-hover:text-slate-600 transition-colors ml-0.5" />
+      {label && <span className="text-slate-400 font-normal">{label}:</span>}
+      <span className="font-semibold text-slate-800 truncate max-w-[130px]">{displayLabel}</span>
+      <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 group-hover:text-slate-600 transition-colors ml-0.5" />
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -71,6 +76,10 @@ export function FollowupFilterBar({
   queueTotalCount,
   focusMode,
   onFocusModeChange,
+  viewMode = 'table',
+  onViewModeChange,
+  kanbanGroupBy = 'priority',
+  onKanbanGroupByChange,
 }: FollowupFilterBarProps) {
   // Assignee filter - shown for all tabs except activity
   const assigneeOptions = [
@@ -81,18 +90,18 @@ export function FollowupFilterBar({
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+    <div className="flex items-center gap-2 flex-1 min-w-0 flex-nowrap">
       {/* Assignee Filter */}
       {tab !== 'activity' && (
         <FilterSelect
-          label="Filter"
+          label="Assignee"
           value={filters.assignee || 'all'}
           options={assigneeOptions}
           onChange={(value) => onChange({ assignee: value })}
         />
       )}
 
-      {/* Priority Queue specific filters: Type + Timing / Status + Sort */}
+      {/* Priority Queue specific filters: Dropdowns next-to-next, followed by Quick Filters */}
       {tab === 'queue' && (
         <>
           {/* Type Dropdown */}
@@ -100,42 +109,109 @@ export function FollowupFilterBar({
             label="Type"
             value={filters.status || 'all'}
             options={[
-              { value: 'all', label: 'All types' },
+              { value: 'all', label: 'All' },
               { value: 'quotation', label: 'Quotations' },
               { value: 'podc', label: 'PO/DC' },
               { value: 'invoice', label: 'Invoices' },
+              { value: 'lead', label: 'Leads' },
+              { value: 'procurement', label: 'Procurement' },
             ]}
             onChange={(value) => onChange({ status: value })}
           />
 
-          {/* Timing / Status Dropdown (collapses the previous 2nd row) */}
-          {onQuickFilterChange && (
+          {/* Stage Dropdown */}
+          <FilterSelect
+            label="Stage"
+            value={filters.escalationStage || 'any'}
+            options={[
+              { value: 'any', label: 'Any' },
+              { value: 'critical', label: 'Critical' },
+              { value: 'high', label: 'High' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'low', label: 'Normal' },
+            ]}
+            onChange={(value) => onChange({ escalationStage: value })}
+          />
+
+          {/* Activity Dropdown */}
+          <FilterSelect
+            label="Activity"
+            value={filters.dateFrom || '90d'}
+            options={[
+              { value: '90d', label: '90d' },
+              { value: '30d', label: '30d' },
+              { value: '7d', label: '7d' },
+              { value: 'today', label: 'Today' },
+              { value: 'all', label: 'All time' },
+            ]}
+            onChange={(value) => onChange({ dateFrom: value })}
+          />
+
+          {/* Group by dropdown when in Kanban Board view */}
+          {viewMode === 'board' && onKanbanGroupByChange && (
             <FilterSelect
-              label="Status"
-              value={quickFilter}
+              label="Group by"
+              value={kanbanGroupBy}
               options={[
-                { value: 'all', label: `All${queueTotalCount !== undefined ? ` (${queueTotalCount})` : ''}` },
-                { value: 'due_today', label: `Due${quickFilterCounts ? ` (${quickFilterCounts.due_today})` : ''}` },
-                { value: 'overdue', label: `Overdue${quickFilterCounts ? ` (${quickFilterCounts.overdue})` : ''}` },
-                { value: 'waiting', label: `Waiting${quickFilterCounts ? ` (${quickFilterCounts.waiting})` : ''}` },
-                { value: 'upcoming', label: `Upcoming${quickFilterCounts ? ` (${quickFilterCounts.upcoming})` : ''}` },
-                { value: 'unassigned', label: `Unassigned${quickFilterCounts ? ` (${quickFilterCounts.unassigned})` : ''}` },
+                { value: 'priority', label: 'Priority' },
+                { value: 'category', label: 'Category' },
+                { value: 'party_type', label: 'Party Type' },
+                { value: 'timeline', label: 'Timeline' },
+                { value: 'assignee', label: 'Assignee' },
               ]}
-              onChange={(value) => onQuickFilterChange(value as any)}
+              onChange={(v) => onKanbanGroupByChange(v as KanbanGroupBy)}
             />
           )}
 
-          {/* Sort Dropdown */}
-          <FilterSelect
-            label="Sort by"
-            value={filters.sort || 'priority_desc'}
-            options={[
-              { value: 'priority_desc', label: 'Priority' },
-              { value: 'value_desc', label: 'Amount' },
-              { value: 'client_asc', label: 'Client' },
-            ]}
-            onChange={(value) => onChange({ sort: value })}
-          />
+          {/* Divider between Dropdowns and Quick Filters */}
+          {onQuickFilterChange && <div className="h-4 w-px bg-slate-200 shrink-0 mx-0.5" />}
+
+          {/* Quick Filter Pills next-to-next */}
+          {onQuickFilterChange && (
+            <div className="flex items-center gap-1.5 shrink-0" role="group" aria-label="Priority Queue Quick Filters">
+              {[
+                { value: 'all', label: 'All', count: queueTotalCount },
+                { value: 'due_today', label: 'Due Today', count: quickFilterCounts?.due_today, variant: 'warning' },
+                { value: 'overdue', label: 'Overdue Items', count: quickFilterCounts?.overdue, variant: 'urgent' },
+                { value: 'waiting', label: 'Waiting', count: quickFilterCounts?.waiting },
+                { value: 'upcoming', label: 'Upcoming', count: quickFilterCounts?.upcoming },
+                { value: 'unassigned', label: 'Unassigned', count: quickFilterCounts?.unassigned },
+              ].map((item) => {
+                const isSelected = quickFilter === item.value;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => onQuickFilterChange(item.value as any)}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 h-[30px] px-2.5 rounded-lg text-xs font-medium transition cursor-pointer select-none shrink-0 shadow-2xs',
+                      isSelected
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200 font-semibold'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900'
+                    )}
+                  >
+                    <span>{item.label}</span>
+                    {typeof item.count === 'number' && (
+                      <span
+                        className={cn(
+                          'inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-semibold leading-none',
+                          isSelected
+                            ? 'bg-blue-200/70 text-blue-800'
+                            : item.variant === 'urgent' && item.count > 0
+                            ? 'bg-rose-100 text-rose-700'
+                            : item.variant === 'warning' && item.count > 0
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-100 text-slate-600'
+                        )}
+                      >
+                        {item.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </>
       )}
 
@@ -357,27 +433,10 @@ export function FollowupFilterBar({
           if (onQuickFilterChange) onQuickFilterChange('all');
           if (onFocusModeChange) onFocusModeChange(false);
         }}
-        className="text-[10.5px] leading-none text-slate-500 hover:text-rose-600 px-1 py-0.5 transition flex-shrink-0 font-medium"
+        className="text-xs text-slate-500 hover:text-slate-900 px-2 py-1 transition flex-shrink-0 font-medium cursor-pointer"
       >
         Reset
       </button>
-
-      {/* Focus Mode Toggle */}
-      {tab === 'queue' && focusMode !== undefined && onFocusModeChange && (
-        <div className="flex items-center gap-1 ml-auto shrink-0 pl-1">
-          <div className="h-3.5 w-px bg-slate-300 mx-1 hidden sm:block" />
-          <label className="relative inline-flex items-center cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={focusMode}
-              onChange={(e) => onFocusModeChange(e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-7 h-3.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-2.5 after:w-2.5 after:transition-transform after:duration-200 after:ease-out peer-checked:bg-blue-600"></div>
-            <span className="ml-1 text-[10.5px] font-medium leading-none text-slate-700">Focus</span>
-          </label>
-        </div>
-      )}
     </div>
   );
 }
