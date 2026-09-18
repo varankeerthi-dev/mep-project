@@ -16,7 +16,7 @@ export interface TemplatesTabProps {
   onRegisterSave: (saveFn: () => Promise<void>, discardFn: () => void) => void;
 }
 
-const DOCUMENT_TYPES = ['Quotation', 'Sales Order', 'Proforma Invoice', 'Delivery Challan', 'Invoice', 'Tools Delivery Challan', 'Credit Note', 'Debit Note'];
+const DOCUMENT_TYPES = ['Quotation', 'Sales Order', 'Proforma Invoice', 'Delivery Challan', 'Invoice', 'Tools Delivery Challan', 'Credit Note', 'Debit Note', 'Purchase Order'];
 const PAGE_SIZES = ['A4', 'Letter'];
 const ORIENTATIONS = ['Portrait', 'Landscape'];
 
@@ -93,6 +93,8 @@ const BUILT_IN_TEMPLATES = [
   { template_name: 'Compact Style (Delivery Challan)', template_code: 'DC_COMPACT', document_type: 'Delivery Challan', is_default: false, page_size: 'A4', orientation: 'Portrait', show_logo: true, show_bank_details: true, show_terms: true, show_signature: false, column_settings: { mandatory: [], optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false }, labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' }, print: { style: 'sakthi' } } },
   { template_name: 'Compact Style (Credit Note)', template_code: 'CN_COMPACT', document_type: 'Credit Note', is_default: false, page_size: 'A4', orientation: 'Portrait', show_logo: true, show_bank_details: true, show_terms: true, show_signature: false, column_settings: { mandatory: [], optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false }, labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' }, print: { style: 'sakthi' } } },
   { template_name: 'Compact Style (Debit Note)', template_code: 'DN_COMPACT', document_type: 'Debit Note', is_default: false, page_size: 'A4', orientation: 'Portrait', show_logo: true, show_bank_details: true, show_terms: true, show_signature: false, column_settings: { mandatory: [], optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false }, labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' }, print: { style: 'sakthi' } } },
+  { template_name: 'Enterprise Style (Purchase Order)', template_code: 'PO_ENTERPRISE', document_type: 'Purchase Order', is_default: true, page_size: 'A4', orientation: 'Portrait', show_logo: true, show_bank_details: true, show_terms: true, show_signature: true, column_settings: { mandatory: [], optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false }, labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' }, print: { style: 'enterprise' } } },
+  { template_name: 'Sakthi Style (Purchase Order)', template_code: 'PO_SAKTHI', document_type: 'Purchase Order', is_default: false, page_size: 'A4', orientation: 'Portrait', show_logo: true, show_bank_details: true, show_terms: true, show_signature: false, column_settings: { mandatory: [], optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false }, labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' }, print: { style: 'sakthi' } } },
 ];
 
 const EMPTY_FORM = {
@@ -156,6 +158,31 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
             .order('document_type', { ascending: true })
             .order('template_name', { ascending: true });
           dbTemplates = seededData || [];
+        } else {
+          // Check if Purchase Order templates are present for this org
+          const hasPOTemplates = dbTemplates.some(t => t.document_type === 'Purchase Order');
+          if (!hasPOTemplates) {
+            const poTemplates = BUILT_IN_TEMPLATES.filter(t => t.document_type === 'Purchase Order');
+            for (const tpl of poTemplates) {
+              const { data: existing } = await supabase
+                .from('document_templates')
+                .select('id')
+                .eq('template_code', tpl.template_code)
+                .eq('document_type', tpl.document_type)
+                .eq('organisation_id', orgId)
+                .maybeSingle();
+              if (!existing) {
+                await supabase.from('document_templates').insert({ ...tpl, organisation_id: orgId });
+              }
+            }
+            const { data: refreshed } = await supabase
+              .from('document_templates')
+              .select('*')
+              .eq('organisation_id', orgId)
+              .order('document_type', { ascending: true })
+              .order('template_name', { ascending: true });
+            if (refreshed) dbTemplates = refreshed;
+          }
         }
       }
       setTemplates(dbTemplates);
@@ -178,13 +205,12 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
           .eq('template_code', template.template_code)
           .eq('document_type', template.document_type)
           .eq('organisation_id', orgId)
-          .single();
+          .maybeSingle();
         if (!existing) {
           await supabase.from('document_templates').insert({ ...template, organisation_id: orgId });
         }
       }
       setSuccessMessage('Built-in templates added successfully!');
-      await loadTemplates();
     } catch (err: any) {
       console.error('Error seeding templates:', err);
       toast.error('Error seeding templates: ' + err.message);
@@ -620,7 +646,8 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
   const getDocumentTypeIcon = (type: string) => {
     const icons: Record<string, string> = {
       'Quotation': '📄', 'Sales Order': '📋', 'Proforma Invoice': '📑', 'Delivery Challan': '🚚',
-      'Invoice': '💰', 'Tools Delivery Challan': '🔧', 'Credit Note': '📗', 'Debit Note': '📘'
+      'Invoice': '💰', 'Tools Delivery Challan': '🔧', 'Credit Note': '📗', 'Debit Note': '📘',
+      'Purchase Order': '🛒'
     };
     return icons[type] || '📄';
   };

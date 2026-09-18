@@ -35,3 +35,5 @@ export function numberToInrWords(value: number): string {
 
   return `${result} Only`;
 }
+
+export const numberToWords = numberToInrWords;

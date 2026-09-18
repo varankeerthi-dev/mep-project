@@ -27,7 +27,10 @@ import {
   Mail as MailIcon,
   Clock,
   User,
-  Receipt
+  Receipt,
+  Printer,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { toast } from '@/lib/logger';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -61,7 +64,7 @@ import { useDebounce } from '../../../hooks/useDebounce';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { usePurchaseOrders, usePurchaseOrder, useVendors, useCreatePurchaseOrder, useUpdatePurchaseOrder, useUpdatePOStatus, useDeletePO } from '../hooks/usePurchaseQueries';
-import { generatePOPDF, downloadPDF, openPDFPreview } from '../utils/pdfGenerator';
+import { generatePOPDF, downloadPDF } from '../utils/pdfGenerator';
 import { z } from 'zod';
 import { 
   validateGSTIN, 
@@ -911,19 +914,70 @@ export const PurchaseOrders: React.FC = () => {
     }
   };
 
+  const [previewPO, setPreviewPO] = useState<any | null>(null);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewPdfBlob, setPreviewPdfBlob] = useState<Blob | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<boolean>(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (previewPdfUrl) {
+        URL.revokeObjectURL(previewPdfUrl);
+      }
+    };
+  }, [previewPdfUrl]);
+
   const handleViewPDF = async (po: any) => {
+    setPreviewPO(po);
+    setPreviewLoading(true);
     try {
       const { data: fullPO } = await supabase
         .from('purchase_orders')
         .select('*, items:purchase_order_items(*), vendor:purchase_vendors(*)')
         .eq('id', po.id)
         .single();
-      if (fullPO) {
-        const blob = await generatePOPDF(fullPO as any);
-        openPDFPreview(blob);
-      }
+      const targetPO = fullPO || po;
+      setPreviewPO(targetPO);
+      const blob = await generatePOPDF(targetPO as any, organisation);
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+      const url = URL.createObjectURL(blob);
+      setPreviewPdfBlob(blob);
+      setPreviewPdfUrl(url);
     } catch (e) {
       console.error('Failed to generate PDF', e);
+      toast.error('Failed to generate PDF preview');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+    setPreviewPO(null);
+    setPreviewPdfUrl(null);
+    setPreviewPdfBlob(null);
+    setPreviewLoading(false);
+  };
+
+  const handlePrintPdf = () => {
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.focus();
+      iframeRef.current.contentWindow.print();
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    if (previewPdfBlob && previewPO) {
+      downloadPDF(previewPdfBlob, `${previewPO.po_number || 'Purchase_Order'}.pdf`);
+    }
+  };
+
+  const handleEditFromPreview = () => {
+    const poToEdit = previewPO;
+    closePreview();
+    if (poToEdit) {
+      handleEditPO(poToEdit);
     }
   };
 
@@ -2183,6 +2237,81 @@ export const PurchaseOrders: React.FC = () => {
               >
                 {deletePO.isPending ? 'Deleting...' : 'Delete'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PDF Preview Modal */}
+      {previewPO && (
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={closePreview}
+        >
+          <div 
+            className="flex flex-col w-[90vw] max-w-[1200px] h-[95vh] bg-white rounded-xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-3 border-b border-zinc-200 bg-white">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-semibold text-zinc-900">
+                  {previewPO.po_number || `Purchase Order ${previewPO.id?.slice(0, 8)}`}
+                </span>
+                {previewLoading && (
+                  <span className="text-xs text-zinc-500 animate-pulse">Generating preview...</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleEditFromPreview}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors shadow-sm"
+                >
+                  <Edit className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintPdf}
+                  disabled={!previewPdfUrl || previewLoading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Print
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  disabled={!previewPdfBlob || previewLoading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download
+                </button>
+                <button
+                  type="button"
+                  onClick={closePreview}
+                  className="rounded-lg p-1.5 hover:bg-zinc-100 text-zinc-500 hover:text-zinc-700 transition-colors"
+                  title="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 bg-zinc-100 overflow-hidden relative">
+              {previewPdfUrl ? (
+                <iframe
+                  ref={iframeRef}
+                  src={previewPdfUrl}
+                  className="w-full h-full border-none"
+                  title="Purchase Order PDF Preview"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full gap-3 text-zinc-400">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                  <span className="text-sm font-medium">Generating PDF Preview...</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

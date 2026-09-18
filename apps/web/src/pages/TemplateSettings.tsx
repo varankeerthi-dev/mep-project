@@ -7,7 +7,7 @@ import { Button } from '../components/ui/button';
 
 import { PortraitTemplate } from '../templates/PortraitTemplate';
 
-const DOCUMENT_TYPES = ['Quotation', 'Sales Order', 'Proforma Invoice', 'Delivery Challan', 'Invoice', 'Tools Delivery Challan', 'Credit Note', 'Debit Note'];
+const DOCUMENT_TYPES = ['Quotation', 'Sales Order', 'Proforma Invoice', 'Delivery Challan', 'Invoice', 'Tools Delivery Challan', 'Credit Note', 'Debit Note', 'Purchase Order'];
 const PAGE_SIZES = ['A4', 'Letter'];
 const ORIENTATIONS = ['Portrait', 'Landscape'];
 
@@ -153,6 +153,31 @@ export default function TemplateSettings() {
             .order('document_type', { ascending: true })
             .order('template_name', { ascending: true });
           dbTemplates = seededData || [];
+        } else {
+          // Check if Purchase Order templates are present for this org
+          const hasPOTemplates = dbTemplates.some(t => t.document_type === 'Purchase Order');
+          if (!hasPOTemplates) {
+            const poTemplates = BUILT_IN_TEMPLATES.filter(t => t.document_type === 'Purchase Order');
+            for (const tpl of poTemplates) {
+              const { data: existing } = await supabase
+                .from('document_templates')
+                .select('id')
+                .eq('template_code', tpl.template_code)
+                .eq('document_type', tpl.document_type)
+                .eq('organisation_id', organisation.id)
+                .maybeSingle();
+              if (!existing) {
+                await supabase.from('document_templates').insert({ ...tpl, organisation_id: organisation.id });
+              }
+            }
+            const { data: refreshed } = await supabase
+              .from('document_templates')
+              .select('*')
+              .eq('organisation_id', organisation.id)
+              .order('document_type', { ascending: true })
+              .order('template_name', { ascending: true });
+            if (refreshed) dbTemplates = refreshed;
+          }
         }
       }
       
@@ -728,6 +753,42 @@ export default function TemplateSettings() {
       template_name: 'Sakthi Style (Debit Note)',
       template_code: 'DN_SAKTHI',
       document_type: 'Debit Note',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: false,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'sakthi' }
+      }
+    },
+    {
+      template_name: 'Enterprise Style (Purchase Order)',
+      template_code: 'PO_ENTERPRISE',
+      document_type: 'Purchase Order',
+      is_default: true,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'enterprise' }
+      }
+    },
+    {
+      template_name: 'Sakthi Style (Purchase Order)',
+      template_code: 'PO_SAKTHI',
+      document_type: 'Purchase Order',
       is_default: false,
       page_size: 'A4',
       orientation: 'Portrait',
@@ -1343,7 +1404,8 @@ export default function TemplateSettings() {
       'Invoice': '💰',
       'Tools Delivery Challan': '🔧',
       'Credit Note': '📗',
-      'Debit Note': '📘'
+      'Debit Note': '📘',
+      'Purchase Order': '🛒'
     };
     return icons[type] || '📄';
   };

@@ -62,35 +62,76 @@ export interface PurchaseBillData {
 }
 
 import { generateSakthiPdf } from '../../../pdf/sakthiTemplatePdf';
+import { generateEnterprisePurchaseOrderPdf } from '../../../pdf/enterprisePurchaseOrderPdf';
 import { supabase } from '../../../supabase';
 
-export const generatePOPDF = async (data: PurchaseOrderData): Promise<Blob> => {
-  let defaultTemplate = null;
-  try {
-    const { data: tpl } = await supabase
-      .from('document_templates')
-      .select('*')
-      .eq('document_type', 'Quotation')
-      .eq('is_default', true)
-      .maybeSingle();
-    defaultTemplate = tpl;
-  } catch (e) {
-    console.warn('Failed to load default template for PO:', e);
+export const generatePOPDF = async (data: PurchaseOrderData | any, organisation?: any, templateOverride?: any): Promise<Blob> => {
+  let activeTemplate = templateOverride || null;
+  const orgId = organisation?.id || (data as any)?.organisation_id;
+
+  if (!activeTemplate && orgId) {
+    try {
+      const { data: tpl } = await supabase
+        .from('document_templates')
+        .select('*')
+        .eq('organisation_id', orgId)
+        .eq('document_type', 'Purchase Order')
+        .eq('is_default', true)
+        .maybeSingle();
+      activeTemplate = tpl;
+
+      if (!activeTemplate) {
+        const { data: anyTpl } = await supabase
+          .from('document_templates')
+          .select('*')
+          .eq('organisation_id', orgId)
+          .eq('document_type', 'Purchase Order')
+          .limit(1)
+          .maybeSingle();
+        activeTemplate = anyTpl;
+      }
+    } catch (e) {
+      console.warn('Failed to load active template for PO:', e);
+    }
   }
 
-  if (defaultTemplate?.column_settings?.print?.style === 'sakthi') {
-    const org = {
-      name: data.company_name,
-      address: data.company_address,
-      gstin: data.company_gstin,
-      phone: data.company_phone,
-      logo_url: data.company_logo
-    };
-    const doc = await generateSakthiPdf(data, org, 'Purchase Order', defaultTemplate);
+  // Fallback without org filter if none found yet
+  if (!activeTemplate) {
+    try {
+      const { data: tpl } = await supabase
+        .from('document_templates')
+        .select('*')
+        .eq('document_type', 'Purchase Order')
+        .eq('is_default', true)
+        .maybeSingle();
+      activeTemplate = tpl;
+    } catch (e) {
+      console.warn('Fallback PO template query failed:', e);
+    }
+  }
+
+  const org = {
+    name: organisation?.name || data.company_name,
+    address: organisation?.address || data.company_address,
+    gstin: organisation?.gst_no || organisation?.gstin || data.company_gstin,
+    phone: organisation?.phone || data.company_phone,
+    email: organisation?.email,
+    logo_url: organisation?.logo_url || data.company_logo
+  };
+
+  const style = activeTemplate?.column_settings?.print?.style || 'enterprise';
+
+  if (style === 'sakthi') {
+    const doc = await generateSakthiPdf(data, org, 'Purchase Order', activeTemplate);
     return doc.output('blob');
   }
 
-  return generateProGridPurchaseOrderPdf(data);
+  if (style === 'pro_grid') {
+    return generateProGridPurchaseOrderPdf(data);
+  }
+
+  // Default to Enterprise template
+  return generateEnterprisePurchaseOrderPdf(data, org, activeTemplate);
 };
 
 export const generateBillPDF = (data: PurchaseBillData): Blob => {
