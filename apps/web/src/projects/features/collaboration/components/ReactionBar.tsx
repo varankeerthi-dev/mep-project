@@ -6,12 +6,13 @@ import type { Reaction } from '../types';
 interface Props {
   messageId: string;
   reactions: Reaction[];
+  channelId?: string;
 }
 
-export function ReactionBar({ messageId, reactions }: Props) {
+export function ReactionBar({ messageId, reactions, channelId }: Props) {
   const { user } = useAuth();
-  const addR = useAddReaction(null);
-  const delR = useRemoveReaction(null);
+  const addR = useAddReaction(channelId);
+  const delR = useRemoveReaction(channelId);
 
   if (reactions.length === 0) return null;
 
@@ -31,7 +32,8 @@ export function ReactionBar({ messageId, reactions }: Props) {
           <button
             key={emoji}
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               if (mine) delR.mutate({ messageId, emoji });
               else addR.mutate({ messageId, emoji });
             }}

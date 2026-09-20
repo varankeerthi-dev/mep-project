@@ -293,6 +293,8 @@ export interface TaskCreateInput {
   drawing_ref?: string | null;
   wbs_code?: string | null;
   milestone_id?: string | null;
+  /** Checklist items to create with the task (Phase 1). */
+  checklist_titles?: string[];
 }
 
 export interface TaskUpdateInput {
@@ -578,3 +580,24 @@ export const COLUMN_LABELS: Record<string, string> = {
   actual_hours: 'Act. Hrs',
   last_report: 'Last Report',
 };
+
+// ============================================
+// TASK CHECKLIST (Phase 1 — Collaboration → Tasks)
+// ============================================
+export interface TaskChecklistItem {
+  id: string;
+  task_id: string;
+  organisation_id: string;
+  title: string;
+  is_completed: boolean;
+  completed_by: string | null;
+  completed_at: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskChecklistCreateInput {
+  title: string;
+  sort_order?: number;
+}

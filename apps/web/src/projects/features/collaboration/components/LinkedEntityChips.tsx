@@ -1,6 +1,7 @@
 // LinkedEntityChips.tsx — render small chips for linked ERP entities.
 import { Link2 } from 'lucide-react';
 import type { LinkedEntity } from '../types';
+import { useCollabStore } from '../store';
 
 interface Props {
   entities: LinkedEntity[];
@@ -8,6 +9,7 @@ interface Props {
 
 const ROUTES: Record<LinkedEntity['type'], (id: string) => string> = {
   task: (id) => `/tasks/${id}`,
+  reminder: (_id) => '/tasks?tab=reminders',
   work_order: (id) => `/work-orders/${id}`,
   issue: (id) => `/issues/${id}`,
   daily_report: (id) => `/daily-reports/${id}`,
@@ -20,6 +22,7 @@ const ROUTES: Record<LinkedEntity['type'], (id: string) => string> = {
 
 const COLORS: Record<LinkedEntity['type'], string> = {
   task: 'bg-amber-50 border-amber-200 text-amber-800',
+  reminder: 'bg-purple-50 border-purple-200 text-purple-800',
   work_order: 'bg-blue-50 border-blue-200 text-blue-800',
   issue: 'bg-red-50 border-red-200 text-red-800',
   daily_report: 'bg-emerald-50 border-emerald-200 text-emerald-800',
@@ -31,16 +34,24 @@ const COLORS: Record<LinkedEntity['type'], string> = {
 };
 
 export function LinkedEntityChips({ entities }: Props) {
+  const openTaskDetail = useCollabStore((s) => s.openTaskDetail);
   if (!entities?.length) return null;
   return (
     <div className="mt-1 flex flex-wrap gap-1.5" data-testid="collab-linked-entities">
       {entities.map((e, i) => {
         const path = ROUTES[e.type]?.(e.id) ?? '#';
+        const isTask = e.type === 'task';
         return (
           <a
             key={`${e.type}-${e.id}-${i}`}
             href={path}
-            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border ${COLORS[e.type]}`}
+            onClick={(ev) => {
+              if (isTask) {
+                ev.preventDefault();
+                openTaskDetail(e.id);
+              }
+            }}
+            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border ${COLORS[e.type]} hover:shadow-xs transition`}
             data-testid="collab-linked-chip"
           >
             <Link2 className="h-3 w-3" />

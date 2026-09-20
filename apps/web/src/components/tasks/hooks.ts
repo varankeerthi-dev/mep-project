@@ -6,6 +6,7 @@ import { supabase } from '../../supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import type {
   Task,
+  TaskChecklistItem,
   TaskGroup,
   TaskDependency,
   TaskComment,
@@ -46,6 +47,7 @@ export const taskKeys = {
     [...taskKeys.all, 'views', userId, projectId] as const,
   customFields: (orgId: string) => [...taskKeys.all, 'custom-fields', orgId] as const,
   assignees: (orgId: string) => [...taskKeys.all, 'assignees', orgId] as const,
+  checklist: (taskId: string) => [...taskKeys.all, 'checklist', taskId] as const,
 };
 
 // ============================================
@@ -129,23 +131,44 @@ export function useCreateTask() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: TaskCreateInput & { organisation_id: string; created_by: string }) => {
+      const { checklist_titles, subcontractor_ids: _ignoredSubs, ...taskInput } = input;
       const { data, error } = await supabase
         .from('tasks')
         .insert({
-          ...input,
-          status: input.status || 'not_started',
-          priority: input.priority || 'medium',
-          task_type: input.task_type || 'task',
+          ...taskInput,
+          status: taskInput.status || 'not_started',
+          priority: taskInput.priority || 'medium',
+          task_type: taskInput.task_type || 'task',
           completion_percentage: 0,
           is_following: false,
           is_archived: false,
-          tags: input.tags || [],
-          assignee_ids: input.assignee_ids || [],
+          tags: taskInput.tags || [],
+          assignee_ids: taskInput.assignee_ids || [],
         })
         .select()
         .single();
       if (error) throw error;
-      return data as unknown as Task;
+      const task = data as unknown as Task;
+      // Checklist items are created with the task (spec §12). If the bulk
+      // insert fails, the orphan task is removed so callers never see a
+      // task whose checklist silently vanished.
+      if (checklist_titles && checklist_titles.length > 0) {
+        const { error: checklistError } = await supabase
+          .from('task_checklist_items')
+          .insert(
+            checklist_titles.map((title, index) => ({
+              task_id: task.id,
+              organisation_id: task.organisation_id,
+              title,
+              sort_order: index,
+            })),
+          );
+        if (checklistError) {
+          await supabase.from('tasks').update({ deleted_at: new Date().toISOString() }).eq('id', task.id);
+          throw checklistError;
+        }
+      }
+      return task;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
@@ -776,7 +799,7 @@ export function useBulkAssignTasks() {
 
       const promises = (tasks || []).map((task) => {
         const current: string[] = task.assignee_ids || [];
-        if (current.includes(assigneeId)) return Promise.resolve();
+        if (current.includes(assigneeId)) return null;
         return supabase
           .from('tasks')
           .update({ assignee_ids: [...current, assigneeId] })
@@ -784,7 +807,7 @@ export function useBulkAssignTasks() {
       });
 
       const results = await Promise.all(promises);
-      const error = results.find((r) => r.error);
+      const error = results.find((r) => r?.error);
       if (error) throw error.error;
       return taskIds;
     },
@@ -910,4 +933,173 @@ export function useStopTimer() {
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
     },
   });
+}
+
+// ============================================
+// TASK CHECKLIST (Phase 1 — Collaboration → Tasks)
+// ============================================
+
+export function useTaskChecklist(taskId: string | null | undefined) {
+  return useQuery({
+    queryKey: taskKeys.checklist(taskId!),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_checklist_items')
+        .select('*')
+        .eq('task_id', taskId!)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return data as unknown as TaskChecklistItem[];
+    },
+    enabled: !!taskId,
+  });
+}
+
+export function useCreateChecklistItem(taskId: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { title: string }) => {
+      if (!taskId) throw new Error('no_task');
+      const { data: existing, error: existingError } = await supabase
+        .from('task_checklist_items')
+        .select('sort_order')
+        .eq('task_id', taskId)
+        .order('sort_order', { ascending: false })
+        .limit(1);
+      if (existingError) throw existingError;
+      const nextOrder = existing && existing.length > 0 ? (existing[0].sort_order as number) + 1 : 0;
+      const { data, error } = await supabase
+        .from('task_checklist_items')
+        .insert({ task_id: taskId, title: input.title, sort_order: nextOrder })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as unknown as TaskChecklistItem;
+    },
+    onSuccess: () => {
+      if (taskId) {
+        queryClient.invalidateQueries({ queryKey: taskKeys.checklist(taskId) });
+      }
+    },
+  });
+}
+
+export function useUpdateChecklistItem(taskId: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, title, sort_order }: { id: string; title?: string; sort_order?: number }) => {
+      const updates: Record<string, unknown> = {};
+      if (title !== undefined) updates.title = title;
+      if (sort_order !== undefined) updates.sort_order = sort_order;
+      const { data, error } = await supabase
+        .from('task_checklist_items')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as unknown as TaskChecklistItem;
+    },
+    onSuccess: () => {
+      if (taskId) {
+        queryClient.invalidateQueries({ queryKey: taskKeys.checklist(taskId) });
+      }
+    },
+  });
+}
+
+/**
+ * Completion goes through the server-side RPC so completed_by / completed_at
+ * are always stamped by the database (spec §14). RLS enforces visibility.
+ */
+export function useToggleChecklistItem(taskId: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, isCompleted }: { id: string; isCompleted: boolean }) => {
+      const { data, error } = await supabase.rpc('toggle_task_checklist_item', {
+        p_item_id: id,
+        p_is_completed: isCompleted,
+      });
+      if (error) throw error;
+      return data as unknown as TaskChecklistItem;
+    },
+    onMutate: async ({ id, isCompleted }) => {
+      if (!taskId) return;
+      await queryClient.cancelQueries({ queryKey: taskKeys.checklist(taskId) });
+      const previous = queryClient.getQueryData<TaskChecklistItem[]>(taskKeys.checklist(taskId));
+      if (previous) {
+        queryClient.setQueryData<TaskChecklistItem[]>(taskKeys.checklist(taskId), (old) =>
+          old
+            ? old.map((item) =>
+                item.id === id ? { ...item, is_completed: isCompleted } : item,
+              )
+            : old,
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous && taskId) {
+        queryClient.setQueryData(taskKeys.checklist(taskId), context.previous);
+      }
+    },
+    onSettled: () => {
+      if (taskId) {
+        queryClient.invalidateQueries({ queryKey: taskKeys.checklist(taskId) });
+      }
+    },
+  });
+}
+
+export function useDeleteChecklistItem(taskId: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('task_checklist_items')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      if (taskId) {
+        queryClient.invalidateQueries({ queryKey: taskKeys.checklist(taskId) });
+      }
+    },
+  });
+}
+
+/** Reorder via sequential updates, mirroring useReorderTasks. */
+export function useReorderChecklistItems(taskId: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      const promises = orderedIds.map((id, index) =>
+        supabase.from('task_checklist_items').update({ sort_order: index }).eq('id', id),
+      );
+      const results = await Promise.all(promises);
+      const error = results.find((r) => r.error);
+      if (error) throw error.error;
+      return orderedIds;
+    },
+    onSuccess: () => {
+      if (taskId) {
+        queryClient.invalidateQueries({ queryKey: taskKeys.checklist(taskId) });
+      }
+    },
+  });
+}
+
+/** Progress = derived, never stored (spec §15 — no second status system). */
+export function getChecklistProgress(items: TaskChecklistItem[] | undefined | null): {
+  completed: number;
+  total: number;
+} {
+  if (!items || items.length === 0) return { completed: 0, total: 0 };
+  return {
+    completed: items.filter((i) => i.is_completed).length,
+    total: items.length,
+  };
 }

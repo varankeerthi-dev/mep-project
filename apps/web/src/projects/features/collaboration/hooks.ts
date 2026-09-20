@@ -1,9 +1,11 @@
 // hooks.ts — React Query hooks for Project Collaboration.
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   addReaction,
   ensureChannel,
+  getOrCreateCompanyChannel,
+  fetchCompanyChannels,
   fetchChannelMembers,
   fetchMessagesPage,
   fetchReactionsForMessages,
@@ -14,8 +16,20 @@ import {
   searchMessages,
   sendMessage,
   softDeleteMessage,
+  postTaskChannelCard,
+  createPersonalTaskFromMessage,
+  createReminderFromMessage,
+  toggleReminderStatus,
+  createCompanyChannel,
+  fetchOrgMemberEmails,
+  fetchChannelInvitations,
+  clearChannelMessages,
+  leaveChannel,
+  archiveChannel,
   type MessagePage,
+  type CreateCompanyChannelArgs,
 } from './api';
+import { supabase } from '../../../supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useCollabStore } from './store';
 import type { Message, MessageDraft } from './types';
@@ -23,6 +37,10 @@ import { MessageDraftSchema } from './schemas';
 
 const KEY = {
   channel: (projectId: string) => ['collab', 'channel', projectId] as const,
+  companyChannel: (orgId: string, name: string) => ['collab', 'company-channel', orgId, name] as const,
+  companyChannels: (orgId: string) => ['collab', 'company-channels', orgId] as const,
+  orgMemberEmails: (orgId: string) => ['collab', 'org-member-emails', orgId] as const,
+  channelInvitations: (channelId: string) => ['collab', 'channel-invitations', channelId] as const,
   messages: (channelId: string) => ['collab', 'messages', channelId] as const,
   thread: (parentId: string) => ['collab', 'thread', parentId] as const,
   reactions: (messageIds: string[]) => ['collab', 'reactions', messageIds.slice().sort().join(',')] as const,
@@ -37,6 +55,63 @@ export function useEnsureChannel(projectId: string | null | undefined) {
     queryFn: () => ensureChannel(projectId!),
     enabled: !!projectId,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Ensures the organisation's primary company channel exists (e.g. #general). */
+export function useCompanyChannel(orgId: string | null | undefined, name: string = 'general') {
+  return useQuery({
+    queryKey: orgId ? KEY.companyChannel(orgId, name) : ['collab', 'company-channel', 'idle'],
+    queryFn: () => getOrCreateCompanyChannel(orgId!, name),
+    enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Lists all company-wide channels for an organisation. */
+export function useCompanyChannels(orgId: string | null | undefined) {
+  return useQuery({
+    queryKey: orgId ? KEY.companyChannels(orgId) : ['collab', 'company-channels', 'idle'],
+    queryFn: () => fetchCompanyChannels(orgId!),
+    enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Colleagues (name + email) of the organisation, for the invite picker.
+ * Deliberately a separate query from the message flow: it is only fetched when
+ * the create-channel dialog is open.
+ */
+export function useOrgMemberEmails(orgId: string | null | undefined) {
+  return useQuery({
+    queryKey: orgId ? KEY.orgMemberEmails(orgId) : ['collab', 'org-member-emails', 'idle'],
+    queryFn: () => fetchOrgMemberEmails(orgId!),
+    enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Invitations recorded on a channel. */
+export function useChannelInvitations(channelId: string | null | undefined) {
+  return useQuery({
+    queryKey: channelId ? KEY.channelInvitations(channelId) : ['collab', 'channel-invitations', 'idle'],
+    queryFn: () => fetchChannelInvitations(channelId!),
+    enabled: !!channelId,
+    staleTime: 60 * 1000,
+  });
+}
+
+/** Creates a company channel and refreshes the rail + that channel's entry. */
+export function useCreateCompanyChannel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: CreateCompanyChannelArgs) => createCompanyChannel(args),
+    onSuccess: (channel) => {
+      qc.invalidateQueries({ queryKey: ['collab', 'company-channels', channel.organisation_id] });
+      qc.invalidateQueries({ queryKey: ['collab', 'rail'] });
+      qc.setQueryData(KEY.companyChannel(channel.organisation_id, channel.name), channel);
+    },
   });
 }
 
@@ -97,9 +172,15 @@ export function useMarkRead(channelId: string | null | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (messageId: string) => markChannelRead(channelId!, messageId),
-    onSuccess: () => {
+    onSuccess: (_, messageId) => {
       if (channelId && user?.id) {
-        qc.invalidateQueries({ queryKey: KEY.readState(channelId, user.id) });
+        qc.setQueryData(KEY.readState(channelId, user.id), (old: any) => ({
+          ...(old ?? {}),
+          channel_id: channelId,
+          user_id: user.id,
+          last_read_message_id: messageId,
+          last_read_at: new Date().toISOString(),
+        }));
       }
     },
   });
@@ -189,24 +270,24 @@ export function useSendMessage(channelId: string | null | undefined) {
   });
 }
 
-export function useAddReaction(channelId: string | null | undefined) {
+export function useAddReaction(channelId?: string | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ messageId, emoji }: { messageId: string; emoji: string }) =>
       addReaction(messageId, emoji),
     onSuccess: () => {
-      if (channelId) qc.invalidateQueries({ queryKey: ['collab', 'reactions'] });
+      qc.invalidateQueries({ queryKey: ['collab', 'reactions'] });
     },
   });
 }
 
-export function useRemoveReaction(channelId: string | null | undefined) {
+export function useRemoveReaction(channelId?: string | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ messageId, emoji }: { messageId: string; emoji: string }) =>
       removeReaction(messageId, emoji),
     onSuccess: () => {
-      if (channelId) qc.invalidateQueries({ queryKey: ['collab', 'reactions'] });
+      qc.invalidateQueries({ queryKey: ['collab', 'reactions'] });
     },
   });
 }
@@ -237,10 +318,177 @@ export function useAutoMarkRead(
 ) {
   const { user } = useAuth();
   const mark = useMarkRead(channelId);
+  const lastMarkedRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!channelId || !visibleLastMessageId || !user?.id) return;
+    if (lastMarkedRef.current === visibleLastMessageId) return;
+    lastMarkedRef.current = visibleLastMessageId;
     mark.mutate(visibleLastMessageId);
     // intentionally not including `mark` in deps to avoid loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, visibleLastMessageId, user?.id]);
+}
+
+/** Post task card into collaboration channel. */
+export function usePostTaskChannelCard(channelId: string | null | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, taskId }: { projectId?: string | null; taskId: string }) => {
+      if (!channelId) throw new Error('Channel ID is required');
+      return postTaskChannelCard(projectId ?? null, channelId, taskId);
+    },
+    onSuccess: () => {
+      if (channelId) qc.invalidateQueries({ queryKey: KEY.messages(channelId) });
+    },
+  });
+}
+
+/** One-click create personal task from collaboration message. */
+export function useCreatePersonalTaskFromMessage() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: (messageId: string) => createPersonalTaskFromMessage(messageId),
+    onSuccess: () => {
+      if (user?.id) qc.invalidateQueries({ queryKey: ['collab', 'personal-tasks', user.id] });
+    },
+  });
+}
+
+/** Create reminder from collaboration message. */
+export function useCreateReminderFromMessage(channelId?: string | null) {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: (args: {
+      messageId: string;
+      recipientId?: string | null;
+      title: string;
+      notes?: string | null;
+      remindAt?: string | null;
+    }) => createReminderFromMessage(args),
+    onSuccess: () => {
+      if (user?.id) qc.invalidateQueries({ queryKey: ['collab', 'reminders', user.id] });
+      if (channelId) qc.invalidateQueries({ queryKey: KEY.messages(channelId) });
+    },
+  });
+}
+
+/** Toggle reminder status. */
+export function useToggleReminderStatus() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: ({
+      reminderId,
+      status,
+    }: {
+      reminderId: string;
+      status: 'pending' | 'completed' | 'dismissed';
+    }) => toggleReminderStatus(reminderId, status),
+    onSuccess: () => {
+      if (user?.id) qc.invalidateQueries({ queryKey: ['collab', 'reminders', user.id] });
+    },
+  });
+}
+
+/** Fetch personal tasks for the current authenticated user. */
+export function usePersonalTasks() {
+  const { user, organisation } = useAuth();
+  return useQuery({
+    queryKey: ['collab', 'personal-tasks', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('personal_tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('is_completed', { ascending: true })
+        .order('due_date', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user?.id && !!organisation?.id,
+  });
+}
+
+/** Toggle personal task completion. */
+export function useTogglePersonalTask() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async ({ taskId, isCompleted }: { taskId: string; isCompleted: boolean }) => {
+      const { data, error } = await supabase.rpc('toggle_personal_task', {
+        p_task_id: taskId,
+        p_is_completed: isCompleted,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      if (user?.id) qc.invalidateQueries({ queryKey: ['collab', 'personal-tasks', user.id] });
+    },
+  });
+}
+
+/** Fetch task reminders for the current user. */
+export function useTaskReminders() {
+  const { user, organisation } = useAuth();
+  return useQuery({
+    queryKey: ['collab', 'reminders', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('task_reminders')
+        .select('*')
+        .or(`user_id.eq.${user.id},created_by.eq.${user.id}`)
+        .order('status', { ascending: true })
+        .order('remind_at', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user?.id && !!organisation?.id,
+  });
+}
+
+// ============================================================================
+// Channel Management Hooks
+// ============================================================================
+
+/** Clear all messages in a channel. Admin/owner only. */
+export function useClearChannelMessages(channelId: string | null | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => clearChannelMessages(channelId!),
+    onSuccess: () => {
+      if (channelId) qc.invalidateQueries({ queryKey: KEY.messages(channelId) });
+    },
+  });
+}
+
+/** Leave a channel. Cannot leave if you're the only owner. */
+export function useLeaveChannel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (channelId: string) => leaveChannel(channelId),
+    onSuccess: () => {
+      // Invalidate all channel-related queries
+      qc.invalidateQueries({ queryKey: ['collab'] });
+    },
+  });
+}
+
+/** Archive/delete a channel. Owner only. */
+export function useArchiveChannel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (channelId: string) => archiveChannel(channelId),
+    onSuccess: () => {
+      // Invalidate all channel-related queries
+      qc.invalidateQueries({ queryKey: ['collab'] });
+    },
+  });
 }

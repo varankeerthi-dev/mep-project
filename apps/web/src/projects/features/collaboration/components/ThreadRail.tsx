@@ -17,10 +17,21 @@ export function ThreadRail({ channelId }: Props) {
   const thread = useThread(openThreadId);
   const ids = (thread.data ?? []).map((m) => m.id);
   const reactions = useReactions(ids);
+  const reactionsByMessageId = useMemo(() => {
+    const map = new Map<string, typeof reactions.data>();
+    for (const r of reactions.data ?? []) {
+      const arr = map.get(r.message_id) ?? [];
+      arr.push(r);
+      map.set(r.message_id, arr);
+    }
+    return map;
+  }, [reactions.data]);
   const membersQuery = useChannelMembers(channelId);
-  const senderNames = useMemo(() => {
-    const map = new Map<string, string | null>();
-    for (const m of membersQuery.data ?? []) map.set(m.user_id, m.full_name);
+  const sendersMap = useMemo(() => {
+    const map = new Map<string, { name: string | null; avatarUrl: string | null }>();
+    for (const m of membersQuery.data ?? []) {
+      map.set(m.user_id, { name: m.full_name, avatarUrl: m.avatar_url });
+    }
     return map;
   }, [membersQuery.data]);
 
@@ -34,7 +45,7 @@ export function ThreadRail({ channelId }: Props) {
           <MessageSquare className="h-4 w-4 text-gray-500" />
           <h3 className="text-sm font-semibold">Thread</h3>
         </div>
-        <div className="flex-1 flex items-center justify-center text-center px-6 text-sm text-gray-500">
+        <div className="flex-1 flex items-center justify-center p-6 text-center text-xs text-gray-400">
           Select a message's thread to view it here.
         </div>
       </aside>
@@ -69,8 +80,9 @@ export function ThreadRail({ channelId }: Props) {
           <MessageBubble
             key={m.id}
             message={m}
-            reactions={reactions.data ?? []}
-            senderName={senderNames.get(m.sender_id) ?? null}
+            reactions={reactionsByMessageId.get(m.id) ?? []}
+            senderName={sendersMap.get(m.sender_id)?.name ?? m.sender_name ?? null}
+            senderAvatarUrl={sendersMap.get(m.sender_id)?.avatarUrl ?? m.sender_avatar_url ?? null}
           />
         ))}
       </div>

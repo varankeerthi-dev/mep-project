@@ -7,12 +7,21 @@ import {
   MessageDraftSchema,
   AttachmentMetaSchema,
   SendMessageRpcSchema,
+  ChannelNameSchema,
+  CHANNEL_NAME_MAX,
+  InviteEmailSchema,
+  createCreateChannelSchema,
+  normalizeChannelName,
+  isChannelNameTaken,
+  channelCreateErrorField,
+  channelCreateErrorMessage,
 } from './schemas';
 import {
   formatRelativeTime,
   groupConsecutive,
   isOptimisticId,
   buildAttachmentPath,
+  parseTaskFromMessage,
 } from './utils';
 
 describe('LinkedEntitySchema', () => {
@@ -21,6 +30,16 @@ describe('LinkedEntitySchema', () => {
       type: 'task',
       id: '11111111-1111-1111-1111-111111111111',
       label: 'Fix pump',
+    });
+    expect(ok.success).toBe(true);
+  });
+
+  it('accepts a valid reminder link', () => {
+    const ok = LinkedEntitySchema.safeParse({
+      type: 'reminder',
+      id: '11111111-1111-1111-1111-111111111111',
+      label: 'Check site cables tomorrow',
+      snapshot: { status: 'pending', remind_at: '2026-09-20T09:00:00Z' },
     });
     expect(ok.success).toBe(true);
   });
@@ -41,6 +60,43 @@ describe('LinkedEntitySchema', () => {
       label: '',
     });
     expect(bad.success).toBe(false);
+  });
+});
+
+describe('parseTaskFromMessage', () => {
+  it('extracts title and description from single line message', () => {
+    const result = parseTaskFromMessage('Check chiller pump alignment');
+    expect(result.title).toBe('Check chiller pump alignment');
+    expect(result.description).toContain('Check chiller pump alignment');
+    expect(result.checklistTitles).toBeUndefined();
+    expect(result.assigneeIds).toEqual([]);
+  });
+
+  it('extracts first line as title and bullets as checklist items', () => {
+    const msg = [
+      'Site preparation checklist for Unit 4',
+      '- Clear debris around pad',
+      '- Check foundation bolts',
+      '* Inspect conduit stub-ups',
+      '1. Verify grounding rod resistance',
+    ].join('\n');
+
+    const result = parseTaskFromMessage(msg, ['11111111-1111-1111-1111-111111111111']);
+    expect(result.title).toBe('Site preparation checklist for Unit 4');
+    expect(result.assigneeIds).toEqual(['11111111-1111-1111-1111-111111111111']);
+    expect(result.checklistTitles).toEqual([
+      'Clear debris around pad',
+      'Check foundation bolts',
+      'Inspect conduit stub-ups',
+      'Verify grounding rod resistance',
+    ]);
+  });
+
+  it('truncates long titles to 80 chars with ellipsis', () => {
+    const longLine = 'A'.repeat(100);
+    const result = parseTaskFromMessage(longLine);
+    expect(result.title.length).toBe(78);
+    expect(result.title.endsWith('…')).toBe(true);
   });
 });
 
@@ -167,10 +223,160 @@ describe('buildAttachmentPath', () => {
   });
 });
 
-import { addAttachment } from './api';
+import { addAttachment, getOrCreateCompanyChannel, fetchCompanyChannels, postTaskChannelCard } from './api';
+import { useCollabStore } from './store';
 
-describe('addAttachment client contract', () => {
-  it('is exported and callable (runtime requires a live Supabase)', () => {
+describe('Collaboration API client contracts', () => {
+  it('exports addAttachment, getOrCreateCompanyChannel, fetchCompanyChannels, postTaskChannelCard', () => {
     expect(typeof addAttachment).toBe('function');
+    expect(typeof getOrCreateCompanyChannel).toBe('function');
+    expect(typeof fetchCompanyChannels).toBe('function');
+    expect(typeof postTaskChannelCard).toBe('function');
+  });
+});
+
+describe('useCollabStore Company Channel state transitions', () => {
+  it('supports opening and switching between company channels and project channels', () => {
+    const store = useCollabStore.getState();
+
+    // 1. Open company channel
+    store.openCompanyChannel('general');
+    let state = useCollabStore.getState();
+    expect(state.isCompanyChannelOpen).toBe(true);
+    expect(state.activeScope).toBe('company');
+    expect(state.activeCompanyChannelName).toBe('general');
+
+    // 2. Open project channel
+    store.openProject('proj-alpha');
+    state = useCollabStore.getState();
+    expect(state.openProjectIds).toContain('proj-alpha');
+    expect(state.activeProjectId).toBe('proj-alpha');
+    expect(state.activeScope).toBe('project');
+
+    // 3. Switch back to company channel
+    store.setActiveScope('company');
+    state = useCollabStore.getState();
+    expect(state.activeScope).toBe('company');
+
+    // 4. Close project channel - should not crash and should update state
+    store.closeProject('proj-alpha');
+    state = useCollabStore.getState();
+    expect(state.openProjectIds).not.toContain('proj-alpha');
+    expect(state.activeScope).toBe('company');
+
+    // 5. Open task drawer with null project_id for company task
+    store.openTaskCreate({
+      title: 'Company-wide quarterly review',
+      projectId: null,
+      channelId: 'general-channel-uuid',
+    });
+    state = useCollabStore.getState();
+    expect(state.taskCreateDrawerOpen).toBe(true);
+    expect(state.taskCreateInitial?.title).toBe('Company-wide quarterly review');
+    expect(state.taskCreateInitial?.projectId).toBeNull();
+    expect(state.taskCreateInitial?.channelId).toBe('general-channel-uuid');
+
+    // 6. Close task drawer
+    store.closeTaskCreate();
+    state = useCollabStore.getState();
+    expect(state.taskCreateDrawerOpen).toBe(false);
+    expect(state.taskCreateInitial).toBeNull();
+  });
+});
+
+describe('channel creation — name uniqueness that ignores separators', () => {
+  it('normalizes case, spaces, hyphens, underscores and dots to the same key', () => {
+    const forms = ['Sales Chennai', 'sales-chennai', 'Sales_Chennai', 'sales.chennai', '  SALES   CHENNAI  '];
+    const keys = forms.map(normalizeChannelName);
+    expect(new Set(keys).size).toBe(1);
+    expect(keys[0]).toBe('saleschennai');
+  });
+
+  it('rejects a channel name that collides with an existing one', () => {
+    const existing = ['Sales Chennai'];
+    expect(isChannelNameTaken('Sales-Chennai', existing)).toBe(true);
+    expect(isChannelNameTaken('sales_chennai', existing)).toBe(true);
+    expect(isChannelNameTaken('Sales.Chennai', existing)).toBe(true);
+    expect(isChannelNameTaken('  sales   chennai ', existing)).toBe(true);
+    expect(isChannelNameTaken('Sales Chennai 2', existing)).toBe(false);
+    expect(isChannelNameTaken('Chennai Sales', existing)).toBe(false);
+  });
+
+  it('accepts a fresh name and rejects a separator variant of it', () => {
+    const schema = createCreateChannelSchema(['Sales Chennai']);
+    const base = {
+      description: '',
+      visibility: 'company' as const,
+      joinPolicy: 'all' as const,
+      inviteEmails: [],
+    };
+
+    expect(schema.safeParse({ ...base, name: 'Procurement North' }).success).toBe(true);
+
+    const clash = schema.safeParse({ ...base, name: 'Procurement-North' });
+    expect(clash.success).toBe(true); // not taken yet — only "Sales Chennai" exists
+    const clash2 = schema.safeParse({ ...base, name: 'sales-chennai' });
+    expect(clash2.success).toBe(false);
+    if (!clash2.success) {
+      expect(clash2.error.issues[0]?.message).toBe('A channel with this name already exists');
+      expect(clash2.error.issues[0]?.path).toEqual(['name']);
+    }
+  });
+
+  it('rejects invalid characters, too-short and too-long names', () => {
+    expect(ChannelNameSchema.safeParse('QA <script>').success).toBe(false);
+    expect(ChannelNameSchema.safeParse('A').success).toBe(false);
+    expect(ChannelNameSchema.safeParse('x'.repeat(CHANNEL_NAME_MAX + 1)).success).toBe(false);
+    expect(ChannelNameSchema.safeParse('QA Collab Chennai').success).toBe(true);
+  });
+
+  it('forces private channels to be invite-only', () => {
+    const schema = createCreateChannelSchema([]);
+    const result = schema.safeParse({
+      name: 'Design Team',
+      description: '',
+      visibility: 'private',
+      joinPolicy: 'all',
+      inviteEmails: [],
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.path[0] === 'joinPolicy')).toBe(true);
+    }
+  });
+
+  it('validates invite addresses and de-duplicates them case-insensitively', () => {
+    const schema = createCreateChannelSchema([]);
+    const input = (inviteEmails: string[]) => ({
+      name: 'Design Team',
+      description: '',
+      visibility: 'private' as const,
+      joinPolicy: 'invite_only' as const,
+      inviteEmails,
+    });
+
+    expect(schema.safeParse(input(['qa.external@example.com'])).success).toBe(true);
+    expect(schema.safeParse(input(['not-an-email'])).success).toBe(false);
+    expect(InviteEmailSchema.safeParse('  QA.External@Example.COM ').success).toBe(true);
+
+    const dupe = schema.safeParse(input(['a@b.com', 'A@B.COM']));
+    expect(dupe.success).toBe(false);
+    if (!dupe.success) {
+      expect(dupe.error.issues.some((i) => i.message === 'This email is already in the list')).toBe(true);
+    }
+  });
+
+  it('maps the server error codes onto form fields and copy', () => {
+    const err = (m: string) => ({ message: m });
+    expect(channelCreateErrorField(err('channel_name_exists'))).toBe('name');
+    expect(channelCreateErrorMessage(err('channel_name_exists'))).toBe(
+      'A channel with this name already exists',
+    );
+    expect(channelCreateErrorField(err('invalid_invite_email: x@y'))).toBe('inviteEmails');
+    expect(channelCreateErrorMessage(err('invalid_invite_email: x@y'))).toBe(
+      'One of the email addresses is not valid',
+    );
+    expect(channelCreateErrorField(err('not_authenticated'))).toBe('form');
+    expect(channelCreateErrorMessage(err('channel_name_invalid_characters'))).toContain('letters, numbers');
   });
 });

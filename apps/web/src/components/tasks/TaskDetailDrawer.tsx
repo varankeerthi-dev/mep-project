@@ -1,9 +1,11 @@
-﻿// ============================================
+// ============================================
 // UNIFIED TASK MODULE ΓÇö TASK DETAIL DRAWER
 // ============================================
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTask, useUpdateTask, useTaskComments, useCreateComment, useTaskAttachments, useTaskTimeLogs, useTaskActivity } from './hooks';
+import { supabase } from '../../supabase';
+import { useTask, useUpdateTask, useTaskComments, useCreateComment, useTaskAttachments, useTaskTimeLogs, useTaskActivity, useTaskChecklist, useCreateChecklistItem, useToggleChecklistItem, useDeleteChecklistItem, getChecklistProgress } from './hooks';
 import type { TaskStatus, TaskPriority, TaskDiscipline } from './types';
 import { STATUS_CONFIG, PRIORITY_CONFIG, DISCIPLINE_CONFIG, TASK_TYPE_CONFIG } from './types';
 import { cn } from '../../lib/utils';
@@ -28,6 +30,7 @@ import {
   Download,
   ChevronDown,
   ChevronRight,
+  ListChecks,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -51,7 +54,11 @@ export default function TaskDetailDrawer({ taskId, onClose }: TaskDetailDrawerPr
   const { data: attachments = [] } = useTaskAttachments(taskId);
   const { data: timeLogs = [] } = useTaskTimeLogs(taskId);
   const { data: activities = [] } = useTaskActivity(taskId);
+  const { data: checklist = [] } = useTaskChecklist(taskId);
   const createComment = useCreateComment();
+  const createChecklistItem = useCreateChecklistItem(taskId);
+  const toggleChecklistItem = useToggleChecklistItem(taskId);
+  const deleteChecklistItem = useDeleteChecklistItem(taskId);
 
   const handleComment = async () => {
     if (!commentText.trim() || !user?.id || !taskId) return;
@@ -104,7 +111,7 @@ export default function TaskDetailDrawer({ taskId, onClose }: TaskDetailDrawerPr
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-zinc-200 px-5">
+            <div className="flex border-b border-zinc-200 px-5 gap-1">
               {[
                 { key: 'details' as const, label: 'Details', icon: FileText },
                 { key: 'comments' as const, label: `Comments (${comments.length})`, icon: MessageSquare },
@@ -112,24 +119,35 @@ export default function TaskDetailDrawer({ taskId, onClose }: TaskDetailDrawerPr
                 { key: 'time' as const, label: 'Time', icon: Timer },
                 { key: 'activity' as const, label: 'Activity', icon: Activity },
               ].map(({ key, label, icon: Icon }) => (
-                <Button variant="default" size="sm" key={key} onClick={() => setActiveTab(key)}
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => setActiveTab(key)}
                   className={cn(
-                    '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-[11px] font-medium transition-colors',
+                    '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-medium transition-colors cursor-pointer bg-transparent',
                     activeTab === key
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-zinc-500 hover:text-zinc-700'
+                      ? 'border-blue-600 text-blue-600 font-semibold'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-800 hover:border-zinc-300'
                   )}
                 >
-                  <Icon size={12} />
+                  <Icon size={13} />
                   {label}
-                </Button>
+                </button>
               ))}
             </div>
 
             {/* Tab Content */}
             <div className="flex-1 overflow-y-auto">
               {activeTab === 'details' && (
-                <TaskDetailsTab task={task} updateTask={updateTask} />
+                <TaskDetailsTab task={task} updateTask={updateTask}>
+                  <TaskChecklistSection
+                    items={checklist}
+                    onCreate={(title) => createChecklistItem.mutateAsync({ title })}
+                    onToggle={({ id, isCompleted }) => toggleChecklistItem.mutateAsync({ id, isCompleted })}
+                    onDelete={(id) => deleteChecklistItem.mutateAsync(id)}
+                    creating={createChecklistItem.isPending}
+                  />
+                </TaskDetailsTab>
               )}
               {activeTab === 'comments' && (
                 <TaskCommentsTab
@@ -163,9 +181,11 @@ export default function TaskDetailDrawer({ taskId, onClose }: TaskDetailDrawerPr
 function TaskDetailsTab({
   task,
   updateTask,
+  children,
 }: {
   task: any;
   updateTask: any;
+  children?: React.ReactNode;
 }) {
   const statusCfg = STATUS_CONFIG[task.status as TaskStatus];
   const priorityCfg = PRIORITY_CONFIG[task.priority as TaskPriority];
@@ -179,6 +199,9 @@ function TaskDetailsTab({
 
   return (
     <div className="px-5 py-4">
+      {/* Checklist (first-class task feature — progress derived, not stored) */}
+      {children}
+
       {/* Status & Priority Row */}
       <div className="mb-4 flex gap-3">
         <div className="flex-1">
@@ -552,4 +575,155 @@ function TaskActivityTab({ activities }: { activities: any[] }) {
       )}
     </div>
   );
+}
+
+// ============================================
+// CHECKLIST SECTION (Phase 1)
+// Completion attribution: "Completed by <name> · <time>" (spec §14).
+// Progress is derived from items — never stored (spec §15).
+// ============================================
+
+function TaskChecklistSection({
+  items,
+  onCreate,
+  onToggle,
+  onDelete,
+  creating,
+}: {
+  items: import('./types').TaskChecklistItem[];
+  onCreate: (title: string) => Promise<unknown>;
+  onToggle: (args: { id: string; isCompleted: boolean }) => Promise<unknown>;
+  onDelete: (id: string) => Promise<unknown>;
+  creating: boolean;
+}) {
+  const { data: profiles } = useChecklistProfiles(items);
+  const [newTitle, setNewTitle] = useState('');
+  const { completed, total } = getChecklistProgress(items);
+
+  const handleAdd = async () => {
+    const title = newTitle.trim();
+    if (!title) return;
+    setNewTitle('');
+    await onCreate(title);
+  };
+
+  const nameOf = (userId: string | null) => {
+    if (!userId) return 'Unknown';
+    const p = profiles?.find((x) => x.user_id === userId);
+    return p?.full_name || userId.slice(0, 8);
+  };
+
+  return (
+    <div className="mb-4 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3" data-testid="task-checklist">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <ListChecks size={13} className="text-zinc-400" />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Checklist</span>
+        </div>
+        {total > 0 && (
+          <span
+            className={`text-[11px] font-bold tabular-nums ${completed === total && total > 0 ? 'text-green-600' : 'text-zinc-500'}`}
+            data-testid="task-checklist-progress"
+          >
+            {completed} / {total}
+          </span>
+        )}
+      </div>
+
+      {items.length === 0 ? (
+        <p className="py-1 text-[11px] italic text-zinc-400">No checklist items</p>
+      ) : (
+        <ul className="space-y-1">
+          {items.map((item) => (
+            <li key={item.id} className="group flex items-start gap-2 rounded px-1 py-1 hover:bg-white" data-testid="task-checklist-item">
+              <button
+                type="button"
+                onClick={() => onToggle({ id: item.id, isCompleted: !item.is_completed })}
+                className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                  item.is_completed
+                    ? 'border-green-500 bg-green-500 text-white'
+                    : 'border-zinc-300 bg-white hover:border-zinc-400'
+                }`}
+                aria-label={item.is_completed ? 'Mark incomplete' : 'Mark complete'}
+                data-testid="task-checklist-toggle"
+              >
+                {item.is_completed && <Check size={11} />}
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className={`text-[12px] leading-snug ${item.is_completed ? 'text-zinc-400 line-through' : 'text-zinc-700'}`}>
+                  {item.title}
+                </p>
+                {item.is_completed && item.completed_at && (
+                  <p className="text-[10px] text-zinc-400" data-testid="task-checklist-attribution">
+                    Completed by {nameOf(item.completed_by)} ·{' '}
+                    {new Date(item.completed_at).toLocaleString('en-GB', {
+                      day: '2-digit',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => onDelete(item.id)}
+                className="mt-0.5 hidden p-0.5 text-zinc-300 transition-colors hover:text-red-500 group-hover:block"
+                aria-label="Delete checklist item"
+              >
+                <Trash2 size={12} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-2 flex gap-1.5">
+        <input
+          type="text"
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleAdd();
+            }
+          }}
+          placeholder="Add checklist item..."
+          className="flex-1 rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-[12px] text-zinc-900 outline-none placeholder:text-zinc-300 focus:border-blue-400"
+          data-testid="task-checklist-input"
+        />
+        <Button
+          variant="secondary"
+          size="icon-xs"
+          onClick={handleAdd}
+          disabled={!newTitle.trim() || creating}
+          aria-label="Add checklist item"
+        >
+          <Plus size={12} />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** Batched profile lookup for completion attribution labels. */
+function useChecklistProfiles(items: import('./types').TaskChecklistItem[]) {
+  const userIds = Array.from(
+    new Set((items || []).map((i) => i.completed_by).filter((x): x is string => !!x)),
+  );
+  return useQuery({
+    queryKey: ['task-checklist-profiles', userIds.sort().join(',')],
+    queryFn: async () => {
+      if (userIds.length === 0) return [] as { user_id: string; full_name: string | null }[];
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('user_id, full_name')
+        .in('user_id', userIds);
+      if (error) throw error;
+      return (data || []) as { user_id: string; full_name: string | null }[];
+    },
+    enabled: userIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
 }

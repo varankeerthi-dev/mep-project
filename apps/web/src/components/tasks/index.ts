@@ -5,5 +5,9 @@ export { default as TaskBoard } from './TaskBoard';
 export { default as TaskGantt } from './TaskGantt';
 export { default as TaskCalendar } from './TaskCalendar';
 export { default as TaskDetailDrawer } from './TaskDetailDrawer';
+export { default as PersonalTaskListView } from './PersonalTaskListView';
+export { default as ReminderListView } from './ReminderListView';
 export { useTaskPermissions } from './useTaskPermissions';
 export { exportTasksToCSV, downloadCSV, exportTasksSummary } from './exportTasks';
+export type { TaskChecklistItem, TaskChecklistCreateInput } from './types';
+

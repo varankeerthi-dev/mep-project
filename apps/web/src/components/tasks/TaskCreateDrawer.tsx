@@ -18,6 +18,7 @@ import {
   BookOpen,
   HardHat,
   Ruler,
+  ListChecks,
   Search,
   Building2,
 } from 'lucide-react';
@@ -26,13 +27,23 @@ import { TaskGroup, TaskCreateInput, TaskStatus, TaskPriority, TaskType, TaskDis
 import { Button } from '@/components/ui/button';
 
 interface TaskCreateDrawerProps {
-  projectId: string;
+  projectId?: string | null;
   defaultGroupId: string | null;
   groups: TaskGroup[];
   organisationId: string;
   onClose: () => void;
   onSubmit: (input: TaskCreateInput) => void;
-  isLoading: boolean;
+  isLoading?: boolean;
+  loading?: boolean;
+  /** Initial values for pre-population (e.g., "Create Task" from a collaboration message). */
+  initial?: Partial<{
+    title: string;
+    description: string;
+    assigneeIds: string[];
+    dueDate: string;
+    priority: TaskPriority;
+    checklistTitles: string[];
+  }>;
 }
 
 // Multi-Select with Search Component
@@ -334,30 +345,39 @@ export default function TaskCreateDrawer({
   organisationId,
   onClose,
   onSubmit,
-  isLoading,
+  isLoading: isLoadingProp,
+  loading: loadingProp,
+  initial,
 }: TaskCreateDrawerProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const isLoading = isLoadingProp ?? loadingProp ?? false;
+  const [name, setName] = useState(initial?.title ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
   const [taskGroupId, setTaskGroupId] = useState<string | null>(defaultGroupId);
   const [status, setStatus] = useState<TaskStatus>('not_started');
-  const [priority, setPriority] = useState<TaskPriority>('medium');
+  const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'medium');
   const [taskType, setTaskType] = useState<TaskType>('task');
   const [discipline, setDiscipline] = useState<TaskDiscipline | null>(null);
   const [startDate, setStartDate] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [dueDate, setDueDate] = useState(initial?.dueDate ?? '');
   const [duration, setDuration] = useState('');
   const [estimatedHours, setEstimatedHours] = useState('');
   const [location, setLocation] = useState('');
   const [drawingRef, setDrawingRef] = useState('');
   const [wbsCode, setWbsCode] = useState('');
   const [tags, setTags] = useState('');
-  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>(initial?.assigneeIds ?? []);
   const [subcontractorIds, setSubcontractorIds] = useState<string[]>([]);
+  const [checklistDraft, setChecklistDraft] = useState<string[]>(initial?.checklistTitles ?? []);
+  const [checklistInput, setChecklistInput] = useState('');
   const [milestones, setMilestones] = useState<any[]>([]);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchMilestones = async () => {
+      if (!projectId) {
+        setMilestones([]);
+        return;
+      }
       const { data } = await supabase
         .from('project_milestones')
         .select('id, name, milestone_date')
@@ -421,7 +441,7 @@ export default function TaskCreateDrawer({
   const handleSubmit = () => {
     if (!name.trim()) return;
     onSubmit({
-      project_id: projectId,
+      project_id: projectId || null,
       task_group_id: taskGroupId,
       title: name.trim(),
       description: description.trim() || undefined,
@@ -435,6 +455,7 @@ export default function TaskCreateDrawer({
       estimated_hours: estimatedHours ? parseFloat(estimatedHours) : null,
       assignee_ids: assigneeIds.length > 0 ? assigneeIds : undefined,
       subcontractor_ids: subcontractorIds.length > 0 ? subcontractorIds : undefined,
+      checklist_titles: checklistDraft,
       discipline: discipline || null,
       location: location.trim() || null,
       drawing_ref: drawingRef.trim() || null,
@@ -831,6 +852,76 @@ export default function TaskCreateDrawer({
                   lineHeight: 1.5,
                 }}
               />
+            </div>
+          </CollapsibleSection>
+
+          {/* Section 6: Checklist (first-class task feature) */}
+          <CollapsibleSection icon={<ListChecks size={14} />} title="Checklist" defaultOpen={true}>
+            {checklistDraft.length === 0 ? (
+              <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0 0 0.5rem' }}>
+                No checklist items — optional for simple tasks.
+              </p>
+            ) : (
+              <div style={{ marginBottom: '0.5rem' }}>
+                {checklistDraft.map((title, idx) => (
+                  <div
+                    key={`${idx}-${title}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.375rem 0.5rem',
+                      borderRadius: '0.375rem',
+                      background: '#fff',
+                      border: '1px solid #e2e8f0',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    <span style={{ width: '0.875rem', height: '0.875rem', borderRadius: '0.25rem', border: '2px solid #d1d5db', flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: '0.8125rem', color: '#334155' }}>{title}</span>
+                    <span
+                      onClick={() => setChecklistDraft(checklistDraft.filter((_, i) => i !== idx))}
+                      style={{ cursor: 'pointer', color: '#94a3b8', display: 'flex', lineHeight: 1 }}
+                      aria-label={`Remove ${title}`}
+                    >
+                      <X size={12} />
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                value={checklistInput}
+                onChange={(e) => setChecklistInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const t = checklistInput.trim();
+                    if (t) {
+                      setChecklistDraft([...checklistDraft, t]);
+                      setChecklistInput('');
+                    }
+                  }
+                }}
+                placeholder="Add checklist item..."
+                style={inputStyle}
+              />
+              <Button
+                variant="default"
+                size="default"
+                onClick={() => {
+                  const t = checklistInput.trim();
+                  if (t) {
+                    setChecklistDraft([...checklistDraft, t]);
+                    setChecklistInput('');
+                  }
+                }}
+                disabled={!checklistInput.trim()}
+              >
+                <Plus size={14} />
+              </Button>
             </div>
           </CollapsibleSection>
 

@@ -39,3 +39,25 @@ export function buildAttachmentPath(args: {
   const safe = args.fileName.replace(/[^A-Za-z0-9._-]/g, '_');
   return `${args.organisationId}/${args.channelId}/${args.messageId}/${Date.now()}_${safe}`;
 }
+
+export function parseTaskFromMessage(content: string, mentions?: string[]) {
+  const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
+  const rawTitle = lines[0] || 'Task from message';
+  const title = rawTitle.length > 80 ? rawTitle.slice(0, 77) + '…' : rawTitle;
+
+  const checklistTitles: string[] = [];
+  lines.forEach((line) => {
+    const match = line.match(/^[-*•]\s*(?:\[[ x]\]\s*)?(.+)$/i) || line.match(/^\d+[.)]\s*(.+)$/);
+    if (match && match[1]?.trim()) {
+      checklistTitles.push(match[1].trim());
+    }
+  });
+
+  return {
+    title,
+    description: `${content}\n\n[Created from collaboration message]`,
+    assigneeIds: mentions ?? [],
+    checklistTitles: checklistTitles.length > 0 ? checklistTitles : undefined,
+  };
+}
+
