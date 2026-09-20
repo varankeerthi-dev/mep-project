@@ -378,28 +378,29 @@ export default function CreateQuotation() {
     setItemMakes(finalMakesMap);
   }, [initQuery.data, materials]);
 
-  useEffect(() => {
+  const refreshClientShippingAddresses = useCallback(async () => {
     if (!formData.client_id) {
       setClientShippingAddresses([]);
       return;
     }
-    const fetchShippingAddresses = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('client_shipping_addresses')
-          .select('*')
-          .eq('client_id', formData.client_id)
-          .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
-          .order('is_default', { ascending: false });
-        if (!error && data) {
-          setClientShippingAddresses(data);
-        }
-      } catch (err) {
-        console.error('Error fetching client shipping addresses:', err);
+    try {
+      const { data, error } = await supabase
+        .from('client_shipping_addresses')
+        .select('*')
+        .eq('client_id', formData.client_id)
+        .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
+        .order('is_default', { ascending: false });
+      if (!error && data) {
+        setClientShippingAddresses(data);
       }
-    };
-    fetchShippingAddresses();
+    } catch (err) {
+      console.error('Error fetching client shipping addresses:', err);
+    }
   }, [formData.client_id, organisation?.id]);
+
+  useEffect(() => {
+    refreshClientShippingAddresses();
+  }, [refreshClientShippingAddresses]);
 
   const loadClientDiscountPortfolio = useCallback(async (clientId: string) => {
     if (!clientId) return { discounts: {} as Record<string, number>, settings: {} as Record<string, any> };
@@ -984,6 +985,7 @@ export default function CreateQuotation() {
           .from('client_shipping_addresses')
           .select('*')
           .eq('client_id', clientId)
+          .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
           .eq('is_default', true)
           .limit(1);
 
@@ -2333,6 +2335,7 @@ export default function CreateQuotation() {
           activeTab={activeTab}
           getApprovalDisplayStatus={getApprovalDisplayStatus}
           arcPricingQuery={arcPricingQuery}
+          refreshClientShippingAddresses={refreshClientShippingAddresses}
         />
 
         {isMultiDC && dcAllocations.length > 0 && (

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { format, subMonths, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay } from 'date-fns';
-import { User, FileText, Briefcase, Info } from 'lucide-react';
+import { User, FileText, Briefcase, Info, Plus } from 'lucide-react';
 import { ArcPricingToggle, ArcPricingStatusBadge } from '../../../components/ArcPricingToggle';
+import { AddShippingAddressModal } from './AddShippingAddressModal';
 
 interface CustomDatePickerProps {
   value: string;
@@ -184,6 +185,7 @@ interface QuotationHeaderFormProps {
   activeTab: string;
   getApprovalDisplayStatus: (id: string) => string;
   arcPricingQuery: any;
+  refreshClientShippingAddresses: () => Promise<void> | void;
 }
 
 export function QuotationHeaderForm({
@@ -217,6 +219,7 @@ export function QuotationHeaderForm({
   activeTab,
   getApprovalDisplayStatus,
   arcPricingQuery,
+  refreshClientShippingAddresses,
 }: QuotationHeaderFormProps) {
   const compactFieldStyle = { minHeight: '36px', padding: '4px 8px', fontSize: '12px' };
   const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
@@ -235,6 +238,29 @@ export function QuotationHeaderForm({
 
   const [clientTouched, setClientTouched] = useState(false);
   const isClientError = clientTouched && !formData.client_id;
+  const [isShippingAddressModalOpen, setIsShippingAddressModalOpen] = useState(false);
+
+  // Format a shipping address record into a single, properly aligned block
+  // for the shipping address box.
+  const formatShippingAddressBlock = (addr: any) => {
+    if (!addr) return '';
+    const cityStatePin = [
+      [addr.city, addr.state].filter(Boolean).join(', '),
+      addr.pincode ? addr.pincode : ''
+    ].filter(Boolean).join(' - ');
+    return [
+      addr.address_line1,
+      addr.address_line2,
+      cityStatePin,
+      addr.country,
+      addr.contact ? `Attn: ${addr.contact}` : ''
+    ].filter(Boolean).join('\n');
+  };
+
+  const handleShippingAddressCreated = async (addr: any) => {
+    await refreshClientShippingAddresses();
+    setFormData({ ...formData, shipping_address: formatShippingAddressBlock(addr) });
+  };
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
@@ -292,36 +318,65 @@ export function QuotationHeaderForm({
         
         {formData.client_id && renderHeaderField('Shipping:', (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {clientShippingAddresses.length > 0 && (
-              <select 
-                className="form-select" 
-                style={{ ...inputStyle, width: '100%' }}
-                onChange={(e) => {
-                  const addrId = e.target.value;
-                  const addr = clientShippingAddresses.find(a => a.id === addrId);
-                  if (addr) {
-                    const formatted = [addr.address_line1, addr.address_line2, addr.city, addr.state, addr.pincode]
-                      .filter(Boolean)
-                      .join(', ');
-                    setFormData({ ...formData, shipping_address: formatted });
-                  }
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {clientShippingAddresses.length > 0 && (
+                <select 
+                  className="form-select" 
+                  style={{ ...inputStyle, flex: 1, minWidth: 0, width: 'auto' }}
+                  onChange={(e) => {
+                    const addrId = e.target.value;
+                    const addr = clientShippingAddresses.find(a => a.id === addrId);
+                    if (addr) {
+                      setFormData({ ...formData, shipping_address: formatShippingAddressBlock(addr) });
+                    }
+                  }}
+                  defaultValue=""
+                >
+                  <option value="" disabled>Select pre-saved address...</option>
+                  {clientShippingAddresses.map(addr => (
+                    <option key={addr.id} value={addr.id}>
+                      {addr.address_name || `${addr.address_line1?.substring(0, 20)}...`} {addr.is_default ? '(Default)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button
+                type="button"
+                title="Add new shipping address"
+                aria-label="Add new shipping address"
+                onClick={() => setIsShippingAddressModalOpen(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '28px',
+                  height: '28px',
+                  flexShrink: 0,
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  background: '#fff',
+                  color: '#2563eb',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s, border-color 0.15s',
                 }}
-                defaultValue=""
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.borderColor = '#2563eb'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d1d5db'; }}
               >
-                <option value="" disabled>Select pre-saved address...</option>
-                {clientShippingAddresses.map(addr => (
-                  <option key={addr.id} value={addr.id}>
-                    {addr.address_name || `${addr.address_line1?.substring(0, 20)}...`} {addr.is_default ? '(Default)' : ''}
-                  </option>
-                ))}
-              </select>
-            )}
+                <Plus size={14} />
+              </button>
+            </div>
             <textarea 
               className="form-input" 
-              style={{ ...inputStyle, minHeight: '36px', height: '36px', resize: 'vertical', fontFamily: 'inherit' }}
+              style={{ ...inputStyle, minHeight: '52px', height: 'auto', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5, whiteSpace: 'pre-line' }}
               value={formData.shipping_address || ''} 
               onChange={(e) => setFormData({ ...formData, shipping_address: e.target.value })} 
               placeholder="Enter shipping address details..."
+            />
+            <AddShippingAddressModal
+              isOpen={isShippingAddressModalOpen}
+              onClose={() => setIsShippingAddressModalOpen(false)}
+              clientId={formData.client_id}
+              onSuccess={handleShippingAddressCreated}
             />
           </div>
         ))}
