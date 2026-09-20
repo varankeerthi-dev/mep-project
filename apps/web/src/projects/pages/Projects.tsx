@@ -40,15 +40,24 @@ function FileText() { return <svg width="18" height="18" viewBox="0 0 24 24" fil
 function Truck() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>; }
 function BarChart() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>; }
 
-export default function Projects() {
+export default function Projects({ defaultTab }: { defaultTab?: string } = {}) {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { organisation, user } = useAuth();
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'list');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || defaultTab || 'list');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(searchParams.get('projectId'));
   const [projectName, setProjectName] = useState<string>(searchParams.get('projectName') || '');
   const [materialSubTab, setMaterialSubTab] = useState(searchParams.get('subtab') || 'select-project');
+
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    } else if (!tabFromUrl && defaultTab && defaultTab !== activeTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [searchParams, defaultTab]);
 
   const organisationId = organisation?.id || '';
 
@@ -106,7 +115,7 @@ export default function Projects() {
   const isMaterialManagement = activeTab === 'material-management';
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '0 24px' }}>
         <div style={{ display: 'flex', gap: '4px' }}>
           {TABS.map((tab) => {

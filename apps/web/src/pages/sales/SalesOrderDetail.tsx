@@ -350,7 +350,7 @@ export default function SalesOrderDetail() {
                     >
                       <div>
                         <span className="font-semibold text-zinc-900 block">{jc.job_card_no}</span>
-                        <span className="text-[10px] text-zinc-400">Qty: {jc.target_qty}</span>
+                        <span className="text-[10px] text-zinc-400">Qty: {jc.planned_qty}</span>
                       </div>
                       <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-purple-50 text-purple-700 font-medium capitalize">
                         {jc.status}

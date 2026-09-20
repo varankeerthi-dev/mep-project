@@ -131,6 +131,40 @@ export const subcontractorService = {
     return data || [];
   },
 
+  async generateRABill(payload: { organisation_id: string; work_order_id: string; measurement_sheet_id: string; invoice_date?: string; remarks?: string }) {
+    const { data, error } = await supabase.rpc('generate_ra_bill', {
+      p_organisation_id: payload.organisation_id,
+      p_work_order_id: payload.work_order_id,
+      p_measurement_sheet_id: payload.measurement_sheet_id,
+      p_invoice_date: payload.invoice_date || null,
+      p_remarks: payload.remarks || null
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async updateInvoiceStatus(invoiceId: string, organisationId: string, status: string) {
+    const { data, error } = await supabase.rpc('update_invoice_status', {
+      p_invoice_id: invoiceId,
+      p_organisation_id: organisationId,
+      p_status: status
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async finalizeRABill(invoiceId: string, organisationId: string) {
+    const { data, error } = await supabase.rpc('finalize_ra_bill', {
+      p_invoice_id: invoiceId,
+      p_organisation_id: organisationId
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
   async getPayments(subcontractorId: string, organisationId: string) {
     const { data, error } = await supabase
       .from('subcontractor_payments')
@@ -383,5 +417,79 @@ export const subcontractorService = {
 
     if (error) throw new Error(error.message);
     return data || [];
+  },
+
+  async getNotifications(userId: string, organisationId: string, limit: number = 50) {
+    const { data, error } = await supabase.rpc('get_notifications', {
+      p_user_id: userId,
+      p_organisation_id: organisationId,
+      p_limit: limit
+    });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async createNotification(payload: { user_id: string; organisation_id: string; type: string; title: string; message: string; reference_id?: string; reference_type?: string }) {
+    const { data, error } = await supabase.rpc('create_notification', {
+      p_user_id: payload.user_id,
+      p_organisation_id: payload.organisation_id,
+      p_type: payload.type,
+      p_title: payload.title,
+      p_message: payload.message,
+      p_reference_id: payload.reference_id || null,
+      p_reference_type: payload.reference_type || null
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async markNotificationRead(notificationId: string, userId?: string) {
+    const { data, error } = await supabase.rpc('mark_notification_read', {
+      p_notification_id: notificationId,
+      p_user_id: userId || null
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async markAllNotificationsRead(userId: string, organisationId: string) {
+    const { data, error } = await supabase.rpc('mark_all_notifications_read', {
+      p_user_id: userId,
+      p_organisation_id: organisationId
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async getUnreadNotificationCount(userId: string, organisationId: string) {
+    const { data, error } = await supabase.rpc('get_unread_notification_count', {
+      p_user_id: userId,
+      p_organisation_id: organisationId
+    });
+
+    if (error) throw new Error(error.message);
+    return data || 0;
+  },
+
+  async bulkApproveAttendance(attendanceIds: string[], organisationId: string) {
+    const results = await Promise.allSettled(
+      attendanceIds.map(id => this.approveAttendance(id, organisationId))
+    );
+    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    return { succeeded, failed, total: attendanceIds.length };
+  },
+
+  async bulkUpdateWorkOrderStatus(workOrderIds: string[], organisationId: string, status: string) {
+    const results = await Promise.allSettled(
+      workOrderIds.map(id => this.updateWorkOrderStatus(id, organisationId, status))
+    );
+    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    return { succeeded, failed, total: workOrderIds.length };
   }
 };

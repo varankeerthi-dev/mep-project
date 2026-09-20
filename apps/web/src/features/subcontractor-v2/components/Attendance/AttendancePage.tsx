@@ -18,6 +18,7 @@ import { EnhancedDataTable } from '../../../../components/ui/table/EnhancedDataT
 import { SubcontractorModuleNav } from '../Shared/SubcontractorModuleNav';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Plus, Trash2, Save, Calendar, Users, Building2, X, ChevronDown, Search, Filter, RefreshCcw, BarChart3 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { subcontractorService } from '../../services/subcontractorService';
 
 const RECORDS_CSS = `
@@ -198,6 +199,11 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
   const [supervisor, setSupervisor] = useState('');
   const [remarks, setRemarks] = useState('');
   const [showForm, setShowForm] = useState(false);
+
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatRate, setNewCatRate] = useState(800);
+  const [newCatUnit, setNewCatUnit] = useState<'day' | 'hour' | 'piece'>('day');
 
   // Records tab filters
   const [recSearch, setRecSearch] = useState('');

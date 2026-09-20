@@ -30,7 +30,7 @@ export function PaymentsPage({ onNavigate }: PaymentsPageProps) {
   const { settings: approvalSettings } = useOrgApprovalSettings(orgId);
   const subcontractorPaymentApprovalEnabled = approvalSettings?.SUBCONTRACTOR_PAYMENT ?? false;
 
-  const [activeTab, setActiveTab] = useState<'payments' | 'ledger' | 'requests'>('payments');
+  const [activeTab, setActiveTab] = useState<'payments' | 'ledger' | 'requests' | 'reconciliation'>('payments');
   const [payments, setPayments] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [subcontractors, setSubcontractors] = useState<any[]>([]);
@@ -771,23 +771,39 @@ export function PaymentsPage({ onNavigate }: PaymentsPageProps) {
             >
               Ledger
             </button>
-            <button
-              onClick={() => setActiveTab('requests')}
-              style={{
-                padding: '12px 20px',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: activeTab === 'requests' ? '#0f172a' : '#64748b',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: activeTab === 'requests' ? '2px solid #0f172a' : '2px solid transparent',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              Payment Requests
-            </button>
-          </div>
+             <button
+               onClick={() => setActiveTab('requests')}
+               style={{
+                 padding: '12px 20px',
+                 fontSize: '14px',
+                 fontWeight: '600',
+                 color: activeTab === 'requests' ? '#0f172a' : '#64748b',
+                 background: 'transparent',
+                 border: 'none',
+                 borderBottom: activeTab === 'requests' ? '2px solid #0f172a' : '2px solid transparent',
+                 cursor: 'pointer',
+                 transition: 'all 0.2s'
+               }}
+             >
+               Payment Requests
+             </button>
+             <button
+               onClick={() => setActiveTab('reconciliation')}
+               style={{
+                 padding: '12px 20px',
+                 fontSize: '14px',
+                 fontWeight: '600',
+                 color: activeTab === 'reconciliation' ? '#0f172a' : '#64748b',
+                 background: 'transparent',
+                 border: 'none',
+                 borderBottom: activeTab === 'reconciliation' ? '2px solid #0f172a' : '2px solid transparent',
+                 cursor: 'pointer',
+                 transition: 'all 0.2s'
+               }}
+             >
+               Reconciliation
+             </button>
+           </div>
 
           {/* Search & Filter Bar */}
           <div style={{
@@ -1179,9 +1195,105 @@ export function PaymentsPage({ onNavigate }: PaymentsPageProps) {
                       </tbody>
                     </table>
                   </div>
-                )}
-              </>
-            ) : (
+                  )}
+                </>
+              ) : activeTab === 'reconciliation' ? (
+                <>
+                  {(() => {
+                    const reconciliation = (() => {
+                      const invoiceMap = new Map<string, any>();
+                      
+                      invoices.forEach((inv: any) => {
+                        invoiceMap.set(inv.id, {
+                          id: inv.id,
+                          invoice_no: inv.invoice_no,
+                          invoice_date: inv.invoice_date,
+                          subcontractor_id: inv.subcontractor_id,
+                          subcontractor_name: inv.subcontractors?.company_name || '-',
+                          work_order_id: inv.work_order_id,
+                          work_order_no: inv.work_orders?.work_order_no || '-',
+                          invoice_amount: parseFloat(inv.amount || 0),
+                          status: inv.status || 'Draft',
+                          payments: [],
+                          total_paid: 0,
+                          balance: parseFloat(inv.amount || 0)
+                        });
+                      });
+
+                      payments.forEach((p: any) => {
+                        if (p.work_order_id && invoiceMap.has(p.work_order_id)) {
+                          const inv = invoiceMap.get(p.work_order_id);
+                          inv.payments.push(p);
+                          inv.total_paid += parseFloat(p.gross_amount || p.amount || 0);
+                          inv.balance = Math.max(0, inv.invoice_amount - inv.total_paid);
+                        }
+                      });
+
+                      return Array.from(invoiceMap.values());
+                    })();
+
+                    const totalInvoiced = reconciliation.reduce((sum, r) => sum + r.invoice_amount, 0);
+                    const totalPaid = reconciliation.reduce((sum, r) => sum + r.total_paid, 0);
+                    const totalOutstanding = reconciliation.reduce((sum, r) => sum + r.balance, 0);
+                    const overdueCount = reconciliation.filter(r => r.status === 'Approved' && r.balance > 0).length;
+
+                    return (
+                      <div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
+                            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Total Invoiced</div>
+                            <div style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a' }}>₹{totalInvoiced.toLocaleString('en-IN')}</div>
+                          </div>
+                          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
+                            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Total Paid</div>
+                            <div style={{ fontSize: '20px', fontWeight: '700', color: '#16a34a' }}>₹{totalPaid.toLocaleString('en-IN')}</div>
+                          </div>
+                          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
+                            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Outstanding</div>
+                            <div style={{ fontSize: '20px', fontWeight: '700', color: '#dc2626' }}>₹{totalOutstanding.toLocaleString('en-IN')}</div>
+                          </div>
+                          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
+                            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Overdue Bills</div>
+                            <div style={{ fontSize: '20px', fontWeight: '700', color: '#ca8a04' }}>{overdueCount}</div>
+                          </div>
+                        </div>
+
+                        <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                                {['Invoice', 'Subcontractor', 'WO', 'Invoice Date', 'Invoice Amt', 'Paid Amt', 'Balance', 'Status'].map((header) => (
+                                  <th key={header} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b' }}>
+                                    {header}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {reconciliation.map((r) => (
+                                <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>{r.invoice_no}</td>
+                                  <td style={{ padding: '16px', fontSize: '14px', color: '#334155' }}>{r.subcontractor_name}</td>
+                                  <td style={{ padding: '16px', fontSize: '14px', color: '#64748b' }}>{r.work_order_no}</td>
+                                  <td style={{ padding: '16px', fontSize: '14px', color: '#64748b' }}>{r.invoice_date}</td>
+                                  <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', textAlign: 'right' }}>₹{r.invoice_amount.toLocaleString('en-IN')}</td>
+                                  <td style={{ padding: '16px', fontSize: '14px', color: '#16a34a', textAlign: 'right' }}>₹{r.total_paid.toLocaleString('en-IN')}</td>
+                                  <td style={{ padding: '16px', fontSize: '14px', color: r.balance > 0 ? '#dc2626' : '#16a34a', textAlign: 'right', fontWeight: '600' }}>₹{r.balance.toLocaleString('en-IN')}</td>
+                                  <td style={{ padding: '16px' }}>
+                                    <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', background: r.status === 'Paid' ? '#dcfce7' : r.status === 'Approved' ? '#fef9c3' : '#f1f5f9', color: r.status === 'Paid' ? '#166534' : r.status === 'Approved' ? '#ca8a04' : '#475569' }}>
+                                      {r.balance === 0 ? 'Paid' : r.balance === r.invoice_amount ? 'Unpaid' : 'Partial'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              ) : (
               <>
                 {filteredLedger.length === 0 ? (
                   <div style={{ padding: '64px 24px', textAlign: 'center' }}>

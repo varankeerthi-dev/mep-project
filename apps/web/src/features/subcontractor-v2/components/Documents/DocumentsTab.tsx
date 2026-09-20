@@ -15,6 +15,8 @@ export function DocumentsTab({ subcontractorId, onNavigate }: DocumentsTabProps)
   const { organisation } = useAuth();
   const queryClient = useQueryClient();
   const [subId, setSubId] = useState(subcontractorId || '');
+  const [uploading, setUploading] = useState(false);
+  const [loadingDocs, setLoadingDocs] = useState(false);
 
   const { data: subcontractors = [] } = useQuery({
     queryKey: ['v2-subcontractors', organisation?.id],

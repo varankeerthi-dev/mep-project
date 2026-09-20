@@ -1,6 +1,9 @@
 import * as P from '../persistence';
-import { JobCardMaterial, Warehouse, JobCard } from '../model/types';
+import { JobCardMaterial, JobCard, JobCardInsert } from '../model/types';
 import { supabase } from '../../../supabase';
+
+/** Canonical insert shape for `job_cards` — defined in model/jobCard.ts, re-exported here. See docs/GLOSSARY.md. */
+export type { JobCardInsert };
 
 export async function issueJobCardMaterials(
   jobCardId: string,
@@ -50,7 +53,7 @@ export async function generateNextJobCardNumber(orgId: string): Promise<string> 
 }
 
 export async function createJobCardAggregate(
-  jobCard: Partial<JobCard>,
+  jobCard: Partial<JobCard> & Pick<JobCardInsert, 'product_name' | 'organisation_id' | 'bom_id' | 'planned_qty'>,
   materials: Partial<JobCardMaterial>[]
 ) {
   const jobCardNo = jobCard.job_card_no || await generateNextJobCardNumber(jobCard.organisation_id!);
@@ -59,7 +62,7 @@ export async function createJobCardAggregate(
     ...jobCard,
     job_card_no: jobCardNo,
     status: 'draft',
-  };
+  } satisfies JobCardInsert;
 
   const inserted = await P.insertJobCard(jobCardPayload);
   

@@ -7,15 +7,18 @@ interface GroupCreateModalProps {
   projectId: string;
   onClose: () => void;
   onSubmit: (input: GroupCreateInput) => void;
-  isLoading: boolean;
+  isLoading?: boolean;
+  loading?: boolean;
 }
 
 export default function GroupCreateModal({
   projectId,
   onClose,
   onSubmit,
-  isLoading,
+  isLoading: isLoadingProp,
+  loading: loadingProp,
 }: GroupCreateModalProps) {
+  const isLoading = isLoadingProp ?? loadingProp ?? false;
   const [name, setName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [dueDate, setDueDate] = useState('');

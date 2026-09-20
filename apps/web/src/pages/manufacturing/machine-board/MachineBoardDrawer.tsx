@@ -5,6 +5,7 @@ import { X, CheckCircle, AlertTriangle, ArrowRight, Loader2 } from 'lucide-react
 import { EntryContainer } from '../../../components/ui/EntryContainer';
 import { Button } from '../../../components/ui/button';
 import { WorkCenterMachine, ManufacturingTooling, checkToolingMachineCompatibility } from '../../../api/machineBoard';
+import { JobCardInsert, generateNextJobCardNumber } from '../../../features/manufacturing/repository/jobCardRepository';
 
 interface MachineBoardDrawerProps {
   machine: WorkCenterMachine;
@@ -97,25 +98,22 @@ export const MachineBoardDrawer: React.FC<MachineBoardDrawerProps> = ({
     try {
       const selectedBom = boms.find((b) => b.id === selectedBomId);
 
-      // Create new Job Card
+      // Canonical insert shape — see docs/GLOSSARY.md. job_card_no (NOT job_card_number),
+      // planned_qty (NOT target_qty), machine_id (NOT work_center_id). Wrong names fail tsc.
       const jobCardPayload = {
-        job_card_number: `JC-${Date.now().toString().slice(-6)}`,
-        bom_id: selectedBomId,
+        organisation_id: organisation?.id || '',
+        job_card_no: '', // replaced below via generate_job_card_no
         product_name: selectedBom?.product_name || selectedBom?.materials?.name || 'Product',
-        product_id: selectedBom?.product_id || null,
-        target_qty: plannedQty,
+        bom_id: selectedBomId,
         planned_qty: plannedQty,
-        work_center_id: machine.id,
+        status: 'in_progress',
         machine_id: machine.id,
         tooling_id: selectedToolingId || null,
         running_cavities: runningCavities,
         planned_shots: plannedShots,
         planned_cycle_time_sec: Number(cycleTimeSec),
-        shift_name: shiftName,
-        status: 'in_progress',
-        organisation_id: organisation?.id,
-        created_at: new Date().toISOString(),
-      };
+      } satisfies JobCardInsert;
+      jobCardPayload.job_card_no = await generateNextJobCardNumber(organisation?.id || '');
 
       const { error } = await supabase.from('job_cards').insert(jobCardPayload);
 

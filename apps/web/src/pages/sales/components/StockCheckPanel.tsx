@@ -13,6 +13,7 @@ import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { toast } from '../../../lib/logger';
 import MrpRequirementModal from './MrpRequirementModal';
+import { JobCardInsert, generateNextJobCardNumber } from '../../../features/manufacturing/repository/jobCardRepository';
 
 interface StockCheckPanelProps {
   isOpen: boolean;
@@ -186,7 +187,7 @@ export default function StockCheckPanel({
       // 1. BOM Guard: Check if active BOM exists for finished good
       const { data: bom, error: bomError } = await supabase
         .from('bom_headers')
-        .select('id')
+        .select('id, product_name, product_id')
         .eq('product_id', check.item_id)
         .eq('is_active', true)
         .maybeSingle();
@@ -196,17 +197,36 @@ export default function StockCheckPanel({
         return;
       }
 
-      // Generate unique job card number
-      const jcNo = 'JC-' + Date.now().toString().slice(-6);
+      // Output unit: fall back to first BOM item's unit, then the item's own UOM.
+      const { data: firstBomItem } = await supabase
+        .from('bom_items')
+        .select('unit')
+        .eq('bom_id', bom.id)
+        .limit(1)
+        .maybeSingle();
+      const outputUnit = firstBomItem?.unit || items.find((i: any) => i.id === check.so_item_id)?.uom || 'nos';
 
+      // 2. Sequential number via generate_job_card_no — never timestamp-based.
+      let jcNo: string;
+      try {
+        jcNo = await generateNextJobCardNumber(order.organisation_id);
+      } catch {
+        toast.error('Could not generate a job card number. Try again.');
+        return;
+      }
+
+      // Canonical insert shape — see docs/GLOSSARY.md (planned_qty, NOT target_qty;
+      // product_name is NOT NULL on job_cards).
       const jobCard = {
+        organisation_id: order.organisation_id,
         job_card_no: jcNo,
+        product_name: check.name,
         bom_id: bom.id,
+        planned_qty: check.shortfall,
+        output_unit: outputUnit,
         sales_order_item_id: check.so_item_id,
-        target_qty: check.shortfall,
         status: 'draft',
-        organisation_id: order.organisation_id
-      };
+      } satisfies JobCardInsert;
 
       const { data: newJc, error: jcError } = await supabase
         .from('job_cards')

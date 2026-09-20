@@ -112,10 +112,10 @@ export interface MachineBoardCardData {
   currentTooling?: ManufacturingTooling | null;
   activeJobCard?: {
     id: string;
-    job_card_number: string;
+    job_card_no: string;
     product_name?: string;
     planned_qty?: number;
-    completed_qty?: number;
+    actual_qty?: number;
     running_cavities?: number;
     planned_shots?: number;
     status: string;
@@ -163,7 +163,7 @@ export async function getMachineBoardCards(orgId: string): Promise<MachineBoardC
 
   const cards: MachineBoardCardData[] = await Promise.all(
     machines.map(async (m) => {
-      const activeJob = (activeJobs || []).find(j => j.machine_id === m.id || j.work_center_id === m.id);
+      const activeJob = (activeJobs || []).find(j => j.machine_id === m.id);
       const activeDowntime = (openDowntimes || []).find(d => d.machine_id === m.id);
       const mountedToolingId = m.current_tooling_id || activeJob?.tooling_id;
       const currentTooling = mountedToolingId ? toolingMap.get(mountedToolingId) : null;
@@ -198,10 +198,10 @@ export async function getMachineBoardCards(orgId: string): Promise<MachineBoardC
         activeJobCard: activeJob
           ? {
               id: activeJob.id,
-              job_card_number: activeJob.job_card_number || activeJob.job_number || 'JC-Active',
+              job_card_no: activeJob.job_card_no || 'JC-Active',
               product_name: activeJob.product_name || 'Product',
-              planned_qty: activeJob.planned_qty || activeJob.target_qty,
-              completed_qty: activeJob.completed_qty || activeJob.produced_qty || 0,
+              planned_qty: activeJob.planned_qty,
+              actual_qty: activeJob.actual_qty || 0,
               running_cavities: activeJob.running_cavities || currentTooling?.no_of_cavities || 1,
               planned_shots: activeJob.planned_shots,
               status: activeJob.status,

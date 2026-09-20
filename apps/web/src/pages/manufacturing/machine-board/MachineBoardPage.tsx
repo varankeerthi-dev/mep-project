@@ -127,7 +127,7 @@ export default function MachineBoardPage({ onNavigate }: MachineBoardPageProps) 
             }
 
             // Calculation of remaining shots & hours
-            const actualShots = (activeJobCard as any)?.actual_shots || activeJobCard?.completed_qty || 0;
+            const actualShots = (activeJobCard as any)?.actual_shots || activeJobCard?.actual_qty || 0;
             const remainingShots = activeJobCard ? Math.max(0, (activeJobCard.planned_shots || 0) - actualShots) : 0;
             let estRemainingHours = '0.0';
             if (remainingShots > 0) {
@@ -216,7 +216,7 @@ export default function MachineBoardPage({ onNavigate }: MachineBoardPageProps) 
                     <div className="bg-indigo-50/50 border border-indigo-100 p-2.5 rounded-xl text-xs space-y-1">
                       <div className="flex justify-between font-bold text-slate-900">
                         <span>📦 {activeJobCard.product_name}</span>
-                        <span className="text-indigo-600 font-mono">{activeJobCard.job_card_number}</span>
+                        <span className="text-indigo-600 font-mono">{activeJobCard.job_card_no}</span>
                       </div>
                       <div className="flex justify-between text-slate-600 text-[11px]">
                         <span>Shots Remaining: <b>{remainingShots.toLocaleString()}</b></span>

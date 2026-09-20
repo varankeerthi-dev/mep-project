@@ -63,6 +63,10 @@ export default function QuotationView() {
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showStockCheckModal, setShowStockCheckModal] = useState(false);
   const [launchingStockCheck, setLaunchingStockCheck] = useState(false);
+  // Informational stock availability (display-only — no reservations, no writes)
+  const [showAvailability, setShowAvailability] = useState(false);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityRows, setAvailabilityRows] = useState<any[]>([]);
   const [launchingRevision, setLaunchingRevision] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const [printMenuView, setPrintMenuView] = useState('main'); // 'main' or 'templates'
@@ -380,6 +384,97 @@ export default function QuotationView() {
     } catch (err) {
       console.error('Error selecting template:', err);
       alert('Error: ' + err.message);
+    }
+  };
+
+  // Informational availability: batched read-only stock check per quotation line.
+  // Deliberately writes NOTHING — quotations are offers, not demand. Reservations
+  // and MRP apply only after conversion to a Sales Order (see docs/GLOSSARY.md).
+  const availabilityBadge = (status: string) => {
+    const map: Record<string, { bg: string; color: string; label: string }> = {
+      in_stock: { bg: '#d1fae5', color: '#047857', label: 'In Stock' },
+      partial: { bg: '#fef3c7', color: '#b45309', label: 'Partial' },
+      out: { bg: '#fee2e2', color: '#dc2626', label: 'No Stock' },
+      unlinked: { bg: '#f3f4f6', color: '#6b7280', label: 'Not linked' },
+    };
+    const s = map[status] || map.unlinked;
+    return (
+      <span style={{ background: s.bg, color: s.color, padding: '2px 10px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+        {s.label}
+      </span>
+    );
+  };
+
+  const handleOpenAvailability = async () => {
+    setShowActionsMenu(false);
+    setShowAvailability(true);
+    setAvailabilityLoading(true);
+    try {
+      const items = (quotation.items || []).filter((i: any) => !i.is_header);
+      const materialIds = Array.from(new Set(items.map((i: any) => i.item?.id || i.item_id).filter(Boolean)));
+
+      const stockByMaterial = new Map<string, any[]>();
+      const reservedByMaterialWarehouse = new Map<string, number>();
+
+      if (materialIds.length > 0) {
+        const [stockRes, resRes] = await Promise.all([
+          timedSupabaseQuery(
+            supabase
+              .from('item_stock')
+              .select('material_id, qty, warehouse_id, warehouse:warehouses(name)')
+              .in('material_id', materialIds as any),
+            'Quotation availability stock',
+          ),
+          timedSupabaseQuery(
+            supabase
+              .from('sales_order_reservations')
+              .select('item_id, warehouse_id, qty')
+              .in('item_id', materialIds as any),
+            'Quotation availability reservations',
+          ),
+        ]);
+        ((stockRes as any) || []).forEach((s: any) => {
+          const list = stockByMaterial.get(s.material_id) || [];
+          list.push(s);
+          stockByMaterial.set(s.material_id, list);
+        });
+        ((resRes as any) || []).forEach((r: any) => {
+          const key = `${r.item_id}::${r.warehouse_id}`;
+          reservedByMaterialWarehouse.set(key, (reservedByMaterialWarehouse.get(key) || 0) + (parseFloat(r.qty) || 0));
+        });
+      }
+
+      const rows = items.map((item: any) => {
+        const material = item.item || {};
+        const materialId = material.id || item.item_id || null;
+        const required = parseFloat(String(item.qty)) || 0;
+        const name = material.display_name || material.name || item.description || 'Item';
+        const code = material.item_code || '';
+
+        if (!materialId) {
+          return { id: item.id, name, code, required, available: null, status: 'unlinked', warehouses: [] };
+        }
+
+        const warehouses = (stockByMaterial.get(materialId) || []).map((s: any) => {
+          const reserved = reservedByMaterialWarehouse.get(`${materialId}::${s.warehouse_id}`) || 0;
+          return {
+            warehouse_name: s.warehouse?.name || 'Unknown Store',
+            stock: parseFloat(s.qty) || 0,
+            reserved,
+            available: Math.max(0, (parseFloat(s.qty) || 0) - reserved),
+          };
+        });
+        const available = warehouses.reduce((acc: number, w: any) => acc + w.available, 0);
+        const status = required > 0 && available >= required ? 'in_stock' : available > 0 ? 'partial' : 'out';
+        return { id: item.id, name, code, required, available, status, warehouses };
+      });
+
+      setAvailabilityRows(rows);
+    } catch (e: any) {
+      alert('Error loading stock availability: ' + e.message);
+      setShowAvailability(false);
+    } finally {
+      setAvailabilityLoading(false);
     }
   };
 
@@ -1845,6 +1940,20 @@ export default function QuotationView() {
 
               {showActionsMenu && (
                 <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
+                  <button
+                    onClick={() => {
+                      setShowActionsMenu(false);
+                      handleOpenAvailability();
+                    }}
+                    className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
+                    style={{ padding: '12px' }}
+                  >
+                    <span className="text-base">📊</span>
+                    <div>
+                      <div>Check Availability</div>
+                      <div className="text-[10px] font-normal text-zinc-400">View live stock per line (read-only)</div>
+                    </div>
+                  </button>
                   <button 
                     onClick={() => {
                       setShowActionsMenu(false);
@@ -2470,6 +2579,71 @@ export default function QuotationView() {
               ) : (
                 'Launch Stock Check'
               )}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Stock Availability Modal (informational, read-only) */}
+    {showAvailability && (
+      <div className="fixed inset-0 z-[2000] bg-black/45 flex items-center justify-center" onClick={() => setShowAvailability(false)}>
+        <div className="bg-white rounded-lg shadow-2xl w-[720px] max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="p-6 border-b border-zinc-100 flex items-start justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-zinc-900">Stock Availability</h3>
+              <p className="text-sm text-zinc-500 mt-1">{quotation.quotation_no || 'Quotation'} — live stock per line item</p>
+            </div>
+            <button onClick={() => setShowAvailability(false)} className="text-zinc-400 hover:text-zinc-600 transition-colors">✕</button>
+          </div>
+          <div className="p-6 space-y-3">
+            {availabilityLoading ? (
+              <div className="flex items-center justify-center py-10 text-zinc-400 text-sm">
+                <Loader2 className="w-5 h-5 animate-spin mr-2" />Checking stock…
+              </div>
+            ) : availabilityRows.length === 0 ? (
+              <div className="text-sm text-zinc-400 py-10 text-center">No line items to check.</div>
+            ) : (
+              availabilityRows.map((row: any) => (
+                <div key={row.id} className="border border-zinc-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-zinc-900 truncate">
+                        {row.name}
+                        {row.code ? <span className="text-zinc-400 font-normal"> · {row.code}</span> : null}
+                      </div>
+                      <div className="text-xs text-zinc-500 mt-0.5">
+                        Required: <b>{row.required}</b> · Available: <b>{row.available === null ? '—' : row.available}</b>
+                      </div>
+                    </div>
+                    {availabilityBadge(row.status)}
+                  </div>
+                  {row.warehouses.length > 0 && (
+                    <div className="mt-3 border-t border-zinc-100 pt-2 space-y-1">
+                      {row.warehouses.map((w: any, wi: number) => (
+                        <div key={wi} className="flex items-center justify-between text-xs text-zinc-600">
+                          <span>{w.warehouse_name}</span>
+                          <span>
+                            stock <b>{w.stock}</b> · reserved <b>{w.reserved}</b> · free <b>{w.available}</b>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+            <div className="text-xs text-zinc-400 bg-zinc-50 border border-zinc-200 rounded p-3">
+              Informational only — no stock is reserved and nothing is created. Availability is re-checked when this
+              quotation converts to a Sales Order, where reservations and MRP apply.
+            </div>
+          </div>
+          <div className="p-6 border-t border-zinc-100 flex gap-3 justify-end">
+            <button
+              onClick={() => setShowAvailability(false)}
+              className="px-4 py-2 text-sm font-bold text-zinc-700 bg-white border border-zinc-300 rounded hover:bg-zinc-50 transition-colors"
+            >
+              Close
             </button>
           </div>
         </div>

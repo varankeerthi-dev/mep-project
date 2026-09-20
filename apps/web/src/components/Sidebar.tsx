@@ -39,7 +39,8 @@ const SIDEBAR_MODULE_MAP: Record<string, string> = {
   projects: 'projects',
   tools: 'tools_management',
   approvals: 'approvals',
-  todo: 'daily_updates',
+  tasks: 'tasks',
+  collaboration: 'collaboration',
   'follow-up': 'follow_up',
   'payments-hub': 'ledger',
   'advances-expenses': 'advances_expenses',
@@ -111,8 +112,9 @@ const menuData: MenuSection[] = [
   {
     section: 'Work',
     items: [
+      { id: 'tasks', label: 'Tasks', path: '/tasks' },
+      { id: 'collaboration', label: 'Collaboration', path: '/collaboration' },
       { id: 'approvals', label: 'Approvals', path: '/approvals' },
-      { id: 'todo', label: 'To do', path: '/todo' },
       { id: 'manager-alerts', label: 'Manager alerts', path: '/manager-alerts' }
     ]
   },
@@ -409,6 +411,7 @@ const ICON_MAP: Record<string, string> = {
   'site-report': 'lab_profile',
   issue: 'warning',
   'site-expenses': 'payments',
+  tasks: 'task_alt',
   approvals: 'rule',
   todo: 'checklist',
   'manager-alerts': 'notification_important',

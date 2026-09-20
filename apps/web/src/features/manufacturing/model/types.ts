@@ -1,5 +1,5 @@
 export { type BOMHeader, type BOMItem, type BomWorkCenter } from './bom';
-export { type JobCard, type JobCardMaterial } from './jobCard';
+export { type JobCard, type JobCardMaterial, type JobCardInsert } from './jobCard';
 export { type ProductionEntry, type ProductionEntryItem } from './production';
 export { type DispatchOrder, type DispatchItem, type DispatchPacking, type DispatchCountVerification } from './dispatch';
 export { type QCParameter, type FGQCInspection, type QCParameterResult, type RMQCInspection } from './qc';

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as P from '../persistence';
 import * as R from '../repository';
-import { JobCard, JobCardMaterial } from '../model/types';
+import { JobCard, JobCardMaterial, JobCardInsert } from '../model/types';
 import { toast } from '../../../lib/logger';
 
 export function useJobCardsListQuery(orgId: string | undefined, statusFilters?: string[]) {
@@ -90,7 +90,7 @@ export function useWarehousesQuery(orgId: string | undefined) {
 export function useCreateJobCardMutation(onSuccessCallback?: () => void) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { jobCard: Partial<JobCard>; materials: Partial<JobCardMaterial>[] }) => {
+    mutationFn: async (payload: { jobCard: Partial<JobCard> & Pick<JobCardInsert, 'product_name' | 'organisation_id' | 'bom_id' | 'planned_qty'>; materials: Partial<JobCardMaterial>[] }) => {
       return R.createJobCardAggregate(payload.jobCard, payload.materials);
     },
     onSuccess: () => {

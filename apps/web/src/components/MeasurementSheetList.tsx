@@ -1,24 +1,32 @@
 import { useState } from 'react';
 import { useMeasurementSheets, useApproveMeasurementSheet } from '../hooks/useMeasurementSheets';
 import { formatCurrency } from '../utils/formatters';
-import { CheckCircle, Clock, FileText, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Clock, FileText, AlertTriangle, FileSpreadsheet } from 'lucide-react';
+import { subcontractorService } from '../features/subcontractor-v2/services/subcontractorService';
+import { useAuth } from '../App';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface MeasurementSheetListProps {
   workOrderId: string;
   workOrderNo: string;
   currentContractValue: number;
   onCreateNew: () => void;
+  onBillGenerated?: () => void;
 }
 
 export function MeasurementSheetList({
   workOrderId,
   workOrderNo,
   currentContractValue,
-  onCreateNew
+  onCreateNew,
+  onBillGenerated
 }: MeasurementSheetListProps) {
   const { data: sheets, isLoading, error, refetch } = useMeasurementSheets(workOrderId);
   const approveMutation = useApproveMeasurementSheet();
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [generatingBillId, setGeneratingBillId] = useState<string | null>(null);
+  const { organisation } = useAuth();
+  const queryClient = useQueryClient();
 
   const handleApprove = async (sheetId: string) => {
     setApprovingId(sheetId);
@@ -35,6 +43,34 @@ export function MeasurementSheetList({
       alert('Failed to approve measurement sheet');
     } finally {
       setApprovingId(null);
+    }
+  };
+
+  const handleGenerateRABill = async (sheetId: string) => {
+    if (!organisation?.id) {
+      alert('No organisation selected');
+      return;
+    }
+
+    setGeneratingBillId(sheetId);
+    try {
+      const result = await subcontractorService.generateRABill({
+        organisation_id: organisation.id,
+        work_order_id: workOrderId,
+        measurement_sheet_id: sheetId,
+        invoice_date: new Date().toISOString().split('T')[0]
+      });
+
+      if (result && (result as any).invoice_id) {
+        alert(`RA Bill ${(result as any).invoice_no} generated successfully!\nGross: ₹${(result as any).gross_amount}\nNet: ₹${(result as any).net_amount}`);
+        onBillGenerated?.();
+        refetch();
+      }
+    } catch (err: any) {
+      console.error('Error generating RA bill:', err);
+      alert(err?.message || 'Failed to generate RA bill');
+    } finally {
+      setGeneratingBillId(null);
     }
   };
 
@@ -226,6 +262,28 @@ export function MeasurementSheetList({
                       >
                         <CheckCircle size={12} />
                         {approvingId === sheet.id ? '...' : 'Approve'}
+                      </button>
+                    )}
+                    {sheet.status === 'Approved' && (
+                      <button
+                        onClick={() => handleGenerateRABill(sheet.id)}
+                        disabled={generatingBillId === sheet.id}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          borderRadius: '6px',
+                          background: '#2563eb',
+                          color: '#fff',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          opacity: generatingBillId === sheet.id ? 0.5 : 1
+                        }}
+                      >
+                        <FileSpreadsheet size={12} />
+                        {generatingBillId === sheet.id ? '...' : 'Generate RA Bill'}
                       </button>
                     )}
                     {sheet.amendment_created && (

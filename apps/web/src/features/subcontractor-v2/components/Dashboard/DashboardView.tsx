@@ -12,7 +12,11 @@ import {
   Mail, 
   Briefcase, 
   ShieldCheck, 
-  FileSignature 
+  FileSignature,
+  FileText,
+  Clock,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { EnhancedDataTable } from '../../../../components/ui/table/index';
 import { SubcontractorModuleNav } from '../Shared/SubcontractorModuleNav';
@@ -45,6 +49,94 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
     staleTime: 2 * 60 * 1000,
     enabled: !!organisation?.id,
   });
+
+  const { data: workOrders = [] } = useQuery({
+    queryKey: ['subcontractor-work-orders', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('subcontractor_work_orders')
+        .select('id, status, total_amount')
+        .eq('organisation_id', organisation.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
+
+  const { data: invoices = [] } = useQuery({
+    queryKey: ['subcontractor-invoices', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('subcontractor_invoices')
+        .select('id, status, amount, invoice_date')
+        .eq('organisation_id', organisation.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
+
+  const { data: measurements = [] } = useQuery({
+    queryKey: ['subcontractor-measurements', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('subcontractor_measurement_sheets')
+        .select('id, status')
+        .eq('organisation_id', organisation.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
+
+  const { data: approvals = [] } = useQuery({
+    queryKey: ['approvals', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('approvals')
+        .select('id, status')
+        .eq('organisation_id', organisation.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
+
+  const kpis = useMemo(() => {
+    const activeSubs = subcontractors.filter(s => s.status === 'Active').length;
+    const totalWOs = workOrders.length;
+    const pendingApprovals = approvals.filter(a => a.status === 'Pending' || a.status === 'PENDING').length;
+    const outstandingInvoices = invoices
+      .filter(i => i.status === 'Approved')
+      .reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
+    const pendingMeasurements = measurements.filter(m => m.status === 'Draft').length;
+    const overdueBills = invoices.filter(i => {
+      const invoiceDate = new Date(i.invoice_date || '');
+      const today = new Date();
+      const daysOverdue = Math.floor((today.getTime() - invoiceDate.getTime()) / (1000 * 60 * 60 * 24));
+      return i.status === 'Approved' && daysOverdue > 30;
+    }).length;
+
+    return {
+      activeSubs,
+      totalWOs,
+      pendingApprovals,
+      outstandingInvoices,
+      pendingMeasurements,
+      overdueBills
+    };
+  }, [subcontractors, workOrders, invoices, measurements, approvals]) as {
+    activeSubs: number;
+    totalWOs: number;
+    pendingApprovals: number;
+    outstandingInvoices: number;
+    pendingMeasurements: number;
+    overdueBills: number;
+  };
 
   const filtered = subcontractors.filter(s => 
     s.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -240,6 +332,34 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
               <Plus size={16} />
               Add Sub-Contractor
             </button>
+          </div>
+        </div>
+
+        {/* KPI Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '16px', marginBottom: '24px' }}>
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
+            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Active Subs</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: '#0f172a' }}>{kpis.activeSubs}</div>
+          </div>
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
+            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Work Orders</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: '#0f172a' }}>{kpis.totalWOs}</div>
+          </div>
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
+            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Pending Approvals</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: '#ca8a04' }}>{kpis.pendingApprovals}</div>
+          </div>
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
+            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Outstanding Bills</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: '#dc2626' }}>₹{kpis.outstandingInvoices.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+          </div>
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
+            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Pending Measurements</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: '#2563eb' }}>{kpis.pendingMeasurements}</div>
+          </div>
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
+            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Overdue Bills</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: '#dc2626' }}>{kpis.overdueBills}</div>
           </div>
         </div>
 

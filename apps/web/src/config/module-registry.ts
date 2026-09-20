@@ -225,12 +225,20 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     route: '/advances-expenses',
   },
   {
+    id: 'tasks',
+    label: 'Tasks & Reminders',
+    description: 'Company tasks, personal tasks, and scheduled reminders.',
+    icon: 'CheckSquare',
+    category: 'core',
+    route: '/tasks',
+  },
+  {
     id: 'daily_updates',
     label: 'Daily Updates',
     description: 'Daily work logs and team status updates.',
     icon: 'Clock',
     category: 'core',
-    route: '/todo',
+    route: '/tasks',
   },
   {
     id: 'site_expenses',
@@ -255,6 +263,14 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     icon: 'Calculator',
     category: 'sales',
     route: '/estimation/boq',
+  },
+  {
+    id: 'collaboration',
+    label: 'Collaboration',
+    description: 'Real-time company and project collaboration channels.',
+    icon: 'MessageSquare',
+    category: 'core',
+    route: '/collaboration',
   },
 ];
 

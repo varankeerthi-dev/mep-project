@@ -127,7 +127,7 @@ const DashboardDemo = lazyAny(() => import('./pages/DashboardDemo'));
 const Operations = lazyAny(() => import('./pages/operations/Operations'));
 const OperationsV2 = lazyAny(() => import('./pages/operations/OperationsV2'));
 const DailyUpdates = lazyAny(() => import('./pages/DailyUpdates'));
-const TodoList = lazyAny(() => import('./pages/TodoList'));
+const TasksPage = lazyAny(() => import('./pages/TasksPage'));
 const RemindMe = lazyAny(() => import('./pages/RemindMe'));
 const Approvals = lazyAny(() => import('./pages/Approvals'));
 const ClientManagement = lazyAny(() => import('./pages/ClientManagement'));
@@ -432,7 +432,11 @@ export default function App() {
         return <PermissionGuard permission="projects.update" fallback={<div className="p-6">Access Denied</div>}><CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} /></PermissionGuard>;
       case '/projects/daily-updates': return <Projects />;
       case '/projects/site-materials': return <Projects />;
-      case '/todo': return <TodoList />;
+      case '/collaboration': return <Projects defaultTab="collaboration" />;
+      case '/tasks': return <TasksPage />;
+      case '/todo':
+        navigate('/tasks');
+        return <TasksPage />;
       case '/remindme': return <RemindMe />;
       case '/approvals': return <Approvals />;
       case '/clients/new': return <CreateClient onSuccess={() => navigate('/clients')} onCancel={() => navigate('/clients')} />;

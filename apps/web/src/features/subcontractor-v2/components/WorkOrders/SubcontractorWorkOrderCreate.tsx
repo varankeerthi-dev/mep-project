@@ -388,19 +388,17 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
   useEffect(() => {
     if (!editId && organisation?.id && !formData.work_order_no) {
       const generateWONumber = async () => {
-        const { data } = await supabase
-          .from('subcontractor_work_orders')
-          .select('work_order_no')
-          .eq('organisation_id', organisation.id)
-          .order('created_at', { ascending: false })
-          .limit(1);
-        const lastWO = data?.[0]?.work_order_no;
-        let newNumber = 'WO/001';
-        if (lastWO && lastWO.match(/WO\/(\d+)/)) {
-          const num = parseInt(lastWO.match(/WO\/(\d+)/)?.[1] || '0', 10);
-          newNumber = `WO/${String(num + 1).padStart(3, '0')}`;
+        try {
+          const { data, error } = await supabase.rpc('generate_next_work_order_number', {
+            p_org_id: organisation.id
+          });
+          if (error) throw error;
+          if (data) {
+            setFormData((prev) => ({ ...prev, work_order_no: data }));
+          }
+        } catch (err) {
+          console.error('Error generating WO number:', err);
         }
-        setFormData((prev) => ({ ...prev, work_order_no: newNumber }));
       };
       generateWONumber();
     }
@@ -522,7 +520,7 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
 
       let workOrderId = editId;
       if (editId) {
-        const formattedItems = lineItems.map((item) => ({
+        const formattedItems = (formData.line_items || []).map((item: any) => ({
           description: item.description || 'Line Item',
           qty: item.quantity || 1,
           rate: item.unit_price || item.total || 0,
@@ -544,7 +542,7 @@ export default function SubcontractorWorkOrderCreate({ onNavigate }: { onNavigat
         });
         if (error) throw error;
       } else {
-        const formattedItems = lineItems.map((item) => ({
+        const formattedItems = (formData.line_items || []).map((item: any) => ({
           description: item.description || 'Line Item',
           qty: item.quantity || 1,
           rate: item.unit_price || item.total || 0,

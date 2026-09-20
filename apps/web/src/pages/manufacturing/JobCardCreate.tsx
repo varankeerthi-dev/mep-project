@@ -180,7 +180,7 @@ export default function JobCardCreate({ onSuccess, onCancel }: JobCardCreateProp
   return (
     <div style={{ minHeight: '100%', background: '#fafafa' }}>
       {/* Header Bar */}
-      <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyBetween: 'space-between', position: 'sticky', top: 0, zIndex: 40 }} className="flex justify-between">
+      <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 40 }} className="flex justify-between">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Button variant="ghost" size="sm" onClick={onCancel} leftIcon={<ArrowLeft size={14} />} className="text-gray-500">
             Back
