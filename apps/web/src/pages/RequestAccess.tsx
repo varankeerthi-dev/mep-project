@@ -111,10 +111,53 @@ export const SECTORS: SectorDef[] = [
   }
 ];
 
+// Default sector the wizard starts on (Step 2 selection seed).
+const DEFAULT_SECTOR_ID = 'trading';
+
+// Step 2 -> Step 3 hand-off: company type that best matches the chosen sector.
+// Unknown sectors map to '' so no company type is pre-selected and the user picks manually.
+const DEFAULT_COMPANY_TYPE_BY_SECTOR: Record<string, string> = {
+  trading: 'Distributor',
+  engineering_projects: 'Contractor',
+  manufacturing: 'Private Limited',
+  service: 'Proprietorship',
+  commercial: 'Private Limited'
+};
+
+// Step 4: which optional modules are pre-selected, keyed by the Step 2 sector.
+// Named engineering modules are Contractor/engineering-specific, so they are
+// OFF everywhere except engineering_projects. All other optionals stay ON.
+const OPTIONAL_MODULES_BY_SECTOR: Record<string, string[]> = {
+  trading: ['approvals', 'reports'],
+  engineering_projects: ['subcontractors', 'site_reports', 'tools', 'meetings', 'approvals', 'reports'],
+  manufacturing: ['approvals', 'reports'],
+  service: ['approvals', 'reports'],
+  commercial: ['approvals', 'reports']
+};
+
+// Step 4 optional modules catalogue (togglable by the user).
+const OPTIONAL_MODULE_LIST = [
+  { id: 'subcontractors', name: 'Sub-Contractors' },
+  { id: 'site_reports', name: 'Daily Site Reports' },
+  { id: 'tools', name: 'Tools & Equipment' },
+  { id: 'meetings', name: 'Minutes of Meeting' },
+  { id: 'approvals', name: 'Workflows & Approvals' },
+  { id: 'reports', name: 'Advanced Reports' }
+];
+
+// Step 4: pre-selected optional modules for a sector, from OPTIONAL_MODULES_BY_SECTOR.
+const buildOptionalModules = (sectorId: string): Record<string, boolean> => {
+  const ids = OPTIONAL_MODULES_BY_SECTOR[sectorId] ?? OPTIONAL_MODULE_LIST.map((mod) => mod.id);
+  return Object.fromEntries(OPTIONAL_MODULE_LIST.map((mod) => [mod.id, ids.includes(mod.id)]));
+};
+
+// "How large is your company?" buckets, shown as a segmented control (Step 3).
+const EMPLOYEE_SIZE_OPTIONS = ['1–5', '6–20', '21–50', '51–100', '100+'];
+
 export default function RequestAccessPage({ user, onCreateOrganisation, onRefreshMemberships }: Props) {
   const [currentStep, setCurrentStep] = useState<number>(2);
-  const [selectedSectorId, setSelectedSectorId] = useState<string>('trading');
-  const [companyName, setCompanyName] = useState<string>(SECTORS[1].defaultName);
+  const [selectedSectorId, setSelectedSectorId] = useState<string>(DEFAULT_SECTOR_ID);
+  const [companyName, setCompanyName] = useState<string>('');
   const [loadSampleData, setLoadSampleData] = useState<boolean>(true);
   const [isLaunching, setIsLaunching] = useState<boolean>(false);
   const [showRequestAccess, setShowRequestAccess] = useState<boolean>(false);
@@ -122,18 +165,13 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
   const [loggingOut, setLoggingOut] = useState<boolean>(false);
 
   // Step 3 Configuration State
-  const [companyType, setCompanyType] = useState<string>('Contractor');
-  const [employeeCountValue, setEmployeeCountValue] = useState<number>(10);
+  const [companyType, setCompanyType] = useState<string>(DEFAULT_COMPANY_TYPE_BY_SECTOR[DEFAULT_SECTOR_ID] ?? '');
+  const [employeeSize, setEmployeeSize] = useState<string>(EMPLOYEE_SIZE_OPTIONS[1]);
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
-  const [optionalModules, setOptionalModules] = useState<Record<string, boolean>>({
-    subcontractors: true,
-    site_reports: true,
-    tools: false,
-    meetings: true,
-    approvals: true,
-    reports: true
-  });
+  const [optionalModules, setOptionalModules] = useState<Record<string, boolean>>(
+    () => buildOptionalModules(DEFAULT_SECTOR_ID)
+  );
 
   const handleStep3Continue = () => {
     if (!companyName.trim()) return;
@@ -142,12 +180,6 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
       setShowSuccessToast(false);
       setCurrentStep(4);
     }, 450);
-  };
-
-  const getEmployeeRangeText = (val: number) => {
-    if (val <= 5) return '1-5 people';
-    if (val >= 100) return '1-100+ people';
-    return `1-${val} people`;
   };
 
   const COMPANY_TYPES = [
@@ -168,23 +200,19 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
     '500+ people'
   ];
 
-  const OPTIONAL_MODULE_LIST = [
-    { id: 'subcontractors', name: 'Sub-Contractors' },
-    { id: 'site_reports', name: 'Daily Site Reports' },
-    { id: 'tools', name: 'Tools & Equipment' },
-    { id: 'meetings', name: 'Minutes of Meeting' },
-    { id: 'approvals', name: 'Workflows & Approvals' },
-    { id: 'reports', name: 'Advanced Reports' }
-  ];
-
   const selectedSector = useMemo(
     () => SECTORS.find((s) => s.id === selectedSectorId) || SECTORS[0],
     [selectedSectorId]
   );
 
   const handleSelectSector = (sector: SectorDef) => {
+    const sectorChanged = sector.id !== selectedSectorId;
     setSelectedSectorId(sector.id);
-    setCompanyName(sector.defaultName);
+    if (!sectorChanged) return;
+    // Company type follows the sector; leave it unselected when the sector has no mapping.
+    setCompanyType(DEFAULT_COMPANY_TYPE_BY_SECTOR[sector.id] ?? '');
+    // Step 4 module pre-selection follows the sector too.
+    setOptionalModules(buildOptionalModules(sector.id));
   };
 
   const handleLogout = async () => {
@@ -266,6 +294,11 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
       status: currentStep === 4 ? 'active' : 'upcoming'
     }
   ];
+
+  // Completed-step progress: Step 1 = 0%, Step 2 = 25%, Step 3 = 50%,
+  // Step 4 = 75% while configuring, 100% only once "Launch Interactive Demo" is clicked.
+  const progressPercent =
+    isLaunching || showCelebration ? 100 : Math.round(((currentStep - 1) / STEPS.length) * 100);
 
   return (
     <div style={{
@@ -641,7 +674,7 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
                             value={companyName}
                             onChange={(e) => setCompanyName(e.target.value)}
                             placeholder="e.g. Acme Contracting Co"
-                            className="onboarding-input-field"
+                            className="onboarding-input-field placeholder:font-normal placeholder:text-slate-400"
                             style={{
                               height: '44px',
                               width: '100%',
@@ -740,7 +773,7 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
                         </div>
                       </div>
 
-                      {/* 2. Employee Size Draggable Range Slider */}
+                      {/* 2. Employee Size (segmented control) */}
                       <div style={{
                         padding: '18px 24px',
                         borderRadius: '14px',
@@ -759,7 +792,7 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
                           </div>
 
                           <motion.div
-                            key={employeeCountValue}
+                            key={employeeSize}
                             initial={{ opacity: 0, y: 6 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.18, ease: [.22, 1, .36, 1] }}
@@ -779,44 +812,25 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
                             }}
                           >
                             <Users size={14} color="#3b82f6" />
-                            {getEmployeeRangeText(employeeCountValue)}
+                            {employeeSize} people
                           </motion.div>
                         </div>
 
-                        {/* Premium Slider with Milestone Ticks */}
-                        <div style={{ padding: '6px 0 0 0' }}>
-                          <input
-                            type="range"
-                            min="5"
-                            max="100"
-                            step="5"
-                            value={employeeCountValue}
-                            onChange={(e) => setEmployeeCountValue(Number(e.target.value))}
-                            className="onboarding-slider"
-                            style={{
-                              width: '100%',
-                              height: '6px',
-                              borderRadius: '9999px',
-                              accentColor: '#2563eb',
-                              cursor: 'pointer',
-                              outline: 'none'
-                            }}
-                          />
-                          <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            paddingTop: '8px',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            color: '#94a3b8',
-                            userSelect: 'none'
-                          }}>
-                            <span>1–5</span>
-                            <span>6–20</span>
-                            <span>21–50</span>
-                            <span>51–100</span>
-                            <span>100+</span>
-                          </div>
+                        {/* Segmented size control - same pill pattern as Company Type above */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                          {EMPLOYEE_SIZE_OPTIONS.map((option) => {
+                            const isSelected = employeeSize === option;
+                            return (
+                              <button
+                                key={option}
+                                type="button"
+                                onClick={() => setEmployeeSize(option)}
+                                className={`company-pill-btn ${isSelected ? 'is-selected' : ''}`}
+                              >
+                                {option}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
 
@@ -904,7 +918,8 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
                         Modules & Preferences
                       </h1>
                       <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>
-                        Review active ERP modules and sample data options for <strong>{companyName}</strong>.
+                        Review active ERP modules and sample data options for{' '}
+                        <strong>{companyName.trim() || 'your company'}</strong>.
                       </p>
                     </div>
 
@@ -965,10 +980,10 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                padding: '5px 14px',
+                                padding: '4px 14px',
                                 borderRadius: '20px',
                                 background: '#eff6ff',
-                                border: '1.5px solid #2563eb',
+                                border: '1px solid #2563eb',
                                 color: '#1d4ed8',
                                 fontSize: '12px',
                                 fontWeight: 600,
@@ -1237,14 +1252,14 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
                   Setup Progress
                 </span>
                 <span style={{ fontSize: '12px', fontWeight: 700, color: '#374151' }}>
-                  {Math.round((currentStep / 4) * 100)}%
+                  {progressPercent}%
                 </span>
               </div>
               {/* Progress Bar */}
               <div style={{ width: '100%', height: '4px', borderRadius: '9999px', background: '#E5E7EB' }}>
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${Math.round((currentStep / 4) * 100)}%` }}
+                  animate={{ width: `${progressPercent}%` }}
                   transition={{ duration: 0.5, ease: [.22, 1, .36, 1] }}
                   style={{ height: '100%', borderRadius: '9999px', background: '#2563eb' }}
                 />
