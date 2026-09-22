@@ -5,8 +5,45 @@ import { UnitDropdownSelect } from '../../../components/UnitDropdownSelect';
 import { formatCurrency } from '../../../utils/formatters';
 import { Button } from '../../../components/ui/button';
 import { StandardRateBadge, ArcRateBadge } from '../../../components/ArcPricingToggle';
-import { ArrowUpDown } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, GripVertical, Lock, CornerDownRight, Trash2 } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+
+// --- Stitch UX redesign tokens (UI only, Inter exclusively) ---
+const INTER = "'Inter', system-ui, -apple-system, sans-serif";
+const SURFACE_LOWEST = '#ffffff';
+const SURFACE_LOW = '#EFF4FF';
+const SURFACE_CONTAINER = '#E5EEFF';
+const SURFACE_HIGH = '#DCE9FF';
+const BORDER_SUBTLE = '#E2E8F0';
+const BORDER_STRONG = '#CBD5E1';
+const INK = '#0B1C30';
+const INK_MUTED = '#475569';
+const INK_FAINT = '#64748B';
+const PRIMARY = '#2563EB';
+const ERROR_BG = 'rgba(255, 218, 214, 0.3)';
+const ERROR_INK = '#93000A';
+
+const HEADER_CELL: React.CSSProperties = {
+  fontFamily: INTER,
+  fontSize: '11px',
+  fontWeight: 600,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  color: '#334155',
+  padding: '0 8px',
+  height: '40px',
+  borderBottom: `1px solid ${BORDER_STRONG}`,
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  background: 'transparent',
+};
+
+const NUM_CELL: React.CSSProperties = {
+  fontFamily: INTER,
+  fontVariantNumeric: 'tabular-nums',
+  fontFeatureSettings: '"tnum"',
+};
 
 const openDropdownAtRef = (ref: React.RefObject<any>, setStyle: (style: any) => void) => {
   if (ref.current) {
@@ -60,14 +97,14 @@ const MakeCell = ({ value, makes, onChange }: MakeCellProps) => {
       <div 
         ref={ref} 
         onClick={() => { openDropdownAtRef(ref, setDropdownStyle); setOpen(true); }} 
-        style={{ padding: '4px 8px', cursor: 'pointer', fontSize: '11px', color: value ? '#0f172a' : '#94a3b8', fontWeight: value ? 500 : 400, background: '#fff', border: '1px solid transparent', borderRadius: '0', minHeight: '28px', display: 'flex', alignItems: 'center', userSelect: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; }}
+        style={{ padding: '3px 8px', cursor: 'pointer', fontSize: '11px', fontFamily: INTER, color: value ? INK : '#94a3b8', fontWeight: value ? 500 : 400, background: value ? SURFACE_CONTAINER : '#fff', border: '1px solid transparent', borderRadius: '4px', minHeight: '24px', display: 'inline-flex', alignItems: 'center', userSelect: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = BORDER_STRONG; }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent'; }}
       >
         {value || 'No Make'}
       </div>
       {open && (
-        <div ref={listRef} style={dropdownStyle}>
+        <div ref={listRef} style={{ ...dropdownStyle as React.CSSProperties, borderRadius: '8px', overflow: 'hidden' }}>
           <div 
             onClick={() => { onChange(''); setOpen(false); }} 
             style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 400, color: '#94a3b8', borderBottom: '1px solid #f3f4f6' }}
@@ -132,14 +169,14 @@ const VariantCell = ({ value, variants: vList, itemId, variantPricing: vPricing,
       <div 
         ref={ref} 
         onClick={() => { openDropdownAtRef(ref, setDropdownStyle); setOpen(true); }} 
-        style={{ padding: '4px 8px', cursor: 'pointer', fontSize: '11px', color: value ? '#0f172a' : '#94a3b8', fontWeight: value ? 500 : 400, background: '#fff', border: '1px solid transparent', borderRadius: '0', minHeight: '28px', display: 'flex', alignItems: 'center', userSelect: 'none' }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; }}
+        style={{ padding: '4px 8px', cursor: 'pointer', fontSize: '11px', fontFamily: INTER, color: value ? INK_MUTED : '#94a3b8', fontWeight: value ? 500 : 400, background: '#fff', border: '1px solid transparent', borderRadius: '4px', minHeight: '28px', display: 'flex', alignItems: 'center', userSelect: 'none' }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = BORDER_STRONG; }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent'; }}
       >
         {selected ? selected.variant_name : 'No Variant'}
       </div>
       {open && (
-        <div ref={listRef} style={dropdownStyle}>
+        <div ref={listRef} style={{ ...dropdownStyle as React.CSSProperties, borderRadius: '8px', overflow: 'hidden' }}>
           <div 
             onClick={() => { onChange(null); setOpen(false); }} 
             style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 400, color: '#94a3b8', borderBottom: '1px solid #f3f4f6' }}
@@ -286,14 +323,32 @@ export function QuotationItemsTable({
     });
   };
 
+  // Compact min-width floor tuned to the redesigned fixed column widths
+  // (base always-visible columns sum to 749px). Mirrors the same visibility
+  // flags as the parent's getTableMinWidth so defaults fit ~1000px viewports
+  // without horizontal scroll; extra toggled columns overflow + sticky Actions.
+  const compactMinWidth = (() => {
+    const opt = templateSettings?.column_settings?.optional;
+    let w = 749;
+    if (opt?.hsn_code !== false) w += 60;
+    if (opt?.make !== false) w += 80;
+    if (opt?.variant !== false) w += 90;
+    if (opt?.client_part_no === true) w += 100;
+    if (opt?.client_description === true) w += 140;
+    if (opt?.custom1 !== false && templateSettings?.column_settings?.labels) w += 90;
+    if (opt?.custom2 !== false && templateSettings?.column_settings?.labels) w += 90;
+    return `${w}px`;
+  })();
+
   return (
-    <div className="overflow-x-auto cq-table-container custom-scrollbar">
-      <table className="grid-table cq-editable" style={{ minWidth: getTableMinWidth() }}>
-        <thead className="grid-table-header-dark">
-          <tr>
-            <th className="col-check" style={{ padding: '6px' }}>
+    <div className="overflow-x-auto cq-table-container custom-scrollbar" style={{ fontFamily: INTER, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: '8px', background: SURFACE_LOWEST, boxShadow: '0 1px 2px 0 rgba(15, 23, 42, 0.05)' }}>
+      <table className="grid-table cq-editable" style={{ minWidth: compactMinWidth, border: 'none', borderRadius: '8px', overflow: 'hidden' }}>
+        <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+          <tr style={{ height: '40px', background: SURFACE_LOW }}>
+            <th className="col-check" style={{ ...HEADER_CELL, width: '30px', textAlign: 'center', padding: '0 8px' }}>
               <input
                 type="checkbox"
+                style={{ width: '14px', height: '14px', accentColor: PRIMARY, cursor: 'pointer', verticalAlign: 'middle' }}
                 checked={items.length > 0 && items.filter(item => !item.is_header && !item.is_subtotal).every(item => selectedItemIds.includes(String(item.id)))}
                 onChange={(e) => {
                   if (e.target.checked) {
@@ -305,47 +360,51 @@ export function QuotationItemsTable({
                 }}
               />
             </th>
-            <th className="col-sno">#</th>
+            <th className="col-sno" style={{ ...HEADER_CELL, width: '35px', textAlign: 'center' }}>#</th>
             {(templateSettings?.column_settings?.optional?.hsn_code !== false) && (
-              <th className="col-hsn">{templateSettings?.column_settings?.labels?.hsn_code || 'HSN'}</th>
+              <th className="col-hsn" style={{ ...HEADER_CELL, width: '60px', textAlign: 'left' }}>{templateSettings?.column_settings?.labels?.hsn_code || 'HSN'}</th>
             )}
             {templateSettings?.column_settings?.optional?.item !== false && (
-              <th className="col-item" style={{ position: 'relative' }}>
-                {templateSettings?.column_settings?.labels?.item || 'ITEM'}
+              <th className="col-item" style={{ ...HEADER_CELL, position: 'relative', textAlign: 'left', color: PRIMARY, width: 'auto', minWidth: '120px' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  {templateSettings?.column_settings?.labels?.item || 'ITEM & SPECIFICATIONS'}
+                  <span style={{ fontSize: '12px', lineHeight: 1 }}>↑</span>
+                </span>
+                <span style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '3px', background: PRIMARY }} />
               </th>
             )}
             {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
-              <th className="col-code">{templateSettings?.column_settings?.labels?.client_part_no || 'CLIENT PART NO'}</th>
+              <th className="col-code" style={{ ...HEADER_CELL, textAlign: 'left', width: '100px' }}>{templateSettings?.column_settings?.labels?.client_part_no || 'CLIENT PART NO'}</th>
             )}
             {(templateSettings?.column_settings?.optional?.client_description === true) && (
-              <th className="col-item">{templateSettings?.column_settings?.labels?.client_description || 'CLIENT DESCRIPTION'}</th>
+              <th className="col-item" style={{ ...HEADER_CELL, textAlign: 'left', width: '140px', minWidth: '140px' }}>{templateSettings?.column_settings?.labels?.client_description || 'CLIENT DESCRIPTION'}</th>
             )}
             {(templateSettings?.column_settings?.optional?.make !== false) && (
-              <th className="col-make">{templateSettings?.column_settings?.labels?.make || 'MAKE'}</th>
+              <th className="col-make" style={{ ...HEADER_CELL, textAlign: 'left', width: '80px' }}>{templateSettings?.column_settings?.labels?.make || 'MAKE / BRAND'}</th>
             )}
             {(templateSettings?.column_settings?.optional?.variant !== false) && (
-              <th className="col-variant">{templateSettings?.column_settings?.labels?.variant || 'VARIANT'}</th>
+              <th className="col-variant" style={{ ...HEADER_CELL, textAlign: 'left', width: '90px' }}>{templateSettings?.column_settings?.labels?.variant || 'VARIANT / GRADE'}</th>
             )}
-            <th className="col-qty">QTY</th>
-            <th className="col-unit">UNIT</th>
-            <th className="col-rate">RATE</th>
-            <th className="col-disc">DISC %</th>
-            <th className="col-rate-after-disc">RATE AFTER DISC</th>
-            <th className="col-gst">GST %</th>
+            <th className="col-qty" style={{ ...HEADER_CELL, textAlign: 'right', width: '60px' }}>QTY</th>
+            <th className="col-unit" style={{ ...HEADER_CELL, textAlign: 'center', width: '52px' }}>UNIT</th>
+            <th className="col-rate" style={{ ...HEADER_CELL, textAlign: 'right', width: '96px' }}>UNIT RATE (₹)</th>
+            <th className="col-disc" style={{ ...HEADER_CELL, textAlign: 'right', width: '56px' }}>DISC %</th>
+            <th className="col-rate-after-disc" style={{ ...HEADER_CELL, textAlign: 'right', width: '70px' }}>NET RATE (₹)</th>
+            <th className="col-gst" style={{ ...HEADER_CELL, textAlign: 'center', width: '50px' }}>GST %</th>
             {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && (
-              <th className="col-custom">{templateSettings.column_settings.labels.custom1 || 'Custom 1'}</th>
+              <th className="col-custom" style={{ ...HEADER_CELL, textAlign: 'left', width: '90px' }}>{templateSettings.column_settings.labels.custom1 || 'Custom 1'}</th>
             )}
             {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && (
-              <th className="col-custom">{templateSettings.column_settings.labels.custom2 || 'Custom 2'}</th>
+              <th className="col-custom" style={{ ...HEADER_CELL, textAlign: 'left', width: '90px' }}>{templateSettings.column_settings.labels.custom2 || 'Custom 2'}</th>
             )}
-            <th className="col-amount">AMOUNT</th>
-            <th className="col-shrink"></th>
+            <th className="col-amount" style={{ ...HEADER_CELL, textAlign: 'right', color: PRIMARY, fontWeight: 700, width: '104px' }}>TOTAL AMOUNT (₹)</th>
+            <th className="col-shrink" style={{ ...HEADER_CELL, textAlign: 'center', position: 'sticky', right: 0, background: SURFACE_LOW, zIndex: 11, width: '76px', minWidth: '76px', boxShadow: 'inset 1px 0 0 #CBD5E1' }}>ACTIONS</th>
           </tr>
         </thead>
         <tbody>
           {items.length === 0 ? (
             <tr>
-              <td colSpan={getVisibleColumnCount()} className="cell-static text-center" style={{ padding: '48px', color: '#94a3b8', fontSize: '14px' }}>No items added. Click "Add Row" or "Add Bulk add".</td>
+              <td colSpan={getVisibleColumnCount()} className="cell-static text-center" style={{ padding: '48px', color: '#94a3b8', fontSize: '13px', fontFamily: INTER }}>No items added. Click "Add Row" or "Add Bulk add".</td>
             </tr>
           ) : (
             <>
@@ -364,19 +423,27 @@ export function QuotationItemsTable({
                     ref={(el) => { if (el) rowVirtualizer.measureElement(el); }}
                     data-index={virtualRow.index}
                     key={item.id} 
-                    style={{ background: '#f8fafc' }}
+                    style={{ background: SURFACE_CONTAINER, height: '36px', borderTop: `1px solid ${BORDER_STRONG}`, borderBottom: `1px solid ${BORDER_SUBTLE}` }}
                   >
-                    <td colSpan={getVisibleColumnCount() + 1} style={{ padding: '6px 12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                        <input
-                          type="text"
-                          className="cell-input"
-                          style={{ flex: 1, fontWeight: 'bold', color: '#1e293b', background: 'transparent', border: 'none', borderBottom: '1px dashed #cbd5e1', fontSize: '14px', textAlign: 'left' }}
-                          placeholder="Enter Section Header (e.g. First Floor Piping)..."
-                          value={item.description}
-                          onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                        />
-                        <button type="button" className="btn-delete-v2" onClick={() => removeItem(item.id)} style={{ flexShrink: 0, marginLeft: 8 }}>×</button>
+                    <td colSpan={getVisibleColumnCount() + 1} style={{ padding: '4px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', color: INK_MUTED }}>
+                            <ChevronDown size={14} />
+                          </span>
+                          <input
+                            type="text"
+                            className="cell-input"
+                            style={{ flex: 1, fontWeight: 700, fontFamily: INTER, color: INK, background: 'transparent', border: 'none', fontSize: '12px', letterSpacing: '0.04em', textTransform: 'uppercase', textAlign: 'left', boxShadow: 'none' }}
+                            placeholder="Enter Section Header (e.g. First Floor Piping)..."
+                            value={item.description}
+                            onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                          />
+                          <span style={{ padding: '2px 8px', borderRadius: '9999px', background: '#CCE5FF', color: '#001D31', fontSize: '10px', fontWeight: 600, fontFamily: INTER, letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+                            Category
+                          </span>
+                        </div>
+                        <button type="button" className="btn-delete-v2" onClick={() => removeItem(item.id)} style={{ flexShrink: 0, marginLeft: 8, color: INK_FAINT }}>×</button>
                       </div>
                     </td>
                   </tr>
@@ -398,14 +465,17 @@ export function QuotationItemsTable({
                     onDragStart={(e) => handleDragStart(e, item.id)}
                     onDragEnd={handleDragEnd}
                     className={draggingItemId === item.id ? 'row-dragging' : ''}
-                    style={{ background: '#fef9c3', borderTop: '2px solid #eab308', cursor: 'grab' }}
+                    style={{ background: SURFACE_HIGH, height: '44px', borderTop: `1px solid ${BORDER_STRONG}`, borderBottom: '3px double #94A3B8', cursor: 'grab' }}
                   >
                     <td colSpan={getVisibleColumnCount() + 1} style={{ padding: '6px 12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%', gap: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%', gap: '16px', fontFamily: INTER }}>
+                        <span style={{ display: 'inline-flex', color: PRIMARY }}>
+                          <CornerDownRight size={14} />
+                        </span>
                         <input
                           type="text"
                           className="cell-input"
-                          style={{ maxWidth: '240px', fontWeight: 'bold', color: '#b45309', background: 'transparent', border: 'none', borderBottom: '1px dashed #f59e0b', fontSize: '13px', textAlign: 'right' }}
+                          style={{ maxWidth: '240px', fontWeight: 700, fontFamily: INTER, color: INK, background: 'transparent', border: 'none', fontSize: '12px', letterSpacing: '0.04em', textTransform: 'uppercase', textAlign: 'right', boxShadow: 'none' }}
                           placeholder="Sub-total label..."
                           value={item.subtotal_label || ''}
                           onChange={(e) => {
@@ -413,8 +483,11 @@ export function QuotationItemsTable({
                             updateItem(item.id, 'description', e.target.value);
                           }}
                         />
-                        <span className="text-right font-bold" style={{ color: '#b45309', whiteSpace: 'nowrap', minWidth: '100px', textAlign: 'right' }}>
+                        <span className="text-right font-bold" style={{ ...NUM_CELL, color: INK, whiteSpace: 'nowrap', minWidth: '100px', textAlign: 'right', fontSize: '13px', fontWeight: 700 }}>
                           {formatCurrency(groupAmount)}
+                        </span>
+                        <span style={{ display: 'inline-flex', color: '#94A3B8' }}>
+                          <Lock size={12} />
                         </span>
                         <button type="button" className="btn-delete-v2" onClick={() => removeItem(item.id)}>×</button>
                       </div>
@@ -423,6 +496,10 @@ export function QuotationItemsTable({
                 );
               }
 
+              const isChecked = selectedItemIds.includes(String(item.id));
+              const isAlertRow = item.is_override;
+              // Solid bg for the sticky actions cell (translucent row tints would show scrolled content bleeding through)
+              const stickyBg = isChecked ? SURFACE_LOW : isAlertRow ? '#FDECEA' : SURFACE_LOWEST;
               return (
                 <tr 
                   ref={(el) => { if (el) rowVirtualizer.measureElement(el); }}
@@ -436,13 +513,21 @@ export function QuotationItemsTable({
                       addEmptyItemRow();
                     }
                   }}
-                  className={`${draggingItemId === item.id ? 'row-dragging' : ''} ${item.is_override ? 'override-indicator' : ''}`}
+                  className={`group ${draggingItemId === item.id ? 'row-dragging' : ''} ${item.is_override ? 'override-indicator' : ''}`}
+                  style={{
+                    height: '40px',
+                    background: isChecked ? SURFACE_LOW : isAlertRow ? ERROR_BG : SURFACE_LOWEST,
+                    borderBottom: `1px solid ${BORDER_SUBTLE}`,
+                    fontFamily: INTER,
+                    transition: 'background-color 0.15s ease',
+                  }}
                   onMouseEnter={() => setHoveredItemId(item.id)}
                   onMouseLeave={() => setHoveredItemId(null)}
                 >
-                  <td className="text-center cell-static col-check" style={{ padding: '6px' }}>
+                  <td className="text-center cell-static col-check" style={{ padding: '0 8px', textAlign: 'center', verticalAlign: 'middle', minWidth: '30px' }}>
                     <input
                       type="checkbox"
+                      style={{ width: '14px', height: '14px', accentColor: PRIMARY, cursor: 'pointer', verticalAlign: 'middle' }}
                       checked={selectedItemIds.includes(String(item.id))}
                       onChange={(e) => {
                         const sId = String(item.id);
@@ -457,26 +542,29 @@ export function QuotationItemsTable({
                   <td 
                     className="text-center cell-static col-sno row-drag-handle" 
                     title="Drag to reorder" 
-                    style={{ fontSize: '13px' }}
+                    style={{ ...NUM_CELL, fontSize: '11px', fontWeight: 500, color: isAlertRow ? ERROR_INK : INK_FAINT, textAlign: 'center', verticalAlign: 'middle', minWidth: '35px' }}
                     draggable
                     onDragStart={(e) => handleDragStart(e, item.id)}
                     onDragEnd={handleDragEnd}
                   >
-                    {itemCountBefore + 1}
+                    <span className="group-hover:hidden">{itemCountBefore + 1}</span>
+                    <span className="hidden group-hover:inline-flex" style={{ color: PRIMARY, cursor: 'grab', verticalAlign: 'middle' }}>
+                      <GripVertical size={12} />
+                    </span>
                   </td>
                   {(templateSettings?.column_settings?.optional?.hsn_code !== false) && (
-                    <td className="col-hsn">
+                    <td className="col-hsn" style={{ verticalAlign: 'middle', minWidth: '60px' }}>
                       <input
                         type="text"
                         className="cell-input text-center"
                         value={item.hsn_code || item.material?.hsn_code || ''}
                         readOnly
-                        style={{ background: '#f8fafc', padding: '0 2px', fontSize: '11px' }}
+                        style={{ ...NUM_CELL, background: 'transparent', padding: '4px 2px', fontSize: '11px', color: INK_FAINT, boxShadow: 'none' }}
                       />
                     </td>
                   )}
                   {templateSettings?.column_settings?.optional?.item !== false && (
-                    <td className="col-item" style={{ position: 'relative' }}>
+                    <td className="col-item" style={{ position: 'relative', verticalAlign: 'middle', padding: '4px 8px' }}>
                       <SearchableItemSelect
                         value={item.item_id}
                         materials={materials}
@@ -568,17 +656,23 @@ export function QuotationItemsTable({
                         const mat = item.material || materials.find(m => m.id === item.item_id);
                         const dcId = item.discount_category_id || mat?.discount_category_id;
                         const dcName = dcId ? discountCategoryMap[dcId]?.name : null;
+                        const hsn = item.hsn_code || mat?.hsn_code || '';
                         return (
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginTop: '2px' }}>
                             {dcName && (
                               <div
                                 title={`Discount category: ${dcName}`}
-                                style={{ padding: '1px 6px', fontSize: '9px', color: '#6366f1', background: '#eef2ff', borderRadius: '3px', marginTop: '4px', lineHeight: '1.4', whiteSpace: 'nowrap', flexShrink: 0 }}
+                                style={{ padding: '1px 6px', fontSize: '10px', fontFamily: INTER, fontWeight: 600, letterSpacing: '0.04em', color: '#00476E', background: '#CCE5FF', borderRadius: '4px', marginTop: '2px', lineHeight: '1.4', whiteSpace: 'nowrap', flexShrink: 0 }}
                               >
                                 {dcName}
                               </div>
                             )}
-                            <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ flex: 1, minWidth: 0, fontFamily: INTER }}>
+                              {hsn && (
+                                <div style={{ fontSize: '11px', fontFamily: INTER, color: INK_FAINT, lineHeight: '1.4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  HSN: {hsn}
+                                </div>
+                              )}
                               <InlineDescriptionCell
                                 materialName=""
                                 description={item.description}
@@ -663,7 +757,7 @@ export function QuotationItemsTable({
                       />
                     </td>
                   )}
-                  <td className="col-qty">
+                  <td className="col-qty" style={{ verticalAlign: 'middle', textAlign: 'right' }}>
                     <input
                       type="text"
                       className="cell-input text-right font-medium"
@@ -680,9 +774,10 @@ export function QuotationItemsTable({
                         if (e.key === 'Enter') commitQtyInput(item.id);
                         if (e.key === 'Escape') resetQtyInput(item.id);
                       }}
+                      style={{ ...NUM_CELL, textAlign: 'right', fontWeight: 600, fontSize: '13px', color: INK, background: 'transparent', boxShadow: 'none' }}
                     />
                   </td>
-                  <td className="col-unit">
+                  <td className="col-unit" style={{ verticalAlign: 'middle', textAlign: 'center' }}>
                     <UnitDropdownSelect
                       value={item.uom || ''}
                       materialId={item.item_id}
@@ -690,25 +785,27 @@ export function QuotationItemsTable({
                       onChange={(val) => updateItem(item.id, 'uom', val)}
                     />
                   </td>
-                  <td className="col-rate">
+                  <td className="col-rate" style={{ verticalAlign: 'middle', textAlign: 'right' }}>
                     <input
                       type="number"
                       className="cell-input text-right font-semibold"
-                      value={item.rate || 0}
+                      value={item.base_rate_snapshot ?? item.rate ?? 0}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value) || 0;
-                        updateItem(item.id, 'rate', val);
+                        updateItem(item.id, 'base_rate_snapshot', val);
                       }}
+                      title="MRP (auto-fetched rate) — editing recomputes only the net rate"
+                      style={{ ...NUM_CELL, textAlign: 'right', fontWeight: 500, fontSize: '13px', color: INK, background: 'transparent', boxShadow: 'none' }}
                     />
                   </td>
-                  <td className="col-disc" style={{ position: 'relative' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                  <td className="col-disc" style={{ position: 'relative', verticalAlign: 'middle', textAlign: 'right' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'flex-end' }}>
                       <input
                         type="number"
                         className="cell-input text-right font-medium"
                         value={item.discount_percent || 0}
                         onChange={(e) => updateItem(item.id, 'discount_percent', parseFloat(e.target.value) || 0)}
-                        style={{ paddingRight: item.is_override ? '16px' : '4px' }}
+                        style={{ ...NUM_CELL, paddingRight: item.is_override ? '16px' : '4px', textAlign: 'right', fontSize: '13px', color: INK_FAINT, background: 'transparent', boxShadow: 'none' }}
                       />
                       {item.is_override && (
                         <div 
@@ -720,55 +817,54 @@ export function QuotationItemsTable({
                       )}
                     </div>
                   </td>
-                  <td className="col-rate-after-disc text-right font-semibold cell-static bg-zinc-50" style={{ color: '#0f172a' }}>
+                  <td className="col-rate-after-disc text-right font-semibold cell-static" style={{ ...NUM_CELL, color: INK, fontWeight: 600, fontSize: '13px', textAlign: 'right', verticalAlign: 'middle' }}>
                     {formatCurrency(item.rate || 0)}
                   </td>
-                  <td className="col-gst">
+                  <td className="col-gst" style={{ verticalAlign: 'middle', textAlign: 'center', minWidth: '50px' }}>
                     <input
                       type="number"
                       className="cell-input text-right"
                       value={item.tax_percent || 0}
                       onChange={(e) => updateItem(item.id, 'tax_percent', parseFloat(e.target.value) || 0)}
-                      style={{ fontSize: '11px', color: '#64748b' }}
+                      style={{ ...NUM_CELL, fontSize: '11px', color: INK_FAINT, textAlign: 'center', background: 'transparent', boxShadow: 'none' }}
                     />
                   </td>
                   {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && (
-                    <td className="col-custom">
+                    <td className="col-custom" style={{ verticalAlign: 'middle' }}>
                       <input
                         type="text"
                         className="cell-input"
                         value={item.custom1 || ''}
                         onChange={(e) => updateItem(item.id, 'custom1', e.target.value)}
-                        style={{ fontSize: '11px' }}
+                        style={{ fontSize: '11px', fontFamily: INTER, background: 'transparent', boxShadow: 'none' }}
                       />
                     </td>
                   )}
                   {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && (
-                    <td className="col-custom">
+                    <td className="col-custom" style={{ verticalAlign: 'middle' }}>
                       <input
                         type="text"
                         className="cell-input"
                         value={item.custom2 || ''}
                         onChange={(e) => updateItem(item.id, 'custom2', e.target.value)}
-                        style={{ fontSize: '11px' }}
+                        style={{ fontSize: '11px', fontFamily: INTER, background: 'transparent', boxShadow: 'none' }}
                       />
                     </td>
                   )}
-                  <td className="col-amount text-right font-bold cell-static bg-zinc-50" style={{ color: '#0f172a', paddingRight: '12px' }}>
+                  <td className="col-amount text-right font-bold cell-static" style={{ ...NUM_CELL, color: INK, fontWeight: 700, fontSize: '13px', textAlign: 'right', paddingRight: '12px', verticalAlign: 'middle' }}>
                     {formatCurrency((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0))}
                   </td>
-                  <td className="delete-cell col-shrink" style={{ paddingLeft: '8px' }}>
-                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end', position: 'relative' }}>
+                  <td className="delete-cell col-shrink" style={{ paddingLeft: '8px', paddingRight: '8px', verticalAlign: 'middle', textAlign: 'center', position: 'sticky', right: 0, background: stickyBg, zIndex: 2, width: '76px', minWidth: '76px', boxShadow: 'inset 1px 0 0 #E2E8F0' }}>
+                    <div style={{ display: 'flex', gap: '2px', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
                       <button
                         type="button"
                         className="btn-move-to-v2"
                         onClick={() => openMoveToDialog(item.id, itemCountBefore + 1, 'materials')}
                         style={{
-                          padding: '2px 6px',
-                          fontSize: '12px',
-                          background: '#f1f5f9',
-                          color: '#475569',
-                          border: '1px solid #cbd5e1',
+                          padding: '6px',
+                          color: INK_MUTED,
+                          border: 'none',
+                          background: 'transparent',
                           cursor: 'pointer',
                           borderRadius: '4px',
                           display: 'inline-flex',
@@ -777,7 +873,7 @@ export function QuotationItemsTable({
                         }}
                         title="Move to S.No"
                       >
-                        <ArrowUpDown size={12} />
+                        <ArrowUpDown size={14} />
                       </button>
 
                       {moveToDialog && moveToDialog.itemId === item.id && (
@@ -869,17 +965,21 @@ export function QuotationItemsTable({
                         className="btn-delete-v2" 
                         onClick={() => removeItem(item.id)}
                         style={{ 
-                          padding: '2px 6px', 
-                          fontSize: '14px',
-                          background: '#dc2626',
-                          color: 'white',
+                          padding: '6px',
+                          color: INK_FAINT,
                           border: 'none',
+                          background: 'transparent',
                           cursor: 'pointer',
-                          borderRadius: '4px'
+                          borderRadius: '4px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
                         }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = '#E11D48'; e.currentTarget.style.background = '#FFF1F2'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = INK_FAINT; e.currentTarget.style.background = 'transparent'; }}
                         title="Delete entire row"
                       >
-                        ×
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </td>

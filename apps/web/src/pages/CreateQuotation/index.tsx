@@ -1240,18 +1240,36 @@ export default function CreateQuotation() {
 
         const updatedItem = { ...item, ...updates };
 
-        if ('qty' in updates || 'rate' in updates || 'discount_percent' in updates || 'tax_percent' in updates || 'variant_id' in updates || 'make' in updates) {
+        if ('qty' in updates || 'rate' in updates || 'base_rate_snapshot' in updates || 'discount_percent' in updates || 'tax_percent' in updates || 'variant_id' in updates || 'make' in updates) {
           const qty = 'qty' in updates ? parseFloat(updates.qty) || 0 : parseFloat(item.qty) || 0;
           let rate = item.rate || 0;
 
           if ('rate' in updates) {
             rate = parseFloat(updates.rate) || 0;
-            updatedItem.is_override = true;
+            // Only a manual rate edit marks the row overridden. Item/make/variant
+            // selections bundle a recalculated rate with new context — those must
+            // preserve the caller's is_override flag so header discount changes
+            // keep applying to the row.
+            const recalcedWithContext = 'item_id' in updates || 'variant_id' in updates || 'make' in updates || 'material' in updates;
+            if (!recalcedWithContext && !('is_override' in updates)) {
+              updatedItem.is_override = true;
+            }
           } else {
             const variantId = 'variant_id' in updates ? updates.variant_id : item.variant_id;
             const make = 'make' in updates ? updates.make : item.make;
             const mat = materials.find(m => m.id === item.item_id);
-            const baseRate = getRateForMaterialVariant(mat, variantId, make);
+            // Discount/qty/tax edits must only change the net rate — the MRP
+            // (base_rate_snapshot) stays untouched. Refetch the base only when
+            // the item context itself changed or no base was captured yet.
+            const contextChanged = 'variant_id' in updates || 'make' in updates || 'item_id' in updates || 'material' in updates;
+            // Manual MRP edit from the RATE column: the entered value becomes the
+            // new base and only the net rate is recomputed from the row's discount.
+            const manualMrpEdit = 'base_rate_snapshot' in updates && !contextChanged;
+            const baseRate = manualMrpEdit
+              ? (parseFloat(updates.base_rate_snapshot) || 0)
+              : ((!contextChanged && item.base_rate_snapshot)
+                ? item.base_rate_snapshot
+                : getRateForMaterialVariant(mat, variantId, make));
             updatedItem.base_rate_snapshot = baseRate;
 
             let headerDiscount = 0;
@@ -1269,6 +1287,9 @@ export default function CreateQuotation() {
               } else {
                 updatedItem.is_override = false;
               }
+            }
+            if (manualMrpEdit) {
+              updatedItem.is_override = true;
             }
 
             rate = calculateVariantDiscountedRate(baseRate, discountPercent);
@@ -1290,7 +1311,7 @@ export default function CreateQuotation() {
             const original = item.original_discount_percent || 0;
             updatedItem.override_flag = updates.discount_percent !== original;
           }
-          if ('rate' in updates) {
+          if ('rate' in updates || 'base_rate_snapshot' in updates) {
             updatedItem.override_flag = true;
           }
         }
@@ -1375,12 +1396,22 @@ export default function CreateQuotation() {
     ]);
   }, [formData, headerDiscounts]);
 
-  const handleHeaderDiscountChange = async (categoryId: string, discountVal: number, type: string) => {
-    if (items.length === 0) return;
+  const getRowDiscountCategoryId = (item: any) => {
+    return item.discount_category_id
+      || item.material?.discount_category_id
+      || materials.find(m => m.id === item.item_id)?.discount_category_id
+      || null;
+  };
+
+  const applyCategoryDiscountToItems = (categoryId: string, discountVal: number, type: string, excludedIds: string[] = [], includeOverrides = false) => {
     setItems(prev => prev.map(item => {
       if (item.is_header || item.is_subtotal) return item;
-      const isMatch = type === 'erection' ? item.section === 'erection' : item.discount_category_id === categoryId;
-      if (!isMatch || item.is_override) return item;
+      const dcId = getRowDiscountCategoryId(item);
+      const isMatch = type === 'erection' ? item.section === 'erection' : dcId === categoryId;
+      if (!isMatch) return item;
+      if (excludedIds.includes(String(item.id))) return item;
+      if (item.is_override && !includeOverrides) return item;
+      // Only the net rate changes — base_rate_snapshot (MRP) is preserved.
       const baseRate = item.base_rate_snapshot || item.rate || 0;
       const finalRate = calculateVariantDiscountedRate(baseRate, discountVal);
       const qty = parseFloat(item.qty) || 0;
@@ -1393,9 +1424,48 @@ export default function CreateQuotation() {
         applied_discount_percent: discountVal,
         rate: finalRate,
         line_total: taxable + taxAmount,
-        tax_amount: taxAmount
+        tax_amount: taxAmount,
+        is_override: false
       };
     }));
+  };
+
+  const handleHeaderDiscountChange = async (categoryId: string, discountVal: number, type: string) => {
+    if (items.length === 0) return;
+    const matching = items.filter(item => {
+      if (item.is_header || item.is_subtotal) return false;
+      const dcId = getRowDiscountCategoryId(item);
+      return type === 'erection' ? item.section === 'erection' : dcId === categoryId;
+    });
+    if (matching.length === 0) return;
+    const needsDecision = matching.some(item => (parseFloat(item.discount_percent) || 0) !== discountVal);
+    if (!needsDecision) {
+      // Every row already carries the new value — quietly clear stale override flags.
+      applyCategoryDiscountToItems(categoryId, discountVal, type);
+      return;
+    }
+    let n = 0;
+    const orderMap: Record<string, number> = {};
+    items.forEach(it => { if (!it.is_header && !it.is_subtotal) { n += 1; orderMap[String(it.id)] = n; } });
+    const categoryName = type === 'erection' ? 'Erection charges' : (discountCategoryMap[categoryId]?.name || 'Discount category');
+    setDiscountPopup({
+      categoryId,
+      discountVal,
+      type,
+      categoryName,
+      affectedCount: matching.length,
+      rows: matching.map(item => {
+        const matForLabel = item.material || materials.find(m => m.id === item.item_id);
+        return {
+          id: String(item.id),
+          sno: orderMap[String(item.id)] || 0,
+          label: item.description || matForLabel?.display_name || matForLabel?.name || 'Unnamed item',
+          current: parseFloat(item.discount_percent) || 0,
+          altered: !!item.is_override,
+        };
+      }),
+      excludedIds: [] as string[],
+    });
   };
 
   const handleBulkDelete = () => {
@@ -2846,6 +2916,82 @@ export default function CreateQuotation() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {discountPopup && (
+        <Dialog open={!!discountPopup} onOpenChange={(open) => { if (!open) setDiscountPopup(null); }}>
+          <DialogContent className="sm:max-w-md" style={{ fontFamily: "'Inter', system-ui, sans-serif", border: '1px solid #CBD5E1', borderRadius: '8px' }}>
+            <DialogHeader>
+              <DialogTitle style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: '13px', fontWeight: 700, color: '#0B1C30' }}>Apply {discountPopup.discountVal}% discount?</DialogTitle>
+              <DialogDescription style={{ fontFamily: "'Inter', system-ui, sans-serif", fontSize: '12px', color: '#475569' }}>
+                {discountPopup.affectedCount} item(s) in "{discountPopup.categoryName}". Apply the new {discountPopup.discountVal}% to all of them, or tick a few to exclude them from this change (excluded items keep their discount).
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 max-h-64 overflow-y-auto py-1">
+              {discountPopup.rows.map((row: any) => {
+                const excluded = discountPopup.excludedIds.includes(row.id);
+                return (
+                  <label
+                    key={row.id}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontFamily: "'Inter', system-ui, sans-serif", background: excluded ? '#EFF4FF' : '#ffffff' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={excluded}
+                      onChange={() => {
+                        setDiscountPopup((prev: any) => {
+                          if (!prev) return prev;
+                          const has = prev.excludedIds.includes(row.id);
+                          return { ...prev, excludedIds: has ? prev.excludedIds.filter((id: string) => id !== row.id) : [...prev.excludedIds, row.id] };
+                        });
+                      }}
+                      style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: '#2563EB' }}
+                      title="Tick to exclude this item from the change"
+                    />
+                    <span style={{ fontWeight: 600, color: '#0B1C30', minWidth: '28px', fontVariantNumeric: 'tabular-nums' }}>#{row.sno}</span>
+                    <span style={{ flex: 1, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.label}</span>
+                    {row.altered && (
+                      <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#F59E0B' }} title="Manually altered discount" />
+                    )}
+                    <span style={{ fontWeight: 700, color: '#B45309', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{row.current}%</span>
+                  </label>
+                );
+              })}
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <button
+                type="button"
+                onClick={() => setDiscountPopup(null)}
+                style={{ height: '32px', padding: '0 12px', fontSize: '12px', fontWeight: 600, fontFamily: "'Inter', system-ui, sans-serif", color: '#334155', background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  applyCategoryDiscountToItems(discountPopup.categoryId, discountPopup.discountVal, discountPopup.type, discountPopup.excludedIds, true);
+                  const applied = discountPopup.affectedCount - discountPopup.excludedIds.length;
+                  toast.success(`Applied ${discountPopup.discountVal}% to ${applied} item(s), ${discountPopup.excludedIds.length} excluded`);
+                  setDiscountPopup(null);
+                }}
+                style={{ height: '32px', padding: '0 12px', fontSize: '12px', fontWeight: 600, fontFamily: "'Inter', system-ui, sans-serif", color: '#334155', background: '#ffffff', border: '1px solid #E2E8F0', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Apply Except Selected
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  applyCategoryDiscountToItems(discountPopup.categoryId, discountPopup.discountVal, discountPopup.type, [], true);
+                  toast.success(`Applied ${discountPopup.discountVal}% to all ${discountPopup.affectedCount} item(s)`);
+                  setDiscountPopup(null);
+                }}
+                style={{ height: '32px', padding: '0 12px', fontSize: '12px', fontWeight: 600, fontFamily: "'Inter', system-ui, sans-serif", color: '#ffffff', background: '#2563EB', border: '1px solid #2563EB', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Apply to All
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {inputDialog && (
         <Dialog open={inputDialog.open} onOpenChange={(open) => { if (!open) setInputDialog(null); }}>

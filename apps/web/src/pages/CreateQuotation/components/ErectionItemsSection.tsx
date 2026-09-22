@@ -688,11 +688,12 @@ export function ErectionItemsSection({
                     <input
                       type="number"
                       className="cell-input text-right font-semibold"
-                      value={item.rate || 0}
+                      value={item.base_rate_snapshot ?? item.rate ?? 0}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value) || 0;
-                        updateItem(item.id, 'rate', val);
+                        updateItem(item.id, 'base_rate_snapshot', val);
                       }}
+                      title="MRP (auto-fetched rate) — editing recomputes only the net rate"
                     />
                   </td>
                   <td className="col-disc" style={{ position: 'relative' }}>
