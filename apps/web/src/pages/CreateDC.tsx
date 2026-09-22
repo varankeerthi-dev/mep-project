@@ -194,6 +194,13 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   const sourceId = searchParams.get('sourceId');
   const [loading, setLoading] = useState(false);
   const isEditing = !!editDC;
+  // PRD docs/prd/dc-merge-billable-nonbillable.md §6.2: unified billing-type toggle.
+  // Create mode: default from ?type= (legacy /nb-dc/create redirect). Edit mode: locked
+  // to the row's dc_type (synced when editDC arrives below — type change post-creation is forbidden).
+  const [billingType, setBillingType] = useState<'billable' | 'non-billable'>(() =>
+    searchParams.get('type') === 'non-billable' ? 'non-billable' : 'billable'
+  );
+  const isNonBillable = billingType === 'non-billable';
   // Use shared hooks - NO local state needed
   const clientsQuery = useClients();
   const clients = clientsQuery.data || [];
@@ -447,6 +454,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         eway_valid_till: editDC.eway_valid_till || '',
         rate_source: editDC.rate_source || 'base'
       });
+      // PRD merge: lock the toggle to the stored type (see state declaration above).
+      setBillingType(String((editDC as any).dc_type || '').toLowerCase() === 'non-billable' ? 'non-billable' : 'billable');
       loadExistingItems(editDC.id);
     } else if (intentId && organisation?.id) {
       loadIntentData(intentId);
@@ -1031,7 +1040,14 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   const validateForm = () => {
     if (!formData.client_name) { alert('Please select Client'); return false; }
     if (!formData.dc_date) { alert('Please select DC Date'); return false; }
-    
+
+    // PRD merge §5-F2: NB mode uses the header warehouse (verbatim NB behavior);
+    // billable keeps the per-item warehouse requirement.
+    if (isNonBillable && formData.source_type === 'WAREHOUSE' && !formData.warehouse_id) {
+      alert('Please select Warehouse');
+      return false;
+    }
+
     for (const item of items) {
       if (!item.material_id) continue;
       if (item.uses_variant && !item.variant_id) {
@@ -1042,7 +1058,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         alert(`Invalid quantity for: ${item.material_name}`);
         return false;
       }
-      if (!item.is_service && !item.warehouse_id) {
+      const effectiveWarehouse = item.warehouse_id || (isNonBillable ? formData.warehouse_id : '');
+      if (!item.is_service && !effectiveWarehouse) {
         alert(`Warehouse required for: ${item.material_name}`);
         return false;
       }
@@ -1066,7 +1083,10 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     status: statusOverride || 'active',
     rate_source: formData.rate_source,
     authorized_signatory_id: formData.authorized_signatory_id || null,
-    organisation_id: formData.organisation_id || organisation?.id || null
+    organisation_id: formData.organisation_id || organisation?.id || null,
+    // PRD merge §5-F7: billable omits dc_type exactly as before (DB default applies);
+    // non-billable sets it explicitly (verbatim NB behavior).
+    ...(isNonBillable ? { dc_type: 'non-billable' } : {}),
   });
 
   const saveDC = async (statusOverride?: string) => {
@@ -1077,7 +1097,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     try {
       const validItems = items.filter(i => i.valid && i.material_id);
       if (validItems.length === 0) {
-        alert('Please add at least one valid item to the Delivery Challan.');
+        alert(isNonBillable ? 'Please add at least one valid item to the Non-Billable Delivery Challan.' : 'Please add at least one valid item to the Delivery Challan.');
         setLoading(false);
         return false;
       }
@@ -1093,8 +1113,9 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         dcId = editDC.id;
         await supabase.from('delivery_challan_items').delete().eq('delivery_challan_id', dcId);
       } else {
-        // Generate and reserve DC number on save
-        const dcNumber = await generateDCNo(true); // true = reserve the number
+        // Generate and reserve DC number on save.
+        // PRD merge §5-F7: numbering scheme follows the billing-type toggle.
+        const dcNumber = isNonBillable ? await generateNBDCNo() : await generateDCNo(true); // true = reserve the number
         const dcDataWithNumber = { ...dcData, dc_number: dcNumber };
         
         const { data, error } = await supabase.from('delivery_challans').insert(dcDataWithNumber).select();
@@ -1117,7 +1138,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         material_id: item.material_id,
         variant_id: item.uses_variant && item.variant_id ? item.variant_id : null,
         make: item.make || null,
-        warehouse_id: item.warehouse_id || null,
+        // PRD merge §5-F2: NB rows inherit the header warehouse when the row has none.
+        warehouse_id: item.warehouse_id || (isNonBillable ? formData.warehouse_id : null) || null,
         material_name: item.material_name,
         unit: item.unit,
         quantity: parseFloat(item.quantity),
@@ -1154,10 +1176,11 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         }
       }
       
-      // Deduct stock per item using each item's own warehouse_id
+      // Deduct stock per item using each item's own warehouse_id.
+      // PRD merge §5-F1: NB rows fall back to the header warehouse (verbatim NB behavior).
       for (const item of validItems) {
         if (item.is_service) continue;
-        const itemWarehouseId = item.warehouse_id;
+        const itemWarehouseId = item.warehouse_id || (isNonBillable ? formData.warehouse_id : '');
         if (!itemWarehouseId) continue;
         
         const variantId = item.uses_variant ? item.variant_id : null;
@@ -1186,7 +1209,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         }
       }
       
-      alert(isEditing ? 'DC Updated!' : 'DC Created!');
+      alert(isEditing ? (isNonBillable ? 'NB-DC Updated!' : 'DC Updated!') : (isNonBillable ? 'NB-DC Created!' : 'DC Created!'));
       setIsDirty(false);
       if (onSuccess) {
         onSuccess();
@@ -1250,6 +1273,66 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     return null;
   };
 
+  // PRD merge §5-F7: NB numbering — verbatim logic from CreateNonBillableDC
+  // (NBDC- prefix, max(dc_number)+1 within dc_type='non-billable', padding from
+  // document_series configs.dc.padding with default 4). Billable path untouched.
+  const generateNBDCNo = async () => {
+    const { data: existingDCs } = await supabase
+      .from('delivery_challans')
+      .select('dc_number')
+      .eq('dc_type', 'non-billable')
+      .order('dc_number', { ascending: false })
+      .limit(1);
+
+    const isMissingColumnError = (error, columnName) => {
+      const code = error?.code;
+      const message = String(error?.message || '').toLowerCase();
+      if (code === '42703') return true;
+      return message.includes(String(columnName).toLowerCase()) && message.includes('does not exist');
+    };
+
+    let padding = 4;
+    try {
+      const { data: seriesList, error: seriesError } = await supabase
+        .from('document_series')
+        .select('configs, created_at')
+        .eq('is_default', true)
+        .limit(1);
+
+      if (seriesError && !isMissingColumnError(seriesError, 'is_default') && !isMissingColumnError(seriesError, 'organisation_id')) {
+        throw seriesError;
+      }
+
+      const series = Array.isArray(seriesList) ? seriesList[0] : null;
+
+      if (series?.configs?.dc?.padding) {
+        padding = parseInt(series.configs.dc.padding) || 4;
+      } else if (seriesError && (isMissingColumnError(seriesError, 'is_default') || isMissingColumnError(seriesError, 'organisation_id'))) {
+        const { data: rows, error: rowsError } = await supabase
+          .from('document_series')
+          .select('configs, created_at')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (rowsError && !isMissingColumnError(rowsError, 'is_default') && !isMissingColumnError(rowsError, 'organisation_id')) {
+          throw rowsError;
+        }
+        const fallback = Array.isArray(rows) ? rows[0] : null;
+        padding = parseInt(fallback?.configs?.dc?.padding) || 4;
+      }
+    } catch (e) {
+      console.warn('Unable to load document_series padding; using default padding=4', e);
+    }
+
+    let num = 1;
+    if (existingDCs && existingDCs.length > 0) {
+      const lastNumStr = existingDCs[0].dc_number.replace('NBDC-', '');
+      const lastNum = parseInt(lastNumStr);
+      if (!isNaN(lastNum)) num = lastNum + 1;
+    }
+    const paddedNum = String(num).padStart(padding, '0');
+    return `NBDC-${paddedNum}`;
+  };
+
   const generateDCNo = async (reserveNumber = false) => {
     const seriesData = await fetchSeriesRowForDC();
 
@@ -1311,7 +1394,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     const columnConfig = [
       { header: 'S.No', key: 'sno', width: 10 },
       { header: 'Item Description', key: 'item', width: 52 },
-      { header: 'Discount Category', key: 'variant', width: 24 },
+      { header: 'Variant', key: 'variant', width: 24 },
       { header: 'Unit', key: 'unit', width: 14 },
       { header: 'Qty', key: 'qty', width: 16 },
       { header: 'Rate', key: 'rate', width: 22 },
@@ -1396,6 +1479,22 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
           <h1 className="text-base font-bold text-zinc-900 tracking-tight" style={{ margin: 0 }}>
             {isEditing ? 'Edit Delivery Challan' : 'Create Delivery Challan'}
           </h1>
+          {/* PRD merge §6.2: billing-type toggle. Locked in edit mode. */}
+          <div className="flex items-center gap-1 bg-zinc-100 rounded-md p-0.5" title={isEditing ? 'Billing type cannot be changed after creation' : 'Select DC billing type'}>
+            {(['billable', 'non-billable'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                disabled={isEditing || loading}
+                onClick={() => setBillingType(t)}
+                className={`h-[26px] px-3 text-xs font-bold rounded transition-colors ${
+                  billingType === t ? (t === 'billable' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-amber-500 text-white shadow-sm') : 'text-zinc-500 hover:text-zinc-700'
+                } ${(isEditing || loading) && billingType !== t ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {t === 'billable' ? 'Billable' : 'Non-Billable'}
+              </button>
+            ))}
+          </div>
           {isLocked && (
             <span className="px-2 py-1 text-xs font-bold bg-amber-100 text-amber-700 rounded">
               Approved
@@ -1428,14 +1527,17 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
             >
               Cancel
             </button>
-            <button
-              type="button"
-              className={`h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all ${loading || isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={handleSaveAsDraft}
-              disabled={loading || isLocked}
-            >
-              {loading ? 'Saving...' : 'Save as Draft'}
-            </button>
+            {/* PRD merge §5-F7: NB has no draft state (verbatim NB behavior). */}
+            {!isNonBillable && (
+              <button
+                type="button"
+                className={`h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all ${loading || isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={handleSaveAsDraft}
+                disabled={loading || isLocked}
+              >
+                {loading ? 'Saving...' : 'Save as Draft'}
+              </button>
+            )}
             <button
               type="button"
               style={{

@@ -1499,14 +1499,14 @@ export default function ProformaEditorPage() {
           onMouseEnter={e => { (e.currentTarget).style.borderColor = '#3b82f6'; }}
           onMouseLeave={e => { (e.currentTarget).style.borderColor = 'transparent'; }}
         >
-          {selected ? selected.variant_name : 'No Category'}
+          {selected ? selected.variant_name : 'No Variant'}
         </div>
         {open && (
           <div ref={listRef} style={dropdownStyle}>
             <div onClick={() => { onChange(null); setOpen(false); }} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 400, color: '#94a3b8', borderBottom: '1px solid #f3f4f6' }}
               onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
               onMouseLeave={e => e.currentTarget.style.background = 'white'}
-            >No Category</div>
+            >No Variant</div>
             {filtered.map(v => (
               <div key={v.id} onClick={() => { onChange(v.id); setOpen(false); }} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '11px', color: '#1e293b', borderBottom: '1px solid #f3f4f6' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}

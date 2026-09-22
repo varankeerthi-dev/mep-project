@@ -16,6 +16,8 @@ interface Props {
   parentMessageId?: string | null;
   replyHintName?: string;
   onCancelReply?: () => void;
+  /** Channel display name, used for the "Message #channel…" placeholder. */
+  channelName?: string;
 }
 
 const EMOJI_GROUPS = [
@@ -33,7 +35,13 @@ const EMOJI_GROUPS = [
   },
 ];
 
-export function Composer({ channelId, parentMessageId, replyHintName, onCancelReply }: Props) {
+export function Composer({
+  channelId,
+  parentMessageId,
+  replyHintName,
+  onCancelReply,
+  channelName,
+}: Props) {
   const { organisation } = useAuth();
   const orgId = organisation?.id ?? '';
   const send = useSendMessage(channelId);
@@ -318,7 +326,7 @@ export function Composer({ channelId, parentMessageId, replyHintName, onCancelRe
   };
 
   return (
-    <div className="border-t bg-white px-3 py-2 relative" data-testid="collab-composer">
+    <div className="shrink-0 border-t border-slate-200 bg-white p-2 relative" data-testid="collab-composer">
       {/* Mention Autocomplete Dropdown */}
       {mentionOpen && filteredMembers.length > 0 && (
         <div
@@ -418,7 +426,7 @@ export function Composer({ channelId, parentMessageId, replyHintName, onCancelRe
       )}
 
       {parentMessageId && (
-        <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+        <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-1 px-1">
           <span>Replying in thread{replyHintName ? ` to ${replyHintName}` : ''}</span>
           {onCancelReply && (
             <button type="button" onClick={onCancelReply} className="ml-auto text-gray-500 hover:text-gray-800">
@@ -430,21 +438,27 @@ export function Composer({ channelId, parentMessageId, replyHintName, onCancelRe
 
       <AttachmentPreview attachments={staged} onRemove={removeStaged} />
 
-      {/* Modern Full-Width Text Entry Card with Bottom Toolbar */}
-      <div className="border border-gray-300 rounded-lg bg-white shadow-xs focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-colors overflow-hidden">
+      {/* Text entry card with bottom toolbar */}
+      <div className="border border-slate-300 rounded-lg bg-white shadow-2xs focus-within:border-slate-500 transition-colors overflow-hidden">
         <textarea
           ref={textareaRef}
           value={text}
           onChange={handleTextChange}
           onKeyDown={onKey}
-          rows={1}
-          placeholder={parentMessageId ? 'Reply… (use @ to mention)' : 'Message…'}
-          className="w-full resize-none px-3 pt-2.5 pb-1 text-sm text-gray-800 placeholder-gray-400 focus:outline-none border-none bg-transparent max-h-36 overflow-y-auto block leading-relaxed"
-          style={{ minHeight: '40px' }}
+          rows={2}
+          placeholder={
+            parentMessageId
+              ? 'Reply… (use @ to mention)'
+              : channelName
+              ? `Message #${channelName}…`
+              : 'Message…'
+          }
+          className="w-full resize-none px-2.5 pt-2 pb-1 text-[13px] text-slate-800 placeholder-slate-400 focus:outline-none border-none bg-transparent max-h-36 overflow-y-auto block leading-relaxed"
+          style={{ minHeight: '44px' }}
           data-testid="collab-composer-textarea"
         />
 
-        <div className="flex items-center justify-between px-2 pb-1.5 pt-1 border-t border-gray-100 bg-gray-50/50">
+        <div className="bg-slate-50 px-2 py-1 flex items-center justify-between border-t border-slate-100">
           <div className="flex items-center gap-0.5">
             {/* Plus Action Menu (+ Add) */}
             <div className="relative" ref={plusMenuRef}>
@@ -452,7 +466,9 @@ export function Composer({ channelId, parentMessageId, replyHintName, onCancelRe
                 type="button"
                 onClick={() => setPlusMenuOpen((v) => !v)}
                 className={`p-1.5 rounded transition ${
-                  plusMenuOpen ? 'text-blue-600 bg-blue-100' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-200/70'
+                  plusMenuOpen
+                    ? 'text-blue-600 bg-blue-100'
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/70'
                 }`}
                 aria-label="Add attachment or task"
                 title="Add… (Task, File, ERP Record)"
@@ -525,8 +541,10 @@ export function Composer({ channelId, parentMessageId, replyHintName, onCancelRe
             <button
               type="button"
               onClick={() => setEmojiPickerOpen((v) => !v)}
-              className={`p-1.5 rounded hover:bg-gray-200/70 transition ${
-                emojiPickerOpen ? 'text-blue-600 bg-blue-100' : 'text-gray-500 hover:text-gray-800'
+              className={`p-1.5 rounded hover:bg-slate-200/70 transition ${
+                emojiPickerOpen
+                  ? 'text-blue-600 bg-blue-100'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
               aria-label="Insert emoji"
               title="Insert emoji"
@@ -537,7 +555,7 @@ export function Composer({ channelId, parentMessageId, replyHintName, onCancelRe
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-200/70 rounded transition"
+              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 rounded transition"
               aria-label="Attach file"
               title="Attach file"
             >
@@ -546,7 +564,7 @@ export function Composer({ channelId, parentMessageId, replyHintName, onCancelRe
             <button
               type="button"
               onClick={() => cameraInputRef.current?.click()}
-              className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-200/70 rounded transition"
+              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 rounded transition"
               aria-label="Attach photo"
               title="Attach photo"
             >
@@ -555,7 +573,7 @@ export function Composer({ channelId, parentMessageId, replyHintName, onCancelRe
             <button
               type="button"
               onClick={() => { /* voice note — Phase 2 */ }}
-              className="p-1.5 text-gray-300 cursor-not-allowed"
+              className="p-1.5 text-slate-300 cursor-not-allowed"
               aria-label="Record voice (coming soon)"
               disabled
               title="Voice note — coming soon"
@@ -565,23 +583,23 @@ export function Composer({ channelId, parentMessageId, replyHintName, onCancelRe
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-gray-400 select-none hidden sm:inline">
+            <span className="text-[11px] text-slate-400 select-none hidden sm:inline">
               @ mention
             </span>
             <button
               type="button"
               onClick={submit}
               disabled={!canSend}
-              className={`p-1.5 rounded-md transition flex items-center justify-center ${
+              className={`w-6 h-6 rounded transition flex items-center justify-center ${
                 canSend
-                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xs active:scale-95'
-                  : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                  ? 'bg-collab-send text-white hover:bg-collab-send-hover shadow-xs active:scale-95'
+                  : 'bg-slate-100 text-slate-300 cursor-not-allowed'
               }`}
               aria-label="Send"
               title={canSend ? 'Send message (Enter)' : 'Type a message to send'}
               data-testid="collab-composer-send"
             >
-              <Send className="h-3.5 w-3.5" />
+              <Send className="h-3 w-3" />
             </button>
           </div>
         </div>

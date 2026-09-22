@@ -64,7 +64,7 @@ export const buildItemChangeLog = (before: any, after: any): string[] => {
     ['hsn_code', 'HSN/SAC'],
     ['gst_rate', 'GST Rate'],
     ['is_active', 'Active'],
-    ['uses_variant', 'Uses Discount Category'],
+    ['uses_variant', 'Uses Variants'],
   ];
 
   return keys

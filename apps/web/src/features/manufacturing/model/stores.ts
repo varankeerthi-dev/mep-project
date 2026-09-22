@@ -75,6 +75,9 @@ export interface GRNItem {
   unit: string;
   batch_no?: string;
   expiry_date?: string;
+  serial_number?: string;
+  warranty_start_date?: string;
+  warranty_end_date?: string;
   warehouse_id?: string | null;
   status: 'pending' | 'qc_passed' | 'qc_failed' | 'accepted';
   organisation_id: string;

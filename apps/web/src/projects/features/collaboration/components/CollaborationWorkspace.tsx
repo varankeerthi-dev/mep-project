@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Hash, MessageSquare, X, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../../../supabase';
+import { CollabModuleRail } from './CollabModuleRail';
 import { ProjectListRail } from './ProjectListRail';
 import { ProjectCollaborationTab } from './ProjectCollaborationTab';
 import { ThreadRail } from './ThreadRail';
@@ -45,6 +46,9 @@ export function CollaborationWorkspace({ organisationId }: Props) {
 
   const lastHandledUrlProjectRef = useRef<string | null>(null);
   const lastClosedProjectRef = useRef<string | null>(null);
+  // The "default to #general" fallback is a first-entry convenience only. It must
+  // not re-run when search params change, otherwise closing a pane reopens one.
+  const didDefaultOpenRef = useRef(false);
 
   // Auto-resolve the organisation's #general channel (the rail lists all company
   // channels; this guarantees the canonical one exists).
@@ -72,20 +76,17 @@ export function CollaborationWorkspace({ organisationId }: Props) {
       }
     } else {
       lastHandledUrlProjectRef.current = null;
-      // If no project specified from URL, default to #general company channel
+      // If no project specified from URL, default to #general company channel —
+      // once per mount, so that closing the last pane leaves the workspace closed
+      // (it shows the project picker) instead of springing back open.
+      if (didDefaultOpenRef.current) return;
+      didDefaultOpenRef.current = true;
       const s = useCollabStore.getState();
       if (!s.isCompanyChannelOpen && s.openProjectIds.length === 0) {
         openCompanyChannel(channelFromUrl || 'general');
       }
     }
   }, [projectIdFromUrl, channelFromUrl, openProject, openCompanyChannel]);
-
-  // Prevent dead-end: if all panes closed, reopen company #general
-  useEffect(() => {
-    if (!isCompanyChannelOpen && openProjectIds.length === 0) {
-      openCompanyChannel('general');
-    }
-  }, [isCompanyChannelOpen, openProjectIds.length, openCompanyChannel]);
 
   // Map project id → display name for open panes
   const { data: projectRows } = useQuery({
@@ -174,6 +175,9 @@ export function CollaborationWorkspace({ organisationId }: Props) {
     openProjectIds.forEach((id) => closeProject(id));
     closeCompanyChannel();
     lastHandledUrlProjectRef.current = null;
+    // Closing everything is a deliberate act — don't let the first-entry default
+    // pull #general straight back open.
+    didDefaultOpenRef.current = true;
     const next = new URLSearchParams(searchParams);
     next.delete('projectId');
     next.delete('projectName');
@@ -185,21 +189,28 @@ export function CollaborationWorkspace({ organisationId }: Props) {
   const isSingle = totalPanesCount === 1;
 
   return (
-    <div className="h-full flex bg-white overflow-hidden" data-testid="collab-workspace">
-      {/* Panel 1: Left rail listing company channels + projects */}
-      <ProjectListRail
-        organisationId={organisationId}
-        selectedProjectId={activeScope === 'project' ? activeProjectId : null}
-        isCompanyActive={activeScope === 'company'}
-        onSelect={handleSelectProject}
-        onSelectCompany={handleSelectCompany}
-      />
+    <div
+      className="h-full flex flex-col bg-collab-canvas overflow-hidden"
+      data-testid="collab-workspace"
+    >
+      {/* Sticky module bar across the top of the workspace */}
+      <CollabModuleRail />
 
-      {/* Center Panes: Panels 2 & 3 (and any further open chats) */}
-      <div
-        className="flex-1 min-w-0 flex h-full overflow-x-auto bg-gray-50/50"
-        data-testid="collab-panes-strip"
-      >
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        {/* Panel 1: contextual sidebar listing company channels + projects */}
+        <ProjectListRail
+          organisationId={organisationId}
+          selectedProjectId={activeScope === 'project' ? activeProjectId : null}
+          isCompanyActive={activeScope === 'company'}
+          onSelect={handleSelectProject}
+          onSelectCompany={handleSelectCompany}
+        />
+
+        {/* Center Panes: Panels 2 & 3 (and any further open chats) */}
+        <div
+          className="flex-1 min-w-0 flex h-full overflow-x-auto bg-collab-canvas collab-scroll"
+          data-testid="collab-panes-strip"
+        >
         {totalPanesCount === 0 ? (
           <ProjectGrid
             organisationId={organisationId}
@@ -238,25 +249,26 @@ export function CollaborationWorkspace({ organisationId }: Props) {
             ))}
           </>
         )}
-      </div>
+        </div>
 
-      {/* Panel 4: Always-on / collapsible thread rail */}
-      <div className="flex shrink-0">
-        {  activeScope === 'company' && activeCompanyChannel ? (
-          <CenterThreadSlot
-            channelId={activeCompanyChannel.id}
-            collapsed={threadCollapsed}
-            onToggleCollapsed={toggleThread}
-          />
-        ) : activeScope === 'project' && activeProjectId ? (
-          <CenterThreadSlot
-            projectId={activeProjectId}
-            collapsed={threadCollapsed}
-            onToggleCollapsed={toggleThread}
-          />
-        ) : (
-          <EmptyThreadRail />
-        )}
+        {/* Panel 4: Always-on / collapsible thread rail */}
+        <div className="flex shrink-0">
+          {activeScope === 'company' && activeCompanyChannel ? (
+            <CenterThreadSlot
+              channelId={activeCompanyChannel.id}
+              collapsed={threadCollapsed}
+              onToggleCollapsed={toggleThread}
+            />
+          ) : activeScope === 'project' && activeProjectId ? (
+            <CenterThreadSlot
+              projectId={activeProjectId}
+              collapsed={threadCollapsed}
+              onToggleCollapsed={toggleThread}
+            />
+          ) : (
+            <EmptyThreadRail />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -284,14 +296,13 @@ function CompanyPane({
 
   return (
     <section
-      className={`shrink-0 border-r flex flex-col h-full bg-white transition-all ${
-        isActive ? 'border-blue-400 shadow-sm' : 'border-gray-200'
+      className={`shrink-0 flex flex-col h-full bg-white border-r border-slate-300 border-t-2 transition-colors ${
+        isActive ? 'border-t-collab-active' : 'border-t-transparent'
       }`}
       style={{
-        minWidth: 320,
-        maxWidth: isSingle ? 480 : 440,
-        width: isSingle ? 480 : undefined,
-        flex: isSingle ? '0 0 480px' : 1,
+        minWidth: 340,
+        flex: isSingle ? '1 1 auto' : '1 1 340px',
+        maxWidth: isSingle ? undefined : 620,
       }}
       data-testid="collab-pane-company"
       data-active={isActive ? 'true' : 'false'}
@@ -299,53 +310,40 @@ function CompanyPane({
         if (!isActive) onActivate();
       }}
     >
-      <div
-        className={`flex items-center justify-between px-2.5 py-1.5 border-b text-[11px] ${
-          isActive ? 'bg-blue-50' : 'bg-gray-50'
-        }`}
-      >
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onActivate();
-          }}
-          className="flex items-center gap-1.5 min-w-0 text-left hover:text-blue-700"
-          title={`#${channelName} (Company)`}
-        >
-          <Hash className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-          <span className="font-semibold text-gray-800 truncate">{channelName}</span>
-          <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">
-            {channel?.visibility === 'private' ? 'Private' : 'Org'}
-          </span>
-        </button>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
-            aria-label={`Close #${channelName}`}
-            title={`Close #${channelName}`}
-            data-testid="collab-company-pane-close"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
       <div className="flex-1 min-h-0">
         {isLoading || !channel ? (
-          <div className="flex items-center justify-center h-full text-gray-400 text-[11px]" data-testid="collab-pane-loading">
-            <Loader2 className="h-3 w-3 animate-spin mr-1" /> Loading…
+          <div
+            className="h-full flex flex-col bg-white"
+            data-testid="collab-pane-loading"
+          >
+            <PaneSkeleton channelName={channelName} />
+            <div className="flex-1 flex items-center justify-center text-slate-400 text-[11px]">
+              <Loader2 className="h-3 w-3 animate-spin mr-1" /> Loading…
+            </div>
           </div>
         ) : (
-          <ProjectCollaborationTab projectId={null} initialChannel={channel} />
+          <ProjectCollaborationTab
+            projectId={null}
+            initialChannel={channel}
+            onClose={onClose}
+            closeTestId="collab-company-pane-close"
+          />
         )}
       </div>
     </section>
+  );
+}
+
+/** Static header placeholder shown while the channel row is being fetched. */
+function PaneSkeleton({ channelName }: { channelName: string }) {
+  return (
+    <div className="shrink-0 bg-white border-b border-slate-200">
+      <div className="h-11 px-3 flex items-center gap-1.5">
+        <Hash className="h-3.5 w-3.5 text-slate-400" />
+        <span className="font-bold text-slate-900 text-sm truncate">{channelName}</span>
+      </div>
+      <div className="px-3 py-1.5 bg-slate-50/70 border-b border-slate-100 h-7" />
+    </div>
   );
 }
 
@@ -372,14 +370,13 @@ function ProjectPane({
 
   return (
     <section
-      className={`shrink-0 border-r flex flex-col h-full bg-white transition-all ${
-        isActive ? 'border-blue-400 shadow-sm' : 'border-gray-200'
+      className={`shrink-0 flex flex-col h-full bg-white border-r border-slate-300 border-t-2 transition-colors ${
+        isActive ? 'border-t-collab-active' : 'border-t-transparent'
       }`}
       style={{
-        minWidth: 320,
-        maxWidth: isSingle ? 480 : 440,
-        width: isSingle ? 480 : undefined,
-        flex: isSingle ? '0 0 480px' : 1,
+        minWidth: 340,
+        flex: isSingle ? '1 1 auto' : '1 1 340px',
+        maxWidth: isSingle ? undefined : 620,
       }}
       data-testid="collab-pane"
       data-active={isActive ? 'true' : 'false'}
@@ -387,47 +384,23 @@ function ProjectPane({
         if (!isActive) onActivate();
       }}
     >
-      <div
-        className={`flex items-center justify-between px-2.5 py-1.5 border-b text-[11px] ${
-          isActive ? 'bg-blue-50' : 'bg-gray-50'
-        }`}
-      >
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onActivate();
-          }}
-          className="flex items-center gap-1.5 min-w-0 text-left hover:text-blue-700"
-          title={projectName}
-        >
-          <Hash className="h-3.5 w-3.5 text-gray-500 shrink-0" />
-          <span className="font-semibold text-gray-800 truncate">{projectName}</span>
-        </button>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
-            aria-label={`Close ${projectName}`}
-            title={`Close ${projectName}`}
-            data-testid="collab-pane-close"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
       <div className="flex-1 min-h-0">
         {isLoading || !channel ? (
-          <div className="flex items-center justify-center h-full text-gray-400 text-[11px]" data-testid="collab-pane-loading">
-            <Loader2 className="h-3 w-3 animate-spin mr-1" /> Loading…
+          <div
+            className="h-full flex flex-col bg-white"
+            data-testid="collab-pane-loading"
+          >
+            <PaneSkeleton channelName={projectName} />
+            <div className="flex-1 flex items-center justify-center text-slate-400 text-[11px]">
+              <Loader2 className="h-3 w-3 animate-spin mr-1" /> Loading…
+            </div>
           </div>
         ) : (
-          <ProjectCollaborationTab projectId={projectId} />
+          <ProjectCollaborationTab
+            projectId={projectId}
+            onClose={onClose}
+            closeTestId="collab-pane-close"
+          />
         )}
       </div>
     </section>
@@ -464,29 +437,34 @@ function ProjectGrid({
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-400 text-sm" data-testid="collab-grid-loading">
+      <div className="flex-1 flex items-center justify-center text-slate-400 text-sm" data-testid="collab-grid-loading">
         Loading projects…
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6" data-testid="collab-project-grid">
+    <div className="flex-1 overflow-y-auto p-6 collab-scroll" data-testid="collab-project-grid">
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center gap-2 mb-4 text-gray-500">
-          <Hash className="h-4 w-4 text-blue-600" />
-          <h2 className="text-sm font-semibold text-gray-700">Project channels</h2>
+        <div className="flex items-center gap-2 mb-4 text-slate-500">
+          <Hash className="h-4 w-4 text-collab-accent" />
+          <h2 className="text-sm font-semibold text-slate-800">Project channels</h2>
           <span className="text-xs">— pick one to start chatting</span>
         </div>
         {rows.length === 0 ? (
-          <div className="text-sm text-gray-500 text-center py-10 border rounded bg-white" data-testid="collab-grid-empty">
-            <p className="font-medium text-gray-700">No projects in this organisation yet.</p>
-            <p className="text-xs text-gray-500 mt-1">You can still chat in company channels and create tasks.</p>
+          <div
+            className="text-sm text-slate-500 text-center py-10 rounded-lg border border-slate-200 bg-white"
+            data-testid="collab-grid-empty"
+          >
+            <p className="font-medium text-slate-700">No projects in this organisation yet.</p>
+            <p className="text-xs text-slate-500 mt-1">
+              You can still chat in company channels and create tasks.
+            </p>
             {onSelectCompany && (
               <button
                 type="button"
                 onClick={() => onSelectCompany('general')}
-                className="mt-4 px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition inline-flex items-center gap-1.5"
+                className="mt-4 px-3 py-1.5 bg-collab-accent text-white rounded text-xs font-medium hover:bg-collab-accent-deep transition inline-flex items-center gap-1.5"
               >
                 <Hash className="h-3.5 w-3.5" />
                 Open #general channel
@@ -502,11 +480,11 @@ function ProjectGrid({
                   key={p.id}
                   type="button"
                   onClick={() => onSelect(p.id, label)}
-                  className="text-left border rounded-lg p-3 hover:border-blue-400 hover:bg-blue-50/50 transition bg-white"
+                  className="text-left border border-slate-200 rounded-lg p-3 hover:border-collab-accent hover:bg-blue-50/50 transition bg-white"
                   data-testid="collab-grid-card"
                 >
-                  <div className="text-sm font-semibold text-gray-800 truncate">{label}</div>
-                  <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-1">
+                  <div className="text-sm font-semibold text-slate-800 truncate">{label}</div>
+                  <div className="text-[10px] uppercase tracking-wide text-slate-500 mt-1">
                     {p.status ?? '—'}
                   </div>
                 </button>
@@ -535,13 +513,13 @@ function CenterThreadSlot({
   if (collapsed) {
     return (
       <aside
-        className="w-10 shrink-0 border-l bg-white flex flex-col items-center pt-2"
+        className="w-10 shrink-0 border-l border-slate-200 bg-white flex flex-col items-center pt-2"
         data-testid="collab-thread-rail-collapsed"
       >
         <button
           type="button"
           onClick={onToggleCollapsed}
-          className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded"
+          className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded"
           aria-label="Open thread panel"
           title="Open thread panel"
         >
@@ -551,11 +529,11 @@ function CenterThreadSlot({
     );
   }
   return (
-    <div className="relative">
+    <div className="relative h-full">
       <button
         type="button"
         onClick={onToggleCollapsed}
-        className="absolute top-2 right-2 z-10 p-1 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded"
+        className="absolute top-3.5 right-2 z-10 p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded"
         aria-label="Close thread panel"
         title="Close thread panel"
         data-testid="collab-thread-close"
@@ -580,14 +558,14 @@ function ThreadLane({ projectId }: { projectId: string }) {
 function EmptyThreadRail() {
   return (
     <aside
-      className="w-80 shrink-0 border-l bg-white flex flex-col h-full"
+      className="w-80 shrink-0 border-l border-slate-200 bg-white flex flex-col h-full"
       data-testid="collab-thread-rail-empty"
     >
-      <div className="px-4 py-3 border-b flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-gray-500" />
-        <h3 className="text-sm font-semibold">Thread</h3>
+      <div className="h-11 px-3 border-b border-slate-200 flex items-center gap-2 shrink-0">
+        <MessageSquare className="h-3.5 w-3.5 text-slate-500" />
+        <h3 className="text-sm font-semibold text-slate-900">Thread</h3>
       </div>
-      <div className="flex-1 flex items-center justify-center text-center px-6 text-sm text-gray-500">
+      <div className="flex-1 flex items-center justify-center text-center px-6 text-xs text-slate-400">
         Select a message in a channel to view its thread.
       </div>
     </aside>

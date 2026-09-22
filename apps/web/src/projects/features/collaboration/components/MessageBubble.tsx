@@ -1,6 +1,15 @@
 // MessageBubble.tsx — single message with body, reactions, edit/delete, task/reminder creation.
 import { memo, useState } from 'react';
-import { Smile, Pencil, Trash2, MoreHorizontal, CheckSquare, Bookmark, Bell } from 'lucide-react';
+import {
+  Smile,
+  Pencil,
+  Trash2,
+  MoreHorizontal,
+  CheckSquare,
+  Bookmark,
+  Bell,
+  MessageSquare,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useAddReaction, useDeleteMessage, useRemoveReaction, useCreatePersonalTaskFromMessage } from '../hooks';
@@ -34,7 +43,7 @@ function renderContentWithMentions(content: string) {
       return (
         <span
           key={i}
-          className="inline-block px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-800 font-semibold text-xs mx-0.5"
+          className="bg-blue-50 text-blue-600 font-semibold px-1 rounded mx-0.5"
         >
           {display}
         </span>
@@ -64,6 +73,8 @@ export const MessageBubble = memo(function MessageBubble({
 
   const openTaskCreate = useCollabStore((s) => s.openTaskCreate);
   const openReminderCreate = useCollabStore((s) => s.openReminderCreate);
+  const setOpenThread = useCollabStore((s) => s.setOpenThread);
+  const expandThread = useCollabStore((s) => s.expandThread);
   const createPersonalTask = useCreatePersonalTaskFromMessage();
 
   const handleCreateTask = () => {
@@ -95,7 +106,7 @@ export const MessageBubble = memo(function MessageBubble({
 
   if (isDeleted) {
     return (
-      <div className="text-xs text-gray-400 italic px-2 py-1" data-testid="collab-msg-tombstone">
+      <div className="text-[11px] text-slate-400 italic px-2 py-1" data-testid="collab-msg-tombstone">
         Message deleted
       </div>
     );
@@ -119,7 +130,7 @@ export const MessageBubble = memo(function MessageBubble({
       return <ReminderCard message={message} />;
     }
     return (
-      <div className="text-xs text-gray-500 italic px-2 py-1 text-center" data-testid="collab-msg-system">
+      <div className="text-[11px] text-slate-400 italic px-2 py-1 text-center" data-testid="collab-msg-system">
         {message.content}
       </div>
     );
@@ -135,52 +146,22 @@ export const MessageBubble = memo(function MessageBubble({
 
   return (
     <div
-      className={`group relative rounded-lg px-2.5 py-1.5 hover:bg-slate-50/80 transition-colors ${isOptimistic ? 'opacity-70' : ''}`}
+      className={`group relative flex items-start gap-2.5 px-2 py-1 -mx-2 rounded hover:bg-slate-50 transition-colors ${isOptimistic ? 'opacity-70' : ''}`}
       data-testid="collab-msg"
       data-message-id={message.id}
     >
-      <div className="flex items-start gap-2.5">
-        <UserAvatar
-          name={senderName}
-          avatarUrl={senderAvatarUrl ?? message.sender_avatar_url}
-          userId={message.sender_id}
-          size="sm"
-          fallbackType="face"
-          className="mt-0.5"
-          showTooltip
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
-            <span className="text-sm font-semibold text-slate-900">
-              {isOptimistic
-                ? 'Sending…'
-                : (senderName && senderName.trim().length > 0
-                    ? senderName
-                    : 'Unknown user')}
-            </span>
-            <span className="text-xs text-slate-500">{formatRelativeTime(message.created_at)}</span>
-            {message.edited_at && <span className="text-xs text-slate-400">(edited)</span>}
-          </div>
-          <div className="text-sm text-slate-800 whitespace-pre-wrap break-words mt-0.5">
-            {renderContentWithMentions(message.content)}
-          </div>
-
-          <LinkedEntityChips entities={message.metadata.linked_entities ?? []} />
-
-          <ReactionBar messageId={message.id} reactions={reactions} channelId={message.channel_id} />
-        </div>
-      </div>
-
-      <div className="absolute right-2 -top-2 hidden group-hover:flex items-center gap-0.5 bg-white border rounded shadow-sm">
+      {/* Hover action toolbar */}
+      <div className="absolute right-2 -top-3 opacity-0 group-hover:opacity-100 focus-within:opacity-100 flex items-center gap-0.5 bg-white border border-slate-200 rounded shadow-sm px-1 py-0.5 text-slate-500 z-10 transition">
         <div className="relative">
           <button
             type="button"
-            className="p-1 text-gray-500 hover:text-gray-800"
+            className="px-1 hover:text-amber-500"
             onClick={(e) => {
               e.stopPropagation();
               setShowEmoji((v) => !v);
             }}
             aria-label="React"
+            title="Add reaction"
           >
             <Smile className="h-3.5 w-3.5" />
           </button>
@@ -203,10 +184,25 @@ export const MessageBubble = memo(function MessageBubble({
             </div>
           )}
         </div>
+        {/* Reply in thread */}
+        <button
+          type="button"
+          className="px-1 hover:text-blue-600"
+          onClick={(e) => {
+            e.stopPropagation();
+            expandThread();
+            setOpenThread(message.id);
+          }}
+          title="Reply in thread"
+          aria-label="Reply in thread"
+          data-testid="collab-msg-thread"
+        >
+          <MessageSquare className="h-3.5 w-3.5" />
+        </button>
         {/* Direct Create Task Action */}
         <button
           type="button"
-          className="p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition"
+          className="px-1 hover:text-blue-600"
           onClick={(e) => {
             e.stopPropagation();
             handleCreateTask();
@@ -222,7 +218,7 @@ export const MessageBubble = memo(function MessageBubble({
         <div className="relative">
           <button
             type="button"
-            className="p-1 text-gray-500 hover:text-gray-800 rounded hover:bg-gray-100 transition"
+            className="px-1 hover:text-slate-800"
             onClick={(e) => {
               e.stopPropagation();
               setShowMenu((v) => !v);
@@ -312,13 +308,47 @@ export const MessageBubble = memo(function MessageBubble({
           <button
             type="button"
             onClick={removeOwnReactions}
-            className="p-1 text-gray-500 hover:text-gray-800"
+            className="px-1 hover:text-slate-800"
             aria-label="Remove my reactions"
             title="Remove my reactions"
           >
             ×
           </button>
         )}
+      </div>
+
+      <UserAvatar
+        name={senderName}
+        avatarUrl={senderAvatarUrl ?? message.sender_avatar_url}
+        userId={message.sender_id}
+        size="sm"
+        fallbackType="face"
+        className="shrink-0"
+        showTooltip
+      />
+      <div className="flex-1 min-w-0 text-[13px]">
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-bold text-slate-900 hover:underline cursor-pointer truncate">
+            {isOptimistic
+              ? 'Sending…'
+              : senderName && senderName.trim().length > 0
+              ? senderName
+              : 'Unknown user'}
+          </span>
+          <span className="text-[11px] text-slate-400 shrink-0">
+            {formatRelativeTime(message.created_at)}
+          </span>
+          {message.edited_at && (
+            <span className="text-[11px] text-slate-400 shrink-0">(edited)</span>
+          )}
+        </div>
+        <div className="text-slate-800 mt-0.5 whitespace-pre-wrap break-words leading-snug">
+          {renderContentWithMentions(message.content)}
+        </div>
+
+        <LinkedEntityChips entities={message.metadata.linked_entities ?? []} />
+
+        <ReactionBar messageId={message.id} reactions={reactions} channelId={message.channel_id} />
       </div>
     </div>
   );

@@ -38,15 +38,17 @@ export function ThreadRail({ channelId }: Props) {
   if (!openThreadId) {
     return (
       <aside
-        className="w-80 shrink-0 border-l bg-white flex flex-col h-full"
+        className="w-80 shrink-0 border-l border-slate-200 bg-white flex flex-col h-full"
         data-testid="collab-thread-rail-empty"
       >
-        <div className="px-4 py-3 border-b flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-gray-500" />
-          <h3 className="text-sm font-semibold">Thread</h3>
+        <div className="h-11 px-3 border-b border-slate-200 flex items-center gap-2 shrink-0">
+          <MessageSquare className="h-3.5 w-3.5 text-slate-500" />
+          <h3 className="text-sm font-semibold text-slate-900">Thread</h3>
         </div>
-        <div className="flex-1 flex items-center justify-center p-6 text-center text-xs text-gray-400">
-          Select a message's thread to view it here.
+        <div className="flex-1 flex flex-col items-center justify-center gap-1 p-6 text-center text-xs text-slate-400">
+          <MessageSquare className="h-6 w-6 text-slate-300" />
+          <span className="text-slate-500 font-medium">No thread selected</span>
+          <span>Select a message's thread to view it here.</span>
         </div>
       </aside>
     );
@@ -54,15 +56,18 @@ export function ThreadRail({ channelId }: Props) {
 
   return (
     <aside
-      className="w-80 shrink-0 border-l bg-white flex flex-col h-full"
+      className="w-80 shrink-0 border-l border-slate-200 bg-white flex flex-col h-full"
       data-testid="collab-thread-rail"
     >
-      <div className="px-4 py-3 border-b flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Thread</h3>
+      <div className="h-11 px-3 border-b border-slate-200 flex items-center justify-between shrink-0">
+        <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+          <MessageSquare className="h-3.5 w-3.5 text-slate-500" />
+          Thread
+        </h3>
         <button
           type="button"
           onClick={() => setOpen(null)}
-          className="p-1 text-gray-500 hover:text-gray-800"
+          className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded transition"
           aria-label="Close thread"
           title="Close thread"
         >
@@ -70,9 +75,9 @@ export function ThreadRail({ channelId }: Props) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 collab-scroll">
         {thread.isLoading && (
-          <div className="text-center text-gray-400 text-sm py-6">
+          <div className="text-center text-slate-400 text-xs py-6">
             <Loader2 className="h-4 w-4 animate-spin inline" /> Loading…
           </div>
         )}

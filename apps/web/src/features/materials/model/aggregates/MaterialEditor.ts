@@ -36,6 +36,11 @@ export interface MaterialEditorFormData {
   show_in_bom: boolean;
   is_manufactured: boolean;
   custom_attributes: MaterialCustomAttribute[];
+  has_warranty: boolean;
+  warranty_period: string;
+  warranty_unit: 'months' | 'years';
+  has_serial_number: boolean;
+  serial_number_format: string;
 }
 
 export function createDefaultFormData(): MaterialEditorFormData {
@@ -71,6 +76,11 @@ export function createDefaultFormData(): MaterialEditorFormData {
     show_in_bom: true,
     is_manufactured: false,
     custom_attributes: [],
+    has_warranty: false,
+    warranty_period: '',
+    warranty_unit: 'months',
+    has_serial_number: false,
+    serial_number_format: '',
   };
 }
 

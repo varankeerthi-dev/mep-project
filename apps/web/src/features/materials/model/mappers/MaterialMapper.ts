@@ -44,6 +44,11 @@ export function editorToMaterial(
     allow_sales: formData.allow_sales,
     show_in_bom: formData.show_in_bom,
     is_manufactured: formData.is_manufactured,
+    has_warranty: formData.has_warranty,
+    warranty_period: formData.has_warranty && formData.warranty_period ? parseInt(formData.warranty_period) : null,
+    warranty_unit: formData.has_warranty ? formData.warranty_unit : null,
+    has_serial_number: formData.has_serial_number,
+    serial_number_format: formData.has_serial_number ? formData.serial_number_format : null,
     organisation_id: organisationId,
   };
 }
@@ -89,6 +94,12 @@ export function materialToEditor(
     allow_sales: material.allow_sales !== false,
     show_in_bom: material.show_in_bom !== false,
     is_manufactured: material.is_manufactured === true,
+    has_warranty: material.has_warranty || false,
+    warranty_period: material.warranty_period ? String(material.warranty_period) : '',
+    warranty_unit: (material.warranty_unit === 'years' ? 'years' : 'months') as 'months' | 'years',
+    has_serial_number: material.has_serial_number || false,
+    serial_number_format: material.serial_number_format || '',
+    custom_attributes: material.custom_attributes || [],
   };
 }
 

@@ -59,6 +59,8 @@ interface CollabUIState {
   setPrefersReducedMotion: (val: boolean) => void;
   toggleCenter: () => void;
   toggleThread: () => void;
+  /** Force the thread rail open (e.g. when replying in a thread). */
+  expandThread: () => void;
   /** Open or focus a project in the multi-pane area. */
   openProject: (projectId: string) => void;
   /** Close a single project pane. */
@@ -147,6 +149,7 @@ export const useCollabStore = create<CollabUIState>((set) => ({
   setPrefersReducedMotion: (val) => set({ prefersReducedMotion: val }),
   toggleCenter: () => set((s) => ({ centerCollapsed: !s.centerCollapsed })),
   toggleThread: () => set((s) => ({ threadCollapsed: !s.threadCollapsed })),
+  expandThread: () => set({ threadCollapsed: false }),
 
   openProject: (projectId) =>
     set((s) => {

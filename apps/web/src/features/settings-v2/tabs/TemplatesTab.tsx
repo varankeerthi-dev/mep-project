@@ -26,7 +26,7 @@ const OPTIONAL_COLUMNS = [
   { key: 'qty', label: 'Qty', isMandatory: true },
   { key: 'uom', label: 'Unit (UOM)' },
   { key: 'item_code', label: 'Tool Code' },
-  { key: 'variant', label: 'Discount Category' },
+  { key: 'variant', label: 'Variant' },
   { key: 'description', label: 'Description' },
   { key: 'client_part_no', label: 'Client Part No' },
   { key: 'client_description', label: 'Client Description' },
@@ -362,7 +362,7 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
     if (optionalCols.item_code) columnsHTML += '<th>Item Code / SKU</th>';
     if (optionalCols.hsn_code) columnsHTML += '<th>HSN/SAC</th>';
     if (optionalCols.item) columnsHTML += `<th>${labels.item || 'Item Description'}</th>`;
-    if (optionalCols.variant) columnsHTML += '<th>Discount Category</th>';
+    if (optionalCols.variant) columnsHTML += '<th>Variant</th>';
     if (optionalCols.description) columnsHTML += '<th>Description</th>';
     if (optionalCols.client_part_no) columnsHTML += '<th>Client Part No</th>';
     if (optionalCols.client_description) columnsHTML += '<th>Client Description</th>';

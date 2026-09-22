@@ -100,7 +100,7 @@ const DEFAULT_COLUMNS: ColumnSetting[] = [
   { key: 'sno', label: 'S.No', width: 50, visible: true },
   { key: 'hsn_sac', label: 'HSN/SAC', width: 90, visible: true },
   { key: 'description', label: 'Description', width: 250, visible: true },
-  { key: 'variant', label: 'Discount Category', width: 100, visible: true },
+  { key: 'variant', label: 'Variant', width: 100, visible: true },
   { key: 'make', label: 'Make', width: 100, visible: true },
   { key: 'quantity', label: 'Qty', width: 70, visible: true },
   { key: 'unit', label: 'Unit', width: 70, visible: true },

@@ -124,7 +124,7 @@ function VariantGrid({ structure, rows, settings, setSettings, updateSetting, ha
           <table className="table">
             <thead>
               <tr>
-                <th>Discount Category</th>
+                <th>{isDiscountCategory ? 'Discount Category' : 'Variant'}</th>
                 <th style={{ width: '120px', textAlign: 'right' }}>Default %</th>
                 <th style={{ width: '120px', textAlign: 'right' }}>Min %</th>
                 <th style={{ width: '120px', textAlign: 'right' }}>Max %</th>

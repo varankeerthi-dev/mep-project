@@ -20,6 +20,7 @@ export interface GeneralConfigData {
   round_off_enabled: boolean;
   auto_generate_item_codes: boolean;
   date_format: string;
+  allow_nbdc_to_quotation: boolean;
 }
 
 export interface OrganisationInfoData {
@@ -96,7 +97,7 @@ export const SETTINGS_TABS: SettingsTabDefinition[] = [
     category: 'Organisation',
     icon: Sliders,
     description: 'System-wide preferences, calculation rounding, and auto-generation',
-    searchIndex: ['general', 'config', 'round off', 'rounding', 'integer rounding', 'item code generation'],
+    searchIndex: ['general', 'config', 'round off', 'rounding', 'integer rounding', 'item code generation', 'delivery challan', 'non-billable', 'non billable dc', 'quotation conversion'],
   },
   {
     id: 'organisation',
@@ -230,10 +231,10 @@ export const SETTINGS_TABS: SettingsTabDefinition[] = [
   },
   {
     id: 'variants',
-    label: 'Variants & Discount Cats',
+    label: 'Variants & Discount Categories',
     category: 'Master Data',
     icon: Layers,
-    description: 'Product variants and discount category assignments',
+    description: 'Product variants (pricing tiers) and their assignment to items',
     searchIndex: ['variants', 'discount categories', 'product variants', 'company variants'],
   },
   {

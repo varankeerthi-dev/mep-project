@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import DOMPurify from 'dompurify';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../App';
+import { useOrganisationSettings } from '../hooks/useOrganisationSettings';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fetchDeliveryChallans, deleteDeliveryChallan } from '../api';
+import { fetchDeliveryChallans, deleteDeliveryChallan, cancelDeliveryChallan } from '../api';
 import { supabase } from '../supabase';
 import { format } from 'date-fns';
 import { generateZohoTemplate } from './ZohoTemplate';
@@ -48,13 +49,21 @@ const getStatusColor = (status?: string) =>
 const ALL_COLUMNS = [
   { id: 'date', label: 'Date', width: '120px' },
   { id: 'dc_number', label: 'DC No', width: '160px' },
+  { id: 'type', label: 'Type', width: '110px' },
   { id: 'project', label: 'Project', width: '200px' },
   { id: 'client', label: 'Client', width: '300px' },
   { id: 'amount', label: 'Amount', width: '180px' },
   { id: 'status', label: 'Status', width: '120px' },
 ];
 
-const MANDATORY_COLUMNS = ['date', 'dc_number', 'client', 'amount', 'status'];
+const MANDATORY_COLUMNS = ['date', 'dc_number', 'type', 'client', 'amount', 'status'];
+
+const DC_TYPES = ['All', 'Billable', 'Non-Billable'] as const;
+
+// PRD docs/prd/dc-merge-billable-nonbillable.md §5-F9: non-billable discriminator.
+// Legacy rows pre-dating dc_type rely on the DB default ('billable'); treat
+// NULL/missing as billable so they never vanish from the Billable filter.
+const isNonBillableDc = (dc: any) => String(dc?.dc_type || '').toLowerCase() === 'non-billable';
 
 export default function DCList() {
   const navigate = useNavigate();
@@ -78,10 +87,26 @@ export default function DCList() {
     const saved = localStorage.getItem('dc_list_columns');
     return saved ? JSON.parse(saved) : ['date', 'dc_number', 'client', 'amount', 'status'];
   });
+  // PRD merge §6.1: Type badge is mandatory-visible even for saved prefs predating it.
+  const effectiveVisibleColumns = useMemo(
+    () => Array.from(new Set([...MANDATORY_COLUMNS, ...visibleColumns])),
+    [visibleColumns]
+  );
   const [tempVisibleColumns, setVisibleColumnsTemp] = useState<string[]>(visibleColumns);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  // PRD merge §6.1: unified Type filter. Accepts ?type=billable|non-billable (legacy /nb-dc redirects).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [typeFilter, setTypeFilter] = useState<string>(() => {
+    const t = (searchParams.get('type') || '').toLowerCase().replace(/[\s_]/g, '-');
+    if (t === 'billable') return 'Billable';
+    if (t === 'non-billable' || t === 'nonbillable' || t === 'nb') return 'Non-Billable';
+    return 'All';
+  });
+  // PRD §6.4: NB→Quotation convertibility toggle (default ON). Tenant-scoped via hook.
+  const { settings: orgSettings } = useOrganisationSettings();
+  const allowNbConvert = (orgSettings as any)?.allow_nbdc_to_quotation !== false;
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>('desc');
@@ -147,13 +172,13 @@ export default function DCList() {
     };
   }, [showColumnCustomizer]);
 
-  // Reset to first page when search or status filter changes
+  // Reset to first page when search or status/type filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, typeFilter]);
 
   const challansQuery = useQuery({
-    queryKey: ['deliveryChallans', statusFilter, organisation?.id],
+    queryKey: ['deliveryChallans', statusFilter, typeFilter, organisation?.id],
     queryFn: async () => {
       let query = supabase
         .from('delivery_challans')
@@ -162,6 +187,9 @@ export default function DCList() {
         .order('created_at', { ascending: false });
 
       if (statusFilter !== 'All') query = query.eq('status', statusFilter);
+      // PRD merge §6.1: billable = everything that is not non-billable (NULL-safe for legacy rows).
+      if (typeFilter === 'Non-Billable') query = query.eq('dc_type', 'non-billable');
+      else if (typeFilter === 'Billable') query = query.neq('dc_type', 'non-billable');
 
       const { data, error } = await query;
       if (error) throw error;
@@ -190,12 +218,18 @@ export default function DCList() {
   const deleteMutation = useMutation({
     mutationFn: deleteDeliveryChallan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['deliveryChallans', statusFilter, organisation?.id] });
+      queryClient.invalidateQueries({ queryKey: ['deliveryChallans', statusFilter, typeFilter, organisation?.id] });
     }
   });
 
   const challans = challansQuery.data || [];
   const loading = challansQuery.isPending && !challansQuery.data;
+
+  // PRD §6.4: whether the current multi-selection contains NB rows (for convert gating).
+  const selectedHasNonBillable = useMemo(
+    () => challans.some((dc: any) => selectedDCIds.has(dc.id) && isNonBillableDc(dc)),
+    [challans, selectedDCIds]
+  );
 
   const filteredChallans = useMemo(() => {
     const q = searchTerm.toLowerCase();
@@ -319,7 +353,7 @@ export default function DCList() {
       if (optionalCols.hsn_code) columnConfig.push({ header: labels.hsn_code || 'HSN/SAC', key: 'hsn_code', width: 20 });
       columnConfig.push({ header: labels.item || 'Item', key: 'item', width: optionalCols.description ? 50 : 70 });
       if (optionalCols.description) columnConfig.push({ header: labels.description || 'Description', key: 'description', width: 40 });
-      if (optionalCols.variant) columnConfig.push({ header: labels.variant || 'Discount Category', key: 'variant', width: 25 });
+      if (optionalCols.variant) columnConfig.push({ header: labels.variant || 'Variant', key: 'variant', width: 25 });
       if (optionalCols.size) columnConfig.push({ header: labels.size || 'Size', key: 'size', width: 20 });
       columnConfig.push({ header: labels.qty || 'Qty', key: 'qty', width: 20 });
       columnConfig.push({ header: labels.unit || 'Unit', key: 'unit', width: 15 });
@@ -622,15 +656,32 @@ export default function DCList() {
     }
   };
 
-  const handleDelete = async (id: string, dcNumber: string) => {
-    if (confirm(`Are you sure you want to delete DC ${dcNumber}?`)) {
+  const handleDelete = async (id: string, dcNumber: string, status?: string) => {
+    const isCancelled = String(status || '').toUpperCase() === 'CANCELLED';
+    const confirmMsg = isCancelled
+      ? `Delete cancelled DC ${dcNumber}? It will be permanently removed.`
+      : `Are you sure you want to delete DC ${dcNumber}?`;
+    if (confirm(confirmMsg)) {
       try {
         await deleteMutation.mutateAsync(id);
         setOpenMenuId(null);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error deleting DC:', error);
-        alert('Error deleting Delivery Challan');
+        alert('Error deleting Delivery Challan: ' + (error?.message || error));
       }
+    }
+  };
+
+  const handleCancelDC = async (id: string, dcNumber: string) => {
+    const reason = prompt(`Cancel DC ${dcNumber}?\n\nReason (optional):`, '');
+    if (reason === null) return; // user dismissed the prompt
+    try {
+      await cancelDeliveryChallan(id, reason || undefined);
+      queryClient.invalidateQueries({ queryKey: ['deliveryChallans'] });
+      setOpenMenuId(null);
+    } catch (error: any) {
+      console.error('Error cancelling DC:', error);
+      alert('Error cancelling Delivery Challan: ' + (error?.message || error));
     }
   };
 
@@ -681,8 +732,55 @@ export default function DCList() {
       setMultiDCError('Select at least 2 DCs to convert');
       return;
     }
+    // PRD §6.4: NB rows convert only when the settings toggle is ON.
+    if (selectedHasNonBillable && !allowNbConvert) {
+      setMultiDCError('Selection includes Non-Billable DC(s) — enable conversion in Settings → General & Config → Delivery Challan, or deselect them.');
+      return;
+    }
     setMultiDCError('');
     setShowModeModal(true);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedDCIds.size === 0) return;
+
+    // Re-fetch statuses fresh so rows outside the current page are included
+    // and pagination drift cannot let a non-cancelled row slip through.
+    const ids = Array.from(selectedDCIds);
+    const { data: freshRows, error: freshError } = await supabase
+      .from('delivery_challans')
+      .select('id, dc_number, status')
+      .in('id', ids);
+    if (freshError) {
+      alert('Error loading selected DCs: ' + (freshError.message || freshError));
+      return;
+    }
+    const byId: Record<string, any> = {};
+    (freshRows || []).forEach((dc: any) => { byId[dc.id] = dc; });
+    const selected = ids.map(id => byId[id] || { id, dc_number: id, status: '' });
+    const isCancelledRow = (dc: any) => {
+      const s = String(dc.status || '').trim().toUpperCase();
+      return s === 'CANCELLED' || s === 'CANCELED';
+    };
+    const blocked = selected.filter(dc => !isCancelledRow(dc));
+
+    const confirmMsg = blocked.length > 0
+      ? `Delete ${selected.length} selected DC(s)?\n\nNote: ${blocked.length} of them are NOT cancelled (${blocked.slice(0, 5).map((dc: any) => dc.dc_number).join(', ')}${blocked.length > 5 ? ', …' : ''}) and the database will refuse to delete them. Only cancelled DCs will actually be removed.`
+      : `Delete ${selected.length} cancelled DC(s)? They will be permanently removed.`;
+    if (!confirm(confirmMsg)) return;
+
+    const results = await Promise.allSettled(ids.map(id => deleteDeliveryChallan(id)));
+    const failures = results.filter(r => r.status === 'rejected');
+
+    queryClient.invalidateQueries({ queryKey: ['deliveryChallans'] });
+    setSelectedDCIds(new Set());
+
+    if (failures.length > 0) {
+      const messages = failures
+        .map(f => (f as PromiseRejectedResult).reason?.message || 'Unknown error')
+        .filter((msg, i, arr) => arr.indexOf(msg) === i);
+      alert(`Deleted ${ids.length - failures.length} of ${ids.length} DC(s). ${failures.length} failed:\n${messages.slice(0, 3).join('\n')}`);
+    }
   };
 
   const handleModeSelect = async (mode: MultiDCQuotationMode) => {
@@ -741,14 +839,22 @@ export default function DCList() {
 
               <button
                 onClick={handleMultiDCConvert}
-                disabled={selectedDCIds.size < 2}
+                disabled={selectedDCIds.size < 2 || (selectedHasNonBillable && !allowNbConvert)}
+                title={selectedHasNonBillable && !allowNbConvert ? 'Selection includes Non-Billable DC(s) — enable conversion in Settings → General & Config → Delivery Challan' : undefined}
                 className={`text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 transition-all active:scale-[0.98] ${
-                  selectedDCIds.size >= 2
+                  selectedDCIds.size >= 2 && !(selectedHasNonBillable && !allowNbConvert)
                     ? 'bg-white text-zinc-900 hover:bg-zinc-100'
                     : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                 }`}
               >
                 Convert to Quotation
+              </button>
+
+              <button
+                onClick={handleBulkDelete}
+                className="text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 transition-all active:scale-[0.98] bg-red-600 text-white hover:bg-red-500"
+              >
+                Delete Selected
               </button>
             </div>
           </motion.div>
@@ -810,6 +916,23 @@ export default function DCList() {
         style={{ paddingTop: '15px', paddingBottom: '15px' }}
       >
         <div className="flex items-center gap-2">
+          {/* PRD merge §6.1: unified Type filter */}
+          <div className="flex items-center gap-1 bg-zinc-100 rounded-md p-0.5">
+            {DC_TYPES.map((t) => (
+              <button
+                key={t}
+                onClick={() => {
+                  setTypeFilter(t);
+                  setSearchParams(t === 'All' ? {} : { type: t === 'Billable' ? 'billable' : 'non-billable' }, { replace: true });
+                }}
+                className={`h-[24px] px-3 text-xs font-medium rounded transition-colors ${
+                  typeFilter === t ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
+                }`}
+              >
+                {t === 'Non-Billable' ? 'Non-Billable' : t}
+              </button>
+            ))}
+          </div>
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setShowStatusDropdown(!showStatusDropdown)}
@@ -910,8 +1033,9 @@ export default function DCList() {
                 <div className="flex items-center gap-2 pt-4 border-t border-zinc-100">
                   <button
                     onClick={() => {
-                      setVisibleColumns(tempVisibleColumns);
-                      localStorage.setItem('dc_list_columns', JSON.stringify(tempVisibleColumns));
+                      const merged = Array.from(new Set([...MANDATORY_COLUMNS, ...tempVisibleColumns]));
+                      setVisibleColumns(merged);
+                      localStorage.setItem('dc_list_columns', JSON.stringify(merged));
                       setShowColumnCustomizer(false);
                     }}
                     className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-colors active:scale-[0.98]"
@@ -950,7 +1074,7 @@ export default function DCList() {
                     />
                   </th>
                 )}
-                {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => (
+                {ALL_COLUMNS.filter(col => effectiveVisibleColumns.includes(col.id)).map(col => (
                   <th 
                     key={col.id}
                     style={{ width: col.width }}
@@ -981,13 +1105,13 @@ export default function DCList() {
             <tbody className="bg-white">
               {loading ? (
                 <tr>
-                  <td colSpan={visibleColumns.length + (multiSelectMode ? 2 : 1)} className="px-5 py-16 text-center text-sm text-zinc-500">
+                  <td colSpan={effectiveVisibleColumns.length + (multiSelectMode ? 2 : 1)} className="px-5 py-16 text-center text-sm text-zinc-500">
                     Loading delivery challans...
                   </td>
                 </tr>
               ) : paginationData.currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleColumns.length + (multiSelectMode ? 2 : 1)} className="px-5 py-16 text-center text-sm text-zinc-500">
+                  <td colSpan={effectiveVisibleColumns.length + (multiSelectMode ? 2 : 1)} className="px-5 py-16 text-center text-sm text-zinc-500">
                     No delivery challans found
                   </td>
                 </tr>
@@ -1034,7 +1158,7 @@ export default function DCList() {
                         </td>
                       )}
                       
-                      {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => {
+                      {ALL_COLUMNS.filter(col => effectiveVisibleColumns.includes(col.id)).map(col => {
                         if (col.id === 'date') return (
                           <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
                             {formatDate(dc.dc_date)}
@@ -1045,6 +1169,19 @@ export default function DCList() {
                             {dc.dc_number}
                           </td>
                         );
+                        // PRD merge §6.1: Type badge — DC (indigo) vs NB-DC (amber).
+                        if (col.id === 'type') {
+                          const nb = isNonBillableDc(dc);
+                          return (
+                            <td key={col.id} className="px-6 py-[26px] align-middle whitespace-nowrap border-t border-zinc-200/70">
+                              <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-full border ${
+                                nb ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                              }`}>
+                                {nb ? 'NB-DC' : 'DC'}
+                              </span>
+                            </td>
+                          );
+                        }
                         if (col.id === 'project') return (
                           <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
                             <div className="max-w-[180px] truncate" title={dc.project?.project_name || '-'}>
@@ -1133,14 +1270,22 @@ export default function DCList() {
                               <div className="my-1 border-t border-zinc-100" />
 
                               {/* Section 2: Convert actions */}
+                              {/* PRD §6.4: NB rows convert only when the settings toggle is ON. */}
                               <button
+                                disabled={isNonBillableDc(dc) && !allowNbConvert}
+                                title={isNonBillableDc(dc) && !allowNbConvert ? 'Disabled in Settings → General & Config → Delivery Challan' : undefined}
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  if (isNonBillableDc(dc) && !allowNbConvert) return;
                                   setConvertDC(dc);
                                   setShowConvertModal(true);
                                   setOpenMenuId(null);
                                 }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                                className={`flex w-full items-center gap-2 rounded-md px-2 text-[12px] transition-all active:scale-[0.98] ${
+                                  isNonBillableDc(dc) && !allowNbConvert
+                                    ? 'text-zinc-300 cursor-not-allowed'
+                                    : 'text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700'
+                                }`}
                                 style={{ padding: '6px' }}
                               >
                                 <SwapHorizIcon className="w-3.5 h-3.5" />
@@ -1174,6 +1319,19 @@ export default function DCList() {
                               <div className="my-1 border-t border-zinc-100" />
 
                               {/* Section 3: Modify actions */}
+                              {String(dc.status || '').toUpperCase() !== 'CANCELLED' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCancelDC(dc.id, dc.dc_number);
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-amber-600 transition-all hover:bg-amber-50 hover:text-amber-700 active:scale-[0.98]"
+                                  style={{ padding: '6px' }}
+                                >
+                                  <CloseIcon className="w-3.5 h-3.5" />
+                                  Cancel DC
+                                </button>
+                              )}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1190,7 +1348,7 @@ export default function DCList() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setOpenMenuId(null);
-                                  handleDelete(dc.id, dc.dc_number);
+                                  handleDelete(dc.id, dc.dc_number, dc.status);
                                 }}
                                 className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600 active:scale-[0.98]"
                                 style={{ padding: '6px' }}

@@ -486,7 +486,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
             <span>Material</span>
             <span style={{ textAlign: 'center' }}>Level</span>
             <span style={{ textAlign: 'right' }}>Qty</span>
-            <span>Discount Category</span>
+            <span>Variant</span>
             <span>Brand</span>
             <span>Unit</span>
             <span style={{ textAlign: 'right' }}>Waste%</span>

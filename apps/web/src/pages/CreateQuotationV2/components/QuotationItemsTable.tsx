@@ -160,7 +160,7 @@ const VariantCell = ({ value, variants: vList, itemId, variantPricing: vPricing,
         onClick={() => { openDropdownAtRef(ref, setDropdownStyle); setOpen(true); }}
         style={{ ...cell, cursor: 'pointer', fontSize: '11px', color: value ? '#0f172a' : '#94a3b8', fontWeight: value ? 500 : 400, display: 'flex', alignItems: 'center', userSelect: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
       >
-        {selected ? selected.variant_name : 'No Category'}
+        {selected ? selected.variant_name : 'No Variant'}
       </div>
       {open && (
         <div ref={listRef} style={dropdownStyle}>
@@ -169,7 +169,7 @@ const VariantCell = ({ value, variants: vList, itemId, variantPricing: vPricing,
             style={{ padding: '6px 12px', cursor: 'pointer', fontSize: '11px', fontWeight: 400, color: '#94a3b8', borderBottom: '1px solid #f3f4f6' }}
             onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
             onMouseLeave={e => e.currentTarget.style.background = 'white'}
-          >No Category</div>
+          >No Variant</div>
           {filtered.map(v => (
             <div
               key={v.id}
@@ -523,22 +523,27 @@ export function QuotationItemsTable({
                           }}
                         />
                       </div>
-                      {item.item_id && (
-                        <InlineDescriptionCell
-                          materialName=""
-                          description={item.description}
-                          onSave={(desc) => updateItem(item.id, 'description', desc)}
-                        />
-                      )}
                       {item.item_id && (() => {
                         const mat = item.material || materials.find(m => m.id === item.item_id);
                         const dcId = item.discount_category_id || mat?.discount_category_id;
-                        if (!dcId) return null;
-                        const dcName = discountCategoryMap[dcId]?.name;
-                        if (!dcName) return null;
+                        const dcName = dcId ? discountCategoryMap[dcId]?.name : null;
                         return (
-                          <div style={{ padding: '1px 6px', fontSize: '9px', color: '#6366f1', background: '#eef2ff', borderRadius: '3px', margin: '2px 6px 3px', display: 'inline-block', lineHeight: '1.4' }}>
-                            {dcName}
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                            {dcName && (
+                              <div
+                                title={`Discount category: ${dcName}`}
+                                style={{ padding: '1px 6px', fontSize: '9px', color: '#6366f1', background: '#eef2ff', borderRadius: '3px', marginTop: '4px', lineHeight: '1.4', whiteSpace: 'nowrap', flexShrink: 0 }}
+                              >
+                                {dcName}
+                              </div>
+                            )}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <InlineDescriptionCell
+                                materialName=""
+                                description={item.description}
+                                onSave={(desc) => updateItem(item.id, 'description', desc)}
+                              />
+                            </div>
                           </div>
                         );
                       })()}

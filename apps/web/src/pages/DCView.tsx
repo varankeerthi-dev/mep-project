@@ -185,7 +185,7 @@ export default function DCView() {
       if (colSettings.hsn_code) columnConfig.push({ header: labels.hsn_code || 'HSN/SAC', key: 'hsn_code', width: 20 });
       columnConfig.push({ header: labels.item || 'Item', key: 'item', width: colSettings.description ? 50 : 70 });
       if (colSettings.description) columnConfig.push({ header: labels.description || 'Description', key: 'description', width: 40 });
-      if (colSettings.variant) columnConfig.push({ header: labels.variant || 'Discount Category', key: 'variant', width: 25 });
+      if (colSettings.variant) columnConfig.push({ header: labels.variant || 'Variant', key: 'variant', width: 25 });
       if (colSettings.size) columnConfig.push({ header: labels.size || 'Size', key: 'size', width: 20 });
       columnConfig.push({ header: labels.qty || 'Qty', key: 'qty', width: 20 });
       columnConfig.push({ header: labels.unit || 'Unit', key: 'unit', width: 15 });

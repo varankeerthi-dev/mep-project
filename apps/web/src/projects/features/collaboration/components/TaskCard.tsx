@@ -279,13 +279,15 @@ export function TaskCard({ message, senderName, senderAvatarUrl }: Props) {
   if (isCompleted && isCollapsed) {
     return (
       <div
-        className="my-1.5 border border-emerald-200/90 rounded-lg bg-gradient-to-r from-emerald-50/90 via-teal-50/40 to-slate-50/50 px-3 py-1.5 max-w-md shadow-2xs flex items-center justify-between gap-2.5 transition-all"
+        className="my-1.5 rounded-lg border border-emerald-200 bg-emerald-50/50 px-2 py-1.5 max-w-md shadow-2xs flex items-center justify-between gap-2.5 transition-all"
         data-testid="collab-task-card"
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+            <CheckCircle2 className="h-3 w-3" />
+          </span>
           <span
-            className="text-xs font-medium text-emerald-950 truncate line-through decoration-emerald-600/70"
+            className="text-xs font-medium text-slate-700 truncate line-through decoration-slate-400"
             title={title}
           >
             {title}
@@ -297,7 +299,7 @@ export function TaskCard({ message, senderName, senderAvatarUrl }: Props) {
                 e.stopPropagation();
                 setStatusDropdownOpen((prev) => !prev);
               }}
-              className="px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200 transition-colors flex items-center gap-1 cursor-pointer"
+              className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold border bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200 transition-colors flex items-center gap-1 cursor-pointer"
               title="Click to change status"
             >
               <span>Completed</span>
@@ -313,17 +315,18 @@ export function TaskCard({ message, senderName, senderAvatarUrl }: Props) {
             onClick={() => {
               if (taskId) openTaskDetail(taskId);
             }}
-            className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer px-1 py-0.5"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer px-1 py-0.5"
             data-testid="collab-task-card-view"
           >
             <span>View</span>
-            <ExternalLink className="h-3 w-3" />
+            <ExternalLink className="h-2.5 w-2.5" />
           </button>
           <button
             type="button"
             onClick={() => setIsCollapsed(false)}
             className="p-1 text-emerald-700 hover:text-emerald-900 rounded hover:bg-emerald-100/70 cursor-pointer transition-colors"
             title="Expand task details"
+
             aria-label="Expand task details"
           >
             <ChevronRight className="h-4 w-4" />
@@ -337,22 +340,20 @@ export function TaskCard({ message, senderName, senderAvatarUrl }: Props) {
   return (
     <div
       className={cn(
-        'my-1.5 border rounded-lg p-3.5 max-w-md shadow-xs transition-all relative',
-        isCompleted
-          ? 'border-emerald-200 bg-gradient-to-br from-emerald-50/40 to-slate-50/60'
-          : 'border-blue-200/80 bg-gradient-to-br from-blue-50/40 to-slate-50/60',
+        'my-1.5 rounded-lg border p-3 max-w-md shadow-xs transition-all relative bg-white space-y-2',
+        isCompleted ? 'border-emerald-200' : 'border-slate-200',
       )}
       data-testid="collab-task-card"
     >
       {/* Top row: Creator & Status pill */}
       <div className="flex items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-1.5 font-medium text-blue-900 min-w-0">
+        <div className="flex items-center gap-1.5 font-medium min-w-0">
           {isCompleted ? (
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
           ) : (
             <CheckSquare className="h-4 w-4 text-blue-600 shrink-0" />
           )}
-          <span className="font-semibold">Task</span>
+          <span className="text-[11px] font-semibold text-blue-600">Task</span>
           <span className="text-zinc-400 font-normal">·</span>
           {/* Creator display */}
           <div className="flex items-center gap-1 min-w-0 text-zinc-500 font-normal">
@@ -411,15 +412,15 @@ export function TaskCard({ message, senderName, senderAvatarUrl }: Props) {
       {/* Task Title */}
       <div
         className={cn(
-          'mt-2 text-sm font-semibold leading-snug',
-          isCompleted ? 'text-zinc-700 line-through decoration-zinc-400' : 'text-slate-900',
+          'text-[13px] font-bold leading-snug',
+          isCompleted ? 'text-slate-600 line-through decoration-slate-400' : 'text-slate-900',
         )}
       >
         {title}
       </div>
 
       {/* Assignee(s) Section */}
-      <div className="mt-2 flex items-center gap-2 text-xs">
+      <div className="flex items-center gap-2 text-xs">
         <span className="text-[11px] font-medium text-zinc-400 shrink-0">Assignee:</span>
         {resolvedAssignees.length === 0 ? (
           <span className="inline-flex items-center gap-1 text-[11px] text-zinc-400 italic">
@@ -460,9 +461,16 @@ export function TaskCard({ message, senderName, senderAvatarUrl }: Props) {
       </div>
 
       {/* Footer: Priority, Due Date & View Task */}
-      <div className="mt-2.5 flex items-center justify-between text-xs pt-2 border-t border-slate-200/60">
+      <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
         <div className="flex items-center gap-2.5 text-slate-500">
-          <span className={priorityConfig.color}>{priorityConfig.label} Priority</span>
+          <span
+            className={cn(
+              'inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded border border-amber-200 bg-amber-50',
+              priorityConfig.color,
+            )}
+          >
+            {priorityConfig.label} Priority
+          </span>
           {dueDate && (
             <span className="flex items-center gap-1 text-[11px] text-slate-500">
               <Calendar className="h-3 w-3" />
@@ -476,11 +484,11 @@ export function TaskCard({ message, senderName, senderAvatarUrl }: Props) {
           onClick={() => {
             if (taskId) openTaskDetail(taskId);
           }}
-          className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+          className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
           data-testid="collab-task-card-view"
         >
           <span>View Task</span>
-          <ExternalLink className="h-3 w-3" />
+          <ExternalLink className="h-2.5 w-2.5" />
         </button>
       </div>
     </div>

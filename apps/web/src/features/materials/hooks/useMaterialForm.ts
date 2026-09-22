@@ -7,7 +7,9 @@ import { buildItemChangeLog, appendLocalAuditEntry } from '../shared/audit';
 import { generateItemCode } from '../shared/utils';
 import { buildStockKey, variantStockCombos } from '../model/aggregates/WarehouseStock';
 
-const defaultFormData = {
+import type { MaterialEditorFormData } from '../model/aggregates/MaterialEditor';
+
+const defaultFormData: MaterialEditorFormData = {
   item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
   size: '', pressure_class: '', make: '', material: '', end_connection: '',
   unit: 'nos', has_alternative_unit: false, alternative_units: [] as { unit_name: string; conversion_factor: string }[],
@@ -15,7 +17,12 @@ const defaultFormData = {
   uses_variant: false, track_inventory: false, discount_category_id: null,
   dimension: '', dimension_unit: 'cm', weight: '', weight_unit: 'kg',
   item_classification: 'goods_sold', allow_purchase: true, allow_sales: true, show_in_bom: true, is_manufactured: false,
-  custom_attributes: [] as any[]
+  custom_attributes: [] as any[],
+  has_warranty: false,
+  warranty_period: '',
+  warranty_unit: 'months',
+  has_serial_number: false,
+  serial_number_format: ''
 };
 
 export function useMaterialForm() {
@@ -134,7 +141,12 @@ export function useMaterialForm() {
       allow_purchase: material.allow_purchase !== false,
       allow_sales: material.allow_sales !== false,
       show_in_bom: material.show_in_bom !== false,
-      is_manufactured: material.is_manufactured === true
+      is_manufactured: material.is_manufactured === true,
+      has_warranty: material.has_warranty || false,
+      warranty_period: material.warranty_period ? String(material.warranty_period) : '',
+      warranty_unit: material.warranty_unit || 'months',
+      has_serial_number: material.has_serial_number || false,
+      serial_number_format: material.serial_number_format || ''
     });
     setShowForm(true);
 

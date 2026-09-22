@@ -26,7 +26,7 @@ export const ITEM_TABLE_COLUMNS = [
   { key: 'unit', label: 'Unit', default: true, locked: true },
   { key: 'gst_rate', label: 'GST Rate', default: true },
   { key: 'hsn_code', label: 'HSN/SAC', default: true },
-  { key: 'uses_variant', label: 'Discount Category', default: true },
+  { key: 'uses_variant', label: 'Uses Variants', default: true },
   { key: 'stock', label: 'Inventory', default: true },
   { key: 'code', label: 'Code', default: false },
   { key: 'sub_category', label: 'Sub Category', default: false },

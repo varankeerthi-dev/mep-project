@@ -449,6 +449,22 @@ html, body {
   }
 }
 
+/* ── Collaboration: keep the module rail beside the app's sidebar drawer ──────
+   Below 769px the app sidebar becomes a modal overlay drawer (see the Mobile
+   block above), so opening it would bury the collaboration module rail
+   underneath. While the drawer is open we instead offset the collaboration
+   workspace past it and lift it above the drawer's backdrop (z-index 950) and
+   scrim (899) — but below the drawer itself (1001), which no longer overlaps.
+   Both menus then stay on screen and remain clickable, on every breakpoint. */
+@media (max-width: 768px) {
+  .sidebar-layout:has(.sidebar.mobile-open)
+    ~ .main-content:has([data-testid='collab-workspace']) {
+    margin-left: 256px;
+    position: relative;
+    z-index: 960;
+  }
+}
+
 /* Scrollbar styling */
 .sidebar::-webkit-scrollbar {
   width: 6px;
@@ -2904,7 +2920,54 @@ form > div:first-child > [data-slot="editor-section"]:first-child {
   pointer-events: none;
 }
 
+/* ==========================================
+   COLLABORATION (compact multi-pane workspace)
+   Dark module rail + channel sidebar, light panes.
+   ========================================== */
+.collab-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.collab-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.collab-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.collab-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+.collab-scroll-dark::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.collab-scroll-dark::-webkit-scrollbar-track {
+  background: transparent;
+}
+.collab-scroll-dark::-webkit-scrollbar-thumb {
+  background: #3f4248;
+  border-radius: 3px;
+}
+.collab-scroll-dark::-webkit-scrollbar-thumb:hover {
+  background: #565961;
+}
+
 @theme inline {
+  /* Collaboration surfaces + accents (see collaboration feature) */
+  --color-collab-rail: #16171a;
+  --color-collab-sidebar: #1e1f24;
+  --color-collab-hover: #28292e;
+  --color-collab-hover-strong: #2c2d32;
+  --color-collab-active: #1164a3;
+  --color-collab-line: #2b2d31;
+  --color-collab-canvas: #f1f5f9;
+  --color-collab-ink: #1d1c1d;
+  --color-collab-muted: #abacb1;
+  --color-collab-accent: #2563eb;
+  --color-collab-accent-deep: #1d4ed8;
+  --color-collab-send: #007a5a;
+  --color-collab-send-hover: #148567;
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);

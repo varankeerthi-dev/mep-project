@@ -558,7 +558,7 @@ export default function MaterialInward({ onSuccess, onCancel }) {
                 <th style={{ width: '40px', textAlign: 'center', fontSize: '11px', padding: '8px' }}>#</th>
                 <th style={{ minWidth: '200px', fontSize: '11px', padding: '8px' }}>Item</th>
                 <th style={{ width: '100px', fontSize: '11px', padding: '8px' }}>Type</th>
-                <th style={{ width: '120px', fontSize: '11px', padding: '8px' }}>Discount Category</th>
+                <th style={{ width: '120px', fontSize: '11px', padding: '8px' }}>Variant</th>
                 <th style={{ width: '150px', fontSize: '11px', padding: '8px' }}>Project</th>
                 <th style={{ width: '80px', fontSize: '11px', padding: '8px', textAlign: 'right' }}>Qty</th>
                 <th style={{ width: '90px', fontSize: '11px', padding: '8px', textAlign: 'right' }}>Rate</th>

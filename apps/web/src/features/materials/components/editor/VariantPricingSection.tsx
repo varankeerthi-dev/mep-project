@@ -44,7 +44,7 @@ export function VariantPricingSection({
       <EditorSection
         number={number}
         title="Variant Pricing"
-        description={subtitle || "Set different prices for different discount categories."}
+        description={subtitle || "Set different prices for different variants."}
         hint="Leave blank to use default prices"
         expanded={!collapsed}
         onToggle={() => setCollapsed(!collapsed)}
@@ -54,13 +54,13 @@ export function VariantPricingSection({
             checked={usesVariant}
             onCheckedChange={(checked) => onToggleVariant(checked)}
           />
-          <span className="text-[#111827]">Enable Discount Category / Variant Pricing</span>
+          <span className="text-[#111827]">Enable Variant Pricing</span>
         </label>
 
         {usesVariant && (
           <div className="space-y-4 pt-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-[#6B7280]">Set different prices for different discount categories</span>
+              <span className="text-xs text-[#6B7280]">Set different prices for different variants</span>
               <Button variant="default" size="default" onClick={onAddRow} className={addLink} >
                 <Plus size={14} /> Add Row
               </Button>

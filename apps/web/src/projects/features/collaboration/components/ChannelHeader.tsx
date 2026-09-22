@@ -1,9 +1,25 @@
-// ChannelHeader.tsx — channel name + filter pills + search entry + channel menu.
+// ChannelHeader.tsx — compact channel header: name + badges, member stack, filter
+// pills, in-channel search and the channel actions menu (RBAC-gated).
 import { useState } from 'react';
-import { Hash, Search, MoreHorizontal, Trash2, LogOut, Archive } from 'lucide-react';
+import {
+  Archive,
+  Lock,
+  LogOut,
+  MoreHorizontal,
+  Search,
+  Trash2,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import { useCollabStore } from '../store';
 import { useAuth } from '../../../../contexts/AuthContext';
-import { useClearChannelMessages, useLeaveChannel, useArchiveChannel, useChannelMembers } from '../hooks';
+import {
+  useClearChannelMessages,
+  useLeaveChannel,
+  useArchiveChannel,
+  useChannelMembers,
+} from '../hooks';
+import { UserAvatar } from './UserAvatar';
 import type { Channel, CollaborationFilter } from '../types';
 
 const FILTERS: { value: CollaborationFilter; label: string }[] = [
@@ -19,9 +35,19 @@ interface Props {
   onSearch: (term: string) => void;
   searchOpen: boolean;
   searchTerm: string;
+  /** When the channel is docked as a pane, renders the pane-close control. */
+  onClose?: () => void;
+  closeTestId?: string;
 }
 
-export function ChannelHeader({ channel, onSearch, searchOpen, searchTerm }: Props) {
+export function ChannelHeader({
+  channel,
+  onSearch,
+  searchOpen,
+  searchTerm,
+  onClose,
+  closeTestId,
+}: Props) {
   const { user } = useAuth();
   const filter = useCollabStore((s) => s.filter);
   const setFilter = useCollabStore((s) => s.setFilter);
@@ -33,14 +59,18 @@ export function ChannelHeader({ channel, onSearch, searchOpen, searchTerm }: Pro
   const leave = useLeaveChannel();
   const archive = useArchiveChannel();
 
+  const isPrivate = channel.visibility === 'private';
+
   // RBAC checks
-  const currentMember = membersQuery.data?.find(m => m.user_id === user?.id);
+  const currentMember = membersQuery.data?.find((m) => m.user_id === user?.id);
   const isAdmin = currentMember?.role === 'owner' || currentMember?.role === 'admin';
   const isOwner = currentMember?.role === 'owner';
 
   // Check if user is the only owner
-  const ownerCount = membersQuery.data?.filter(m => m.role === 'owner').length ?? 0;
+  const ownerCount = membersQuery.data?.filter((m) => m.role === 'owner').length ?? 0;
   const isOnlyOwner = isOwner && ownerCount <= 1;
+
+  const members = membersQuery.data ?? [];
 
   const handleClearMessages = async () => {
     try {
@@ -73,121 +103,205 @@ export function ChannelHeader({ channel, onSearch, searchOpen, searchTerm }: Pro
   };
 
   return (
-    <div className="border-b bg-white px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+    <div className="shrink-0 bg-white border-b border-slate-200" data-testid="collab-channel-header">
+      {/* Row 1 — channel identity */}
+      <div className="h-11 px-3 flex items-center justify-between gap-2 border-b border-slate-100">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {isPrivate ? (
+            <Lock className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+          ) : (
+            <span className="text-slate-500 font-semibold shrink-0">#</span>
+          )}
+          <span className="font-bold text-slate-900 text-sm truncate">{channel.name}</span>
+          {channel.channel_type === 'general' ? (
+            <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded font-medium border border-blue-200 shrink-0">
+              Org
+            </span>
+          ) : isPrivate ? (
+            <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-medium border border-slate-200 shrink-0">
+              Private
+            </span>
+          ) : null}
+          {channel.is_archived && (
+            <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded font-medium shrink-0">
+              Archived
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Member stack */}
+          {members.length > 0 && (
+            <div
+              className="flex items-center"
+              title={`${members.length} member${members.length === 1 ? '' : 's'}`}
+              data-testid="collab-header-members"
+            >
+              {members.slice(0, 3).map((m, idx) => (
+                <span
+                  key={m.user_id}
+                  className="rounded-full ring-2 ring-white"
+                  style={{ marginLeft: idx === 0 ? 0 : -8 }}
+                >
+                  <UserAvatar
+                    name={m.full_name}
+                    avatarUrl={m.avatar_url}
+                    userId={m.user_id}
+                    size="xs"
+                    fallbackType="face"
+                  />
+                </span>
+              ))}
+              <span className="ml-1.5 text-[11px] text-slate-500">{members.length}</span>
+            </div>
+          )}
+
+          {onClose && (
+            <button
+              type="button"
+              // The docked pane wrapper activates (and therefore re-opens) its pane
+              // on click, so the close control must not let the event reach it.
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="p-1 text-slate-400 hover:text-slate-700 rounded transition"
+              aria-label={`Close #${channel.name}`}
+              title={`Close #${channel.name}`}
+              data-testid={closeTestId ?? 'collab-pane-close'}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Row 2 — filters, search, actions */}
+      <div className="px-3 py-1.5 flex items-center justify-between gap-2 bg-slate-50/70 border-b border-slate-100">
+        <div className="flex items-center gap-1 overflow-x-auto py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {FILTERS.map((f) => (
             <button
               key={f.value}
               type="button"
               onClick={() => setFilter(f.value)}
-              className={`text-xs px-2.5 py-1 rounded-full border transition font-medium ${
+              className={`shrink-0 px-2 py-0.5 rounded-full text-[11px] whitespace-nowrap transition ${
                 filter === f.value
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  ? 'bg-collab-active text-white font-medium shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-200/70'
               }`}
+              aria-pressed={filter === f.value}
+              data-testid={`collab-filter-${f.value}`}
             >
               {f.label}
             </button>
           ))}
-          {channel.is_archived && (
-            <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
-              Archived
-            </span>
-          )}
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+
+        <div className="flex items-center gap-1 shrink-0 text-slate-400">
           <button
             type="button"
             onClick={() => onSearch(searchOpen ? '' : ' ')}
-            className="text-slate-500 hover:text-slate-800 p-1.5 rounded-md hover:bg-slate-100 transition"
+            className="p-1 hover:text-slate-700 rounded transition"
             aria-label="Toggle search"
             title="Search messages"
+            data-testid="collab-search-toggle"
           >
-            <Search className="h-4 w-4" />
+            <Search className="h-3.5 w-3.5" />
           </button>
           <div className="relative">
             <button
               type="button"
               onClick={() => setMenuOpen(!menuOpen)}
-              className="text-slate-500 hover:text-slate-800 p-1.5 rounded-md hover:bg-slate-100 transition"
+              className="p-1 hover:text-slate-700 rounded transition"
               aria-label="Channel options"
               title="Channel options"
               data-testid="channel-menu-btn"
             >
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="h-3.5 w-3.5" />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-1 z-50 min-w-[180px]">
+              <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-1 z-50 min-w-[180px] text-xs">
                 {isAdmin && (
-                  <button
-                    type="button"
+                  <MenuItem
+                    icon={Trash2}
+                    label="Delete conversation"
+                    tone="danger"
                     onClick={() => {
                       setConfirmAction('clear');
                       setMenuOpen(false);
                     }}
-                    className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-red-50 text-slate-700 hover:text-red-700 w-full text-left rounded transition"
-                    data-testid="channel-menu-clear"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                    <span>Delete conversation</span>
-                  </button>
+                    testId="channel-menu-clear"
+                  />
                 )}
                 {!isOnlyOwner && (
-                  <button
-                    type="button"
+                  <MenuItem
+                    icon={LogOut}
+                    label="Leave channel"
+                    tone="warn"
                     onClick={() => {
                       setConfirmAction('leave');
                       setMenuOpen(false);
                     }}
-                    className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-orange-50 text-slate-700 hover:text-orange-700 w-full text-left rounded transition"
-                    data-testid="channel-menu-leave"
-                  >
-                    <LogOut className="h-3.5 w-3.5 text-orange-500 shrink-0" />
-                    <span>Leave channel</span>
-                  </button>
+                    testId="channel-menu-leave"
+                  />
                 )}
                 {isOwner && (
-                  <button
-                    type="button"
+                  <MenuItem
+                    icon={Archive}
+                    label="Delete channel"
+                    tone="danger"
                     onClick={() => {
                       setConfirmAction('archive');
                       setMenuOpen(false);
                     }}
-                    className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-red-50 text-slate-700 hover:text-red-700 w-full text-left rounded transition"
-                    data-testid="channel-menu-archive"
-                  >
-                    <Archive className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                    <span>Delete channel</span>
-                  </button>
+                    testId="channel-menu-archive"
+                  />
                 )}
               </div>
             )}
           </div>
         </div>
       </div>
+
       {searchOpen && (
-        <input
-          autoFocus
-          value={searchTerm}
-          onChange={(e) => onSearch(e.target.value)}
-          placeholder="Search messages…"
-          className="mt-2 w-full rounded border border-slate-200 px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+        <div className="px-3 py-1.5 border-b border-slate-100 bg-white">
+          <div className="relative flex items-center">
+            <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+            <input
+              autoFocus
+              value={searchTerm}
+              onChange={(e) => onSearch(e.target.value)}
+              placeholder={`Search in #${channel.name}…`}
+              className="w-full rounded border border-slate-300 pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-500"
+              data-testid="collab-search-input"
+            />
+          </div>
+        </div>
       )}
-      {/* Confirmation Dialogs */}
+
+      {/* Confirmation dialogs */}
       {confirmAction && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setConfirmAction(null)}>
-          <div className="bg-white rounded-lg shadow-xl p-4 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => setConfirmAction(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl p-4 max-w-sm w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-sm font-semibold text-gray-900 mb-2">
               {confirmAction === 'clear' && 'Delete all messages?'}
               {confirmAction === 'leave' && 'Leave this channel?'}
               {confirmAction === 'archive' && 'Delete this channel?'}
             </h3>
             <p className="text-xs text-gray-600 mb-4">
-              {confirmAction === 'clear' && 'This will permanently delete all messages in this channel. This action cannot be undone.'}
-              {confirmAction === 'leave' && 'You will no longer have access to this channel. You can rejoin if invited again.'}
-              {confirmAction === 'archive' && 'This channel will be archived and hidden from all members. This action cannot be undone.'}
+              {confirmAction === 'clear' &&
+                'This will permanently delete all messages in this channel. This action cannot be undone.'}
+              {confirmAction === 'leave' &&
+                'You will no longer have access to this channel. You can rejoin if invited again.'}
+              {confirmAction === 'archive' &&
+                'This channel will be archived and hidden from all members. This action cannot be undone.'}
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -207,12 +321,44 @@ export function ChannelHeader({ channel, onSearch, searchOpen, searchTerm }: Pro
                 disabled={clearMessages.isPending || leave.isPending || archive.isPending}
                 className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded disabled:opacity-50"
               >
-                {clearMessages.isPending || leave.isPending || archive.isPending ? 'Processing…' : 'Confirm'}
+                {clearMessages.isPending || leave.isPending || archive.isPending
+                  ? 'Processing…'
+                  : 'Confirm'}
               </button>
             </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function MenuItem({
+  icon: Icon,
+  label,
+  onClick,
+  tone,
+  testId,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  tone: 'danger' | 'warn';
+  testId?: string;
+}) {
+  const toneClass =
+    tone === 'danger'
+      ? 'hover:bg-red-50 hover:text-red-700 [&>svg]:text-red-500'
+      : 'hover:bg-orange-50 hover:text-orange-700 [&>svg]:text-orange-500';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-2 px-2.5 py-1.5 text-slate-700 w-full text-left rounded transition ${toneClass}`}
+      data-testid={testId}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      <span>{label}</span>
+    </button>
   );
 }

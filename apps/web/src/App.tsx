@@ -167,6 +167,8 @@ const LeadsModule = lazyAny(() => import('./modules/Leads/LeadsModule'));
 const PurchaseModule = lazyAny(() => import('./modules/Purchase/PurchaseModule'));
 const DebitNoteViewV2 = lazyAny(() => import('./modules/Purchase/components/DebitNoteViewV2'));
 const PurchaseOrdersV2 = lazyAny(() => import('./modules/Purchase/components/PurchaseOrdersV2'));
+const PurchaseReturnList = lazyAny(() => import('./features/purchase-returns/components/PurchaseReturnList').then(m => ({ default: m.PurchaseReturnList })));
+const PurchaseReturnCreate = lazyAny(() => import('./features/purchase-returns/components/PurchaseReturnCreate').then(m => ({ default: m.PurchaseReturnCreate })));
 const AdvanceExpenseModule = lazyAny(() => import('./modules/AdvanceExpense/AdvanceExpenseModule'));
 const CreditNoteListPage = lazyAny(() => import('./credit-notes/pages/CreditNoteListPage').then(m => ({ default: m.CreditNoteListPage })));
 const CreditNoteViewPage = lazyAny(() => import('./credit-notes/pages/CreditNoteViewPage').then(m => ({ default: m.CreditNoteViewPage })));
@@ -593,6 +595,10 @@ export default function App() {
       case '/purchase/payment-queue':
       case '/purchase/payment-accountant':
         return <PurchaseModule />;
+      case '/purchase/purchase-returns':
+        return <PurchaseReturnList onNavigate={(path) => navigate(path)} />;
+      case '/purchase/purchase-returns/create':
+        return <PurchaseReturnCreate onCancel={() => navigate('/purchase/purchase-returns')} onSuccess={() => navigate('/purchase/purchase-returns')} />;
       // Warehouse Management module
       case '/warehouse':
       case '/warehouse/dashboard':
@@ -632,8 +638,10 @@ export default function App() {
       case '/dc/consolidation': return <DCConsolidation />;
       case '/dc/consolidation/date': return <DateWiseConsolidation />;
       case '/dc/consolidation/material': return <MaterialWiseConsolidation />;
-      case '/nb-dc/list': return <NonBillableDCList />;
-      case '/nb-dc/create': return <CreateNonBillableDC onSuccess={() => navigate('/nb-dc/list')} onCancel={() => navigate('/nb-dc/list')} />;
+      // PRD merge docs/prd/dc-merge-billable-nonbillable.md §6.5: legacy NB routes
+      // redirect into the merged DC screens (legacy components removed post-verification).
+      case '/nb-dc/list': return <Navigate to="/dc/list?type=non-billable" replace />;
+      case '/nb-dc/create': return <Navigate to="/dc/create?type=non-billable" replace />;
       // Operational Governance Modules
       case '/field-variations': return <FieldVariationsList />;
       case '/material-returns-verification': return <MaterialReturnVerification />;
@@ -713,9 +721,10 @@ export default function App() {
           const dcId = pathKey.split('/dc/edit/')[1];
           return <DCEdit dcId={dcId} onCancel={() => navigate('/dc/list')} />;
         }
+        // PRD merge §6.5: merged form reads dc_type from the row, so plain edit suffices.
         if (pathKey.startsWith('/nb-dc/edit/')) {
           const dcId = pathKey.split('/nb-dc/edit/')[1];
-          return <NonBillableDCEdit dcId={dcId} onCancel={() => navigate('/nb-dc/list')} />;
+          return <DCEdit dcId={dcId} onCancel={() => navigate('/dc/list')} />;
         }
         if (pathKey.startsWith('/client-po/view')) {
           return <PODetails />;

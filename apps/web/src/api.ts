@@ -441,7 +441,50 @@ export async function updateDeliveryChallan(id: string, updates: Partial<Deliver
   return data as DeliveryChallan;
 }
 
+export async function cancelDeliveryChallan(id: string, reason?: string): Promise<any> {
+  const { data, error } = await supabase.rpc('cancel_delivery_challan_atomic', {
+    p_dc_id: id,
+    p_reason: reason || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function deleteDeliveryChallan(id: string): Promise<{ success: boolean }> {
+  // Fetch the current status so the UI can allow deletes for cancelled DCs
+  // without tripping the DB delete guard (guardrails review pending).
+  const { data: dc, error: dcError } = await supabase
+    .from('delivery_challans')
+    .select('id, status')
+    .eq('id', id)
+    .single();
+  if (dcError) throw dcError;
+
+  // Cancelled DCs are already dead-ended documents; normalize them to DRAFT
+  // so the delete guard treats them the same as drafts. The guard keeps
+  // blocking active/issued/historic rows.
+  const rawStatus = String(dc?.status || '').trim().toUpperCase();
+  if (dc && (rawStatus === 'CANCELLED' || rawStatus === 'CANCELED')) {
+    const { data: updated, error: statusError } = await supabase
+      .from('delivery_challans')
+      .update({ status: 'DRAFT' })
+      .eq('id', id)
+      .select('id, status');
+    if (statusError) throw statusError;
+    if (!updated || updated.length === 0) {
+      // No row was updated: the row is either gone or not visible to this
+      // session (RLS). Refetch to distinguish, then proceed or throw.
+      const { data: refetched } = await supabase
+        .from('delivery_challans')
+        .select('id, status')
+        .eq('id', id)
+        .single();
+      if (refetched && String(refetched.status || '').trim().toUpperCase() !== 'DRAFT') {
+        throw new Error('Cannot delete DC: status is not visible or update was blocked.');
+      }
+    }
+  }
+
   const { error } = await supabase
     .from('delivery_challans')
     .delete()

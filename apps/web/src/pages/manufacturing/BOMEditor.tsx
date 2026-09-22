@@ -1557,7 +1557,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                   </div>
                 </div>
 
-                {/* Row 3: Drawing Ref, Inspect, Shelf Life, Discount Category, Brand */}
+                {/* Row 3: Drawing Ref, Inspect, Shelf Life, Variant, Brand */}
                 <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: '140px', maxWidth: '180px' }}>
                     <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Drawing Ref</label>
@@ -1589,7 +1589,7 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                     />
                   </div>
                   <div style={{ flex: 1, minWidth: '160px', maxWidth: '200px' }}>
-                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Discount Category</label>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Variant</label>
                     {(() => {
                       const variants = getVariantsForMaterial(item.material_id);
                       if (!variants.length) {
@@ -1603,8 +1603,8 @@ export default function BOMEditor({ onSuccess, onCancel }: BOMEditorProps) {
                             updateItemById(item.id!, 'company_variant_id', vId || '');
                             updateItemById(item.id!, 'variant_name', vName);
                           }}
-                          options={[{ value: '', label: 'No Category' }, ...variants.map(v => ({ value: v.company_variant_id, label: getVariantName(v.company_variant_id) }))]}
-                          placeholder="No Category"
+                          options={[{ value: '', label: 'No Variant' }, ...variants.map(v => ({ value: v.company_variant_id, label: getVariantName(v.company_variant_id) }))]}
+                          placeholder="No Variant"
                         />
                       );
                     })()}

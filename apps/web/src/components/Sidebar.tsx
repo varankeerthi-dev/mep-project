@@ -290,6 +290,7 @@ const menuData: MenuSection[] = [
           { id: 'purchase-orders', label: 'Purchase orders', path: '/purchase/orders' },
           { id: 'purchase-bills', label: 'Bills', path: '/purchase/bills' },
           { id: 'purchase-invoice-verification', label: 'Invoice verification', path: '/purchase/invoice-verification' },
+          { id: 'purchase-purchase-returns', label: 'Purchase Returns', path: '/purchase/purchase-returns' },
           { id: 'purchase-debit-notes', label: 'Debit notes', path: '/purchase/debit-notes' },
           { id: 'purchase-payments', label: 'Payments', path: '/purchase/payments' },
           { id: 'purchase-payment-queue', label: 'Bills due', path: '/purchase/payment-queue' }

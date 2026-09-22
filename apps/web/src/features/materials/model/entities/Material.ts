@@ -30,6 +30,11 @@ export interface Material {
   allow_sales: boolean;
   show_in_bom: boolean;
   is_manufactured: boolean;
+  has_warranty: boolean;
+  warranty_period: number | null;
+  warranty_unit: string | null;
+  has_serial_number: boolean;
+  serial_number_format: string | null;
   created_at?: string;
   updated_at?: string;
 

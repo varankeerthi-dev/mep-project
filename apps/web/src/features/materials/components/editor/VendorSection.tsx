@@ -66,7 +66,7 @@ export function VendorSection({ number, vendorMappings, vendors, variants, varia
                   value={row.variant_id || ''}
                   onChange={(e) => onRowChange(row.id, 'variant_id', e.target.value || null)}
                 >
-                  <option value="">No Category</option>
+                  <option value="">No Variant</option>
                   {(() => {
                     const variantOpts = Array.from(new Set(variantPricing.map(p => p.company_variant_id).filter(Boolean)))
                       .map(vId => {

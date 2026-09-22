@@ -7,7 +7,7 @@ import { MessageBubble } from './MessageBubble';
 import { ThreadSummary } from './ThreadSummary';
 import { groupConsecutive, isOptimisticId } from '../utils';
 import type { Reaction } from '../types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MessageSquare } from 'lucide-react';
 
 interface Props {
   channelId: string;
@@ -122,16 +122,28 @@ export function MessageList({ channelId }: Props) {
 
   if (flat.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-xs text-gray-400 p-6 text-center">
-        {filter !== 'all' ? `No messages found matching "${filter}".` : 'No messages yet. Send a message to start the conversation!'}
+      <div
+        className="flex-1 flex flex-col items-center justify-center gap-1 text-xs text-slate-400 p-6 text-center"
+        data-testid="collab-message-list-empty"
+      >
+        <MessageSquare className="h-6 w-6 text-slate-300" />
+        <span className="text-slate-500 font-medium">
+          {filter !== 'all'
+            ? `No messages found matching "${filter}".`
+            : 'No messages yet'}
+        </span>
+        {filter === 'all' && <span>Send a message to start the conversation.</span>}
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" data-testid="collab-message-list">
+    <div
+      className="flex-1 overflow-y-auto px-4 py-3 space-y-3 collab-scroll"
+      data-testid="collab-message-list"
+    >
       {groups.map((group, gi) => (
-        <div key={`g-${gi}`} className="space-y-1">
+        <div key={`g-${gi}`} className="space-y-0.5">
           {group.map((m) => (
             <div key={m.id}>
               <MessageBubble
@@ -145,6 +157,23 @@ export function MessageList({ channelId }: Props) {
           ))}
         </div>
       ))}
+
+      {/* Older pages / end of channel */}
+      {hasNextPage ? (
+        isFetchingNextPage ? (
+          <div className="py-3 flex items-center justify-center gap-1 text-[11px] text-slate-400">
+            <Loader2 className="h-3 w-3 animate-spin" /> Loading older messages…
+          </div>
+        ) : null
+      ) : (
+        <div className="pt-6 pb-2 flex flex-col items-center justify-center text-slate-400 text-[11px] gap-1">
+          <MessageSquare className="h-5 w-5 text-slate-300" />
+          <span className="text-slate-500 font-medium">End of earlier messages</span>
+        </div>
+      )}
+
+      {/* Infinite-scroll sentinel */}
+      <div ref={sentinelRef} className="h-4" aria-hidden="true" />
     </div>
   );
 }

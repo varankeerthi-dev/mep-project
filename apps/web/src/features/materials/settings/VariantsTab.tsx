@@ -135,7 +135,7 @@ export function VariantsTab() {
 
   const columns: ColumnDef<any>[] = [
     {
-      header: 'Category Name',
+      header: 'Variant Name',
       accessorKey: 'variant_name',
       id: 'variant_name',
       type: 'text',
@@ -166,12 +166,12 @@ export function VariantsTab() {
   const getRowActions = (row: any): RowAction[] => {
     return [
       { 
-        label: 'Edit category', 
+        label: 'Edit variant', 
         icon: <Pencil size={14} />, 
         onClick: () => editVariant(row) 
       },
       { 
-        label: 'Delete category', 
+        label: 'Delete variant', 
         icon: <Trash2 size={14} />, 
         variant: 'danger', 
         onClick: () => deleteVariant(row.id) 
@@ -198,12 +198,12 @@ export function VariantsTab() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-lg font-bold text-zinc-900 m-0">Discount Categories</h1>
-          <p className="text-xs text-zinc-500 mt-0.5">Discount Categories group your items for tiered pricing (e.g., Pipe, Hardware, Electrical).</p>
+          <h1 className="text-lg font-bold text-zinc-900 m-0">Variants</h1>
+          <p className="text-xs text-zinc-500 mt-0.5">Variants are pricing tiers for an item (e.g., Retail, Wholesale, Special). Set a price per variant on each item's Variant Pricing section.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={() => setShowForm(true)} className="gap-1 bg-zinc-900 text-white hover:bg-zinc-800 h-8 text-xs font-semibold">
-            <Plus size={14} /> Add Category
+            <Plus size={14} /> Add Variant
           </Button>
         </div>
       </div>
@@ -240,12 +240,12 @@ export function VariantsTab() {
         <div className="modal-overlay open" onClick={resetForm}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 className="text-sm font-semibold text-zinc-900 m-0">{editingVariant ? 'Edit Category' : 'Add Category'}</h2>
+              <h2 className="text-sm font-semibold text-zinc-900 m-0">{editingVariant ? 'Edit Variant' : 'Add Variant'}</h2>
               <Button variant="ghost" size="default" onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</Button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-semibold text-zinc-600">Category Name *</label>
+                <label className="text-[11px] font-semibold text-zinc-600">Variant Name *</label>
                 <Input type="text" value={formData.variant_name} onChange={e => setFormData({...formData, variant_name: e.target.value})} placeholder="e.g., Retail, Wholesale, Export" required className="h-8 text-xs" />
               </div>
               <div className="flex items-center gap-2">

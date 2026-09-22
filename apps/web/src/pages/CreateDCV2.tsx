@@ -214,7 +214,7 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
 
   // ─── Items state ────────────────────────────────────────────
   const [items, setItems] = useState<any[]>([
-    { id: 1, material_id: '', variant_id: '', material_name: '', unit: '', quantity: '', rate: '', amount: 0, uses_variant: false, available_qty: 0, valid: false, is_service: false },
+    { id: 1, material_id: '', variant_id: '', material_name: '', unit: '', quantity: '', rate: '', amount: 0, uses_variant: false, available_qty: 0, valid: false, is_service: false, serial_number: '', warranty_start_date: '', warranty_end_date: '' },
   ]);
   const [isDirty, setIsDirty] = useState(false);
   const [draggingItemId, setDraggingItemId] = useState<any | null>(null);
@@ -575,7 +575,7 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
   const addItem = () => {
     setItems([
       ...items,
-      { id: items.length + 1, material_id: '', variant_id: formData.variant_id || '', make: '', warehouse_id: formData.warehouse_id || '', material_name: '', unit: 'Nos', quantity: '', rate: '', amount: 0, uses_variant: false, available_qty: 0, valid: false, is_service: false },
+      { id: items.length + 1, material_id: '', variant_id: formData.variant_id || '', make: '', warehouse_id: formData.warehouse_id || '', material_name: '', unit: 'Nos', quantity: '', rate: '', amount: 0, uses_variant: false, available_qty: 0, valid: false, is_service: false, serial_number: '', warranty_start_date: '', warranty_end_date: '' },
     ]);
   };
 
@@ -624,6 +624,9 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
       if (!item.quantity || parseFloat(item.quantity) <= 0) { alert(`Invalid quantity for: ${item.material_name}`); return false; }
       if (!item.is_service && !item.warehouse_id) { alert(`Warehouse required for: ${item.material_name}`); return false; }
       if (!item.is_service && parseFloat(item.quantity) > item.available_qty && !allowInsufficientStock) { alert(`Insufficient stock for: ${item.material_name}`); return false; }
+      const mat = materials.find(m => m.id === item.material_id);
+      if (mat?.has_serial_number && !item.serial_number) { alert(`Serial numbers required for: ${item.material_name}`); return false; }
+      if (mat?.has_warranty && !item.warranty_start_date) { alert(`Warranty start date required for: ${item.material_name}`); return false; }
     }
     return true;
   };
@@ -694,7 +697,7 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
         if (error) { alert('Error creating DC: ' + error.message); setLoading(false); return; }
         dcId = data[0].id;
       }
-      const itemsToSave = validItems.map((item) => ({ delivery_challan_id: dcId, material_id: item.material_id, variant_id: item.uses_variant && item.variant_id ? item.variant_id : null, make: item.make || null, warehouse_id: item.warehouse_id || null, material_name: item.material_name, unit: item.unit, quantity: parseFloat(item.quantity), rate: parseFloat(item.rate) || 0, amount: item.amount, organisation_id: dcData.organisation_id }));
+      const itemsToSave = validItems.map((item) => ({ delivery_challan_id: dcId, material_id: item.material_id, variant_id: item.uses_variant && item.variant_id ? item.variant_id : null, make: item.make || null, warehouse_id: item.warehouse_id || null, material_name: item.material_name, unit: item.unit, quantity: parseFloat(item.quantity), rate: parseFloat(item.rate) || 0, amount: item.amount, serial_number: item.serial_number || null, warranty_start_date: item.warranty_start_date || null, warranty_end_date: item.warranty_end_date || null, organisation_id: dcData.organisation_id }));
       const { error: itemsError } = await supabase.from('delivery_challan_items').insert(itemsToSave);
       if (itemsError) throw itemsError;
       if (intentId && organisation?.id && user?.id) {
@@ -897,6 +900,19 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
                     <th style={{ padding: '6px', width: '60px' }}>UNIT</th>
                     <th style={{ padding: '6px', width: '100px' }}>RATE</th>
                     <th style={{ padding: '6px', width: '100px' }}>AMOUNT</th>
+                    {(item.material?.has_serial_number || item.material?.has_warranty) && (
+                      <>
+                        {item.material?.has_serial_number && (
+                          <th style={{ padding: '6px', minWidth: '180px' }}>SERIAL NUMBERS *</th>
+                        )}
+                        {item.material?.has_warranty && (
+                          <>
+                            <th style={{ padding: '6px', width: '120px' }}>WARRANTY START *</th>
+                            <th style={{ padding: '6px', width: '120px' }}>WARRANTY END</th>
+                          </>
+                        )}
+                      </>
+                    )}
                     <th style={{ padding: '6px', width: '40px' }}></th>
                   </tr>
                 </thead>
@@ -904,38 +920,83 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
                   {items.length === 0 ? (
                     <tr><td colSpan={10} style={{ padding: '48px', color: '#94a3b8', fontSize: '14px', textAlign: 'center' }}>No items added. Click "Add Row" or "Add Material".</td></tr>
                   ) : (
-                    items.map((item, index) => (
-                      <tr key={item.id} onDragOver={handleDragOver} onDrop={(e) => handleDropOnRow(e, item.id)} draggable onDragStart={(e) => handleDragStart(e, item.id)} onDragEnd={handleDragEnd} style={{ background: draggingItemId === item.id ? '#f3f4f6' : undefined }}>
-                        <td style={{ padding: '4px 8px', fontSize: '11px', textAlign: 'center' }}>{index + 1}</td>
-                        <td style={{ position: 'relative' }}>
-                          <SearchableItemSelect value={item.material_id} materials={materials} onChange={(materialId, mat) => handleItemChange(item.id, 'material_id', materialId)} />
-                          {item.material_id && <InlineDescriptionCell materialName="" description={item.description || ''} onSave={(desc) => {}} />}
-                        </td>
-                        <td>
-                          <select className="form-select" style={sharedStyles.inputStyle} value={item.make || ''} onChange={(e) => handleItemChange(item.id, 'make', e.target.value)}>
-                            <option value="">No Make</option>
-                            {(itemMakes[item.material_id] || []).map((m: string) => (<option key={m} value={m}>{m}</option>))}
-                          </select>
-                        </td>
-                        <td>
-                          <select className="form-select" style={sharedStyles.inputStyle} value={item.variant_id || ''} onChange={(e) => handleItemChange(item.id, 'variant_id', e.target.value)}>
-                            <option value="">No Category</option>
-                            {variants.filter((v) => v.variant_name !== 'No Variant').map((v) => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
-                          </select>
-                        </td>
-                        <td>
-                          <select className="form-select" style={sharedStyles.inputStyle} value={item.warehouse_id || ''} onChange={(e) => handleItemChange(item.id, 'warehouse_id', e.target.value)}>
-                            <option value="">Select</option>
-                            {warehouses.map((w) => (<option key={w.id} value={w.id}>{w.warehouse_name || w.name}</option>))}
-                          </select>
-                        </td>
-                        <td><input type="text" className="cell-input text-right" style={sharedStyles.inputStyle} value={item.quantity} onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)} placeholder="0" /></td>
-                        <td style={{ padding: '4px 8px', fontSize: '11px' }}>{item.unit || '-'}</td>
-                        <td><input type="number" className="cell-input text-right" style={sharedStyles.inputStyle} value={item.rate || ''} onChange={(e) => handleItemChange(item.id, 'rate', e.target.value)} placeholder="0" /></td>
-                        <td style={{ padding: '4px 8px', fontSize: '11px', fontWeight: 600, textAlign: 'right' }}>{formatCurrency(item.amount || 0)}</td>
-                        <td><button type="button" onClick={() => removeItem(item.id)} style={{ padding: '4px', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><Trash2 size={14} /></button></td>
-                      </tr>
-                    ))
+                    items.map((item, index) => {
+                      const material = materials.find(m => m.id === item.material_id);
+                      const hasSerial = material?.has_serial_number;
+                      const hasWarranty = material?.has_warranty;
+                      return (
+                        <tr key={item.id} onDragOver={handleDragOver} onDrop={(e) => handleDropOnRow(e, item.id)} draggable onDragStart={(e) => handleDragStart(e, item.id)} onDragEnd={handleDragEnd} style={{ background: draggingItemId === item.id ? '#f3f4f6' : undefined }}>
+                          <td style={{ padding: '4px 8px', fontSize: '11px', textAlign: 'center' }}>{index + 1}</td>
+                          <td style={{ position: 'relative' }}>
+                            <SearchableItemSelect value={item.material_id} materials={materials} onChange={(materialId, mat) => handleItemChange(item.id, 'material_id', materialId)} />
+                            {item.material_id && <InlineDescriptionCell materialName="" description={item.description || ''} onSave={(desc) => {}} />}
+                          </td>
+                          <td>
+                            <select className="form-select" style={sharedStyles.inputStyle} value={item.make || ''} onChange={(e) => handleItemChange(item.id, 'make', e.target.value)}>
+                              <option value="">No Make</option>
+                              {(itemMakes[item.material_id] || []).map((m: string) => (<option key={m} value={m}>{m}</option>))}
+                            </select>
+                          </td>
+                          <td>
+                            <select className="form-select" style={sharedStyles.inputStyle} value={item.variant_id || ''} onChange={(e) => handleItemChange(item.id, 'variant_id', e.target.value)}>
+                              <option value="">No Variant</option>
+                              {variants.filter((v) => v.variant_name !== 'No Variant').map((v) => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
+                            </select>
+                          </td>
+                          <td>
+                            <select className="form-select" style={sharedStyles.inputStyle} value={item.warehouse_id || ''} onChange={(e) => handleItemChange(item.id, 'warehouse_id', e.target.value)}>
+                              <option value="">Select</option>
+                              {warehouses.map((w) => (<option key={w.id} value={w.id}>{w.warehouse_name || w.name}</option>))}
+                            </select>
+                          </td>
+                          <td><input type="text" className="cell-input text-right" style={sharedStyles.inputStyle} value={item.quantity} onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)} placeholder="0" /></td>
+                          <td style={{ padding: '4px 8px', fontSize: '11px' }}>{item.unit || '-'}</td>
+                          <td><input type="number" className="cell-input text-right" style={sharedStyles.inputStyle} value={item.rate || ''} onChange={(e) => handleItemChange(item.id, 'rate', e.target.value)} placeholder="0" /></td>
+                          <td style={{ padding: '4px 8px', fontSize: '11px', fontWeight: 600, textAlign: 'right' }}>{formatCurrency(item.amount || 0)}</td>
+                          {(hasSerial || hasWarranty) && (
+                            <>
+                              {hasSerial && (
+                                <td>
+                                  <input
+                                    type="text"
+                                    className="cell-input"
+                                    style={sharedStyles.inputStyle}
+                                    value={item.serial_number || ''}
+                                    onChange={(e) => handleItemChange(item.id, 'serial_number', e.target.value)}
+                                    placeholder="One per line or pick from inventory"
+                                    required={hasSerial}
+                                  />
+                                </td>
+                              )}
+                              {hasWarranty && (
+                                <>
+                                  <td>
+                                    <input
+                                      type="date"
+                                      className="cell-input"
+                                      style={sharedStyles.inputStyle}
+                                      value={item.warranty_start_date || ''}
+                                      onChange={(e) => handleItemChange(item.id, 'warranty_start_date', e.target.value)}
+                                      required={hasWarranty}
+                                    />
+                                  </td>
+                                  <td>
+                                    <input
+                                      type="date"
+                                      className="cell-input"
+                                      style={sharedStyles.inputStyle}
+                                      value={item.warranty_end_date || ''}
+                                      onChange={(e) => handleItemChange(item.id, 'warranty_end_date', e.target.value)}
+                                    />
+                                  </td>
+                                </>
+                              )}
+                            </>
+                          )}
+                          <td><button type="button" onClick={() => removeItem(item.id)} style={{ padding: '4px', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><Trash2 size={14} /></button></td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

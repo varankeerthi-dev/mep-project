@@ -235,6 +235,78 @@ export function ItemEditorDialog({
         </EditorSection>
       </div>
 
+      {/* Warranty & Serial Tracking */}
+      <EditorSection color="orange" title="Warranty & Serial Tracking" description="Configure warranty and serial number tracking for this item.">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div>
+              <div className="text-sm font-semibold text-slate-900">Has Warranty</div>
+              <div className="text-xs text-slate-500 mt-1">Enable warranty tracking for this item</div>
+            </div>
+            <Switch
+              size="default"
+              checked={formData.has_warranty}
+              onCheckedChange={(checked) => handleChange('has_warranty', checked)}
+              className="data-checked:border-[#F97316] data-checked:bg-[#F97316]"
+            />
+          </div>
+
+          {formData.has_warranty && (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 pl-2">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700">Warranty Period *</label>
+                <input
+                  type="number"
+                  className={selectField}
+                  value={formData.warranty_period}
+                  onChange={(e) => handleChange('warranty_period', e.target.value)}
+                  placeholder="e.g. 12"
+                  min="1"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700">Unit</label>
+                <select
+                  className={selectField}
+                  value={formData.warranty_unit}
+                  onChange={(e) => handleChange('warranty_unit', e.target.value)}
+                >
+                  <option value="months">Months</option>
+                  <option value="years">Years</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
+            <div>
+              <div className="text-sm font-semibold text-slate-900">Has Serial Numbers</div>
+              <div className="text-xs text-slate-500 mt-1">Track individual units by serial number</div>
+            </div>
+            <Switch
+              size="default"
+              checked={formData.has_serial_number}
+              onCheckedChange={(checked) => handleChange('has_serial_number', checked)}
+              className="data-checked:border-[#F97316] data-checked:bg-[#F97316]"
+            />
+          </div>
+
+          {formData.has_serial_number && (
+            <div className="space-y-2 pl-2">
+              <label className="text-xs font-semibold text-slate-700">Serial Number Format (Optional)</label>
+              <input
+                type="text"
+                className={selectField}
+                value={formData.serial_number_format}
+                onChange={(e) => handleChange('serial_number_format', e.target.value)}
+                placeholder="e.g. SN-{YYYY}-{####}"
+              />
+              <div className="text-xs text-slate-500">Use {'{YYYY}'} for year, {'{####}'} for sequential number. Leave blank for free-form entry.</div>
+            </div>
+          )}
+        </div>
+      </EditorSection>
+
       {/* Row: 8. Variant Pricing + Inventory — two-column */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <VariantPricingSection

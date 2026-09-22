@@ -26,9 +26,19 @@ interface Props {
   channelId?: string | null;
   channelName?: string;
   initialChannel?: Channel;
+  /** Closes the docked pane this channel is rendered in (multi-pane split view). */
+  onClose?: () => void;
+  closeTestId?: string;
 }
 
-export function ProjectCollaborationTab({ projectId, channelId, channelName, initialChannel }: Props) {
+export function ProjectCollaborationTab({
+  projectId,
+  channelId,
+  channelName,
+  initialChannel,
+  onClose,
+  closeTestId,
+}: Props) {
   const { user, organisation } = useAuth();
   const orgId = organisation?.id ?? '';
 
@@ -151,11 +161,16 @@ export function ProjectCollaborationTab({ projectId, channelId, channelName, ini
         }}
         searchOpen={searchOpen}
         searchTerm={searchTerm}
+        onClose={onClose}
+        closeTestId={closeTestId}
       />
 
       {inSearchMode ? (
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1" data-testid="collab-search-results">
-          <div className="text-xs text-gray-500 mb-2">
+        <div
+          className="flex-1 overflow-y-auto px-4 py-3 space-y-1 collab-scroll"
+          data-testid="collab-search-results"
+        >
+          <div className="text-xs text-slate-500 mb-2">
             {search.isLoading ? 'Searching…' : `${search.data?.length ?? 0} result${(search.data?.length ?? 0) !== 1 ? 's' : ''}`}
           </div>
           {search.data?.map((m) => (
@@ -173,7 +188,7 @@ export function ProjectCollaborationTab({ projectId, channelId, channelName, ini
         <MessageList channelId={channel.id} />
       )}
 
-      <Composer channelId={channel.id} />
+      <Composer channelId={channel.id} channelName={channel.name} />
 
       {taskCreateDrawerOpen && (!taskCreateInitial?.channelId || taskCreateInitial.channelId === channel.id) && (
         <TaskCreateDrawer
@@ -221,7 +236,7 @@ function SearchResultItem({
     <button
       type="button"
       onClick={() => onJump(message.id)}
-      className="w-full text-left rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50/60 transition p-2.5 group"
+      className="w-full text-left rounded-lg border border-slate-200 hover:border-collab-accent hover:bg-blue-50/60 transition p-2.5 group"
       data-testid="collab-search-result"
     >
       <div className="flex items-start gap-2">

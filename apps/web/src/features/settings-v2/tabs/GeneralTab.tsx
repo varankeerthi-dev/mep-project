@@ -22,6 +22,8 @@ const DEFAULT_GENERAL_DATA: GeneralConfigData = {
   round_off_enabled: true,
   auto_generate_item_codes: false,
   date_format: DEFAULT_DATE_FORMAT,
+  // PRD docs/prd/dc-merge-billable-nonbillable.md §6.4 — default ON, user can switch off
+  allow_nbdc_to_quotation: true,
 };
 
 export const GeneralTab: React.FC<GeneralTabProps> = ({
@@ -34,14 +36,16 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
 
   const isRoundOff = (organisation as any)?.round_off_enabled !== false;
   const orgDateFormat = settings?.date_format || DEFAULT_DATE_FORMAT;
+  const allowNbdcToQuotation = settings?.allow_nbdc_to_quotation !== false;
 
   const initialData: GeneralConfigData = React.useMemo(
     () => ({
       round_off_enabled: isRoundOff,
       auto_generate_item_codes: false,
       date_format: orgDateFormat,
+      allow_nbdc_to_quotation: allowNbdcToQuotation,
     }),
-    [isRoundOff, orgDateFormat]
+    [isRoundOff, orgDateFormat, allowNbdcToQuotation]
   );
 
   const handleSave = async (data: GeneralConfigData) => {
@@ -59,7 +63,10 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
     }
 
     try {
-      await updateSettings({ date_format: data.date_format });
+      await updateSettings({
+        date_format: data.date_format,
+        allow_nbdc_to_quotation: data.allow_nbdc_to_quotation,
+      });
     } catch (settingsError: any) {
       toast.error('Failed to save date format: ' + settingsError.message);
       throw settingsError;
@@ -145,6 +152,19 @@ export const GeneralTab: React.FC<GeneralTabProps> = ({
             options={DATE_FORMAT_OPTIONS}
             value={liveData.date_format}
             onChange={(value) => updateField('date_format', value)}
+            disabled={isSaving}
+          />
+        </SettingRow>
+      </SettingSection>
+
+      <SettingSection title="Delivery Challan">
+        <SettingRow
+          label="Allow Non-Billable DC → Quotation conversion"
+          description="When on, Non-Billable Delivery Challans can be converted to Quotations from the DC list. Turn off to restrict conversion to Billable DCs only."
+        >
+          <SettingToggle
+            checked={liveData.allow_nbdc_to_quotation !== false}
+            onChange={(checked) => updateField('allow_nbdc_to_quotation', checked)}
             disabled={isSaving}
           />
         </SettingRow>

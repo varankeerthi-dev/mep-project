@@ -358,7 +358,7 @@ ${intent.notes ? `\nNotes: ${intent.notes}` : ''}
   ];
 
   const variantOptions = [
-    { value: '', label: 'No Category' },
+    { value: '', label: 'No Variant' },
     ...variants.map(v => ({ value: v.id, label: v.variant_name }))
   ];
 
@@ -454,7 +454,7 @@ ${intent.notes ? `\nNotes: ${intent.notes}` : ''}
           <TableHeader>
             <TableRow style={{ background: '#f9fafb' }}>
               <TableHead style={{ padding: '12px 16px', color: '#4b5563', fontWeight: 600 }}>{viewMode === 'group' ? 'Indent Details' : 'Material Item'}</TableHead>
-              <TableHead style={{ padding: '12px 16px', color: '#4b5563', fontWeight: 600 }}>{viewMode === 'group' ? 'Date' : 'Discount Category'}</TableHead>
+              <TableHead style={{ padding: '12px 16px', color: '#4b5563', fontWeight: 600 }}>{viewMode === 'group' ? 'Date' : 'Variant'}</TableHead>
               <TableHead style={{ padding: '12px 16px', color: '#4b5563', fontWeight: 600 }}>{viewMode === 'group' ? 'Summary' : 'Quantity'}</TableHead>
               <TableHead style={{ padding: '12px 16px', color: '#4b5563', fontWeight: 600 }}>Priority</TableHead>
               <TableHead style={{ padding: '12px 16px', color: '#4b5563', fontWeight: 600 }}>Status</TableHead>
@@ -659,7 +659,7 @@ ${intent.notes ? `\nNotes: ${intent.notes}` : ''}
                     <thead>
                       <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
                         <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', borderRight: '1px solid #e5e7eb' }}>Material</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '150px', borderRight: '1px solid #e5e7eb' }}>Discount Category</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '150px', borderRight: '1px solid #e5e7eb' }}>Variant</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563', width: '90px', borderRight: '1px solid #e5e7eb' }}>Qty</th>
                         <th style={{ padding: '10px 12px', textAlign: 'center', width: '40px' }}></th>
                       </tr>
@@ -752,7 +752,7 @@ ${intent.notes ? `\nNotes: ${intent.notes}` : ''}
                                   onBlur={() => setEditingCell(null)}
                                   style={{ width: '100%', padding: '10px 12px', border: '1px solid #3b82f6', background: '#fff', outline: 'none', fontSize: '13px', appearance: 'none' }}
                                 >
-                                  <option value="">No Category</option>
+                                  <option value="">No Variant</option>
                                   {filteredVariants.map(v => (
                                     <option key={v.id} value={v.id}>{v.variant_name}</option>
                                   ))}

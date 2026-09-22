@@ -19,6 +19,9 @@ interface LocalGRNItem {
   unit: string;
   batch_no?: string;
   expiry_date?: string;
+  serial_number?: string;
+  warranty_start_date?: string;
+  warranty_end_date?: string;
 }
 
 export default function GRNCreate({ onCancel, onSuccess }: GRNCreateProps) {
@@ -178,6 +181,9 @@ export default function GRNCreate({ onCancel, onSuccess }: GRNCreateProps) {
         unit: item.unit,
         batch_no: item.batch_no || undefined,
         expiry_date: item.expiry_date || undefined,
+        serial_number: item.serial_number || undefined,
+        warranty_start_date: item.warranty_start_date || undefined,
+        warranty_end_date: item.warranty_end_date || undefined,
         status: 'pending',
         organisation_id: organisation?.id || ''
       })),
@@ -327,12 +333,37 @@ export default function GRNCreate({ onCancel, onSuccess }: GRNCreateProps) {
                   <th style={{ padding: '6px 12px', fontWeight: 500, width: '100px', textAlign: 'right' }}>Received Qty</th>
                   <th style={{ padding: '6px 12px', fontWeight: 500, width: '120px' }}>Batch No</th>
                   <th style={{ padding: '6px 12px', fontWeight: 500, width: '120px' }}>Expiry Date</th>
+                  {(grnItems.some(i => {
+                    const mat = materials.find(m => m.id === i.material_id);
+                    return mat?.has_serial_number || mat?.has_warranty;
+                  })) && (
+                    <>
+                      {grnItems.some(i => {
+                        const mat = materials.find(m => m.id === i.material_id);
+                        return mat?.has_serial_number;
+                      }) && (
+                        <th style={{ padding: '6px 12px', fontWeight: 500, width: '180px' }}>Serial Numbers *</th>
+                      )}
+                      {grnItems.some(i => {
+                        const mat = materials.find(m => m.id === i.material_id);
+                        return mat?.has_warranty;
+                      }) && (
+                        <>
+                          <th style={{ padding: '6px 12px', fontWeight: 500, width: '120px' }}>Warranty Start *</th>
+                          <th style={{ padding: '6px 12px', fontWeight: 500, width: '120px' }}>Warranty End</th>
+                        </>
+                      )}
+                    </>
+                  )}
                   <th style={{ padding: '6px 12px', fontWeight: 500, width: '40px', textAlign: 'center' }}></th>
                 </tr>
               </thead>
               <tbody>
                 {grnItems.map((item, idx) => {
-                  const matName = materials.find(m => m.id === item.material_id)?.name || 'Loading...';
+                  const material = materials.find(m => m.id === item.material_id);
+                  const matName = material?.name || 'Loading...';
+                  const hasSerial = material?.has_serial_number;
+                  const hasWarranty = material?.has_warranty;
                   return (
                     <tr key={idx} style={{ borderBottom: '1px solid #f3f4f6' }}>
                       <td style={{ padding: '8px 12px', fontWeight: 500, color: '#111827' }}>{matName}</td>
@@ -373,6 +404,46 @@ export default function GRNCreate({ onCancel, onSuccess }: GRNCreateProps) {
                           style={{ height: '24px' }}
                         />
                       </td>
+                      {(hasSerial || hasWarranty) && (
+                        <>
+                          {hasSerial && (
+                            <td style={{ padding: '8px 12px' }}>
+                              <input
+                                type="text"
+                                placeholder="One per line"
+                                value={item.serial_number || ''}
+                                onChange={e => handleItemFieldChange(idx, 'serial_number', e.target.value)}
+                                className={inputClass}
+                                style={{ height: '24px' }}
+                                required={hasSerial}
+                              />
+                            </td>
+                          )}
+                          {hasWarranty && (
+                            <>
+                              <td style={{ padding: '8px 12px' }}>
+                                <input
+                                  type="date"
+                                  value={item.warranty_start_date || ''}
+                                  onChange={e => handleItemFieldChange(idx, 'warranty_start_date', e.target.value)}
+                                  className={inputClass}
+                                  style={{ height: '24px' }}
+                                  required={hasWarranty}
+                                />
+                              </td>
+                              <td style={{ padding: '8px 12px' }}>
+                                <input
+                                  type="date"
+                                  value={item.warranty_end_date || ''}
+                                  onChange={e => handleItemFieldChange(idx, 'warranty_end_date', e.target.value)}
+                                  className={inputClass}
+                                  style={{ height: '24px' }}
+                                />
+                              </td>
+                            </>
+                          )}
+                        </>
+                      )}
                       <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                         <Button variant="ghost" size="icon-xs" type="button" onClick={() => removeGrnItem(idx)} aria-label="Remove item" className="text-red-500 hover:text-red-600">
                           <Trash2 size={14} />

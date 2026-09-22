@@ -49,7 +49,12 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
     unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
     uses_variant: false, track_inventory: false,
     item_classification: 'goods_sold',
-    discount_category_id: null
+    discount_category_id: null,
+    has_warranty: false,
+    warranty_period: '',
+    warranty_unit: 'months',
+    has_serial_number: false,
+    serial_number_format: ''
   });
   const [variantPricing, setVariantPricing] = useState([]);
   const [warehouseStock, setWarehouseStock] = useState({});
@@ -65,7 +70,12 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
       unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
       uses_variant: false, track_inventory: false,
       item_classification: 'goods_sold',
-      discount_category_id: null
+      discount_category_id: null,
+      has_warranty: false,
+      warranty_period: '',
+      warranty_unit: 'months',
+      has_serial_number: false,
+      serial_number_format: ''
     });
     setVariantPricing([]);
     
@@ -162,6 +172,11 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
       item_classification: 'goods_sold',
       item_type: 'product',
       discount_category_id: formData.discount_category_id || null,
+      has_warranty: formData.has_warranty,
+      warranty_period: formData.has_warranty && formData.warranty_period ? parseInt(formData.warranty_period) : null,
+      warranty_unit: formData.has_warranty ? formData.warranty_unit : null,
+      has_serial_number: formData.has_serial_number,
+      serial_number_format: formData.has_serial_number ? formData.serial_number_format : null,
       organisation_id: organisation?.id
     };
 
@@ -397,9 +412,108 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
                 </div>
               </section>
 
-              {/* Discount Category & Variant Pricing */}
+              {/* Warranty & Serial Tracking */}
               <section>
-                <h4 style={{ fontSize: '12px', fontWeight: 800, color: '#171717', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Discount Category &amp; Pricing</h4>
+                <h4 style={{ fontSize: '12px', fontWeight: 800, color: '#171717', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Warranty &amp; Serial Tracking</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Has Warranty</div>
+                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Enable warranty tracking for this item</div>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.has_warranty}
+                        onChange={e => setFormData({...formData, has_warranty: e.target.checked})}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                        background: formData.has_warranty ? '#2563eb' : '#cbd5e1',
+                        borderRadius: '24px', transition: 'all 0.2s'
+                      }}></span>
+                      <span style={{
+                        position: 'absolute', top: '2px', left: formData.has_warranty ? '22px' : '2px',
+                        width: '20px', height: '20px', background: '#fff',
+                        borderRadius: '50%', transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                      }}></span>
+                    </label>
+                  </div>
+
+                  {formData.has_warranty && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', padding: '0 4px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>Warranty Period *</label>
+                        <input
+                          type="number"
+                          style={{ padding: '10px 14px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', outline: 'none' }}
+                          value={formData.warranty_period}
+                          onChange={e => setFormData({...formData, warranty_period: e.target.value})}
+                          placeholder="e.g. 12"
+                          min="1"
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>Unit</label>
+                        <select
+                          style={{ padding: '10px 14px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', outline: 'none', background: '#fff' }}
+                          value={formData.warranty_unit}
+                          onChange={e => setFormData({...formData, warranty_unit: e.target.value})}
+                        >
+                          <option value="months">Months</option>
+                          <option value="years">Years</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>Has Serial Numbers</div>
+                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Track individual units by serial number</div>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.has_serial_number}
+                        onChange={e => setFormData({...formData, has_serial_number: e.target.checked})}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                        background: formData.has_serial_number ? '#2563eb' : '#cbd5e1',
+                        borderRadius: '24px', transition: 'all 0.2s'
+                      }}></span>
+                      <span style={{
+                        position: 'absolute', top: '2px', left: formData.has_serial_number ? '22px' : '2px',
+                        width: '20px', height: '20px', background: '#fff',
+                        borderRadius: '50%', transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                      }}></span>
+                    </label>
+                  </div>
+
+                  {formData.has_serial_number && (
+                    <div style={{ padding: '0 4px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>Serial Number Format (Optional)</label>
+                        <input
+                          type="text"
+                          style={{ padding: '10px 14px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', outline: 'none' }}
+                          value={formData.serial_number_format}
+                          onChange={e => setFormData({...formData, serial_number_format: e.target.value})}
+                          placeholder="e.g. SN-{YYYY}-{####}"
+                        />
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>Use {'{YYYY}'} for year, {'{####}'} for sequential number. Leave blank for free-form entry.</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Discount Category (discount group) & Variant Pricing */}
+              <section>
+                <h4 style={{ fontSize: '12px', fontWeight: 800, color: '#171717', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Discount Category &amp; Variant Pricing</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>Discount Category</label>
                   <select
@@ -423,7 +537,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
                       onChange={e => handleUsesVariantChange(e.target.checked)}
                       style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                     />
-                    <label htmlFor="uses_variant" style={{ fontSize: '13px', color: '#525252', cursor: 'pointer' }}>Multi-Category Pricing</label>
+                    <label htmlFor="uses_variant" style={{ fontSize: '13px', color: '#525252', cursor: 'pointer' }}>Enable Variant Pricing</label>
                   </div>
                 </div>
 
@@ -501,7 +615,7 @@ export default function ItemCreateDrawer({ isOpen, onClose, onSuccess }: ItemCre
                       const stockCombos = rawCombos.length > 0 ? rawCombos : [{ variantId: NO_VARIANT_KEY, make: '' }];
 
                       return stockCombos.map(combo => {
-                        const vName = combo.variantId === NO_VARIANT_KEY ? (formData.uses_variant ? 'No Category' : 'Standard Inventory') : variants.find(v => v.id === combo.variantId)?.variant_name || 'Unknown Category';
+                        const vName = combo.variantId === NO_VARIANT_KEY ? (formData.uses_variant ? 'No Variant' : 'Standard Inventory') : variants.find(v => v.id === combo.variantId)?.variant_name || 'Unknown Variant';
                         const comboLabel = combo.variantId === NO_VARIANT_KEY ? vName : (combo.make ? `${vName} — ${combo.make}` : vName);
                         return (
                           <div key={buildStockKey('header', combo.variantId, combo.make)} style={{ marginBottom: '20px' }}>
