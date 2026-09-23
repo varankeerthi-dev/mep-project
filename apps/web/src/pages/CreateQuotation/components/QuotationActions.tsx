@@ -64,7 +64,7 @@ export function QuotationActions({
                     title: 'Enable Negotiation Mode',
                     description: `This will save the current quotation as Revision ${formData.revision_no} before making changes. Continue?`,
                     confirmLabel: 'Enable',
-                    onConfirm: async () => {
+                      onConfirm: async () => {
                       setConfirmDialog(null);
                       const result = await saveCurrentRevision();
                       if (!result) {
@@ -76,17 +76,27 @@ export function QuotationActions({
                         revision_no: result.newRevisionNo,
                         revision_history: result.newHistory,
                         negotiation_mode: true,
+                        status_before_negotiation: prev.status,
                         status: 'Under Negotiation'
                       }));
                     }
                   });
                   return;
                 } else {
-                  setFormData((prev: any) => ({ 
-                    ...prev, 
-                    negotiation_mode: e.target.checked, 
-                    status: e.target.checked ? 'Under Negotiation' : prev.status 
-                  }));
+                  setFormData((prev: any) => {
+                    if (e.target.checked) {
+                      return {
+                        ...prev,
+                        negotiation_mode: true,
+                        status_before_negotiation: prev.status,
+                        status: 'Under Negotiation'
+                      };
+                    }
+                    const restored = prev.status === 'Under Negotiation'
+                      ? (prev.status_before_negotiation || 'Draft')
+                      : prev.status;
+                    return { ...prev, negotiation_mode: false, status: restored };
+                  });
                 }
               }}
             />
@@ -129,6 +139,7 @@ export function QuotationActions({
             title="Quotation status"
           >
             <option value="Draft">Draft</option>
+            <option value="Under Negotiation">Under Negotiation</option>
             <option value="Sent">Sent to Client</option>
           </select>
           <button

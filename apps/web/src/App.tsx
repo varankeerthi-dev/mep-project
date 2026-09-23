@@ -111,6 +111,7 @@ const Projects = lazyAny(() => import('./projects/pages/Projects'));
 const FollowUpCentre = lazyAny(() => import('./pages/FollowUpCentre'));
 const DayBook = lazyAny(() => import('./pages/accounting/DayBook'));
 const ChartOfAccounts = lazyAny(() => import('./pages/accounting/ChartOfAccounts'));
+const TrialBalance = lazyAny(() => import('./pages/accounting/TrialBalance'));
 const PricingTableOneDemo = lazyAny(() => import('./components/pricing-table-one-demo').then(m => ({ default: m.PricingTableOneDemo })));
 const FieldVariationsList = lazyAny(() => import('./pages/FieldVariationsList').then(m => ({ default: m.FieldVariationsList })));
 const MaterialReturnVerification = lazyAny(() => import('./pages/MaterialReturnVerification').then(m => ({ default: m.MaterialReturnVerification })));
@@ -688,6 +689,7 @@ export default function App() {
       case '/finance/payments': return <PaymentsHub />;
       case '/accounting/day-book': return <DayBook />;
       case '/accounting/chart-of-accounts': return <ChartOfAccounts />;
+      case '/accounting/trial-balance': return <TrialBalance />;
       // GST routes
       case '/gst/dashboard': return <GSTDashboard />;
       case '/gst/reconciliation': return <GSTReconciliation />;

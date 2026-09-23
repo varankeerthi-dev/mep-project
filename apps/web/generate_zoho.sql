@@ -1,3 +1,6 @@
+-- [DEPRECATED / DO NOT EXECUTE]
+-- This legacy script seeded unstandardized, company-specific Zoho accounts (Z%) and duplicate groups.
+-- Cleaned up and replaced by standard CoA migration 20260923000001_cleanup_duplicate_coa_accounts.sql.
 -- 3. Auto-Generate Zoho/Standard Groups
         DECLARE
             v_grp_0 UUID;

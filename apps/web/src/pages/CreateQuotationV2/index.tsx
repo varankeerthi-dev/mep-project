@@ -653,13 +653,75 @@ export default function CreateQuotation() {
     return Array.isArray(globalLatestRows) ? globalLatestRows[0] || null : null;
   }
 
+  type QuoteSeriesCfg = {
+    source: 'document_settings' | 'document_series';
+    prefix: string;
+    suffix: string;
+    padding: number;
+    nextNumber: number;
+    legacyRow?: any;
+  };
+
+  async function fetchQuoteSeriesCfg(): Promise<QuoteSeriesCfg | null> {
+    const organizationId = organisation?.id;
+    if (organizationId) {
+      try {
+        const { data: ds, error: dsErr } = await withTimeout(
+          supabase
+            .from('document_settings')
+            .select('quotation_prefix, quotation_start_number, quotation_padding, quotation_suffix, quotation_current_number')
+            .eq('organisation_id', organizationId)
+            .maybeSingle(),
+          'loading document settings',
+          8000
+        );
+        if (!dsErr && ds) {
+          const startNum = parseInt(ds.quotation_start_number as any, 10);
+          const curNum = parseInt(ds.quotation_current_number as any, 10);
+          const nextNumber = Number.isFinite(curNum) && curNum > 0
+            ? curNum
+            : (Number.isFinite(startNum) && startNum > 0 ? startNum : 1);
+          return {
+            source: 'document_settings',
+            prefix: ds.quotation_prefix || 'QT-',
+            suffix: ds.quotation_suffix || '',
+            padding: parseInt(ds.quotation_padding as any, 10) || 4,
+            nextNumber,
+          };
+        }
+      } catch (err) {
+        console.warn('Unable to load document settings:', err);
+      }
+    }
+
+    const legacyRow = await fetchDefaultSeriesRow();
+    if (legacyRow) {
+      return {
+        source: 'document_series',
+        prefix: legacyRow?.configs?.quote?.prefix || 'QT-',
+        suffix: legacyRow?.configs?.quote?.suffix || '',
+        padding: 4,
+        nextNumber: getQuoteSeriesNumber(legacyRow),
+        legacyRow,
+      };
+    }
+    return null;
+  }
+
+  const buildQuoteNoFromCfg = useCallback((cfg: QuoteSeriesCfg) => {
+    const fy = getFyPrefix();
+    const prefix = String(cfg.prefix || 'QT-').replace('{FY}', fy);
+    const padded = String(cfg.nextNumber || 1).padStart(cfg.padding || 4, '0');
+    return `${prefix}${padded}${cfg.suffix || ''}`;
+  }, [getFyPrefix]);
+
   const loadQuoteNoPreview = useCallback(async () => {
     if (editId) return;
     try {
-      const defaultSeries = await fetchDefaultSeriesRow();
+      const cfg = await fetchQuoteSeriesCfg();
 
-      if (defaultSeries) {
-        const seriesNo = buildQuoteNoFromSeries(defaultSeries);
+      if (cfg) {
+        const seriesNo = buildQuoteNoFromCfg(cfg);
         setQuoteNoPreview(seriesNo);
         setFormData((prev: any) => ({ ...prev, quotation_no: seriesNo }));
         return;
@@ -685,7 +747,7 @@ export default function CreateQuotation() {
       setQuoteNoPreview('QT-0001');
       setFormData((prev: any) => ({ ...prev, quotation_no: 'QT-0001' }));
     }
-  }, [buildQuoteNoFromSeries, editId, organisation?.id, setFormData]);
+  }, [buildQuoteNoFromCfg, editId, organisation?.id, setFormData]);
 
   const loadQuotation = async (id: string, isDuplicate = false) => {
     let data: any;
@@ -1890,6 +1952,7 @@ export default function CreateQuotation() {
 
       const needsApproval = !editId;
       let quotationId = editId;
+      let seriesCfg: QuoteSeriesCfg | null = null;
 
       const quotationData = {
         client_id: formData.client_id,
@@ -2000,14 +2063,45 @@ export default function CreateQuotation() {
             }).then().catch(err => console.error('Error saving terms:', err));
           }
 
-          // Increment series atomically with optimistic lock
-          if (defaultSeries) {
-            const nextNo = getQuoteSeriesNumber(defaultSeries) + 1;
-            const cfg = defaultSeries?.configs || {};
-            const quoteCfg = cfg.quote || {};
-            const updatedCfg = { ...cfg, quote: { ...quoteCfg, start_number: nextNo } };
-            await supabase.from('document_series').update({ current_number: nextNo, configs: updatedCfg }).eq('id', defaultSeries.id);
+          seriesCfg = await fetchQuoteSeriesCfg();
+      }
+
+      if (!editId && seriesCfg) {
+        const seriesNo = buildQuoteNoFromCfg(seriesCfg);
+        const { error: noErr } = await supabase
+          .from('quotation_header')
+          .update({ quotation_no: seriesNo })
+          .eq('id', quotationId)
+          .eq('organisation_id', organisation.id);
+        if (noErr && noErr.code === '23505') {
+          console.warn('Quotation series number already in use; keeping generated number.');
+        } else if (noErr) {
+          throw noErr;
+        } else {
+          setQuoteNoPreview(seriesNo);
+        }
+
+        const usedNumber = seriesCfg.nextNumber;
+        try {
+          if (seriesCfg.source === 'document_settings') {
+            const { error: incErr } = await supabase
+              .from('document_settings')
+              .update({ quotation_current_number: usedNumber + 1, updated_at: new Date().toISOString() })
+              .eq('organisation_id', organisation.id);
+            if (incErr) console.warn('Could not advance quotation series:', incErr.message);
+          } else if (seriesCfg.legacyRow) {
+            const legacyCfg = seriesCfg.legacyRow.configs || {};
+            const quoteCfg = legacyCfg.quote || {};
+            const updatedCfg = { ...legacyCfg, quote: { ...quoteCfg, start_number: usedNumber + 1 } };
+            const { error: incErr } = await supabase
+              .from('document_series')
+              .update({ current_number: usedNumber + 1, configs: updatedCfg })
+              .eq('id', seriesCfg.legacyRow.id);
+            if (incErr) console.warn('Could not advance quotation series:', incErr.message);
           }
+        } catch (incErr: any) {
+          console.warn('Could not advance quotation series:', incErr?.message || incErr);
+        }
       }
 
       const rawItems = cleanItems.map((item, index) => {

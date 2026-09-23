@@ -38,8 +38,10 @@ const AccountRow: React.FC<{ node: AccountNode; depth: number }> = ({ node, dept
         
         <div className="w-[120px] text-[12px] text-gray-500">{node.rootType}</div>
         
-        <div className="flex-1 text-right tabular-nums text-[13px]">
-          {node.balance ? node.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '—'}
+        <div className="flex-1 text-left tabular-nums text-[13px] font-medium text-gray-900">
+          {typeof node.balance === 'number'
+            ? `₹${node.balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : '₹0.00'}
         </div>
         
         <div className="w-[80px] flex justify-end">
@@ -62,6 +64,8 @@ export const ChartOfAccounts: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'Group' | 'Ledger'>('Group');
+  const [search, setSearch] = useState('');
+  const [selectedRootType, setSelectedRootType] = useState<string>('All');
 
   const [formData, setFormData] = useState({
     account_code: '',
@@ -101,6 +105,26 @@ export const ChartOfAccounts: React.FC = () => {
 
   const groupOptions = flattenGroups(coaTree);
 
+  // Filter tree recursively
+  const filterTree = (nodes: any[]): any[] => {
+    return nodes
+      .map(node => {
+        const children = filterTree(node.children || []);
+        const matchesSearch = search.trim() === '' ||
+          node.code?.toLowerCase().includes(search.toLowerCase().trim()) ||
+          node.name?.toLowerCase().includes(search.toLowerCase().trim());
+        const matchesType = selectedRootType === 'All' || node.rootType === selectedRootType;
+
+        if ((matchesSearch && matchesType) || children.length > 0) {
+          return { ...node, children };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  };
+
+  const filteredTree = filterTree(coaTree);
+
   return (
     <div className="w-full h-full flex flex-col bg-background">
       {/* Top Bar */}
@@ -112,7 +136,9 @@ export const ChartOfAccounts: React.FC = () => {
             <input 
               type="text" 
               placeholder="Search accounts..." 
-              className="h-[32px] w-[220px] pl-[28px] pr-[10px] py-[5px] rounded-[8px] border text-[13px] border-gray-200"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="h-[32px] w-[220px] pl-[28px] pr-[10px] py-[5px] rounded-[8px] border text-[13px] border-gray-200 focus:outline-none focus:ring-1 focus:ring-black"
             />
           </div>
           <button 
@@ -130,11 +156,28 @@ export const ChartOfAccounts: React.FC = () => {
         </div>
       </div>
 
+      {/* Root Type Filter Pills */}
+      <div className="flex items-center gap-1.5 px-6 py-2 border-b border-[0.5px] bg-secondary/10">
+        {['All', 'Asset', 'Liability', 'Income', 'Expense'].map(type => (
+          <button
+            key={type}
+            onClick={() => setSelectedRootType(type)}
+            className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors ${
+              selectedRootType === type
+                ? 'bg-black text-white'
+                : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            {type}
+          </button>
+        ))}
+      </div>
+
       {/* Table Header */}
       <div className="flex items-center px-6 py-[7px] border-b border-[0.5px] bg-secondary/30 text-[11px] font-medium text-gray-500 uppercase tracking-[0.04em]">
         <div className="w-[400px]">Account Name</div>
         <div className="w-[120px]">Root Type</div>
-        <div className="flex-1 text-right">Closing Balance (₹)</div>
+        <div className="flex-1 text-left">Closing Balance (₹)</div>
         <div className="w-[80px]"></div>
       </div>
 
@@ -142,10 +185,12 @@ export const ChartOfAccounts: React.FC = () => {
       <div className="flex-1 overflow-auto pb-10">
         {isLoading ? (
           <div className="p-6 text-center text-gray-500 text-[13px]">Loading accounts...</div>
-        ) : coaTree.length === 0 ? (
-          <div className="p-6 text-center text-gray-500 text-[13px]">No accounts found. Add your first group or ledger.</div>
+        ) : filteredTree.length === 0 ? (
+          <div className="p-6 text-center text-gray-500 text-[13px]">
+            {search || selectedRootType !== 'All' ? 'No accounts match your search/filter criteria.' : 'No accounts found. Add your first group or ledger.'}
+          </div>
         ) : (
-          coaTree.map((node: any) => (
+          filteredTree.map((node: any) => (
             <AccountRow key={node.id} node={node} depth={0} />
           ))
         )}

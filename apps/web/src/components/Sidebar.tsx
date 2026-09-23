@@ -313,7 +313,8 @@ const menuData: MenuSection[] = [
       { id: 'payments-hub', label: 'Payments hub', path: '/finance/payments' },
       { id: 'advances-expenses', label: 'Advances & Expenses', path: '/advances-expenses' },
       { id: 'chart-of-accounts', label: 'Chart of accounts', path: '/accounting/chart-of-accounts' },
-      { id: 'day-book', label: 'Day book', path: '/accounting/day-book' }
+      { id: 'day-book', label: 'Day book', path: '/accounting/day-book' },
+      { id: 'trial-balance', label: 'Trial balance', path: '/accounting/trial-balance' }
     ]
   },
   {
@@ -437,6 +438,7 @@ const ICON_MAP: Record<string, string> = {
   'advances-expenses': 'receipt_long',
   'chart-of-accounts': 'account_tree',
   'day-book': 'menu_book',
+  'trial-balance': 'balance',
   gst: 'gavel',
   reports: 'analytics',
   hr: 'badge',

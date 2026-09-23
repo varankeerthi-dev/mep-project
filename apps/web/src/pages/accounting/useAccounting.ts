@@ -28,7 +28,7 @@ export function useChartOfAccounts() {
           name: acc.name,
           type: acc.is_group ? 'Group' : 'Ledger',
           rootType: acc.root_type,
-          balance: 0, // Calculate balances in a real system by joining journal_entry_lines
+          balance: Number(acc.current_balance ?? 0),
           children: []
         });
       });
@@ -41,6 +41,21 @@ export function useChartOfAccounts() {
           roots.push(node);
         }
       });
+
+      // Compute rollup balances for group accounts
+      const computeRollupBalance = (node: any): number => {
+        if (!node.children || node.children.length === 0) {
+          return node.balance || 0;
+        }
+        let total = node.type === 'Ledger' ? (node.balance || 0) : 0;
+        for (const child of node.children) {
+          total += computeRollupBalance(child);
+        }
+        node.balance = Math.round(total * 100) / 100;
+        return node.balance;
+      };
+
+      roots.forEach(rootNode => computeRollupBalance(rootNode));
 
       return roots;
     },
@@ -70,7 +85,7 @@ export function useDayBook() {
             id, debit, credit, narration, party_type, party_id, accounts(name)
           )
         `)
-        // .eq('company_id', organisation.id) - Use company_id or branch_id if multitenant
+        .or(`organisation_id.eq.${organisation.id},company_id.eq.${organisation.id}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

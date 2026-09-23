@@ -38,6 +38,16 @@ const DEFAULT_SERIES: Record<string, DocumentNumberSeries> = {
   VENDOR_CODE: { id: '7', doc_type: 'VENDOR_CODE', label: 'Vendor Code', prefix: 'VEN-', start_number: 1, padding: 4, suffix: '', prevent_duplicate: true },
 };
 
+const DOC_TO_FLAT: Record<string, string> = {
+  QUOTATION: 'quotation',
+  INVOICE: 'invoice',
+  PURCHASE_ORDER: 'po',
+  DELIVERY_CHALLAN: 'dc',
+  NON_BILLABLE_DC: 'nb_dc',
+  PAYMENT_RECEIPT: 'receipt',
+  VENDOR_CODE: 'vendor',
+};
+
 const FY_FORMATS = ['FY24-25', 'FY2024-25', '2024-25', '2024_25'];
 
 function generateFyOptions(format: string, startMonth: number): string[] {
@@ -97,21 +107,24 @@ export const NumberingTab: React.FC<NumberingTabProps> = ({
       value: String(data.prevent_duplicate),
     }, { onConflict: 'organisation_id,key' });
 
-    // Save document series rows
-    const rows = Object.values(data.series).map((s) => ({
+    const docRow: Record<string, any> = {
       organisation_id: orgId,
-      doc_type: s.doc_type,
-      prefix: s.prefix,
-      next_number: s.start_number,
-      number_length: s.padding,
-      suffix: s.suffix,
-    }));
+      updated_at: new Date().toISOString(),
+    };
+    for (const s of Object.values(data.series)) {
+      const flatKey = DOC_TO_FLAT[s.doc_type];
+      if (!flatKey) continue;
+      docRow[`${flatKey}_prefix`] = s.prefix;
+      docRow[`${flatKey}_start_number`] = s.start_number;
+      docRow[`${flatKey}_padding`] = s.padding;
+      docRow[`${flatKey}_suffix`] = s.suffix;
+    }
 
     const { error } = await supabase
       .from('document_settings')
-      .upsert(rows, { onConflict: 'organisation_id,doc_type' });
+      .upsert(docRow, { onConflict: 'organisation_id' });
 
-    if (error && error.code !== 'PGRST204') {
+    if (error) {
       toast.error('Failed to save document numbering series: ' + error.message);
       throw error;
     }
@@ -146,6 +159,7 @@ export const NumberingTab: React.FC<NumberingTabProps> = ({
     updateField,
     discard,
     save,
+    reset,
     restoreDraft,
     dismissDraft,
   } = useUnsavedChanges<NumberingState>({
@@ -161,6 +175,62 @@ export const NumberingTab: React.FC<NumberingTabProps> = ({
   React.useEffect(() => {
     onRegisterSave(save, discard);
   }, [save, discard, onRegisterSave]);
+
+  const seriesLoadedRef = React.useRef(false);
+  const draftAvailableRef = React.useRef(false);
+  React.useEffect(() => {
+    draftAvailableRef.current = draftAvailable;
+  }, [draftAvailable]);
+
+  React.useEffect(() => {
+    if (!orgId || seriesLoadedRef.current) return;
+    seriesLoadedRef.current = true;
+    (async () => {
+      try {
+        const cols = Object.values(DOC_TO_FLAT).flatMap((k) => [
+          `${k}_prefix`,
+          `${k}_start_number`,
+          `${k}_padding`,
+          `${k}_suffix`,
+        ]);
+        const [docRes, pdRes] = await Promise.all([
+          supabase.from('document_settings').select(cols.join(', ')).eq('organisation_id', orgId).maybeSingle(),
+          supabase.from('settings').select('value').eq('organisation_id', orgId).eq('key', 'prevent_duplicate_numbers').maybeSingle(),
+        ]);
+        if (draftAvailableRef.current) return;
+        const row: any = docRes.data;
+        if (!row && !pdRes.data) return;
+
+        const series: Record<string, DocumentNumberSeries> = { ...DEFAULT_SERIES };
+        if (row) {
+          for (const [docType, flatKey] of Object.entries(DOC_TO_FLAT)) {
+            const base = DEFAULT_SERIES[docType];
+            if (!base) continue;
+            const prefixVal = row[`${flatKey}_prefix`];
+            if (prefixVal === undefined || prefixVal === null) continue;
+            series[docType] = {
+              ...base,
+              prefix: prefixVal,
+              start_number: Number(row[`${flatKey}_start_number`] ?? base.start_number),
+              padding: Number(row[`${flatKey}_padding`] ?? base.padding),
+              suffix: row[`${flatKey}_suffix`] ?? base.suffix,
+            };
+          }
+        }
+
+        const pdValue = pdRes.data?.value;
+        reset({
+          prevent_duplicate: pdValue !== undefined && pdValue !== null
+            ? pdValue === 'true'
+            : liveData.prevent_duplicate,
+          series,
+          financial_year: liveData.financial_year,
+        });
+      } catch (e) {
+        console.warn('Unable to load document numbering settings:', e);
+      }
+    })();
+  }, [orgId]);
 
   const updateDocSeries = (docType: string, field: keyof DocumentNumberSeries, val: any) => {
     const current = liveData.series[docType];
