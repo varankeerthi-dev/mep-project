@@ -6,6 +6,7 @@ import { buildStockKey } from '../aggregates/WarehouseStock';
 import type { VendorMappingRow } from '../aggregates/VendorMapping';
 import type { ClientMappingRow } from '../aggregates/ClientMapping';
 import type { MaterialEditorFormData as FormData } from '../aggregates/MaterialEditor';
+import { normalizeItemClassification } from '../aggregates/MaterialEditor';
 import { generateItemCode } from '../../lib/generateItemCode';
 
 /** Map editor form data to a DB-ready material payload */
@@ -39,7 +40,7 @@ export function editorToMaterial(
     weight: formData.weight ? parseFloat(formData.weight) : null,
     weight_unit: formData.weight_unit || 'kg',
     item_type: 'product',
-    item_classification: formData.item_classification,
+    item_classification: normalizeItemClassification(formData.item_classification),
     allow_purchase: formData.allow_purchase,
     allow_sales: formData.allow_sales,
     show_in_bom: formData.show_in_bom,
@@ -89,7 +90,7 @@ export function materialToEditor(
     dimension_unit: material.dimension_unit || 'cm',
     weight: material.weight ? String(material.weight) : '',
     weight_unit: material.weight_unit || 'kg',
-    item_classification: material.item_classification || 'goods_sold',
+    item_classification: normalizeItemClassification(material.item_classification),
     allow_purchase: material.allow_purchase !== false,
     allow_sales: material.allow_sales !== false,
     show_in_bom: material.show_in_bom !== false,

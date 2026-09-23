@@ -8,6 +8,7 @@ import { generateItemCode } from '../shared/utils';
 import { buildStockKey, variantStockCombos } from '../model/aggregates/WarehouseStock';
 
 import type { MaterialEditorFormData } from '../model/aggregates/MaterialEditor';
+import { normalizeItemClassification } from '../model/aggregates/MaterialEditor';
 
 const defaultFormData: MaterialEditorFormData = {
   item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
@@ -16,7 +17,17 @@ const defaultFormData: MaterialEditorFormData = {
   sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
   uses_variant: false, track_inventory: false, discount_category_id: null,
   dimension: '', dimension_unit: 'cm', weight: '', weight_unit: 'kg',
-  item_classification: 'goods_sold', allow_purchase: true, allow_sales: true, show_in_bom: true, is_manufactured: false,
+  item_classification: 'STOCK_IN_TRADE',
+  accounting_treatment: 'INVENTORY_STOCK',
+  gl_classification: 'INVENTORY_ASSET',
+  is_stockable: true,
+  is_depreciable: false,
+  useful_life_years: '',
+  asset_category_id: null,
+  fixed_asset_account_id: null,
+  sales_income_account_id: null,
+  purchase_account_id: null,
+  allow_purchase: true, allow_sales: true, show_in_bom: true, is_manufactured: false,
   custom_attributes: [] as any[],
   has_warranty: false,
   warranty_period: '',
@@ -137,7 +148,28 @@ export function useMaterialForm() {
       dimension_unit: material.dimension_unit || 'cm',
       weight: material.weight || '',
       weight_unit: material.weight_unit || 'kg',
-      item_classification: material.item_classification || 'goods_sold',
+      item_classification: normalizeItemClassification(material.item_classification),
+      accounting_treatment: (() => {
+        const itemClass = normalizeItemClassification(material.item_classification);
+        if (material.gl_classification === 'FIXED_ASSET') return 'FIXED_ASSET';
+        if (material.gl_classification === 'EXPENSE') {
+          return itemClass === 'SERVICE' ? 'EXPENSE_SERVICE' : 'EXPENSE_CONSUMABLE';
+        }
+        if (material.gl_classification === 'INVENTORY_ASSET') {
+          if (itemClass === 'RAW_MATERIAL') return 'INVENTORY_RAW';
+          if (itemClass === 'FINISHED_GOOD') return 'INVENTORY_FINISHED';
+          return 'INVENTORY_STOCK';
+        }
+        return 'INVENTORY_STOCK';
+      })(),
+      gl_classification: material.gl_classification || 'INVENTORY_ASSET',
+      is_stockable: material.is_stockable ?? true,
+      is_depreciable: material.is_depreciable ?? false,
+      useful_life_years: material.useful_life_years ? String(material.useful_life_years) : '',
+      asset_category_id: material.asset_category_id || null,
+      fixed_asset_account_id: material.fixed_asset_account_id || null,
+      sales_income_account_id: material.sales_income_account_id || null,
+      purchase_account_id: material.purchase_account_id || null,
       allow_purchase: material.allow_purchase !== false,
       allow_sales: material.allow_sales !== false,
       show_in_bom: material.show_in_bom !== false,
@@ -223,6 +255,67 @@ export function useMaterialForm() {
       return;
     }
 
+    if (editingMaterial) {
+      const origGl = editingMaterial.gl_classification || 'INVENTORY_ASSET';
+      const origItem = normalizeItemClassification(editingMaterial.item_classification);
+      const isClassChanged = (formData.gl_classification && origGl !== formData.gl_classification) ||
+                             (formData.item_classification && origItem !== normalizeItemClassification(formData.item_classification));
+
+      if (isClassChanged) {
+        // 1. Check item_stock
+        const { data: stockRecords } = await supabase
+          .from('item_stock')
+          .select('current_stock')
+          .eq('item_id', editingMaterial.id)
+          .gt('current_stock', 0);
+
+        if (stockRecords && stockRecords.length > 0) {
+          alert('Cannot change accounting treatment: This item currently has physical stock on hand. Adjust or clear stock before altering accounting classification to protect balance sheet integrity.');
+          setMaterialSavePending(false);
+          return;
+        }
+
+        // 2. Check purchase_bill_items
+        const { data: billItems } = await supabase
+          .from('purchase_bill_items')
+          .select('id')
+          .or(`item_id.eq.${editingMaterial.id},material_id.eq.${editingMaterial.id}`)
+          .limit(1);
+
+        if (billItems && billItems.length > 0) {
+          alert('Cannot change accounting treatment: This item has existing Purchase Bill transaction history. Create a new item instead to maintain audit integrity.');
+          setMaterialSavePending(false);
+          return;
+        }
+
+        // 3. Check invoice_items
+        const { data: invItems } = await supabase
+          .from('invoice_items')
+          .select('id')
+          .filter('meta_json->>material_id', 'eq', editingMaterial.id)
+          .limit(1);
+
+        if (invItems && invItems.length > 0) {
+          alert('Cannot change accounting treatment: This item has existing Sales Invoice transaction history. Create a new item instead to maintain audit integrity.');
+          setMaterialSavePending(false);
+          return;
+        }
+
+        // 4. Check fixed_assets
+        const { data: faItems } = await supabase
+          .from('fixed_assets')
+          .select('id')
+          .eq('material_id', editingMaterial.id)
+          .limit(1);
+
+        if (faItems && faItems.length > 0) {
+          alert('Cannot change accounting treatment: This item is registered in the Fixed Asset Register. Create a new item instead to maintain audit integrity.');
+          setMaterialSavePending(false);
+          return;
+        }
+      }
+    }
+
     const materialData = {
       item_code: formData.item_code || generateItemCode(),
       name: formData.item_name,
@@ -247,7 +340,15 @@ export function useMaterialForm() {
       weight: formData.weight ? parseFloat(formData.weight as string) : null,
       weight_unit: formData.weight_unit || 'kg',
       item_type: 'product',
-      item_classification: formData.item_classification,
+      item_classification: normalizeItemClassification(formData.item_classification),
+      gl_classification: formData.gl_classification,
+      is_stockable: formData.is_stockable,
+      is_depreciable: formData.is_depreciable,
+      useful_life_years: formData.useful_life_years ? parseFloat(formData.useful_life_years) : null,
+      asset_category_id: formData.asset_category_id || null,
+      fixed_asset_account_id: formData.fixed_asset_account_id || null,
+      sales_income_account_id: formData.sales_income_account_id || null,
+      purchase_account_id: formData.purchase_account_id || null,
       allow_purchase: formData.allow_purchase,
       allow_sales: formData.allow_sales,
       show_in_bom: formData.show_in_bom,

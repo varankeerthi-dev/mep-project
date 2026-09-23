@@ -56,10 +56,10 @@ export const emptyItemTransactions = () => ({
 });
 
 export const CLASSIFICATION_OPTIONS = [
-  { value: 'finished_good', label: 'Finished Good', desc: 'Manufactured and sold', requiresMfg: true },
-  { value: 'raw_material', label: 'Raw Material', desc: 'Purchased, consumed in production, appears in BOM', requiresMfg: true },
-  { value: 'consumable', label: 'Consumable', desc: 'Purchased, used for operations/maintenance, not in BOM', requiresMfg: false },
-  { value: 'goods_sold', label: 'Goods Sold', desc: 'Purchased and resold as-is', requiresMfg: false },
+  { value: 'FINISHED_GOOD', label: 'Finished Good', desc: 'Manufactured and sold', requiresMfg: true },
+  { value: 'RAW_MATERIAL', label: 'Raw Material', desc: 'Purchased, consumed in production, appears in BOM', requiresMfg: true },
+  { value: 'CONSUMABLE', label: 'Consumable', desc: 'Purchased, used for operations/maintenance, not in BOM', requiresMfg: false },
+  { value: 'STOCK_IN_TRADE', label: 'Stock-in-Trade', desc: 'Purchased and resold as-is', requiresMfg: false },
 ];
 
 export const getMaterialsTabFromSearch = (search = '') => {

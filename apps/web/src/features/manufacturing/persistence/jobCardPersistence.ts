@@ -55,7 +55,7 @@ export async function fetchFinishedGoods(orgId: string) {
     .from('materials')
     .select('id, name, item_code')
     .eq('organisation_id', orgId)
-    .eq('item_classification', 'finished_good')
+    .in('item_classification', ['FINISHED_GOOD', 'finished_good'])
     .order('name');
   if (error) throw error;
   return data || [];
@@ -66,7 +66,7 @@ export async function fetchRawMaterialsForBom(orgId: string) {
     .from('materials')
     .select('id, name, unit, make, uses_variant')
     .eq('organisation_id', orgId)
-    .eq('item_classification', 'raw_material')
+    .in('item_classification', ['RAW_MATERIAL', 'raw_material'])
     .order('name');
   if (error) throw error;
   return data || [];
@@ -87,7 +87,7 @@ export async function fetchItemVariantPricing(orgId: string) {
     .from('materials')
     .select('id')
     .eq('organisation_id', orgId)
-    .eq('item_classification', 'raw_material');
+    .in('item_classification', ['RAW_MATERIAL', 'raw_material']);
   const ids = (mats || []).map(m => m.id);
   if (!ids.length) return [];
   const { data, error } = await supabase

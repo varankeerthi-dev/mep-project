@@ -9,7 +9,7 @@ import { useMaterialForm } from '../hooks/useMaterialForm';
 import { useAttributeDefinitions } from '../hooks/useAttributeDefinitions';
 import { ItemEditorDialog } from '../components/editor/ItemEditorDialog';
 import { checkVariantRecords } from '../persistence/materialsPersistence';
-import { CLASSIFICATION_PRESETS } from '../model/aggregates';
+import { CLASSIFICATION_PRESETS, getAccountingTreatmentPreset } from '../model/aggregates';
 import { MAIN_CATEGORIES } from '../shared/constants';
 
 /**
@@ -35,6 +35,8 @@ export function ItemEditorPage() {
   const warehouses = pageData?.warehouses ?? [];
   const clients = pageData?.clients ?? [];
   const discountCategories = pageData?.discountCategories ?? [];
+  const assetCategories = pageData?.assetCategories ?? [];
+  const accounts = pageData?.accounts ?? [];
   const categoryOptions = categories.length > 0 ? categories.map((c: any) => c.category_name) : MAIN_CATEGORIES;
   const { data: units = [] } = useUnits();
 
@@ -76,11 +78,27 @@ export function ItemEditorPage() {
 
   // ─── Editor Row Handlers ─────────────────────────────────────
   const handleClassificationChange = useCallback((type: string) => {
-    form.setFormData((prev: any) => ({
-      ...prev,
-      item_classification: type,
-      ...(CLASSIFICATION_PRESETS[type] || {}),
-    }));
+    const preset = getAccountingTreatmentPreset(type);
+    if (preset) {
+      form.setFormData((prev: any) => ({
+        ...prev,
+        accounting_treatment: type,
+        gl_classification: preset.gl_classification,
+        item_classification: preset.item_classification,
+        is_stockable: preset.is_stockable,
+        is_depreciable: preset.is_depreciable,
+        allow_purchase: preset.allow_purchase,
+        allow_sales: preset.allow_sales,
+        show_in_bom: preset.show_in_bom,
+        is_manufactured: preset.is_manufactured,
+      }));
+    } else {
+      form.setFormData((prev: any) => ({
+        ...prev,
+        item_classification: type,
+        ...(CLASSIFICATION_PRESETS[type] || {}),
+      }));
+    }
   }, [form]);
 
   const handleUsesVariantChange = useCallback(async (checked: boolean) => {
@@ -221,6 +239,8 @@ export function ItemEditorPage() {
         onCategoryCreated={() => refetch()}
         unitOptions={units}
         onUnitCreated={() => refetch()}
+        assetCategories={assetCategories}
+        accounts={accounts}
       />
       {/* Floating save toast */}
       {form.saveNotice && (

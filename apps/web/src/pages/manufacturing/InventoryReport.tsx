@@ -249,7 +249,7 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
         jcFGRequirementMap[fgId] = (jcFGRequirementMap[fgId] || 0) + Number(jc.planned_qty || 0);
       } else {
         // Fallback name match if product_id is not directly resolved
-        const matchedMat = materials.find(m => m.name === jc.product_name && m.item_classification === 'finished_good');
+        const matchedMat = materials.find(m => m.name === jc.product_name && (m.item_classification === 'finished_good' || m.item_classification === 'FINISHED_GOOD'));
         if (matchedMat) {
           jcFGRequirementMap[matchedMat.id] = (jcFGRequirementMap[matchedMat.id] || 0) + Number(jc.planned_qty || 0);
         }
@@ -275,7 +275,7 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
         if (fgId) {
           scheduleFGRequirementMap[fgId] = (scheduleFGRequirementMap[fgId] || 0) + Number(item.planned_qty || 0);
         } else {
-          const matchedMat = materials.find(m => m.name === item.product_name && m.item_classification === 'finished_good');
+          const matchedMat = materials.find(m => m.name === item.product_name && (m.item_classification === 'finished_good' || m.item_classification === 'FINISHED_GOOD'));
           if (matchedMat) {
             scheduleFGRequirementMap[matchedMat.id] = (scheduleFGRequirementMap[matchedMat.id] || 0) + Number(item.planned_qty || 0);
           }
@@ -313,10 +313,11 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
       const nameMatch = m.name.toLowerCase().includes(search.toLowerCase());
       if (!nameMatch) return false;
 
+      const cl = (m.item_classification || '').toLowerCase();
       if (activeTab === 'raw') {
-        return m.item_classification === 'raw_material';
+        return cl === 'raw_material';
       } else {
-        return m.item_classification === 'finished_good';
+        return cl === 'finished_good';
       }
     });
 
@@ -966,7 +967,7 @@ export default function InventoryReport({ onNavigate }: InventoryReportProps) {
                 <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px', display: 'flex', gap: '8px' }}>
                   <span>Unit: <strong>{selectedDrawerItem.unit}</strong></span>
                   <span>•</span>
-                  <span>Type: <strong>{selectedDrawerItem.item_classification === 'raw_material' ? 'Raw Material' : 'Finished Good'}</strong></span>
+                  <span>Type: <strong>{(selectedDrawerItem.item_classification || '').toLowerCase() === 'raw_material' ? 'Raw Material' : 'Finished Good'}</strong></span>
                 </div>
               </div>
               <Button variant="ghost" size="icon-sm" onClick={() => setDrawerItemId(null)} aria-label="Close" className="text-slate-400 hover:text-slate-900">

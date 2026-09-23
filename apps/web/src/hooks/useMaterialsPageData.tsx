@@ -14,6 +14,8 @@ interface MaterialsPageData {
   warehouses: any[];
   clients: any[];
   discountCategories: any[];
+  assetCategories: any[];
+  accounts: any[];
 }
 
 const isMissingRelationError = (error: any): boolean => {
@@ -35,12 +37,14 @@ export function useMaterialsPageData(orgId?: string | null) {
         warehousesResult,
         clientsResult,
         discountCategoriesResult,
+        assetCategoriesResult,
+        accountsResult,
       ] = await Promise.all([
         timedSupabaseQuery(
           (() => {
             let query = supabase
               .from('materials')
-              .select('id, organisation_id, item_code, name, display_name, main_category, sub_category, size, pressure_class, make, material, end_connection, unit, sale_price, purchase_price, hsn_code, gst_rate, is_active, uses_variant, discount_category_id, dimension, dimension_unit, weight, weight_unit, item_classification, allow_purchase, allow_sales, show_in_bom, is_manufactured, created_at, updated_at, material_units(*)')
+              .select('id, organisation_id, item_code, name, display_name, main_category, sub_category, size, pressure_class, make, material, end_connection, unit, sale_price, purchase_price, hsn_code, gst_rate, is_active, uses_variant, discount_category_id, dimension, dimension_unit, weight, weight_unit, item_classification, gl_classification, is_stockable, is_depreciable, useful_life_years, asset_category_id, fixed_asset_account_id, sales_income_account_id, purchase_account_id, allow_purchase, allow_sales, show_in_bom, is_manufactured, created_at, updated_at, material_units(*)')
               .order('name');
             if (orgId) {
               query = query.eq('organisation_id', orgId);
@@ -171,6 +175,40 @@ export function useMaterialsPageData(orgId?: string | null) {
             return [];
           }
         })(),
+
+        (async () => {
+          try {
+            let query = supabase
+              .from('asset_categories')
+              .select('id, name, gl_account_id, useful_life_years, is_active')
+              .eq('is_active', true)
+              .order('name');
+            if (orgId) {
+              query = query.eq('organisation_id', orgId);
+            }
+            return await timedSupabaseQuery(query, 'Asset Categories');
+          } catch (error) {
+            console.log('asset_categories query error', error);
+            return [];
+          }
+        })(),
+
+        (async () => {
+          try {
+            let query = supabase
+              .from('accounts')
+              .select('id, account_code, name, root_type, account_type, is_active')
+              .eq('is_active', true)
+              .order('account_code');
+            if (orgId) {
+              query = query.or(`organisation_id.eq.${orgId},company_id.eq.${orgId}`);
+            }
+            return await timedSupabaseQuery(query, 'Accounts');
+          } catch (error) {
+            console.log('accounts query error', error);
+            return [];
+          }
+        })(),
       ]);
 
       return {
@@ -182,6 +220,8 @@ export function useMaterialsPageData(orgId?: string | null) {
         warehouses: warehousesResult || [],
         clients: clientsResult || [],
         discountCategories: discountCategoriesResult || [],
+        assetCategories: assetCategoriesResult || [],
+        accounts: accountsResult || [],
       };
     },
     enabled: !!orgId,

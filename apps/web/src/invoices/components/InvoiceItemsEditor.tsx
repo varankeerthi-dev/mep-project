@@ -134,13 +134,13 @@ export function InvoiceItemsEditor({
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
   }, []);
 
-  const DEFAULT_CLASSIFICATIONS = ['finished_good', 'goods_sold', 'consumable'];
+  const DEFAULT_CLASSIFICATIONS = ['STOCK_IN_TRADE', 'FINISHED_GOOD', 'CONSUMABLE', 'SERVICE', 'OTHER', 'goods_sold', 'finished_good', 'consumable', 'service', 'other'];
 
   const getFilteredMaterials = useCallback((index: number) => {
     const searchTerm = searchTerms[index] || '';
     const base = searchTerm
       ? productOptions
-      : productOptions.filter(m => DEFAULT_CLASSIFICATIONS.includes(m.item_classification || ''));
+      : productOptions.filter(m => DEFAULT_CLASSIFICATIONS.includes(m.item_classification || '') || (!m.item_classification && m.allow_sales !== false));
     return base.filter(m =>
       !searchTerm || m.name.toLowerCase().includes(searchTerm.toLowerCase())
     );

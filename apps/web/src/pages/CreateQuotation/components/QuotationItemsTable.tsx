@@ -4,6 +4,7 @@ import { InlineDescriptionCell } from '../../../components/InlineDescriptionCell
 import { UnitDropdownSelect } from '../../../components/UnitDropdownSelect';
 import { formatCurrency } from '../../../utils/formatters';
 import { Button } from '../../../components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/popover';
 import { StandardRateBadge, ArcRateBadge } from '../../../components/ArcPricingToggle';
 import { ArrowUpDown, ChevronDown, GripVertical, Lock, CornerDownRight, Trash2 } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -242,6 +243,11 @@ interface QuotationItemsTableProps {
   selectedItemIds: string[];
   setSelectedItemIds: React.Dispatch<React.SetStateAction<string[]>>;
 }
+
+const formatStockQty = (v: any) => {
+  const n = parseFloat(v) || 0;
+  return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+};
 
 export function QuotationItemsTable({
   items,
@@ -498,6 +504,9 @@ export function QuotationItemsTable({
 
               const isChecked = selectedItemIds.includes(String(item.id));
               const isAlertRow = item.is_override;
+              const stockRows = getStockRowsForItem(item);
+              const stockTotal = getStockTotalForItem(item);
+              const stockUom = item.uom || '';
               // Solid bg for the sticky actions cell (translucent row tints would show scrolled content bleeding through)
               const stickyBg = isChecked ? SURFACE_LOW : isAlertRow ? '#FDECEA' : SURFACE_LOWEST;
               return (
@@ -776,6 +785,46 @@ export function QuotationItemsTable({
                       }}
                       style={{ ...NUM_CELL, textAlign: 'right', fontWeight: 600, fontSize: '13px', color: INK, background: 'transparent', boxShadow: 'none' }}
                     />
+                    {item.item_id ? (
+                      <Popover open={activeStockPopoverId === item.id} onOpenChange={(next: boolean) => setActiveStockPopoverId(next ? item.id : null)}>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            title="View warehouse-wise stock"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px',
+                              marginTop: '2px', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer',
+                              fontFamily: INTER, fontSize: '10px', fontWeight: 600, lineHeight: 1.4,
+                              color: stockTotal > 0 ? PRIMARY : INK_FAINT,
+                              maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            }}
+                          >
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{`${formatStockQty(stockTotal)}${stockUom ? ` ${stockUom}` : ''}`}</span>
+                            <ChevronDown size={10} strokeWidth={2.5} />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" side="bottom" className="w-60" style={{ padding: '10px 12px', borderRadius: '8px', border: `1px solid ${BORDER_SUBTLE}` }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <span style={{ fontFamily: INTER, fontSize: '12px', fontWeight: 700, color: INK }}>Stock Details</span>
+                            <span style={{ fontFamily: INTER, fontSize: '10px', fontWeight: 600, color: INK_MUTED, background: SURFACE_LOW, borderRadius: '9999px', padding: '2px 8px', whiteSpace: 'nowrap' }}>
+                              {`Total: ${formatStockQty(stockTotal)}${stockUom ? ` ${stockUom}` : ''}`}
+                            </span>
+                          </div>
+                          {stockRows.length > 0 ? (
+                            <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                              {stockRows.map((r: any, i: number) => (
+                                <div key={r.id || i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '5px 0', borderTop: i === 0 ? 'none' : `1px solid ${BORDER_SUBTLE}` }}>
+                                  <span style={{ fontFamily: INTER, fontSize: '11px', fontWeight: 500, color: INK_MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.warehouse_name}</span>
+                                  <span style={{ fontFamily: INTER, fontSize: '11px', fontWeight: 700, color: INK, whiteSpace: 'nowrap' }}>{`${formatStockQty(r.current_stock)}${stockUom ? ` ${stockUom}` : ''}`}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ fontFamily: INTER, fontSize: '11px', color: INK_FAINT, padding: '4px 0' }}>No stock records for this item.</div>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    ) : null}
                   </td>
                   <td className="col-unit" style={{ verticalAlign: 'middle', textAlign: 'center' }}>
                     <UnitDropdownSelect

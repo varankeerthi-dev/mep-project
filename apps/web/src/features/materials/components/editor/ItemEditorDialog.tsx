@@ -10,25 +10,28 @@ import { VendorSection } from './VendorSection';
 import { ClientSection } from './ClientSection';
 
 import { selectField, primaryButton, secondaryButton } from './formStyles';
-import { Boxes, Layers, Wrench, ShoppingCart, Check, ChevronLeft, Save, FileText } from 'lucide-react';
+import { Boxes, Layers, Wrench, ShoppingCart, Building2, Briefcase, Check, ChevronLeft, Save, FileText, Landmark } from 'lucide-react';
 import { Switch } from '../../../../components/ui/switch';
-import type { MaterialEditorFormData, VariantPricingRow, WarehouseStockMap, VendorMappingRow, ClientMappingRow, ClientPricingRow } from '../../model/aggregates';
-import { variantStockCombos } from '../../model/aggregates';
+import type { MaterialEditorFormData, VariantPricingRow, WarehouseStockMap, VendorMappingRow, ClientMappingRow, ClientPricingRow, AccountingTreatmentOption } from '../../model/aggregates';
+import { variantStockCombos, ACCOUNTING_TREATMENT_OPTIONS } from '../../model/aggregates';
 import type { Warehouse, Vendor as VendorType, Client, MaterialCustomAttribute, AttributeDefinition } from '../../model/entities';
-import { CLASSIFICATION_OPTIONS } from '../../model/aggregates';
 
-const CLASS_ICONS: Record<string, any> = {
-  finished_good: Boxes,
-  raw_material: Layers,
-  consumable: Wrench,
-  goods_sold: ShoppingCart,
+const TREATMENT_ICONS: Record<string, any> = {
+  INVENTORY_STOCK: ShoppingCart,
+  INVENTORY_RAW: Layers,
+  INVENTORY_FINISHED: Boxes,
+  FIXED_ASSET: Building2,
+  EXPENSE_CONSUMABLE: Wrench,
+  EXPENSE_SERVICE: Briefcase,
 };
 
-const CLASS_COLORS: Record<string, { icon: string; bg: string }> = {
-  finished_good: { icon: '#22C55E', bg: '#F0FDF4' },
-  raw_material: { icon: '#3B82F6', bg: '#EFF6FF' },
-  consumable: { icon: '#EF4444', bg: '#FEF2F2' },
-  goods_sold: { icon: '#F97316', bg: '#FFF7ED' },
+const TREATMENT_COLORS: Record<string, { icon: string; bg: string }> = {
+  INVENTORY_STOCK: { icon: '#F97316', bg: '#FFF7ED' },
+  INVENTORY_RAW: { icon: '#3B82F6', bg: '#EFF6FF' },
+  INVENTORY_FINISHED: { icon: '#22C55E', bg: '#F0FDF4' },
+  FIXED_ASSET: { icon: '#8B5CF6', bg: '#F5F3FF' },
+  EXPENSE_CONSUMABLE: { icon: '#EC4899', bg: '#FDF2F8' },
+  EXPENSE_SERVICE: { icon: '#06B6D4', bg: '#ECFEFF' },
 };
 
 interface ItemEditorDialogProps {
@@ -80,6 +83,8 @@ interface ItemEditorDialogProps {
   onCategoryCreated?: (newCategory: string) => void;
   unitOptions: { unit_code: string; unit_name: string }[];
   onUnitCreated?: (newUnit: string) => void;
+  assetCategories?: any[];
+  accounts?: any[];
 }
 
 export function ItemEditorDialog({
@@ -95,6 +100,7 @@ export function ItemEditorDialog({
   onClientPricingRowChange, onShowPricingHistory, onToggleTechnical,
   onClassificationChange, onSubmit, onCategoryCreated,
   unitOptions, onUnitCreated,
+  assetCategories = [], accounts = [],
 }: ItemEditorDialogProps) {
   if (!open) return null;
 
@@ -124,11 +130,12 @@ export function ItemEditorDialog({
   const formBody = (
     <form id="item-form" onSubmit={handleSubmit} className="space-y-6">
       {/* Item Classification — full width */}
+      {/* 1. Accounting Treatment & Item Classification — full width */}
       <EditorSection
         color="indigo"
-        title="Item Type"
+        title="Accounting & Item Classification"
         badge="Required"
-        description="Choose the classification that best describes this item."
+        description="Select the accounting treatment for this item. This governs balance sheet asset vs. profit & loss expense posting on purchase, inventory stock tracking, and COGS calculation on sale."
         headerActions={
           <div className="flex items-center gap-2">
             <Switch
@@ -141,14 +148,17 @@ export function ItemEditorDialog({
           </div>
         }
       >
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {CLASSIFICATION_OPTIONS.filter(o => !o.requiresMfg || manufacturingEnabled).map((opt) => {
-            const isSelected = formData.item_classification === opt.value;
-            const Icon = CLASS_ICONS[opt.value] || Boxes;
-            const colors = CLASS_COLORS[opt.value] || { icon: '#6B7280', bg: '#F3F4F6' };
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {ACCOUNTING_TREATMENT_OPTIONS.map((opt) => {
+            const isSelected = (formData.accounting_treatment || 'INVENTORY_STOCK') === opt.value;
+            const Icon = TREATMENT_ICONS[opt.value] || Boxes;
+            const colors = TREATMENT_COLORS[opt.value] || { icon: '#6B7280', bg: '#F3F4F6' };
             return (
-              <button key={opt.value} type="button" onClick={() => onClassificationChange(opt.value)}
-                className={`group relative flex min-h-[80px] items-center gap-3 rounded-xl px-4 py-3.5 text-left transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6366F1]/40 focus-visible:ring-offset-1 ${
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onClassificationChange(opt.value)}
+                className={`group relative flex min-h-[90px] items-start gap-3 rounded-xl px-4 py-3.5 text-left transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6366F1]/40 focus-visible:ring-offset-1 ${
                   isSelected
                     ? 'border-2 border-[#6366F1] bg-[#EEF2FF] shadow-sm'
                     : 'border border-[#E2E5EB] bg-white hover:border-[#818CF8]/50 hover:bg-[#FAFAFF] hover:shadow-sm'
@@ -156,23 +166,23 @@ export function ItemEditorDialog({
               >
                 {/* Icon */}
                 <span
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-150"
+                  className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-150"
                   style={{ backgroundColor: colors.bg, color: colors.icon }}
                 >
-                  <Icon className="h-4.5 w-4.5" />
+                  <Icon className="h-5 w-5" />
                 </span>
                 {/* Label + Description */}
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-semibold leading-4 text-[#111827]">
                     {opt.label}
                   </div>
-                  <div className="mt-0.5 text-[11px] leading-3.5 text-[#6B7280] line-clamp-2">
+                  <div className="mt-1 text-[11px] leading-4 text-[#6B7280]">
                     {opt.desc}
                   </div>
                 </div>
                 {/* Radio indicator */}
                 <span
-                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-150 ${
+                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-150 ${
                     isSelected
                       ? 'border-[#6366F1] bg-[#6366F1]'
                       : 'border-[#D1D5DB] bg-white group-hover:border-[#6366F1]/40'
@@ -185,6 +195,143 @@ export function ItemEditorDialog({
               </button>
             );
           })}
+        </div>
+
+        {/* General Ledger Account Overrides (Zoho Books pattern) */}
+        <div className="mt-6 border-t border-slate-100 pt-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Landmark className="h-4 w-4 text-indigo-600" />
+            <h4 className="text-[13px] font-semibold text-slate-800">Chart of Accounts Mapping & Overrides</h4>
+            <span className="text-xs text-slate-500 font-normal">(Zoho Books style per-item GL overrides)</span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* Sales Income Account */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700">
+                Sales Income Account
+              </label>
+              <select
+                className={selectField}
+                value={formData.sales_income_account_id || ''}
+                onChange={(e) => handleChange('sales_income_account_id', e.target.value || null)}
+              >
+                <option value="">Default: 3100 Sales Accounts</option>
+                {accounts
+                  .filter((a: any) => a.root_type === 'Income' || a.account_code?.startsWith('3'))
+                  .map((a: any) => (
+                    <option key={a.id} value={a.id}>
+                      {a.account_code ? `${a.account_code} - ` : ''}{a.name}
+                    </option>
+                  ))}
+              </select>
+              <div className="text-[11px] text-slate-500">
+                Credited when this item is sold on a Sales Invoice.
+              </div>
+            </div>
+
+            {/* Purchase Account Override */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700">
+                Purchase Account Override
+              </label>
+              <select
+                className={selectField}
+                value={formData.purchase_account_id || ''}
+                onChange={(e) => handleChange('purchase_account_id', e.target.value || null)}
+              >
+                <option value="">Standard Account (Determined by Treatment)</option>
+                {accounts
+                  .filter((a: any) => a.root_type === 'Expense' || a.root_type === 'Asset' || a.account_code?.startsWith('4') || a.account_code?.startsWith('1'))
+                  .map((a: any) => (
+                    <option key={a.id} value={a.id}>
+                      {a.account_code ? `${a.account_code} - ` : ''}{a.name} ({a.root_type})
+                    </option>
+                  ))}
+              </select>
+              <div className="text-[11px] text-slate-500">
+                Default purchase account for bills. If left empty, uses standard classification account.
+              </div>
+            </div>
+          </div>
+
+          {/* Fixed Asset Specific Configuration Block */}
+          {(formData.accounting_treatment === 'FIXED_ASSET' || formData.gl_classification === 'FIXED_ASSET') && (
+            <div className="mt-4 rounded-xl border border-purple-200 bg-purple-50/40 p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4.5 w-4.5 text-purple-700" />
+                <span className="text-xs font-bold uppercase tracking-wider text-purple-900">
+                  Fixed Asset Register Configuration
+                </span>
+                <span className="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-800">
+                  Capital Expenditure
+                </span>
+              </div>
+              <p className="text-xs text-purple-700 leading-relaxed">
+                When purchased on a Purchase Bill, this item is debited to Fixed Assets (no dynamic CoA accounts created) and auto-registers a tracked asset in the Fixed Asset Register.
+              </p>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-purple-900">Asset Category *</label>
+                  <select
+                    className={selectField}
+                    value={formData.asset_category_id || ''}
+                    onChange={(e) => {
+                      const catId = e.target.value || null;
+                      handleChange('asset_category_id', catId);
+                      if (catId) {
+                        const cat = assetCategories.find((c: any) => c.id === catId);
+                        if (cat) {
+                          if (cat.gl_account_id) handleChange('fixed_asset_account_id', cat.gl_account_id);
+                          if (cat.useful_life_years) handleChange('useful_life_years', String(cat.useful_life_years));
+                        }
+                      }
+                    }}
+                  >
+                    <option value="">Select Asset Category...</option>
+                    {assetCategories.map((cat: any) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-purple-900">Asset Account (GL)</label>
+                  <select
+                    className={selectField}
+                    value={formData.fixed_asset_account_id || ''}
+                    onChange={(e) => handleChange('fixed_asset_account_id', e.target.value || null)}
+                  >
+                    <option value="">Auto from Category / 1610</option>
+                    {accounts
+                      .filter((a: any) => a.root_type === 'Asset' && (a.account_code?.startsWith('16') || a.name?.toLowerCase().includes('equipment') || a.name?.toLowerCase().includes('machinery') || a.name?.toLowerCase().includes('asset') || a.name?.toLowerCase().includes('furniture') || a.name?.toLowerCase().includes('vehicle')))
+                      .map((a: any) => (
+                        <option key={a.id} value={a.id}>
+                          {a.account_code ? `${a.account_code} - ` : ''}{a.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-purple-900">Useful Life (Years)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    step="0.5"
+                    className={selectField}
+                    value={formData.useful_life_years || ''}
+                    onChange={(e) => handleChange('useful_life_years', e.target.value)}
+                    placeholder="e.g. 5"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </EditorSection>
 

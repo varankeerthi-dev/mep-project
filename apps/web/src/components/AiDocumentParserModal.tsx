@@ -781,7 +781,7 @@ export const AiDocumentParserModal: React.FC<AiDocumentParserModalProps> = ({
         allow_sales: true,
         show_in_bom: true,
         is_manufactured: false,
-        item_classification: documentType === 'Purchase Order' ? 'raw_material' : 'goods_sold',
+        item_classification: documentType === 'Purchase Order' ? 'RAW_MATERIAL' : 'STOCK_IN_TRADE',
         item_type: 'product'
       };
 

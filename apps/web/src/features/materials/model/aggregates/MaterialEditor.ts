@@ -31,6 +31,15 @@ export interface MaterialEditorFormData {
   weight: string;
   weight_unit: string;
   item_classification: string;
+  accounting_treatment: string;
+  gl_classification: string;
+  is_stockable: boolean;
+  is_depreciable: boolean;
+  useful_life_years: string;
+  asset_category_id: string | null;
+  fixed_asset_account_id: string | null;
+  sales_income_account_id: string | null;
+  purchase_account_id: string | null;
   allow_purchase: boolean;
   allow_sales: boolean;
   show_in_bom: boolean;
@@ -70,7 +79,16 @@ export function createDefaultFormData(): MaterialEditorFormData {
     dimension_unit: 'cm',
     weight: '',
     weight_unit: 'kg',
-    item_classification: 'goods_sold',
+    item_classification: 'STOCK_IN_TRADE',
+    accounting_treatment: 'INVENTORY_STOCK',
+    gl_classification: 'INVENTORY_ASSET',
+    is_stockable: true,
+    is_depreciable: false,
+    useful_life_years: '',
+    asset_category_id: null,
+    fixed_asset_account_id: null,
+    sales_income_account_id: null,
+    purchase_account_id: null,
     allow_purchase: true,
     allow_sales: true,
     show_in_bom: true,
@@ -92,15 +110,120 @@ export interface ClassificationOption {
 }
 
 export const CLASSIFICATION_OPTIONS: ClassificationOption[] = [
-  { value: 'finished_good', label: 'Finished Good', desc: 'Manufactured and sold', requiresMfg: true },
-  { value: 'raw_material', label: 'Raw Material', desc: 'Purchased, consumed in production, appears in BOM', requiresMfg: true },
-  { value: 'consumable', label: 'Consumable', desc: 'Purchased, used for operations/maintenance, not in BOM', requiresMfg: false },
-  { value: 'goods_sold', label: 'Goods Sold', desc: 'Purchased and resold as-is', requiresMfg: false },
+  { value: 'FINISHED_GOOD', label: 'Finished Good', desc: 'Manufactured and sold', requiresMfg: true },
+  { value: 'RAW_MATERIAL', label: 'Raw Material', desc: 'Purchased, consumed in production, appears in BOM', requiresMfg: true },
+  { value: 'CONSUMABLE', label: 'Consumable', desc: 'Purchased, used for operations/maintenance, not in BOM', requiresMfg: false },
+  { value: 'STOCK_IN_TRADE', label: 'Stock-in-Trade', desc: 'Purchased and resold as-is', requiresMfg: false },
 ];
 
 export const CLASSIFICATION_PRESETS: Record<string, { allow_purchase: boolean; allow_sales: boolean; show_in_bom: boolean; is_manufactured: boolean }> = {
-  finished_good: { allow_purchase: false, allow_sales: true, show_in_bom: false, is_manufactured: true },
+  STOCK_IN_TRADE: { allow_purchase: true, allow_sales: true, show_in_bom: false, is_manufactured: false },
+  RAW_MATERIAL: { allow_purchase: true, allow_sales: false, show_in_bom: true, is_manufactured: false },
+  CONSUMABLE: { allow_purchase: true, allow_sales: false, show_in_bom: false, is_manufactured: false },
+  FINISHED_GOOD: { allow_purchase: false, allow_sales: true, show_in_bom: false, is_manufactured: true },
+  TOOL: { allow_purchase: true, allow_sales: false, show_in_bom: false, is_manufactured: false },
+  SERVICE: { allow_purchase: true, allow_sales: true, show_in_bom: false, is_manufactured: false },
+  // Backwards compatibility with legacy lowercase
+  goods_sold: { allow_purchase: true, allow_sales: true, show_in_bom: false, is_manufactured: false },
   raw_material: { allow_purchase: true, allow_sales: false, show_in_bom: true, is_manufactured: false },
   consumable: { allow_purchase: true, allow_sales: false, show_in_bom: false, is_manufactured: false },
-  goods_sold: { allow_purchase: true, allow_sales: true, show_in_bom: false, is_manufactured: false },
+  finished_good: { allow_purchase: false, allow_sales: true, show_in_bom: false, is_manufactured: true },
 };
+
+export interface AccountingTreatmentOption {
+  value: string;
+  label: string;
+  desc: string;
+  gl_classification: 'INVENTORY_ASSET' | 'FIXED_ASSET' | 'EXPENSE';
+  item_classification: string;
+  is_stockable: boolean;
+  is_depreciable: boolean;
+}
+
+export const ACCOUNTING_TREATMENT_OPTIONS: AccountingTreatmentOption[] = [
+  {
+    value: 'INVENTORY_STOCK',
+    label: 'Inventory: Stock-in-Trade',
+    desc: 'Purchased for resale or trading. Tracked in stock. Dr Inventory on purchase, Dr COGS / Cr Inventory on sale.',
+    gl_classification: 'INVENTORY_ASSET',
+    item_classification: 'STOCK_IN_TRADE',
+    is_stockable: true,
+    is_depreciable: false,
+  },
+  {
+    value: 'INVENTORY_RAW',
+    label: 'Inventory: Raw Material',
+    desc: 'Purchased for production or fabrication. Tracked in stock. Consumed in BOM.',
+    gl_classification: 'INVENTORY_ASSET',
+    item_classification: 'RAW_MATERIAL',
+    is_stockable: true,
+    is_depreciable: false,
+  },
+  {
+    value: 'INVENTORY_FINISHED',
+    label: 'Inventory: Finished Good',
+    desc: 'Manufactured item produced in-house. Tracked in stock. Sold to clients.',
+    gl_classification: 'INVENTORY_ASSET',
+    item_classification: 'FINISHED_GOOD',
+    is_stockable: true,
+    is_depreciable: false,
+  },
+  {
+    value: 'FIXED_ASSET',
+    label: 'Fixed Asset (Capital Expenditure)',
+    desc: 'Capital equipment, machinery, tools, or vehicles. Auto-registers in Fixed Asset Register upon purchase bill.',
+    gl_classification: 'FIXED_ASSET',
+    item_classification: 'TOOL',
+    is_stockable: false,
+    is_depreciable: true,
+  },
+  {
+    value: 'EXPENSE_CONSUMABLE',
+    label: 'Expense: Consumables & Supplies',
+    desc: 'Direct or operational supplies (welding rods, grease, small bits). Expensed immediately on purchase bill.',
+    gl_classification: 'EXPENSE',
+    item_classification: 'CONSUMABLE',
+    is_stockable: false,
+    is_depreciable: false,
+  },
+  {
+    value: 'EXPENSE_SERVICE',
+    label: 'Expense: Service & Subcontract',
+    desc: 'Labor, services, or subcontracting charges. Expensed immediately, no inventory tracking.',
+    gl_classification: 'EXPENSE',
+    item_classification: 'SERVICE',
+    is_stockable: false,
+    is_depreciable: false,
+  },
+];
+
+export function getAccountingTreatmentPreset(treatment: string) {
+  const found = ACCOUNTING_TREATMENT_OPTIONS.find(o => o.value === treatment);
+  if (!found) return null;
+  return {
+    gl_classification: found.gl_classification,
+    item_classification: found.item_classification,
+    is_stockable: found.is_stockable,
+    is_depreciable: found.is_depreciable,
+    allow_purchase: treatment !== 'INVENTORY_FINISHED',
+    allow_sales: treatment === 'INVENTORY_STOCK' || treatment === 'INVENTORY_FINISHED' || treatment === 'EXPENSE_SERVICE',
+    show_in_bom: treatment === 'INVENTORY_RAW',
+    is_manufactured: treatment === 'INVENTORY_FINISHED',
+  };
+}
+
+export function normalizeItemClassification(val?: string | null): string {
+  if (!val || typeof val !== 'string') return 'STOCK_IN_TRADE';
+  const upper = val.toUpperCase().trim();
+  if (['GOODS_SOLD', 'STOCK-IN-TRADE', 'STOCK_IN_TRADE', 'TRADING'].includes(upper)) return 'STOCK_IN_TRADE';
+  if (['FINISHED_GOOD', 'FINISHED_GOODS', 'FG'].includes(upper)) return 'FINISHED_GOOD';
+  if (['RAW_MATERIAL', 'RAW_MATERIALS', 'RM'].includes(upper)) return 'RAW_MATERIAL';
+  if (['CONSUMABLE', 'CONSUMABLES'].includes(upper)) return 'CONSUMABLE';
+  if (['TOOL', 'TOOLS'].includes(upper)) return 'TOOL';
+  if (['PLANT_MACHINERY', 'MACHINERY', 'PLANT'].includes(upper)) return 'PLANT_MACHINERY';
+  if (['VEHICLE', 'VEHICLES'].includes(upper)) return 'VEHICLE';
+  if (['SERVICE', 'SERVICES', 'LABOUR', 'LABOR'].includes(upper)) return 'SERVICE';
+  if (upper === 'WIP') return 'WIP';
+  if (upper === 'OTHER') return 'OTHER';
+  return upper;
+}

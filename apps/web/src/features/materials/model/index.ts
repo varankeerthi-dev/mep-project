@@ -26,6 +26,7 @@ export {
   CLASSIFICATION_OPTIONS,
   CLASSIFICATION_PRESETS,
   createEmptyItemTransactions,
+  normalizeItemClassification,
 } from './aggregates';
 
 export {

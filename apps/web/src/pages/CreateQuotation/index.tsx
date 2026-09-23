@@ -121,6 +121,65 @@ export default function CreateQuotation() {
   const { data: projects = [] } = useProjects();
   const { data: variants = [] } = useVariants();
 
+  const stockQuery = useQuery({
+    queryKey: ['quotation-item-stock', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      try {
+        const { data, error } = await supabase
+          .from('item_stock')
+          .select('id, item_id, warehouse_id, company_variant_id, current_stock')
+          .eq('organisation_id', organisation.id);
+        if (error) throw error;
+        return data || [];
+      } catch (err) {
+        console.warn('Unable to load item stock:', err);
+        return [];
+      }
+    },
+    enabled: !!organisation?.id,
+    staleTime: 60 * 1000,
+  });
+
+  const warehousesQuery = useQuery({
+    queryKey: ['quotation-warehouses', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      try {
+        const { data, error } = await supabase
+          .from('warehouses')
+          .select('id, warehouse_code, warehouse_name, name')
+          .eq('organisation_id', organisation.id)
+          .eq('is_active', true)
+          .order('warehouse_name');
+        if (error) throw error;
+        return data || [];
+      } catch (err) {
+        console.warn('Unable to load warehouses:', err);
+        return [];
+      }
+    },
+    enabled: !!organisation?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const warehouseNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    (warehousesQuery.data || []).forEach((w: any) => {
+      map[w.id] = w.warehouse_name || w.name || w.warehouse_code || 'Warehouse';
+    });
+    return map;
+  }, [warehousesQuery.data]);
+
+  const stockRowsByItemId = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    (stockQuery.data || []).forEach((r: any) => {
+      if (!r?.item_id) return;
+      (map[r.item_id] = map[r.item_id] || []).push(r);
+    });
+    return map;
+  }, [stockQuery.data]);
+
   const [activeTab, setActiveTab] = useState<'items' | 'approvals'>('items');
   const [activeSection, setActiveSection] = useState<'materials' | 'erection'>('materials');
   const [isSigDropdownOpen, setIsSigDropdownOpen] = useState(false);
@@ -1279,12 +1338,19 @@ export default function CreateQuotation() {
     });
   }, []);
 
-  const getStockTotalForItem = (item: any) => {
-    return 0;
+  const getStockRowsForItem = (item: any) => {
+    if (!item?.item_id) return [];
+    const rows = stockRowsByItemId[item.item_id] || [];
+    const withNames = (list: any[]) => list.map((r) => ({ ...r, warehouse_name: warehouseNameById[r.warehouse_id] || 'Warehouse' }));
+    if (item.variant_id) {
+      const variantRows = rows.filter((r) => r.company_variant_id === item.variant_id);
+      if (variantRows.length > 0) return withNames(variantRows);
+    }
+    return withNames(rows);
   };
 
-  const getStockRowsForItem = (item: any) => {
-    return [];
+  const getStockTotalForItem = (item: any) => {
+    return getStockRowsForItem(item).reduce((sum, r) => sum + (parseFloat(r.current_stock) || 0), 0);
   };
 
   const updateItem = useCallback((itemId: string | number, fieldOrUpdates: any, value?: any) => {
@@ -1636,13 +1702,39 @@ export default function CreateQuotation() {
     setActiveImportSessionId(null);
   };
 
-  const DEFAULT_CLASSIFICATIONS = ['finished_good', 'goods_sold', 'consumable'];
+  const DEFAULT_CLASSIFICATIONS = [
+    'STOCK_IN_TRADE',
+    'FINISHED_GOOD',
+    'CONSUMABLE',
+    'SERVICE',
+    'OTHER',
+    'goods_sold',
+    'finished_good',
+    'consumable',
+    'service',
+    'other',
+  ];
 
   const filteredMaterials = useMemo(() => {
     const search = itemSearch.toLowerCase();
+    const isSaleableByDefault = (m: any) => {
+      if (m.allow_sales === false) return false;
+      if (m.allow_sales === true) return true;
+      if (!m.item_classification) return true;
+      const upper = String(m.item_classification).toUpperCase();
+      if (['RAW_MATERIAL', 'WIP', 'TOOL', 'PLANT_MACHINERY', 'VEHICLE'].includes(upper)) {
+        return false;
+      }
+      return true;
+    };
+
     const base = search
       ? materials
-      : materials.filter((m: any) => DEFAULT_CLASSIFICATIONS.includes(m.item_classification));
+      : materials.filter(
+          (m: any) =>
+            DEFAULT_CLASSIFICATIONS.includes(m.item_classification) ||
+            isSaleableByDefault(m)
+        );
     return base.filter((m: any) =>
       !search ||
       m.name?.toLowerCase().includes(search) ||

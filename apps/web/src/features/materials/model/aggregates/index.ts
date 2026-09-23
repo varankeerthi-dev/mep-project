@@ -1,5 +1,5 @@
-export type { MaterialEditorFormData, ClassificationOption } from './MaterialEditor';
-export { createDefaultFormData, CLASSIFICATION_OPTIONS, CLASSIFICATION_PRESETS } from './MaterialEditor';
+export type { MaterialEditorFormData, ClassificationOption, AccountingTreatmentOption } from './MaterialEditor';
+export { createDefaultFormData, CLASSIFICATION_OPTIONS, CLASSIFICATION_PRESETS, ACCOUNTING_TREATMENT_OPTIONS, getAccountingTreatmentPreset, normalizeItemClassification } from './MaterialEditor';
 export type { VariantPricingRow, ClientPricingRow } from './MaterialPricing';
 export type { WarehouseStockEntry, WarehouseStockMap, WarehouseStockRow } from './WarehouseStock';
 export { buildStockKey, variantStockCombos, NO_VARIANT_KEY } from './WarehouseStock';

@@ -85,7 +85,6 @@ const OrganisationSettings = lazyAny(() => import('./pages/Organisation').then(m
 const QuotationList = lazyAny(() => import('./pages/QuotationList'));
 const CreateQuotation = lazyAny(() => import('./pages/CreateQuotation/index'));
 const WorkCompletionCertificatePage = lazyAny(() => import('./pages/WorkCompletionCertificatePage'));
-const CreateQuotationV2 = lazyAny(() => import('./pages/CreateQuotationV2/index'));
 const QuotationView = lazyAny(() => import('./pages/QuotationView'));
 const SalesOrderList = lazyAny(() => import('./pages/sales/SalesOrderList'));
 const SalesOrderCreate = lazyAny(() => import('./pages/sales/SalesOrderCreate'));
@@ -482,7 +481,6 @@ export default function App() {
         return <LeadsModule />;
       case '/quotation': return <QuotationList />;
       case '/quotation/create': return <CreateQuotation onSuccess={() => navigate('/quotation')} onCancel={() => navigate('/quotation')} />;
-      case '/quotation/create-v2': return <CreateQuotationV2 />;
       case '/quotation/view': return <QuotationView />;
       case '/quotation/edit': return <CreateQuotation onSuccess={() => navigate('/quotation')} onCancel={() => navigate('/quotation')} editMode={true} />;
       case '/sales-orders': return <SalesOrderList />;

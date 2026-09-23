@@ -275,7 +275,7 @@ async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_typ
 /**
  * InvoiceEditorPageV2 — Modernized Invoice Creator & Editor V2
  * 
- * Implements the unified CreateQuotationV2 layout system (DocumentActionBar,
+ * Implements the unified CreateQuotation layout system (DocumentActionBar,
  * 3-column HeaderFormGrid, QuotationItemsTable visual design, SummaryFooter) while
  * preserving 100% of underlying fields, calculations, queries, and state.
  */

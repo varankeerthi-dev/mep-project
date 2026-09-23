@@ -999,7 +999,7 @@ export const Requisitions: React.FC = () => {
             </div>
           </div>
 
-          {/* Requested Line Items Card - Excel-Style Grid (CreateQuotationV2) */}
+          {/* Requested Line Items Card - Excel-Style Grid (CreateQuotation) */}
           <div className="bg-white border border-zinc-200 rounded-xl p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <div>
