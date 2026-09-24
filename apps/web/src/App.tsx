@@ -123,7 +123,6 @@ const ProjectScheduleBaselineControl = lazyAny(() => import('./pages/ProjectSche
 // Lazy load internally moved pages
 const _dashboardModule = memoLazyModule(() => import('./pages/Dashboard'));
 const Dashboard = lazyAny(() => _dashboardModule());
-const DashboardDemo = lazyAny(() => import('./pages/DashboardDemo'));
 const Operations = lazyAny(() => import('./pages/operations/Operations'));
 const OperationsV2 = lazyAny(() => import('./pages/operations/OperationsV2'));
 const DailyUpdates = lazyAny(() => import('./pages/DailyUpdates'));
@@ -415,7 +414,7 @@ export default function App() {
         return <Dashboard onNavigate={navigate} />;
       case '/dashboard-demo':
       case '/settings/dashboard-demo':
-        return <DashboardDemo />;
+        return <Navigate to="/" replace />;
       case '/operations':
       case '/settings/operations':
         return <Operations />;

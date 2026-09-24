@@ -8,7 +8,8 @@ interface QuotationActionsProps {
   formData: any;
   setFormData: React.Dispatch<React.SetStateAction<any>>;
   saving: boolean;
-  handleSave: (saveAndNew: boolean) => Promise<void>;
+  handleSave: (saveAndNew: boolean) => Promise<boolean>;
+  submitRevisionForApproval: () => Promise<void>;
   saveCurrentRevision: () => Promise<{ newRevisionNo: number; newHistory: any[] } | null>;
   setConfirmDialog: (dlg: any) => void;
   setRevisionDialogOpen: (open: boolean) => void;
@@ -25,6 +26,7 @@ export function QuotationActions({
   setFormData,
   saving,
   handleSave,
+  submitRevisionForApproval,
   saveCurrentRevision,
   setConfirmDialog,
   setRevisionDialogOpen,
@@ -35,9 +37,48 @@ export function QuotationActions({
   saveStatus,
 }: QuotationActionsProps) {
   const navigate = useNavigate();
+  const [savingAction, setSavingAction] = React.useState<'draft' | 'confirm' | null>(null);
+
+  React.useEffect(() => {
+    if (!saving) {
+      setSavingAction(null);
+    }
+  }, [saving]);
+
+  const handleDraftSave = async () => {
+    if (saving) return;
+    setSavingAction('draft');
+    try {
+      await handleSave(true);
+    } finally {
+      setSavingAction(null);
+    }
+  };
+
+  const handleConfirmSave = async () => {
+    if (saving) return;
+    setSavingAction('confirm');
+    try {
+      await handleSave(false);
+    } finally {
+      setSavingAction(null);
+    }
+  };
+
+  const isDraftSaving = saving && savingAction === 'draft';
+  const isConfirmSaving = saving && savingAction === 'confirm';
 
   return (
-    <div className="flex items-center justify-between sticky top-0 z-50 pt-4 pb-3 border-b border-zinc-200" style={{ top: 0, margin: '0 -24px 24px -24px', padding: '16px 24px', zIndex: 100, backgroundColor: '#ffffff' }}>
+    <div
+      className="flex items-center justify-between sticky top-0 z-40 border-b border-zinc-200 bg-white"
+      style={{
+        top: 0,
+        margin: 0,
+        padding: '14px 24px',
+        backgroundColor: '#ffffff',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+      }}
+    >
       <div className="flex items-center gap-3">
         <h1 className="text-base font-bold text-zinc-900 tracking-tight">
           {editId ? 'Edit Quotation' : 'Create New Quotation'}
@@ -52,66 +93,97 @@ export function QuotationActions({
       
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3 pr-4 border-r border-zinc-200">
-          <label className="relative inline-flex items-center cursor-pointer group">
-            <input
-              type="checkbox"
-              className="sr-only peer"
-              checked={formData.negotiation_mode || false}
-              onChange={async (e) => {
-                if (e.target.checked && editId && !formData.negotiation_mode) {
-                  setConfirmDialog({
-                    open: true,
-                    title: 'Enable Negotiation Mode',
-                    description: `This will save the current quotation as Revision ${formData.revision_no} before making changes. Continue?`,
-                    confirmLabel: 'Enable',
-                      onConfirm: async () => {
-                      setConfirmDialog(null);
-                      const result = await saveCurrentRevision();
-                      if (!result) {
-                        toast.error('Failed to save revision. Please try again.');
-                        return;
-                      }
-                      setFormData((prev: any) => ({ 
-                        ...prev, 
-                        revision_no: result.newRevisionNo,
-                        revision_history: result.newHistory,
-                        negotiation_mode: true,
-                        status_before_negotiation: prev.status,
-                        status: 'Under Negotiation'
-                      }));
+          <div className="flex items-center gap-2">
+            <label className="inline-flex items-center cursor-pointer select-none group">
+              <div className="relative inline-flex items-center">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={formData.negotiation_mode || false}
+                  onChange={async (e) => {
+                    if (e.target.checked && editId && !formData.negotiation_mode) {
+                      setConfirmDialog({
+                        open: true,
+                        title: 'Enable Negotiation Mode',
+                        description: `This will save the current quotation as Revision ${formData.revision_no} before making changes. Continue?`,
+                        confirmLabel: 'Enable',
+                        onConfirm: async () => {
+                          setConfirmDialog(null);
+                          const result = await saveCurrentRevision();
+                          if (!result) {
+                            toast.error('Failed to save revision. Please try again.');
+                            return;
+                          }
+                          setFormData((prev: any) => ({ 
+                            ...prev, 
+                            revision_no: result.newRevisionNo,
+                            revision_history: result.newHistory,
+                            negotiation_mode: true,
+                            status_before_negotiation: prev.status,
+                            status: 'Under Negotiation'
+                          }));
+                        }
+                      });
+                      return;
+                    } else if (!e.target.checked && editId && formData.negotiation_mode) {
+                      setConfirmDialog({
+                        open: true,
+                        title: 'Negotiation complete?',
+                        description: 'Submit this revision for MD / manager approval now? You can also just turn off negotiation without submitting.',
+                        confirmLabel: 'Submit for Approval',
+                        onConfirm: async () => {
+                          setConfirmDialog(null);
+                          setFormData((prev: any) => {
+                            const restored = prev.status === 'Under Negotiation'
+                              ? (prev.status_before_negotiation || 'Draft')
+                              : prev.status;
+                            return { ...prev, negotiation_mode: false, status: restored };
+                          });
+                          await submitRevisionForApproval();
+                        },
+                        onCancel: () => {
+                          setConfirmDialog(null);
+                          setFormData((prev: any) => {
+                            const restored = prev.status === 'Under Negotiation'
+                              ? (prev.status_before_negotiation || 'Draft')
+                              : prev.status;
+                            return { ...prev, negotiation_mode: false, status: restored };
+                          });
+                        }
+                      });
+                      return;
+                    } else {
+                      setFormData((prev: any) => {
+                        if (e.target.checked) {
+                          return {
+                            ...prev,
+                            negotiation_mode: true,
+                            status_before_negotiation: prev.status,
+                            status: 'Under Negotiation'
+                          };
+                        }
+                        const restored = prev.status === 'Under Negotiation'
+                          ? (prev.status_before_negotiation || 'Draft')
+                          : prev.status;
+                        return { ...prev, negotiation_mode: false, status: restored };
+                      });
                     }
-                  });
-                  return;
-                } else {
-                  setFormData((prev: any) => {
-                    if (e.target.checked) {
-                      return {
-                        ...prev,
-                        negotiation_mode: true,
-                        status_before_negotiation: prev.status,
-                        status: 'Under Negotiation'
-                      };
-                    }
-                    const restored = prev.status === 'Under Negotiation'
-                      ? (prev.status_before_negotiation || 'Draft')
-                      : prev.status;
-                    return { ...prev, negotiation_mode: false, status: restored };
-                  });
-                }
-              }}
-            />
-            <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
-            <span className="ms-3 text-sm font-medium text-zinc-700 group-hover:text-sky-700 transition-colors">Negotiation Mode</span>
-            <div className="relative inline-flex items-center ml-1.5 group/popover">
-              <Info size={14} className="text-zinc-400 cursor-help" />
-              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover/popover:block z-[100]">
+                  }}
+                />
+                <div className="relative w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:shadow-sm after:transition-all peer-checked:bg-sky-600 transition-colors"></div>
+              </div>
+              <span className="ms-2.5 text-sm font-medium text-zinc-700 group-hover:text-sky-700 transition-colors">Negotiation Mode</span>
+            </label>
+            <div className="relative inline-flex items-center group/popover">
+              <Info size={14} className="text-zinc-400 hover:text-zinc-600 cursor-help transition-colors" />
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1.5 hidden group-hover/popover:block z-[100] pointer-events-none">
                 <div className="bg-zinc-900 text-white text-[11px] leading-relaxed rounded-lg px-3 py-2 w-56 shadow-lg">
                   When enabled, editing discount or rate fields creates a new revision. Original values are preserved in the revision history for comparison.
                   <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-zinc-900"></div>
                 </div>
               </div>
             </div>
-          </label>
+          </div>
           {(formData.revision_history?.length > 0) && (
             <button
               type="button"
@@ -144,8 +216,11 @@ export function QuotationActions({
           </select>
           <button
             type="button"
-            className="h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all"
+            className={`h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all ${
+              saving ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
             onClick={() => navigate('/quotation')}
+            disabled={saving}
           >
             Cancel
           </button>
@@ -154,10 +229,10 @@ export function QuotationActions({
             className={`h-9 px-10 min-w-[100px] rounded flex items-center justify-center text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all ${
               saving ? 'opacity-50 cursor-not-allowed' : ''
             }`}
-            onClick={() => handleSave(true)}
+            onClick={handleDraftSave}
             disabled={saving}
           >
-            {saving ? 'Saving...' : 'Save as Draft'}
+            {isDraftSaving ? 'Saving...' : 'Save as Draft'}
           </button>
           <button
             type="button"
@@ -171,12 +246,12 @@ export function QuotationActions({
               opacity: saving ? 0.6 : 1,
               transition: 'all 0.15s'
             }}
-            onClick={() => handleSave(false)}
+            onClick={handleConfirmSave}
             disabled={saving}
             onMouseEnter={e => { if (!saving) { e.currentTarget.style.background = '#0C447C'; e.currentTarget.style.borderColor = '#0C447C'; }}}
             onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; e.currentTarget.style.borderColor = '#185FA5'; }}
           >
-            {saving
+            {isConfirmSaving
               ? 'Saving...'
               : editId
                 ? formData.status === 'Sent' ? 'Update & Submit' : 'Update Quotation'

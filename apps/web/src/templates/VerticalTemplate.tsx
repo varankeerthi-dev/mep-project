@@ -5,20 +5,27 @@ import { formatCurrency, formatDate } from "../utils/formatters";
 /* ---------------- HELPERS ---------------- */
 
 const getDocumentNumber = (data: any) => {
-  if (data.quotation_no) return data.quotation_no;
-  if (data.invoice_no) return data.invoice_no;
-  if (data.proforma_no) return data.proforma_no;
-  if (data.dc_number) return data.dc_number;
-  if (data.challan_no) return data.challan_no;
-  
-  const type = data.document_type?.toUpperCase();
-  switch (type) {
-    case "QUOTATION": return data.quotation_no;
-    case "INVOICE": return data.invoice_no;
-    case "PROFORMA": return data.proforma_no || data.quotation_no;
-    case "DELIVERY_CHALLAN": return data.dc_number;
-    default: return "-";
+  let num = '';
+  if (data.quotation_no) num = data.quotation_no;
+  else if (data.invoice_no) num = data.invoice_no;
+  else if (data.proforma_no) num = data.proforma_no;
+  else if (data.dc_number) num = data.dc_number;
+  else if (data.challan_no) num = data.challan_no;
+  else {
+    const type = data.document_type?.toUpperCase();
+    switch (type) {
+      case "QUOTATION": num = data.quotation_no || ''; break;
+      case "INVOICE": num = data.invoice_no || ''; break;
+      case "PROFORMA": num = data.proforma_no || data.quotation_no || ''; break;
+      case "DELIVERY_CHALLAN": num = data.dc_number || ''; break;
+      default: num = "-";
+    }
   }
+
+  if (num && num !== '-' && data.revision_no && Number(data.revision_no) > 1) {
+    return `${num} (Rev ${String(data.revision_no).padStart(2, '0')})`;
+  }
+  return num || "-";
 };
 
 const getActiveColumns = (config: any) => {

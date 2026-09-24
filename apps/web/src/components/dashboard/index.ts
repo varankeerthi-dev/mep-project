@@ -3,3 +3,6 @@ export { StatsRow } from './StatsRow';
 export { NextActionsWidget } from './NextActionsWidget';
 export { WarrantyClaimsSLA } from './WarrantyClaimsSLA';
 export { ContinuousImprovementCenter } from './ContinuousImprovementCenter';
+export { DashboardComingSoon } from './DashboardComingSoon';
+export { DashboardLedgerSplit } from './DashboardLedgerSplit';
+

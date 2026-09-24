@@ -2,6 +2,56 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext';
 import { useOrgModules } from '../hooks/useOrgModules';
 import { useHasPermission } from '../rbac';
+import { cn } from '@/lib/utils';
+import type { LucideIcon } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Sliders,
+  LineChart,
+  UserSearch,
+  FolderKanban,
+  MapPin,
+  ClipboardCheck,
+  AlertCircle,
+  Coins,
+  CheckSquare,
+  MessagesSquare,
+  FileCheck,
+  BellRing,
+  Users,
+  HardHat,
+  CalendarClock,
+  Mail,
+  Target,
+  Calculator,
+  Handshake,
+  FileText,
+  ClipboardList,
+  Receipt,
+  Truck,
+  Boxes,
+  Layers,
+  Warehouse,
+  Factory,
+  ShoppingCart,
+  Wrench,
+  Wallet,
+  Banknote,
+  Network,
+  BookOpen,
+  Scale,
+  Landmark,
+  BarChart2,
+  IdCard,
+  Settings,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  ArrowRight,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Circle,
+} from 'lucide-react';
 
 type SubmenuItem = {
   id: string;
@@ -79,7 +129,6 @@ const menuData: MenuSection[] = [
     section: '',
     items: [
       { id: 'dashboard', label: 'Dashboard', path: '/' },
-      { id: 'dashboard-demo', label: 'Dashboard Demo', path: '/dashboard-demo' },
       { id: 'operations', label: 'Operations', path: '/operations' },
       { id: 'projects-overview', label: 'CEO Dashboard', path: '/projects-overview' },
       { id: 'client-lookup', label: 'Quick Lookup', path: '/client-lookup' }
@@ -401,51 +450,48 @@ const menuData: MenuSection[] = [
   }
 ];
 
-// Material Symbols icon mapping strictly corresponding to code.html
-const ICON_MAP: Record<string, string> = {
-  dashboard: 'dashboard',
-  'dashboard-demo': 'preview',
-  operations: 'tune',
-  'projects-overview': 'insights',
-  'client-lookup': 'person_search',
-  projects: 'apartment',
-  'site-visit': 'pin_drop',
-  'site-report': 'lab_profile',
-  issue: 'warning',
-  'site-expenses': 'payments',
-  tasks: 'task_alt',
-  approvals: 'rule',
-  todo: 'checklist',
-  'manager-alerts': 'notification_important',
-  clients: 'groups',
-  subcontractor: 'engineering',
-  'follow-up': 'schedule_send',
-  'client-communication': 'forum',
-  leads: 'contact_mail',
-  estimation: 'calculate',
-  'partner-allocation': 'handshake',
-  quotation: 'request_quote',
-  'sales-orders': 'orders',
-  invoice: 'receipt',
-  dc: 'local_shipping',
-  procurement: 'shopping_bag',
-  store: 'category',
-  warehouse: 'warehouse',
-  manufacturing: 'precision_manufacturing',
-  purchase: 'shopping_cart_checkout',
-  tools: 'home_repair_service',
-  'payments-hub': 'account_balance_wallet',
-  'advances-expenses': 'receipt_long',
-  'chart-of-accounts': 'account_tree',
-  'day-book': 'menu_book',
-  'trial-balance': 'balance',
-  gst: 'gavel',
-  reports: 'analytics',
-  hr: 'badge',
-  settings: 'settings',
+// Lucide icon mapping for all sidebar modules
+const ICON_MAP: Record<string, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  operations: Sliders,
+  'projects-overview': LineChart,
+  'client-lookup': UserSearch,
+  projects: FolderKanban,
+  'site-visit': MapPin,
+  'site-report': ClipboardCheck,
+  issue: AlertCircle,
+  'site-expenses': Coins,
+  tasks: CheckSquare,
+  collaboration: MessagesSquare,
+  approvals: FileCheck,
+  'manager-alerts': BellRing,
+  clients: Users,
+  subcontractor: HardHat,
+  'follow-up': CalendarClock,
+  'client-communication': Mail,
+  leads: Target,
+  estimation: Calculator,
+  'partner-allocation': Handshake,
+  quotation: FileText,
+  'sales-orders': ClipboardList,
+  invoice: Receipt,
+  dc: Truck,
+  procurement: Boxes,
+  store: Layers,
+  warehouse: Warehouse,
+  manufacturing: Factory,
+  purchase: ShoppingCart,
+  tools: Wrench,
+  'payments-hub': Wallet,
+  'advances-expenses': Banknote,
+  'chart-of-accounts': Network,
+  'day-book': BookOpen,
+  'trial-balance': Scale,
+  gst: Landmark,
+  reports: BarChart2,
+  hr: IdCard,
+  settings: Settings,
 };
-
-const cx = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
 
 export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, mobileOpen }: SidebarProps) {
   const isCollapsed = collapsed && !mobileOpen;
@@ -615,6 +661,8 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
     return !!settingsSection?.items.some(item => isParentActive(item));
   }, [settingsSection, isParentActive]);
 
+  const FlyoutIcon = (activeFlyoutItem ? ICON_MAP[activeFlyoutItem.id] : null) || Layers;
+
   return (
     <>
       {/* Mobile Backdrop */}
@@ -630,7 +678,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
         <aside
           data-tour-anchor="sidebar"
           id="main-sidebar"
-          className={cx(
+          className={cn(
             'sidebar relative z-40 h-screen bg-white text-slate-700 flex flex-col shrink-0 border-r border-slate-200 select-none shadow-sm transition-all duration-300 font-sans',
             isCollapsed ? 'w-16 collapsed' : 'w-64',
             mobileOpen && 'mobile-open'
@@ -639,7 +687,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
         >
           {/* Top Branding Header with Dynamic Company Name / Logo */}
           <div
-            className={cx(
+            className={cn(
               "h-14 px-3 flex items-center justify-between border-b border-slate-200 bg-slate-50/70 shrink-0 font-sans",
               isCollapsed && "justify-center px-0"
             )}
@@ -647,11 +695,11 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
             {!isCollapsed ? (
               <>
                 <div className="flex items-center gap-2.5 overflow-hidden">
-                  <div className="w-8 h-8 rounded bg-emerald-600 flex items-center justify-center text-white shrink-0 shadow-sm overflow-hidden">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shrink-0 shadow-xs overflow-hidden">
                     {companyLogo ? (
                       <img src={companyLogo} alt={companyName} className="w-full h-full object-contain p-0.5" />
                     ) : (
-                      <span className="material-symbols-outlined text-[20px]">construction</span>
+                      <HardHat className="w-4 h-4 text-white" strokeWidth={2} />
                     )}
                   </div>
                   <div className="flex flex-col truncate">
@@ -664,18 +712,18 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                   </div>
                 </div>
                 <button
-                  className="w-7 h-7 flex items-center justify-center rounded text-slate-500 hover:text-slate-900 hover:bg-slate-200/70 transition-colors"
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-200/70 transition-colors cursor-pointer"
                   id="toggle-collapse-btn"
                   onClick={onToggle}
                   title="Toggle Navigation"
                   type="button"
                 >
-                  <span className="material-symbols-outlined text-[18px]">menu_open</span>
+                  <PanelLeftClose className="w-4 h-4" strokeWidth={1.75} />
                 </button>
               </>
             ) : (
               <button
-                className="w-8 h-8 rounded bg-emerald-600 flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity overflow-hidden"
+                className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-xs hover:opacity-90 transition-opacity overflow-hidden cursor-pointer"
                 onClick={onToggle}
                 title={companyName}
                 type="button"
@@ -683,7 +731,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                 {companyLogo ? (
                   <img src={companyLogo} alt={companyName} className="w-full h-full object-contain p-0.5" />
                 ) : (
-                  <span className="material-symbols-outlined text-[20px]">construction</span>
+                  <HardHat className="w-4 h-4 text-white" strokeWidth={2} />
                 )}
               </button>
             )}
@@ -697,7 +745,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
               return (
                 <div
                   key={section.section || 'root'}
-                  className={cx(
+                  className={cn(
                     !isFirstSection && "pt-1.5 border-t border-slate-200"
                   )}
                 >
@@ -710,14 +758,14 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
 
                   <div className="space-y-0.5">
                     {section.items.map(item => {
-                      const iconName = ICON_MAP[item.id] || 'circle';
+                      const IconComponent = ICON_MAP[item.id] || Circle;
                       const parentActive = isParentActive(item);
                       const isExpanded = expandedMenus.includes(item.id);
                       const isFlyout = !!item.flyout;
                       const hasSubmenu = !!(item.submenu && item.submenu.length > 0);
                       const isActiveDirect = !hasSubmenu && isPathActive(item.path || '');
 
-                      // 1. FLYOUT ITEM (Sub-contractor, Materials, Warehouse, etc. - NO "FLYOUT" text badge)
+                      // 1. FLYOUT ITEM (Sub-contractor, Materials, Warehouse, etc. - Hover opens Flyout)
                       if (isFlyout) {
                         const isFlyoutOpen = flyoutMenu === item.id;
                         return (
@@ -727,37 +775,35 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                               onClick={handleClick(item)}
                               onMouseEnter={(e) => handleFlyoutEnter(item.id, e)}
                               onMouseLeave={handleFlyoutLeave}
-                              className={cx(
-                                "flyout-trigger group w-full flex items-center justify-between px-2.5 py-1.5 rounded text-xs transition-all text-left font-sans",
+                              className={cn(
+                                "flyout-trigger group w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors text-left font-sans cursor-pointer",
                                 isCollapsed && "justify-center px-0 py-2",
                                 parentActive || isFlyoutOpen
-                                  ? "bg-emerald-50 text-emerald-950 border-l-2 border-emerald-600 border-y border-r border-slate-200 shadow-sm font-semibold"
-                                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium"
+                                  ? "bg-emerald-50 text-emerald-950 border border-emerald-200 shadow-xs font-semibold"
+                                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 font-medium"
                               )}
                               title={isCollapsed ? item.label : undefined}
                             >
-                              <div className={cx("flex items-center gap-2.5 min-w-0", isCollapsed && "justify-center")}>
-                                <span
-                                  className={cx(
-                                    "material-symbols-outlined text-[18px] shrink-0",
+                              <div className={cn("flex items-center gap-2.5 min-w-0", isCollapsed && "justify-center")}>
+                                <IconComponent
+                                  className={cn(
+                                    "w-4 h-4 shrink-0 transition-colors",
                                     (parentActive || isFlyoutOpen)
                                       ? "text-emerald-700"
-                                      : "text-slate-400 group-hover:text-emerald-600 transition-colors"
+                                      : "text-slate-400 group-hover:text-emerald-600"
                                   )}
-                                >
-                                  {iconName}
-                                </span>
+                                  strokeWidth={1.75}
+                                />
                                 {!isCollapsed && <span className="truncate">{item.label}</span>}
                               </div>
                               {!isCollapsed && (
-                                <span
-                                  className={cx(
-                                    "material-symbols-outlined text-[16px] transition-colors shrink-0",
-                                    parentActive ? "text-emerald-800" : "text-slate-400 group-hover:text-slate-600"
+                                <ChevronRight
+                                  className={cn(
+                                    "w-3.5 h-3.5 transition-colors shrink-0",
+                                    (parentActive || isFlyoutOpen) ? "text-emerald-800" : "text-slate-400 group-hover:text-slate-600"
                                   )}
-                                >
-                                  chevron_right
-                                </span>
+                                  strokeWidth={2}
+                                />
                               )}
                             </button>
                           </div>
@@ -771,37 +817,35 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                             <button
                               type="button"
                               onClick={handleClick(item)}
-                              className={cx(
-                                "group w-full flex items-center justify-between px-2.5 py-1.5 rounded text-xs transition-all text-left font-sans",
+                              className={cn(
+                                "group w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors text-left font-sans cursor-pointer",
                                 isCollapsed && "justify-center px-0 py-2",
                                 parentActive && !isExpanded
-                                  ? "bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-sm font-semibold"
-                                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium"
+                                  ? "bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-xs font-semibold"
+                                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 font-medium"
                               )}
                               title={isCollapsed ? item.label : undefined}
                             >
-                              <div className={cx("flex items-center gap-2.5 min-w-0", isCollapsed && "justify-center")}>
-                                <span
-                                  className={cx(
-                                    "material-symbols-outlined text-[18px] shrink-0",
+                              <div className={cn("flex items-center gap-2.5 min-w-0", isCollapsed && "justify-center")}>
+                                <IconComponent
+                                  className={cn(
+                                    "w-4 h-4 shrink-0 transition-colors",
                                     parentActive
                                       ? "text-emerald-600"
-                                      : "text-slate-400 group-hover:text-emerald-600 transition-colors"
+                                      : "text-slate-400 group-hover:text-emerald-600"
                                   )}
-                                >
-                                  {iconName}
-                                </span>
+                                  strokeWidth={1.75}
+                                />
                                 {!isCollapsed && <span className="truncate">{item.label}</span>}
                               </div>
                               {!isCollapsed && (
-                                <span
-                                  className={cx(
-                                    "material-symbols-outlined text-[16px] text-slate-400 transition-transform duration-200",
+                                <ChevronDown
+                                  className={cn(
+                                    "w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0",
                                     isExpanded && "rotate-180"
                                   )}
-                                >
-                                  expand_more
-                                </span>
+                                  strokeWidth={2}
+                                />
                               )}
                             </button>
 
@@ -824,23 +868,22 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                                             onNavigate(subItem.path);
                                           }
                                         }}
-                                        className={cx(
-                                          "w-full flex items-center justify-between px-2 py-1 rounded text-[11px] transition-colors text-left truncate font-sans",
+                                        className={cn(
+                                          "w-full flex items-center justify-between px-2 py-1 rounded-md text-[11px] transition-colors text-left truncate font-sans cursor-pointer",
                                           isSubActive
                                             ? "bg-emerald-50 text-emerald-900 font-semibold border border-emerald-200/60"
-                                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
                                         )}
                                       >
                                         <span className="truncate">{subItem.label}</span>
                                         {hasNested && (
-                                          <span
-                                            className={cx(
-                                              "material-symbols-outlined text-[14px] text-slate-400 transition-transform duration-200",
+                                          <ChevronDown
+                                            className={cn(
+                                              "w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0",
                                               isNestedExpanded && "rotate-180"
                                             )}
-                                          >
-                                            expand_more
-                                          </span>
+                                            strokeWidth={2}
+                                          />
                                         )}
                                       </button>
 
@@ -852,11 +895,11 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                                               key={nestedItem.id}
                                               type="button"
                                               onClick={() => onNavigate(nestedItem.path)}
-                                              className={cx(
-                                                "block w-full text-left px-2 py-0.5 rounded text-[10.5px] transition-colors truncate font-sans",
+                                              className={cn(
+                                                "block w-full text-left px-2 py-0.5 rounded-md text-[10.5px] transition-colors truncate font-sans cursor-pointer",
                                                 isPathActive(nestedItem.path)
                                                   ? "text-emerald-900 font-semibold bg-emerald-50"
-                                                  : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                                                  : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/80"
                                               )}
                                             >
                                               {nestedItem.label}
@@ -879,26 +922,25 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                           key={item.id}
                           type="button"
                           onClick={() => item.path && onNavigate(item.path)}
-                          className={cx(
-                            "group flex items-center justify-between px-2.5 py-1.5 rounded text-xs transition-all w-full text-left font-sans",
+                          className={cn(
+                            "group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors w-full text-left font-sans cursor-pointer",
                             isCollapsed && "justify-center px-0 py-2",
                             isActiveDirect
-                              ? "bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-sm font-semibold"
-                              : "text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium"
+                              ? "bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-xs font-semibold"
+                              : "text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 font-medium"
                           )}
                           title={isCollapsed ? item.label : undefined}
                         >
-                          <div className={cx("flex items-center gap-2.5 min-w-0", isCollapsed && "justify-center")}>
-                            <span
-                              className={cx(
-                                "material-symbols-outlined text-[18px] shrink-0",
+                          <div className={cn("flex items-center gap-2.5 min-w-0", isCollapsed && "justify-center")}>
+                            <IconComponent
+                              className={cn(
+                                "w-4 h-4 shrink-0 transition-colors",
                                 isActiveDirect
                                   ? "text-emerald-600"
-                                  : "text-slate-400 group-hover:text-emerald-600 transition-colors"
+                                  : "text-slate-400 group-hover:text-emerald-600"
                               )}
-                            >
-                              {iconName}
-                            </span>
+                              strokeWidth={1.75}
+                            />
                             {!isCollapsed && <span className="truncate">{item.label}</span>}
                           </div>
                         </button>
@@ -917,35 +959,33 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                 <button
                   type="button"
                   onClick={() => setSettingsOpen(prev => !prev)}
-                  className={cx(
-                    "w-full flex items-center justify-between px-2.5 py-1.5 rounded text-xs transition-all text-left font-sans",
+                  className={cn(
+                    "w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors text-left font-sans cursor-pointer",
                     isCollapsed && "justify-center px-0 py-2",
                     isSettingsActive
-                      ? "bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-sm font-semibold"
+                      ? "bg-emerald-50 text-emerald-900 border border-emerald-200 shadow-xs font-semibold"
                       : "text-slate-700 hover:text-slate-900 hover:bg-slate-200/60 font-medium"
                   )}
                   title={isCollapsed ? "Settings" : undefined}
                 >
-                  <div className={cx("flex items-center gap-2.5 min-w-0", isCollapsed && "justify-center")}>
-                    <span
-                      className={cx(
-                        "material-symbols-outlined text-[18px] shrink-0",
+                  <div className={cn("flex items-center gap-2.5 min-w-0", isCollapsed && "justify-center")}>
+                    <Settings
+                      className={cn(
+                        "w-4 h-4 shrink-0 transition-colors",
                         isSettingsActive ? "text-emerald-600" : "text-slate-500"
                       )}
-                    >
-                      settings
-                    </span>
+                      strokeWidth={1.75}
+                    />
                     {!isCollapsed && <span className="truncate">Settings</span>}
                   </div>
                   {!isCollapsed && (
-                    <span
-                      className={cx(
-                        "material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200",
+                    <ChevronUp
+                      className={cn(
+                        "w-3.5 h-3.5 text-slate-500 transition-transform duration-200 shrink-0",
                         settingsOpen && "rotate-180"
                       )}
-                    >
-                      expand_less
-                    </span>
+                      strokeWidth={2}
+                    />
                   )}
                 </button>
 
@@ -957,8 +997,8 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                         key={subItem.id}
                         type="button"
                         onClick={() => onNavigate(subItem.path || '/settings')}
-                        className={cx(
-                          "block w-full text-left px-2 py-0.5 rounded text-[11px] transition-colors truncate font-sans",
+                        className={cn(
+                          "block w-full text-left px-2 py-0.5 rounded-md text-[11px] transition-colors truncate font-sans cursor-pointer",
                           isPathActive(subItem.path || '')
                             ? "bg-emerald-50 text-emerald-900 font-semibold border border-emerald-200/60"
                             : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
@@ -977,26 +1017,28 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
               type="button"
               id="bottom-collapse-btn"
               onClick={onToggle}
-              className={cx(
-                "w-full flex items-center justify-between px-2.5 py-1.5 rounded text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors font-sans",
+              className={cn(
+                "w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors font-sans cursor-pointer",
                 isCollapsed && "justify-center px-0 py-2"
               )}
               title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
             >
-              <div className={cx("flex items-center gap-2", isCollapsed && "justify-center")}>
-                <span className="material-symbols-outlined text-[18px]">
-                  {isCollapsed ? "menu_open" : "left_panel_close"}
-                </span>
+              <div className={cn("flex items-center gap-2", isCollapsed && "justify-center")}>
+                {isCollapsed ? (
+                  <PanelLeftOpen className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                ) : (
+                  <PanelLeftClose className="w-4 h-4 shrink-0" strokeWidth={1.75} />
+                )}
                 {!isCollapsed && <span className="collapse-label">Collapse Sidebar</span>}
               </div>
             </button>
           </div>
         </aside>
 
-        {/* Dynamic Flyout Panel (Strict light enterprise theme matching code.html, pure Inter font) */}
+        {/* Dynamic Flyout Panel (Strict Shadcn UI theme with Lucide Icons) */}
         {flyoutMenu && activeFlyoutItem && (
           <div
-            className="sidebar-flyout fixed z-50 bg-white border border-slate-200/90 rounded-r-lg rounded-b-lg flyout-shadow flex flex-col overflow-hidden transition-all duration-200 ring-1 ring-slate-900/5 font-sans"
+            className="sidebar-flyout fixed z-50 bg-white border border-slate-200/90 rounded-r-lg rounded-b-lg shadow-lg flex flex-col overflow-hidden transition-all duration-200 ring-1 ring-slate-900/5 font-sans"
             style={{
               ...flyoutPos,
               left: isCollapsed ? 64 : 256,
@@ -1008,14 +1050,12 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
             {/* Header with Item Count */}
             <div className="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0 font-sans">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="material-symbols-outlined text-emerald-600 text-[18px] shrink-0">
-                  {ICON_MAP[activeFlyoutItem.id] || 'category'}
-                </span>
+                <FlyoutIcon className="w-4 h-4 text-emerald-600 shrink-0" strokeWidth={1.75} />
                 <span className="sidebar-flyout-title text-xs font-bold text-slate-900 uppercase tracking-wider truncate font-sans">
                   {activeFlyoutItem.label}
                 </span>
               </div>
-              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-semibold shrink-0 font-sans">
+              <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200/60 px-2 py-0.5 rounded-full font-semibold shrink-0 font-sans">
                 {activeFlyoutItem.submenu?.length || 0} items
               </span>
             </div>
@@ -1032,17 +1072,15 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                       setFlyoutMenu(null);
                       onNavigate(sub.path);
                     }}
-                    className={cx(
-                      "sidebar-flyout-item w-full flex items-center justify-between px-2.5 py-1.5 rounded text-xs transition-colors text-left font-sans",
+                    className={cn(
+                      "sidebar-flyout-item group w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors text-left font-sans cursor-pointer",
                       isSubActive
                         ? "bg-emerald-50 text-emerald-950 font-semibold border border-emerald-200/60"
-                        : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                        : "text-slate-700 hover:text-slate-900 hover:bg-slate-100/80"
                     )}
                   >
                     <span className="truncate">{sub.label}</span>
-                    <span className="material-symbols-outlined text-[14px] text-slate-400">
-                      arrow_forward
-                    </span>
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all shrink-0" strokeWidth={1.75} />
                   </button>
                 );
               })}

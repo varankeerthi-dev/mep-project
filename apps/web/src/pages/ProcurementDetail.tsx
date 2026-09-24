@@ -231,12 +231,18 @@ export default function ProcurementDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('warehouses')
-        .select('id, warehouse_name')
+        .select('id, warehouse_name, name')
         .eq('organisation_id', orgId)
         .eq('is_active', true)
         .order('warehouse_name');
-      if (error) throw error;
-      return data || [];
+      if (error) {
+        console.error('Error fetching warehouses:', error);
+        return [];
+      }
+      return (data || []).map((w: any) => ({
+        ...w,
+        warehouse_name: (w.warehouse_name && String(w.warehouse_name).trim()) || (w.name && String(w.name).trim()) || 'Warehouse',
+      }));
     },
     enabled: !!orgId,
   });
@@ -620,11 +626,15 @@ export default function ProcurementDetail() {
                 <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[100px]">Variant</th>
                 <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-16">UOM</th>
                 <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-20">BOQ Qty</th>
-                {warehouses.map((wh: any) => (
-                  <th key={wh.id} className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-20" title={wh.warehouse_name}>
-                    {wh.warehouse_name.length > 8 ? wh.warehouse_name.substring(0, 8) + '…' : wh.warehouse_name}
-                  </th>
-                ))}
+                {warehouses.map((wh: any) => {
+                  const whTitle = wh.warehouse_name || wh.name || 'Warehouse';
+                  const whDisplay = whTitle.length > 8 ? whTitle.substring(0, 8) + '…' : whTitle;
+                  return (
+                    <th key={wh.id} className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-20" title={whTitle}>
+                      {whDisplay}
+                    </th>
+                  );
+                })}
                 <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-blue-600 w-20">WH Total</th>
                 <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-20">Stock</th>
                 <th className="border border-zinc-300 px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-20">Local</th>
@@ -698,7 +708,7 @@ export default function ProcurementDetail() {
                       <td className="border border-zinc-300 px-2 py-5">
                         <input
                           type="text"
-                          value={item.item_name}
+                          value={item.item_name || ''}
                           onChange={(e) => updateItem(item.id, 'item_name', e.target.value)}
                           disabled={isDispatched}
                           placeholder="Search or enter item name..."
@@ -1001,7 +1011,7 @@ export default function ProcurementDetail() {
                   checked={pdfColumns[`wh-${wh.id}`] ?? true}
                   onChange={() => togglePdfColumn(`wh-${wh.id}`)}
                 />
-                <span className="text-[12px] font-medium text-zinc-700">{wh.warehouse_name}</span>
+                <span className="text-[12px] font-medium text-zinc-700">{wh.warehouse_name || wh.name || 'Warehouse'}</span>
               </label>
             ))}
             <div className="h-4 w-px bg-zinc-200" />
@@ -1046,13 +1056,17 @@ export default function ProcurementDetail() {
                       <th className="border border-zinc-300 px-3 py-2 text-left text-[9px] font-bold uppercase tracking-wider text-zinc-500 min-w-[200px]">Item Description</th>
                       <th className="border border-zinc-300 px-3 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-16">UOM</th>
                       <th className="border border-zinc-300 px-3 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-16">BOQ</th>
-                      {warehouses.map((wh: any) => (
-                        pdfColumns[`wh-${wh.id}`] !== false && (
-                          <th key={wh.id} className="border border-zinc-300 px-2 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-14" title={wh.warehouse_name}>
-                            {wh.warehouse_name.length > 6 ? wh.warehouse_name.substring(0, 6) + '…' : wh.warehouse_name}
-                          </th>
-                        )
-                      ))}
+                      {warehouses.map((wh: any) => {
+                        const whTitle = wh.warehouse_name || wh.name || 'Warehouse';
+                        const whDisplay = whTitle.length > 6 ? whTitle.substring(0, 6) + '…' : whTitle;
+                        return (
+                          pdfColumns[`wh-${wh.id}`] !== false && (
+                            <th key={wh.id} className="border border-zinc-300 px-2 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-14" title={whTitle}>
+                              {whDisplay}
+                            </th>
+                          )
+                        );
+                      })}
                       <th className="border border-zinc-300 px-2 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-blue-600 w-14">WH</th>
                       {pdfColumns.local !== false && (
                         <th className="border border-zinc-300 px-2 py-2 text-center text-[9px] font-bold uppercase tracking-wider text-zinc-500 w-14">Local</th>

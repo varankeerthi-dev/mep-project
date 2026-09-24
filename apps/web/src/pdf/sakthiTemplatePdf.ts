@@ -124,7 +124,9 @@ function normalizeDocumentData(data: any, org: any, type: string): NormalizedDat
   if (cleanType === 'quotation' || cleanType === 'quote') {
     docTitle = 'Quotation Details:';
     docNoLabel = 'Quotation NO.:';
-    docNo = data.quotation_no || '';
+    docNo = (data.quotation_no && data.revision_no && Number(data.revision_no) > 1)
+      ? `${data.quotation_no} (Rev ${String(data.revision_no).padStart(2, '0')})`
+      : (data.quotation_no || '');
     date = data.date || '';
   } else if (cleanType === 'invoice') {
     docTitle = 'Quotation Details:'; // Use Quotation Details as per attached image structure

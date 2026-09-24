@@ -354,6 +354,12 @@ html, body {
   background: #ffffff;
 }
 
+/* Quotation editor shell is full-bleed: its sticky action toolbar sits flush against
+   the quick-access bar with zero gap, so remove the default .main-content padding. */
+.main-content:has(.quotation-root) {
+  padding: 0;
+}
+
 @media (max-width: 768px) {
   .main-content.quotation-shell-tight {
     margin-top: 0;
@@ -2009,6 +2015,26 @@ body {
 .grid-table .col-item {
   width: auto;
   min-width: 200px;
+}
+
+.grid-table.cq-editable:not(.erection-section) .col-item {
+  width: 220px;
+  min-width: 180px;
+  max-width: 240px;
+}
+
+.grid-table .row-actions-hover {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.grid-table tbody tr:hover .row-actions-hover,
+.grid-table .row-actions-hover:focus-within {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .grid-table .row-drag-handle {

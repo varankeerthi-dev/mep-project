@@ -1,30 +1,20 @@
 import { useState, useMemo } from 'react';
-import { X, ChevronLeft, ChevronRight, Clock, FileText } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, ChevronLeft, ChevronRight, Clock, FileText, Table2 } from 'lucide-react';
 import { formatCurrency } from '../utils/formatters';
-
-interface RevisionSnapshot {
-  revision_no: number;
-  saved_at: string;
-  reason?: string;
-  items: any[];
-  header?: {
-    subtotal?: number;
-    total?: number;
-    discount_amount?: number;
-    discount_percent?: number;
-  };
-  header_discounts?: Record<string, number>;
-  extra_discount_percent?: number;
-  extra_discount_amount?: number;
-}
+import { QuotationRevisionCompareModal, RevisionSnapshot } from './QuotationRevisionCompareModal';
 
 interface RevisionHistoryDialogProps {
   open: boolean;
   onClose: () => void;
+  quotationId?: string;
   revisionHistory: RevisionSnapshot[];
   currentRevisionNo: number;
   currentTotal: number;
+  currentItems?: any[];
+  currentHeader?: any;
   documentNumber: string;
+  onRestoreRevision?: (revision: RevisionSnapshot) => void;
 }
 
 /**
@@ -34,12 +24,17 @@ interface RevisionHistoryDialogProps {
 export function RevisionHistoryDialog({
   open,
   onClose,
+  quotationId,
   revisionHistory,
   currentRevisionNo,
   currentTotal,
+  currentItems,
+  currentHeader,
   documentNumber,
+  onRestoreRevision,
 }: RevisionHistoryDialogProps) {
   const [selectedRev, setSelectedRev] = useState<number | null>(null);
+  const [showCompareModal, setShowCompareModal] = useState(false);
 
   // Combine history + current revision
   const allRevisions = useMemo(() => {
@@ -47,7 +42,7 @@ export function RevisionHistoryDialog({
       ...revisionHistory.map((r) => ({
         revision_no: r.revision_no,
         saved_at: r.saved_at,
-        total: r.header?.total ?? 0,
+        total: r.header?.total ?? r.header?.grand_total ?? 0,
         reason: r.reason || '',
       })),
       {
@@ -72,7 +67,7 @@ export function RevisionHistoryDialog({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       style={{
         position: 'fixed',
@@ -82,7 +77,7 @@ export function RevisionHistoryDialog({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 200,
+        zIndex: 9990,
         padding: '1rem',
       }}
       onClick={onClose}
@@ -117,19 +112,44 @@ export function RevisionHistoryDialog({
               Revision History — {documentNumber}
             </h3>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              border: 'none',
-              background: 'none',
-              color: '#64748b',
-              cursor: 'pointer',
-              padding: '4px',
-              borderRadius: '6px',
-            }}
-          >
-            <X size={18} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={() => setShowCompareModal(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 11px',
+                borderRadius: '6px',
+                background: '#185FA5',
+                color: '#ffffff',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#0C447C'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#185FA5'; }}
+              title="Open full comparison spreadsheet grid"
+            >
+              <Table2 size={13} /> Compare All Revisions
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                border: 'none',
+                background: 'none',
+                color: '#64748b',
+                cursor: 'pointer',
+                padding: '4px',
+                borderRadius: '6px',
+              }}
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -141,6 +161,7 @@ export function RevisionHistoryDialog({
               gap: '0.75rem',
               marginBottom: '1rem',
               flexWrap: 'wrap',
+              alignItems: 'center',
             }}
           >
             <div
@@ -167,6 +188,29 @@ export function RevisionHistoryDialog({
               <span style={{ color: '#64748b' }}>Current Total: </span>
               <strong style={{ color: '#059669' }}>{formatCurrency(currentTotal)}</strong>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowCompareModal(true)}
+              style={{
+                marginLeft: 'auto',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '0.5rem 0.875rem',
+                borderRadius: '8px',
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                color: '#1e293b',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#f1f5f9'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#f8fafc'; }}
+            >
+              <Table2 size={14} style={{ color: '#185FA5' }} /> Compare Grid View
+            </button>
           </div>
 
           {/* Revision list */}
@@ -296,15 +340,47 @@ export function RevisionHistoryDialog({
             >
               <div
                 style={{
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  color: '#64748b',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                   marginBottom: '0.5rem',
                 }}
               >
-                Rev {String(selectedData.revision_no).padStart(2, '0')} — Line Items
+                <div
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: '#64748b',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  Rev {String(selectedData.revision_no).padStart(2, '0')} — Line Items
+                </div>
+                {onRestoreRevision && (
+                  <button
+                    type="button"
+                    onClick={() => onRestoreRevision(selectedData)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      borderRadius: '5px',
+                      background: '#185FA5',
+                      border: 'none',
+                      color: '#ffffff',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#0C447C'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#185FA5'; }}
+                  >
+                    Restore Rev {String(selectedData.revision_no).padStart(2, '0')}
+                  </button>
+                )}
               </div>
               {selectedData.items && selectedData.items.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
@@ -379,6 +455,25 @@ export function RevisionHistoryDialog({
           </button>
         </div>
       </div>
-    </div>
+
+      {showCompareModal && (
+        <QuotationRevisionCompareModal
+          open={showCompareModal}
+          onClose={() => setShowCompareModal(false)}
+          quotationId={quotationId}
+          documentNumber={documentNumber}
+          revisionHistory={revisionHistory}
+          currentRevisionNo={currentRevisionNo}
+          currentItems={currentItems}
+          currentTotal={currentTotal}
+          currentHeader={currentHeader}
+          onRestoreRevision={(rev) => {
+            setShowCompareModal(false);
+            if (onRestoreRevision) onRestoreRevision(rev);
+          }}
+        />
+      )}
+    </div>,
+    document.body
   );
 }

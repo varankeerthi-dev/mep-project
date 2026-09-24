@@ -29,7 +29,11 @@ import {
   Share2,
   Edit,
   XCircle,
+  RotateCcw,
+  Table2,
 } from 'lucide-react';
+import { RevisionHistoryDialog } from '../components/RevisionHistoryDialog';
+import { QuotationRevisionCompareModal } from '../components/QuotationRevisionCompareModal';
 
 const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
 
@@ -62,6 +66,7 @@ const MANDATORY_COLUMNS = ['date', 'quotation_no', 'client', 'grand_total'];
 const ALL_COLUMNS = [
   { id: 'date', label: 'Date', width: '120px' },
   { id: 'quotation_no', label: 'Quote No', width: '120px' },
+  { id: 'revision_no', label: 'Rev No', width: '90px' },
   { id: 'project', label: 'Project', width: '200px' },
   { id: 'client', label: 'Client', width: '400px' },
   { id: 'prepared_by', label: 'Created By', width: '150px' },
@@ -86,6 +91,8 @@ export default function QuotationList() {
   const [showColumnCustomizer, setShowColumnCustomizer] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
   const [returnComment, setReturnComment] = useState<{ open: boolean; quotationId: string | null; comment: string; loading: boolean }>({ open: false, quotationId: null, comment: '', loading: false });
+  const [selectedHistoryQuotation, setSelectedHistoryQuotation] = useState<any | null>(null);
+  const [selectedCompareQuotation, setSelectedCompareQuotation] = useState<any | null>(null);
   
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem('quotation_list_columns');
@@ -834,7 +841,19 @@ export default function QuotationList() {
                         );
                         if (col.id === 'quotation_no') return (
                           <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
-                            {q.quotation_no}
+                            <span className="font-semibold text-zinc-900">{q.quotation_no}</span>
+                            {q.revision_no && q.revision_no > 1 ? (
+                              <span className="ml-1.5 px-1.5 py-0.5 text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80 rounded inline-block">
+                                (Rev {String(q.revision_no).padStart(2, '0')})
+                              </span>
+                            ) : null}
+                          </td>
+                        );
+                        if (col.id === 'revision_no') return (
+                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
+                            <span className="px-2 py-0.5 text-xs font-semibold bg-zinc-100 text-zinc-700 rounded border border-zinc-200 inline-block">
+                              Rev {String(q.revision_no || 1).padStart(2, '0')}
+                            </span>
                           </td>
                         );
                         if (col.id === 'project') return (
@@ -1009,6 +1028,33 @@ export default function QuotationList() {
                               <DownloadIcon className="w-3.5 h-3.5" />
                               Download PDF
                             </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(null);
+                                setSelectedHistoryQuotation(q);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
+                              style={{ padding: '6px' }}
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              Revision History {q.revision_history?.length ? `(${q.revision_history.length})` : ''}
+                            </button>
+
+                            {q.revision_history?.length > 0 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  setSelectedCompareQuotation(q);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-blue-50 hover:text-blue-700 active:scale-[0.98]"
+                                style={{ padding: '6px' }}
+                              >
+                                <Table2 className="w-3.5 h-3.5 text-blue-600" />
+                                Compare Revisions (Excel View)
+                              </button>
+                            )}
 
                             <div className="my-1 border-t border-zinc-100" />
 
@@ -1347,6 +1393,42 @@ export default function QuotationList() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Revision History Modal */}
+      {selectedHistoryQuotation && (
+        <RevisionHistoryDialog
+          open={!!selectedHistoryQuotation}
+          onClose={() => setSelectedHistoryQuotation(null)}
+          quotationId={selectedHistoryQuotation.id}
+          revisionHistory={selectedHistoryQuotation.revision_history || []}
+          currentRevisionNo={selectedHistoryQuotation.revision_no || 1}
+          currentTotal={selectedHistoryQuotation.grand_total || 0}
+          documentNumber={selectedHistoryQuotation.quotation_no || 'Quotation'}
+          onRestoreRevision={(rev) => {
+            const qId = selectedHistoryQuotation.id;
+            setSelectedHistoryQuotation(null);
+            navigate(`/quotation/edit?id=${qId}&restoreRev=${rev.revision_no}`);
+          }}
+        />
+      )}
+
+      {/* Revision Compare Modal */}
+      {selectedCompareQuotation && (
+        <QuotationRevisionCompareModal
+          open={!!selectedCompareQuotation}
+          onClose={() => setSelectedCompareQuotation(null)}
+          quotationId={selectedCompareQuotation.id}
+          documentNumber={selectedCompareQuotation.quotation_no || 'Quotation'}
+          revisionHistory={selectedCompareQuotation.revision_history || []}
+          currentRevisionNo={selectedCompareQuotation.revision_no || 1}
+          currentTotal={selectedCompareQuotation.grand_total || 0}
+          onRestoreRevision={(rev) => {
+            const qId = selectedCompareQuotation.id;
+            setSelectedCompareQuotation(null);
+            navigate(`/quotation/edit?id=${qId}&restoreRev=${rev.revision_no}`);
+          }}
+        />
       )}
     </div>
   );

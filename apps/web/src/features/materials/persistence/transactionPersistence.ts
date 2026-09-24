@@ -28,6 +28,7 @@ export async function fetchWarehouses() {
     supabase.from('warehouses').select('id, warehouse_name, name, warehouse_code')
   );
 }
+export const fetchWarehouseMaster = fetchWarehouses;
 
 export async function fetchVariants() {
   return runQuery(
@@ -35,6 +36,7 @@ export async function fetchVariants() {
     supabase.from('company_variants').select('id, variant_name')
   );
 }
+export const fetchVariantMaster = fetchVariants;
 
 export async function fetchInwardItems(itemId: string) {
   return runQuery(

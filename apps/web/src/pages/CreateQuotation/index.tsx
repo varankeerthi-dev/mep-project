@@ -10,6 +10,7 @@ import { useMaterials } from '../../hooks/useMaterials';
 import { useClients } from '../../hooks/useClients';
 import { useProjects } from '../../hooks/useProjects';
 import { useVariants } from '../../hooks/useVariants';
+import { ApprovalIntegration } from '../../approvals/integration';
 import { useConvertDocument, useConversionStatus, getSourceTableName } from '../../conversions/hooks';
 import type { ConversionType } from '../../conversions/types';
 import ItemCreateDrawer from '../../components/ItemCreateDrawer';
@@ -18,10 +19,10 @@ import { FileText, Plus, RotateCcw } from 'lucide-react';
 import { AiDocumentParserModal } from '../../components/AiDocumentParserModal';
 import { ErectionSection } from '../../components/ErectionSection';
 import { Button } from '../../components/ui/button';
-import { ApprovalIntegration } from '../../approvals/integration';
 import { toast } from '../../lib/logger';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/dialog';
 import { ArcConfirmationDialog } from '../../components/ArcConfirmationDialog';
+import { RevisionHistoryDialog } from '../../components/RevisionHistoryDialog';
 import { fetchArcPricingForItems, getArcRateFromMap } from '../../lib/arc-pricing';
 import { useLastDocumentRates } from '../../hooks/useLastDocumentRates';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -857,9 +858,34 @@ export default function CreateQuotation() {
           };
         });
         
-        setItems(mappedItems);
+        let finalItems = mappedItems;
+        const restoreRevParam = searchParams.get('restoreRev');
+        const restoreRevNo = restoreRevParam ? parseInt(restoreRevParam, 10) : null;
+        if (restoreRevNo && data.revision_history && Array.isArray(data.revision_history)) {
+          const targetRev = data.revision_history.find((r: any) => r.revision_no === restoreRevNo);
+          if (targetRev && targetRev.items?.length > 0) {
+            finalItems = targetRev.items.map((item: any) => ({
+              ...item,
+              id: item.id || (Date.now() + Math.random()),
+            }));
+            if (targetRev.header_discounts) {
+              setHeaderDiscounts(targetRev.header_discounts);
+            }
+            if (targetRev.header) {
+              setFormData((prev: any) => ({
+                ...prev,
+                extra_discount_percent: targetRev.header?.extra_discount_percent ?? prev.extra_discount_percent,
+                extra_discount_amount: targetRev.header?.extra_discount_amount ?? prev.extra_discount_amount,
+                remarks: targetRev.header?.remarks ?? prev.remarks,
+              }));
+            }
+            toast.success(`Loaded items and rates from Revision ${restoreRevNo}`);
+          }
+        }
+
+        setItems(finalItems);
         if (!isDuplicate) {
-          setOriginalItems(JSON.parse(JSON.stringify(mappedItems)));
+          setOriginalItems(JSON.parse(JSON.stringify(finalItems)));
         } else {
           setOriginalItems([]);
         }
@@ -1486,43 +1512,70 @@ export default function CreateQuotation() {
     }
   }, [items]);
 
-  const addEmptyItemRow = useCallback((section?: 'materials' | 'erection') => {
+  const buildEmptyItemRow = useCallback((section?: 'materials' | 'erection') => {
     const rowId = Date.now() + Math.random();
     const headerVariantId = formData.variant_id || null;
     const headerVariantDiscount = headerVariantId ? (headerDiscounts[headerVariantId] || 0) : 0;
-    
+
+    return {
+      id: rowId,
+      item_id: '',
+      variant_id: headerVariantId,
+      material: null,
+      hsn_code: '',
+      description: '',
+      qty: null,
+      uom: '',
+      rate: 0,
+      discount_percent: headerVariantDiscount,
+      discount_amount: 0,
+
+      tax_percent: 0,
+      tax_amount: 0,
+      line_total: 0,
+      override_flag: false,
+      original_discount_percent: headerVariantDiscount,
+      base_rate_snapshot: 0,
+      applied_discount_percent: headerVariantDiscount,
+      is_override: false,
+      final_rate_snapshot: 0,
+      display_order: 0,
+      is_header: false,
+      custom1: '',
+      custom2: '',
+      section: section || 'materials'
+    };
+  }, [formData, headerDiscounts]);
+
+  const addEmptyItemRow = useCallback((section?: 'materials' | 'erection') => {
     setItems((prev) => [
       ...prev,
-      {
-        id: rowId,
-        item_id: '',
-        variant_id: headerVariantId,
-        material: null,
-        hsn_code: '',
-        description: '',
-        qty: null,
-        uom: '',
-        rate: 0,
-        discount_percent: headerVariantDiscount,
-        discount_amount: 0,
-
-        tax_percent: 0,
-        tax_amount: 0,
-        line_total: 0,
-        override_flag: false,
-        original_discount_percent: headerVariantDiscount,
-        base_rate_snapshot: 0,
-        applied_discount_percent: headerVariantDiscount,
-        is_override: false,
-        final_rate_snapshot: 0,
-        display_order: prev.length,
-        is_header: false,
-        custom1: '',
-        custom2: '',
-        section: section || 'materials'
-      }
+      { ...buildEmptyItemRow(section), display_order: prev.length }
     ]);
-  }, [formData, headerDiscounts]);
+  }, [buildEmptyItemRow]);
+
+  const insertItemRowBelow = useCallback((targetId: string | number) => {
+    const row = buildEmptyItemRow('materials');
+    setItems((prev) => {
+      const idx = prev.findIndex((i) => i.id === targetId);
+      if (idx === -1) return [...prev, { ...row, display_order: prev.length }];
+      return [...prev.slice(0, idx + 1), row, ...prev.slice(idx + 1)];
+    });
+  }, [buildEmptyItemRow]);
+
+  const insertSectionHeaderBelow = useCallback((targetId: string | number) => {
+    const header = {
+      id: Date.now() + Math.random(),
+      section: 'materials',
+      is_header: true,
+      description: ''
+    };
+    setItems((prev) => {
+      const idx = prev.findIndex((i: any) => i.id === targetId);
+      if (idx === -1) return [...prev, header];
+      return [...prev.slice(0, idx + 1), header, ...prev.slice(idx + 1)];
+    });
+  }, []);
 
   const getRowDiscountCategoryId = (item: any) => {
     return item.discount_category_id
@@ -1981,6 +2034,8 @@ export default function CreateQuotation() {
     const revisionSnapshot = {
       revision_no: currentRevisionNo,
       saved_at: new Date().toISOString(),
+      saved_by: user?.id || null,
+      saved_by_name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || null,
       items: items.map(item => ({
         ...item,
         id: item.id || Date.now() + Math.random()
@@ -2015,27 +2070,53 @@ export default function CreateQuotation() {
     }
   }, [formData, items, calculations, headerDiscounts, editId]);
 
+  const handleRestoreRevision = useCallback((rev: any) => {
+    if (!window.confirm(`Are you sure you want to restore Revision ${rev.revision_no}? Current editor contents will be replaced with this revision.`)) {
+      return;
+    }
+    if (rev.items && Array.isArray(rev.items) && rev.items.length > 0) {
+      setItems(rev.items.map((item: any) => ({
+        ...item,
+        id: item.id || (Date.now() + Math.random()),
+      })));
+    }
+    if (rev.header) {
+      setFormData((prev: any) => ({
+        ...prev,
+        extra_discount_percent: rev.header?.extra_discount_percent ?? prev.extra_discount_percent,
+        extra_discount_amount: rev.header?.extra_discount_amount ?? prev.extra_discount_amount,
+        remarks: rev.header?.remarks ?? prev.remarks,
+      }));
+    }
+    if (rev.header_discounts) {
+      setHeaderDiscounts(rev.header_discounts);
+    }
+    setIsDirty(true);
+    setRevisionDialogOpen(false);
+    toast.success(`Restored items and pricing from Revision ${rev.revision_no}`);
+  }, []);
+
   const handleSave = async (saveAndNew = false, isAutosave = false) => {
-    if (saving) return;
+    if (saving) return false;
     if (!organisation?.id) {
       setSaveStatus('error');
       if (!isAutosave) {
         toast.error('Validation error', { description: 'Organisation ID is missing. Please refresh and try again.' });
       }
-      return;
+      return false;
     }
     if (!user?.id) {
       setSaveStatus('error');
       if (!isAutosave) {
         toast.error('Validation error', { description: 'User session is missing. Please refresh and log in again.' });
       }
-      return;
+      return false;
     }
     if (!formData.client_id) {
       if (!isAutosave) {
         toast.error('Validation error', { description: 'Please select a client.' });
       }
-      return;
+      return false;
     }
 
     // Zod validation for date range (Valid Till cannot be before/below Quote Date)
@@ -2060,14 +2141,14 @@ export default function CreateQuotation() {
       if (!isAutosave) {
         toast.error(errorMsg);
       }
-      return;
+      return false;
     }
-    const cleanItems = items.filter(item => item.item_id || item.is_header || item.is_subtotal || item.section === 'erection');
+    const cleanItems = items.filter(item => item.item_id || item.description || item.is_header || item.is_subtotal || item.section === 'erection');
     if (cleanItems.length === 0) {
       if (!isAutosave) {
         toast.error('Validation error', { description: 'Please add at least one item.' });
       }
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -2092,7 +2173,7 @@ export default function CreateQuotation() {
         }
         ignoreDirtyRef.current = false;
         setSaving(false);
-        return;
+        return false;
       }
 
       const needsApproval = !editId;
@@ -2417,17 +2498,18 @@ export default function CreateQuotation() {
         }
         ignoreDirtyRef.current = false;
         setSaving(false);
-        return;
+        return true;
       }
 
       if (saveAndNew) {
         toast.success('Quotation saved as draft!');
         ignoreDirtyRef.current = false;
         setSaving(false);
-        return;
+        return true;
       } else {
         navigate(`/quotation/view?id=${quotationId}`);
       }
+      return true;
     } catch (err) {
       console.error('Error saving quotation:', err);
       const errMsg = (err as any)?.message || String(err || '');
@@ -2449,6 +2531,7 @@ export default function CreateQuotation() {
           }
         }
       }
+      return false;
     } finally {
       ignoreDirtyRef.current = false;
       setSaving(false);
@@ -2462,6 +2545,34 @@ export default function CreateQuotation() {
     formData,
     handleSave,
   });
+
+  const submitRevisionForApproval = async () => {
+    if (!editId) return;
+    const saved = await handleSave(false);
+    if (!saved) return;
+    try {
+      const clientName = clients.find((c: any) => c.id === formData.client_id)?.client_name
+        || clients.find((c: any) => c.id === formData.client_id)?.name
+        || 'Client';
+      const res = await ApprovalIntegration.createQuotationApproval(
+        editId,
+        clientName,
+        formData.quotation_no || 'Quotation',
+        Number(calculations.grandTotal) || 0
+      );
+      if (res.approvalId) {
+        await supabase
+          .from('quotation_header')
+          .update({ negotiation_mode: false })
+          .eq('id', editId);
+        toast.success('Revision submitted for MD / manager approval!');
+      } else {
+        toast.info(res.error || 'No approval required for this quotation.');
+      }
+    } catch (err: any) {
+      toast.error('Approval request failed', { description: err?.message || String(err) });
+    }
+  };
 
   const updateTemplateSettingsInDb = async (newSettings: any) => {
     if (!newSettings?.id) return;
@@ -2530,13 +2641,14 @@ export default function CreateQuotation() {
   }
 
   return (
-    <div style={{ padding: '0 0 24px 0', marginTop: '-48px', background: '#f8fafc', minHeight: '100%' }}>
+    <div className="quotation-root" style={{ background: '#f8fafc', minHeight: '100%', margin: 0, padding: '0 0 24px 0' }}>
       <QuotationActions
         editId={editId}
         formData={formData}
         setFormData={setFormData}
         saving={saving}
         handleSave={handleSave}
+        submitRevisionForApproval={submitRevisionForApproval}
         saveCurrentRevision={saveCurrentRevision}
         setConfirmDialog={setConfirmDialog}
         setRevisionDialogOpen={setRevisionDialogOpen}
@@ -2547,7 +2659,7 @@ export default function CreateQuotation() {
         saveStatus={saveStatus}
       />
 
-      <div style={{ background: '#f8fafc', padding: '56px 16px 16px 16px', minHeight: 'calc(100vh - 64px)' }}>
+      <div style={{ background: '#f8fafc', padding: '16px 24px 24px 24px', minHeight: 'calc(100vh - 96px)' }}>
         <PresenceBanner users={activePresenceUsers} />
         {activeImportSessionId && (
           <div className="bg-indigo-900/40 border border-indigo-800/60 text-indigo-200 px-6 py-3 rounded-lg flex items-center justify-between text-xs font-semibold mb-4 animate-in slide-in-from-top">
@@ -2758,6 +2870,8 @@ export default function CreateQuotation() {
                 updateItem={updateItem}
                 removeItem={removeItem}
                 addEmptyItemRow={() => addEmptyItemRow('materials')}
+                insertItemRowBelow={insertItemRowBelow}
+                insertSectionHeaderBelow={insertSectionHeaderBelow}
                 setItems={setItems}
                 hoveredItemId={hoveredItemId}
                 setHoveredItemId={setHoveredItemId}
@@ -3110,11 +3224,24 @@ export default function CreateQuotation() {
             <DialogDescription>{confirmDialog?.description}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setConfirmDialog(null)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => { confirmDialog?.onCancel?.(); setConfirmDialog(null); }}>Cancel</Button>
             <Button onClick={confirmDialog?.onConfirm}>{confirmDialog?.confirmLabel || 'Confirm'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <RevisionHistoryDialog
+        open={revisionDialogOpen}
+        onClose={() => setRevisionDialogOpen(false)}
+        quotationId={formData.id}
+        currentItems={items}
+        currentHeader={formData}
+        revisionHistory={formData.revision_history || []}
+        currentRevisionNo={formData.revision_no || 1}
+        currentTotal={calculations.grandTotal || 0}
+        documentNumber={formData.quotation_no || 'QT-Draft'}
+        onRestoreRevision={handleRestoreRevision}
+      />
 
       {discountPopup && (
         <Dialog open={!!discountPopup} onOpenChange={(open) => { if (!open) setDiscountPopup(null); }}>

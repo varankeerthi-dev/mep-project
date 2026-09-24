@@ -67,14 +67,19 @@ const getGridTemplate = (cols: any[]) => {
 };
 
 const getDocumentNumber = (data: any) => {
+  let num = "-";
   const type = data.document_type?.toUpperCase();
   switch (type) {
-    case "QUOTATION": return data.quotation_no;
-    case "INVOICE": return data.invoice_no;
-    case "PROFORMA": return data.proforma_no || data.quotation_no;
-    case "DELIVERY_CHALLAN": return data.dc_number;
-    default: return "-";
+    case "QUOTATION": num = data.quotation_no || "-"; break;
+    case "INVOICE": num = data.invoice_no || "-"; break;
+    case "PROFORMA": num = data.proforma_no || data.quotation_no || "-"; break;
+    case "DELIVERY_CHALLAN": num = data.dc_number || "-"; break;
+    default: num = data.quotation_no || data.invoice_no || "-";
   }
+  if (num && num !== '-' && data.revision_no && Number(data.revision_no) > 1) {
+    return `${num} (Rev ${String(data.revision_no).padStart(2, '0')})`;
+  }
+  return num;
 };
 
 /* ---------------- MAIN ---------------- */

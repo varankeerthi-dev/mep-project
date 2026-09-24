@@ -5,8 +5,9 @@ import { UnitDropdownSelect } from '../../../components/UnitDropdownSelect';
 import { formatCurrency } from '../../../utils/formatters';
 import { Button } from '../../../components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/popover';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../../components/ui/dropdown-menu';
 import { StandardRateBadge, ArcRateBadge } from '../../../components/ArcPricingToggle';
-import { ArrowUpDown, ChevronDown, GripVertical, Lock, CornerDownRight, Trash2 } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, GripVertical, Heading, Lock, CornerDownRight, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 // --- Stitch UX redesign tokens (UI only, Inter exclusively) ---
@@ -213,6 +214,8 @@ interface QuotationItemsTableProps {
   updateItem: (id: string | number, fieldOrUpdates: any, value?: any) => void;
   removeItem: (id: string | number) => void;
   addEmptyItemRow: () => void;
+  insertItemRowBelow: (id: string | number) => void;
+  insertSectionHeaderBelow: (id: string | number) => void;
   setItems: React.Dispatch<React.SetStateAction<any[]>>;
   hoveredItemId: string | number | null;
   setHoveredItemId: (id: string | number | null) => void;
@@ -249,6 +252,11 @@ const formatStockQty = (v: any) => {
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
 };
 
+const formatNumber = (v: any) => {
+  const n = parseFloat(v) || 0;
+  return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+};
+
 export function QuotationItemsTable({
   items,
   materials,
@@ -263,6 +271,8 @@ export function QuotationItemsTable({
   updateItem,
   removeItem,
   addEmptyItemRow,
+  insertItemRowBelow,
+  insertSectionHeaderBelow,
   setItems,
   hoveredItemId,
   setHoveredItemId,
@@ -371,12 +381,11 @@ export function QuotationItemsTable({
               <th className="col-hsn" style={{ ...HEADER_CELL, width: '60px', textAlign: 'left' }}>{templateSettings?.column_settings?.labels?.hsn_code || 'HSN'}</th>
             )}
             {templateSettings?.column_settings?.optional?.item !== false && (
-              <th className="col-item" style={{ ...HEADER_CELL, position: 'relative', textAlign: 'left', color: PRIMARY, width: 'auto', minWidth: '120px' }}>
+              <th className="col-item" style={{ ...HEADER_CELL, position: 'relative', textAlign: 'left', color: PRIMARY, width: '220px', minWidth: '180px', maxWidth: '240px' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                   {templateSettings?.column_settings?.labels?.item || 'ITEM & SPECIFICATIONS'}
                   <span style={{ fontSize: '12px', lineHeight: 1 }}>↑</span>
                 </span>
-                <span style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '3px', background: PRIMARY }} />
               </th>
             )}
             {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
@@ -394,17 +403,17 @@ export function QuotationItemsTable({
             <th className="col-qty" style={{ ...HEADER_CELL, textAlign: 'right', width: '60px' }}>QTY</th>
             <th className="col-unit" style={{ ...HEADER_CELL, textAlign: 'center', width: '52px' }}>UNIT</th>
             <th className="col-rate" style={{ ...HEADER_CELL, textAlign: 'right', width: '96px' }}>UNIT RATE (₹)</th>
-            <th className="col-disc" style={{ ...HEADER_CELL, textAlign: 'right', width: '56px' }}>DISC %</th>
+            <th className="col-disc" style={{ ...HEADER_CELL, textAlign: 'right', width: '56px' }}><span style={{ display: 'block', lineHeight: 1.25 }}>Disc</span><span style={{ display: 'block', lineHeight: 1.25 }}>(%)</span></th>
             <th className="col-rate-after-disc" style={{ ...HEADER_CELL, textAlign: 'right', width: '70px' }}>NET RATE (₹)</th>
-            <th className="col-gst" style={{ ...HEADER_CELL, textAlign: 'center', width: '50px' }}>GST %</th>
+            <th className="col-gst" style={{ ...HEADER_CELL, textAlign: 'center', width: '50px' }}><span style={{ display: 'block', lineHeight: 1.25 }}>GST</span><span style={{ display: 'block', lineHeight: 1.25 }}>(%)</span></th>
             {templateSettings?.column_settings?.optional?.custom1 !== false && templateSettings?.column_settings?.labels && (
               <th className="col-custom" style={{ ...HEADER_CELL, textAlign: 'left', width: '90px' }}>{templateSettings.column_settings.labels.custom1 || 'Custom 1'}</th>
             )}
             {templateSettings?.column_settings?.optional?.custom2 !== false && templateSettings?.column_settings?.labels && (
               <th className="col-custom" style={{ ...HEADER_CELL, textAlign: 'left', width: '90px' }}>{templateSettings.column_settings.labels.custom2 || 'Custom 2'}</th>
             )}
-            <th className="col-amount" style={{ ...HEADER_CELL, textAlign: 'right', color: PRIMARY, fontWeight: 700, width: '104px' }}>TOTAL AMOUNT (₹)</th>
-            <th className="col-shrink" style={{ ...HEADER_CELL, textAlign: 'center', position: 'sticky', right: 0, background: SURFACE_LOW, zIndex: 11, width: '76px', minWidth: '76px', boxShadow: 'inset 1px 0 0 #CBD5E1' }}>ACTIONS</th>
+            <th className="col-amount" style={{ ...HEADER_CELL, textAlign: 'right', color: PRIMARY, fontWeight: 700, width: '104px' }}><span title="TOTAL AMOUNT (₹)" style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>TOTAL AMOUNT (₹)</span></th>
+            <th className="col-shrink" style={{ ...HEADER_CELL, textAlign: 'center', position: 'sticky', right: 0, background: SURFACE_LOW, zIndex: 11, width: '100px', minWidth: '100px', boxShadow: 'inset 1px 0 0 #CBD5E1' }}>ACTIONS</th>
           </tr>
         </thead>
         <tbody>
@@ -577,6 +586,21 @@ export function QuotationItemsTable({
                       <SearchableItemSelect
                         value={item.item_id}
                         materials={materials}
+                        customText={!item.item_id ? (item.description || '') : ''}
+                        onCustomText={(text) => updateItem(item.id, {
+                          item_id: '',
+                          material: null,
+                          hsn_code: '',
+                          description: text,
+                          tax_percent: 0,
+                          discount_category_id: null,
+                          make: '',
+                          base_rate_snapshot: 0,
+                          discount_percent: 0,
+                          applied_discount_percent: 0,
+                          is_override: false,
+                          rate: 0
+                        })}
                         onChange={(materialId, mat) => {
                           if (mat) {
                             const makes = itemMakes[mat.id] || [];
@@ -661,27 +685,27 @@ export function QuotationItemsTable({
                           ×
                         </button>
                       )}
-                      {item.item_id && (() => {
+                      {(item.item_id || item.description) && (() => {
                         const mat = item.material || materials.find(m => m.id === item.item_id);
                         const dcId = item.discount_category_id || mat?.discount_category_id;
                         const dcName = dcId ? discountCategoryMap[dcId]?.name : null;
                         const hsn = item.hsn_code || mat?.hsn_code || '';
                         return (
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginTop: '2px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', minWidth: 0 }}>
                             {dcName && (
                               <div
                                 title={`Discount category: ${dcName}`}
-                                style={{ padding: '1px 6px', fontSize: '10px', fontFamily: INTER, fontWeight: 600, letterSpacing: '0.04em', color: '#00476E', background: '#CCE5FF', borderRadius: '4px', marginTop: '2px', lineHeight: '1.4', whiteSpace: 'nowrap', flexShrink: 0 }}
+                                style={{ padding: '1px 6px', fontSize: '10px', fontFamily: INTER, fontWeight: 600, letterSpacing: '0.04em', color: '#00476E', background: '#CCE5FF', borderRadius: '4px', lineHeight: '1.4', whiteSpace: 'nowrap', flexShrink: 0 }}
                               >
                                 {dcName}
                               </div>
                             )}
-                            <div style={{ flex: 1, minWidth: 0, fontFamily: INTER }}>
-                              {hsn && (
-                                <div style={{ fontSize: '11px', fontFamily: INTER, color: INK_FAINT, lineHeight: '1.4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  HSN: {hsn}
-                                </div>
-                              )}
+                            {hsn && (
+                              <div style={{ fontSize: '11px', fontFamily: INTER, color: INK_FAINT, lineHeight: '1.4', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                HSN: {hsn}
+                              </div>
+                            )}
+                            <div style={{ flex: 1, minWidth: 0, marginTop: '-4px', fontFamily: INTER }}>
                               <InlineDescriptionCell
                                 materialName=""
                                 description={item.description}
@@ -867,7 +891,7 @@ export function QuotationItemsTable({
                     </div>
                   </td>
                   <td className="col-rate-after-disc text-right font-semibold cell-static" style={{ ...NUM_CELL, color: INK, fontWeight: 600, fontSize: '13px', textAlign: 'right', verticalAlign: 'middle' }}>
-                    {formatCurrency(item.rate || 0)}
+                    {formatNumber(item.rate || 0)}
                   </td>
                   <td className="col-gst" style={{ verticalAlign: 'middle', textAlign: 'center', minWidth: '50px' }}>
                     <input
@@ -901,29 +925,81 @@ export function QuotationItemsTable({
                     </td>
                   )}
                   <td className="col-amount text-right font-bold cell-static" style={{ ...NUM_CELL, color: INK, fontWeight: 700, fontSize: '13px', textAlign: 'right', paddingRight: '12px', verticalAlign: 'middle' }}>
-                    {formatCurrency((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0))}
+                    {formatNumber((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0))}
                   </td>
-                  <td className="delete-cell col-shrink" style={{ paddingLeft: '8px', paddingRight: '8px', verticalAlign: 'middle', textAlign: 'center', position: 'sticky', right: 0, background: stickyBg, zIndex: 2, width: '76px', minWidth: '76px', boxShadow: 'inset 1px 0 0 #E2E8F0' }}>
+                  <td className="delete-cell col-shrink" style={{ paddingLeft: '8px', paddingRight: '8px', verticalAlign: 'middle', textAlign: 'center', position: 'sticky', right: 0, background: stickyBg, zIndex: 2, width: '100px', minWidth: '100px', boxShadow: 'inset 1px 0 0 #E2E8F0' }}>
                     <div style={{ display: 'flex', gap: '2px', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-                      <button
-                        type="button"
-                        className="btn-move-to-v2"
-                        onClick={() => openMoveToDialog(item.id, itemCountBefore + 1, 'materials')}
-                        style={{
-                          padding: '6px',
-                          color: INK_MUTED,
-                          border: 'none',
-                          background: 'transparent',
-                          cursor: 'pointer',
-                          borderRadius: '4px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        title="Move to S.No"
-                      >
-                        <ArrowUpDown size={14} />
-                      </button>
+                      <div className="row-actions-hover">
+                        <button
+                          type="button"
+                          className="btn-move-to-v2"
+                          onClick={() => openMoveToDialog(item.id, itemCountBefore + 1, 'materials')}
+                          style={{
+                            padding: '6px',
+                            color: INK_MUTED,
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          title="Move to S.No"
+                        >
+                          <ArrowUpDown size={14} />
+                        </button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              title="Row actions"
+                              style={{
+                                padding: '6px',
+                                color: INK_MUTED,
+                                border: 'none',
+                                background: 'transparent',
+                                cursor: 'pointer',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <MoreHorizontal size={14} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" style={{ fontFamily: INTER, minWidth: '180px' }}>
+                            <DropdownMenuItem onSelect={() => insertItemRowBelow(item.id)} style={{ fontSize: '12px', cursor: 'pointer' }}>
+                              <Plus size={13} /> Add new row
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => insertSectionHeaderBelow(item.id)} style={{ fontSize: '12px', cursor: 'pointer' }}>
+                              <Heading size={13} /> Add section header
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <button
+                          type="button"
+                          className="btn-delete-v2"
+                          onClick={() => removeItem(item.id)}
+                          style={{
+                            padding: '6px',
+                            color: INK_FAINT,
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = '#E11D48'; e.currentTarget.style.background = '#FFF1F2'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = INK_FAINT; e.currentTarget.style.background = 'transparent'; }}
+                          title="Delete entire row"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
 
                       {moveToDialog && moveToDialog.itemId === item.id && (
                         <div
@@ -1008,28 +1084,6 @@ export function QuotationItemsTable({
                           )}
                         </div>
                       )}
-
-                      <button 
-                        type="button" 
-                        className="btn-delete-v2" 
-                        onClick={() => removeItem(item.id)}
-                        style={{ 
-                          padding: '6px',
-                          color: INK_FAINT,
-                          border: 'none',
-                          background: 'transparent',
-                          cursor: 'pointer',
-                          borderRadius: '4px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = '#E11D48'; e.currentTarget.style.background = '#FFF1F2'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = INK_FAINT; e.currentTarget.style.background = 'transparent'; }}
-                        title="Delete entire row"
-                      >
-                        <Trash2 size={14} />
-                      </button>
                     </div>
                   </td>
                 </tr>

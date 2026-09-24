@@ -33,7 +33,10 @@ export function generateProGridQuotationPdf(data: Record<string, unknown>, organ
     themeHex,
   });
 
-  const docNo = String(data.quotation_no || data.invoice_no || '—');
+  const rawDocNo = data.quotation_no || data.invoice_no || '—';
+  const docNo = (data.quotation_no && data.revision_no && Number(data.revision_no) > 1)
+    ? `${data.quotation_no} (Rev ${String(data.revision_no).padStart(2, '0')})`
+    : String(rawDocNo);
   const docDate = String(data.date || '—');
   const hl = {
     document_no: (headerLabels.document_no as string) || (data.invoice_no ? 'Invoice No.' : 'Quotation No.'),

@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { Button } from '../components/ui/button';
 import DOMPurify from 'dompurify';
 import { useQuery } from '@tanstack/react-query';
@@ -12,12 +14,19 @@ import SaaSTemplate from '../templates/SaaSTemplate';
 import VerticalTemplate from '../templates/VerticalTemplate';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, CheckCircle, ArrowLeft, ChevronDown, ChevronRight, ChevronLeft, Mail, Download, Eye, FileText, Plus, Loader2, RotateCcw, Share2, Settings2 } from 'lucide-react';
+import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, CheckCircle, ArrowLeft, ChevronDown, Mail, Download, Eye, FileText, Loader2, RotateCcw, Share2, Settings2, Search, X, Table2, PackageSearch, ClipboardList, FileEdit, Send, History, Paperclip, ScrollText, Building2, Truck } from 'lucide-react';
 import { useVariants } from '../hooks/useVariants';
 import { ApprovalAPI } from '../approvals/api';
+import { ApprovalIntegration } from '../approvals/integration';
 import { initiateQuotationRevision } from '../lib/quotation-workflow';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../components/ui/resizable';
 import DocumentSettingsDrawer from '../components/document-settings/DocumentSettingsDrawer';
+import { numberToInrWords } from '../pdf/numberToWords';
+import { RevisionHistoryDialog } from '../components/RevisionHistoryDialog';
+import { generateQuotationPdf } from '../pdf/enterpriseQuotationPdf';
+import { generateSakthiPdf } from '../pdf/sakthiTemplatePdf';
+import { htmlToPdf } from '../utils/htmlTemplateRenderer';
+import { QuotationRevisionCompareModal } from '../components/QuotationRevisionCompareModal';
 
 const getStatusBadge = (status) => {
   const colors = {
@@ -46,6 +55,41 @@ const getStatusBadge = (status) => {
   );
 };
 
+const LIST_TABS = ['All', 'Draft', 'Sent', 'Approved', 'Pending', 'Expired'];
+
+const LIST_TAB_STATUS: Record<string, string | null> = {
+  All: null,
+  Draft: 'Draft',
+  Sent: 'Sent',
+  Approved: 'Approved',
+  Pending: 'PENDING_APPROVAL',
+  Expired: 'Expired',
+};
+
+const formatCurrencyNoSymbol = (amount: any) => {
+  const n = parseFloat(amount) || 0;
+  return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+};
+
+const formatDateTime = (ts: any) => {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+const LIST_STATUS_STYLE: Record<string, { bg: string; color: string }> = {
+  Draft: { bg: '#F3F4F6', color: '#6B7280' },
+  Sent: { bg: '#DBEAFE', color: '#1D4ED8' },
+  Approved: { bg: '#D1FAE5', color: '#047857' },
+  Expired: { bg: '#FEE2E2', color: '#B91C1C' },
+  'Under Negotiation': { bg: '#FEF3C7', color: '#B45309' },
+  PENDING_APPROVAL: { bg: '#FEF3C7', color: '#B45309' },
+  Rejected: { bg: '#FEE2E2', color: '#B91C1C' },
+  Converted: { bg: '#DBEAFE', color: '#1D4ED8' },
+  Cancelled: { bg: '#F3F4F6', color: '#9CA3AF' },
+};
+
 export default function QuotationView() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -58,45 +102,29 @@ export default function QuotationView() {
   const [embedError, setEmbedError] = useState<string | null>(null);
 
   const [showConvertMenu, setShowConvertMenu] = useState(false);
-  const [showPrintMenu, setShowPrintMenu] = useState(false);
-  const [showTemplateMenu, setShowTemplateMenu] = useState(false);
-  const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showStockCheckModal, setShowStockCheckModal] = useState(false);
   const [launchingStockCheck, setLaunchingStockCheck] = useState(false);
-  // Informational stock availability (display-only — no reservations, no writes)
+  // Informational stock availability (display-only - no reservations, no writes)
   const [showAvailability, setShowAvailability] = useState(false);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [availabilityRows, setAvailabilityRows] = useState<any[]>([]);
   const [launchingRevision, setLaunchingRevision] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
-  const [printMenuView, setPrintMenuView] = useState('main'); // 'main' or 'templates'
   const [printLoading, setPrintLoading] = useState(false);
   const [showDocumentSettings, setShowDocumentSettings] = useState(false);
-  
-  // Print dropdown ref for click outside
-  const printMenuRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (printMenuRef.current && !printMenuRef.current.contains(event.target as Node)) {
-        setShowPrintMenu(false);
-        setShowConvertMenu(false);
-      }
-    };
-    if (showPrintMenu || showConvertMenu || showActionsMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showPrintMenu, showConvertMenu]);
   
   // Preview modal state
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewHTML, setPreviewHTML] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState(null);
+  const [listSearch, setListSearch] = useState('');
+  const [listStatusTab, setListStatusTab] = useState('All');
+  const [listSortAsc, setListSortAsc] = useState(false);
+  const [previewTab, setPreviewTab] = useState('Preview');
+  const [itemFilter, setItemFilter] = useState('');
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [showTemplateSelect, setShowTemplateSelect] = useState(false);
 
   // PDF Preview modal state
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
@@ -107,6 +135,8 @@ export default function QuotationView() {
     };
   }, [pdfPreviewUrl]);
   const [showPdfPreviewModal, setShowPdfPreviewModal] = useState(false);
+  const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
+  const [showCompareModal, setShowCompareModal] = useState(false);
   
   const quotationQuery = useQuery({
     queryKey: ['quotation', quotationId, organisation?.id],
@@ -188,6 +218,244 @@ export default function QuotationView() {
   const quotations = quotationsQuery.data || [];
   const { data: allVariants = [] } = useVariants();
 
+  const listStatusCounts = useMemo(() => {
+    const byStatus: Record<string, number> = {};
+    quotations.forEach((q: any) => {
+      if (q.status) byStatus[q.status] = (byStatus[q.status] || 0) + 1;
+    });
+    const counts: Record<string, number> = { All: quotations.length };
+    LIST_TABS.forEach((tab) => {
+      if (tab === 'All') return;
+      counts[tab] = byStatus[LIST_TAB_STATUS[tab] as string] || 0;
+    });
+    return counts;
+  }, [quotations]);
+
+  const quoteApprovalsQuery = useQuery({
+    queryKey: ['quotation-approvals', quotationId],
+    queryFn: async () => {
+      if (!quotationId) return [];
+      try {
+        const { data, error } = await supabase
+          .from('approvals')
+          .select('id, title, amount, status, review_status, requested_at, requested_by, requester_name, requester_role, reviewer_id, reviewed_at, created_at, updated_at')
+          .eq('reference_type', 'quotations')
+          .eq('reference_id', quotationId)
+          .order('requested_at', { ascending: true });
+        if (error) throw error;
+        return data || [];
+      } catch (err) {
+        console.warn('Unable to load quotation approvals:', err);
+        return [];
+      }
+    },
+    enabled: !!quotationId,
+  });
+
+  const quoteApprovalIds = useMemo(
+    () => (quoteApprovalsQuery.data || []).map((a: any) => a.id),
+    [quoteApprovalsQuery.data]
+  );
+
+  const quoteApprovalActionsQuery = useQuery({
+    queryKey: ['quotation-approval-actions', quotationId, quoteApprovalIds.join('|')],
+    queryFn: async () => {
+      if (quoteApprovalIds.length === 0) return [];
+      try {
+        const { data, error } = await supabase
+          .from('approval_actions')
+          .select('id, approval_id, action, approver_id, approver_role, comments, action_at, created_at')
+          .in('approval_id', quoteApprovalIds)
+          .order('action_at', { ascending: true });
+        if (error) throw error;
+        return data || [];
+      } catch (err) {
+        console.warn('Unable to load approval actions:', err);
+        return [];
+      }
+    },
+    enabled: !!quotationId && quoteApprovalIds.length > 0,
+  });
+
+  const historyUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    const qq: any = quotation;
+    if (qq?.created_by) ids.add(qq.created_by);
+    (qq?.revision_history || []).forEach((r: any) => { if (r?.saved_by) ids.add(r.saved_by); });
+    (quoteApprovalsQuery.data || []).forEach((a: any) => { if (a.requested_by) ids.add(a.requested_by); });
+    (quoteApprovalActionsQuery.data || []).forEach((x: any) => { if (x.approver_id) ids.add(x.approver_id); });
+    return Array.from(ids);
+  }, [quotation, quoteApprovalsQuery.data, quoteApprovalActionsQuery.data]);
+
+  const userNamesQuery = useQuery({
+    queryKey: ['quotation-history-users', quotationId, historyUserIds.join('|')],
+    queryFn: async () => {
+      if (historyUserIds.length === 0) return {};
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('id, user_id, full_name, email')
+          .or(`id.in.(${historyUserIds.join(',')}),user_id.in.(${historyUserIds.join(',')})`);
+        if (error) throw error;
+        const map: Record<string, string> = {};
+        (data || []).forEach((u: any) => {
+          const label = u.full_name || (u.email ? u.email.split('@')[0] : '') || 'Unknown user';
+          if (u.id && !map[u.id]) map[u.id] = label;
+          if (u.user_id && !map[u.user_id]) map[u.user_id] = label;
+        });
+        return map;
+      } catch (err) {
+        console.warn('Unable to load history user names:', err);
+        return {};
+      }
+    },
+    enabled: !!quotationId && historyUserIds.length > 0,
+  });
+
+  const previewTpl = templates.find((t: any) => t.id === selectedTemplateId);
+  const previewOpt = previewTpl?.column_settings?.optional || {};
+  const selectedSignatory = useMemo(() => {
+    const sigs: any[] = ((organisation as any)?.signatures || []);
+    const q: any = quotation;
+    return sigs.find((s: any) => String(s.id) === String(q?.authorized_signatory_id)) || sigs[0] || null;
+  }, [organisation, quotation]);
+  const showPrev = {
+    sno: previewOpt.sno !== false,
+    hsn: previewOpt.hsn_code !== false,
+    itemCode: previewOpt.item_code !== false,
+    make: previewOpt.make !== false,
+    variant: previewOpt.variant !== false,
+    qty: previewOpt.qty !== false,
+    uom: previewOpt.uom !== false,
+    rate: previewOpt.rate !== false,
+    disc: previewOpt.discount_percent !== false,
+    netRate: previewOpt.rate_after_discount !== false,
+    tax: previewOpt.tax_percent !== false,
+    custom1: previewOpt.custom1 !== false,
+    custom2: previewOpt.custom2 !== false,
+  };
+
+  const previewColCount = () => {
+    let n = 0;
+    if (showPrev.sno) n++;
+    if (showPrev.hsn) n++;
+    if (showPrev.itemCode) n++;
+    if (showPrev.make) n++;
+    n++;
+    if (showPrev.variant) n++;
+    if (showPrev.qty) n++;
+    if (showPrev.uom) n++;
+    if (showPrev.rate) n++;
+    if (showPrev.disc) n++;
+    if (showPrev.netRate) n++;
+    if (showPrev.tax) n++;
+    if (showPrev.custom1) n++;
+    if (showPrev.custom2) n++;
+    n++;
+    return n;
+  };
+
+  const visibleItems = useMemo(() => {
+    const q = (itemFilter || '').trim().toLowerCase();
+    if (!q) return quotation?.items || [];
+    return (quotation?.items || []).filter((it: any) =>
+      !it.is_header && !it.is_subtotal &&
+      (`${it.description || ''} ${it.item?.display_name || ''} ${it.item?.item_code || ''} ${it.hsn_code || ''}`.toLowerCase().includes(q))
+    );
+  }, [quotation?.items, itemFilter]);
+
+  const historyEvents = useMemo(() => {
+    const evts: any[] = [];
+    const q: any = quotation;
+    const userNames: Record<string, string> = userNamesQuery.data || {};
+    const nameOf = (id: any) => (id && userNames[id]) || '';
+    if (q?.created_at) {
+      evts.push({
+        key: 'created',
+        at: q.created_at,
+        color: '#2563EB',
+        title: 'Quotation created',
+        by: nameOf(q.created_by),
+        desc: q.grand_total ? `Amount ${formatCurrency(q.grand_total)}` : '',
+      });
+    }
+    (q?.revision_history || []).forEach((r: any, i: number) => {
+      if (!r?.saved_at) return;
+      evts.push({
+        key: `rev-${r.revision_no ?? i}`,
+        at: r.saved_at,
+        color: '#D97706',
+        title: `Revision ${r.revision_no ?? i + 1} saved`,
+        by: r.saved_by_name || nameOf(r.saved_by),
+        desc: r.header?.grand_total ? `Total ${formatCurrency(r.header.grand_total)}` : '',
+      });
+    });
+    const approvals = quoteApprovalsQuery.data || [];
+    const actions = quoteApprovalActionsQuery.data || [];
+    const actionsByApproval: Record<string, any[]> = {};
+    actions.forEach((a: any) => {
+      if (!a?.approval_id) return;
+      (actionsByApproval[a.approval_id] = actionsByApproval[a.approval_id] || []).push(a);
+    });
+    const decisionStyle: Record<string, { label: string; color: string }> = {
+      APPROVED: { label: 'Approved', color: '#047857' },
+      REJECTED: { label: 'Rejected', color: '#B91C1C' },
+      RETURNED: { label: 'Returned for revision', color: '#B45309' },
+      HOLD: { label: 'Put on hold', color: '#6B7280' },
+      FORWARDED: { label: 'Forwarded', color: '#1D4ED8' },
+      RESUBMITTED: { label: 'Resubmitted', color: '#1D4ED8' },
+    };
+    approvals.forEach((a: any) => {
+      const requestedAt = a.requested_at || a.created_at;
+      if (requestedAt) {
+        evts.push({
+          key: `req-${a.id}`,
+          at: requestedAt,
+          color: '#7C3AED',
+          title: 'Submitted for approval',
+          by: a.requester_name || nameOf(a.requested_by),
+          desc: a.amount ? `Amount ${formatCurrency(a.amount)}` : '',
+        });
+      }
+      const acts = (actionsByApproval[a.id] || []).filter((x: any) => x.action_at || x.created_at);
+      if (acts.length > 0) {
+        acts.forEach((x: any, xi: number) => {
+          const d = decisionStyle[x.action] || { label: x.action, color: '#6B7280' };
+          evts.push({
+            key: `act-${x.id || `${a.id}-${xi}`}`,
+            at: x.action_at || x.created_at,
+            color: d.color,
+            title: d.label,
+            by: nameOf(x.approver_id),
+            desc: [x.approver_role, x.comments].filter(Boolean).join(' \u00b7 '),
+          });
+        });
+      } else if (a.status && decisionStyle[a.status]) {
+        const d = decisionStyle[a.status];
+        const at = a.reviewed_at || a.updated_at;
+        if (at) evts.push({ key: `dec-${a.id}`, at, color: d.color, title: d.label, desc: '' });
+      }
+    });
+    return evts
+      .filter((e) => e.at && !isNaN(new Date(e.at).getTime()))
+      .sort((x, y) => new Date(x.at).getTime() - new Date(y.at).getTime());
+  }, [quotation, quoteApprovalsQuery.data, quoteApprovalActionsQuery.data, userNamesQuery.data]);
+
+  const visibleQuotations = useMemo(() => {
+    const s = listSearch.trim().toLowerCase();
+    const filtered = quotations.filter((q: any) => {
+      if (listStatusTab !== 'All' && q.status !== LIST_TAB_STATUS[listStatusTab]) return false;
+      if (!s) return true;
+      const client = (q.client?.client_name || '').toLowerCase();
+      return client.includes(s) || (q.quotation_no || '').toLowerCase().includes(s);
+    });
+    return [...filtered].sort((a: any, b: any) => {
+      const da = new Date(a.date || a.created_at).getTime() || 0;
+      const db = new Date(b.date || b.created_at).getTime() || 0;
+      return listSortAsc ? da - db : db - da;
+    });
+  }, [quotations, listSearch, listStatusTab, listSortAsc]);
+
   useEffect(() => {
     if (quotation?.template_id) {
       setSelectedTemplateId(quotation.template_id);
@@ -248,7 +516,7 @@ export default function QuotationView() {
         throw new Error('No template found. Please set up a template.');
       }
 
-      console.log('📄 Embed mode generating PDF with template:', template.template_name);
+      console.log('PDF Embed mode generating PDF with template:', template.template_name);
       const blob = await downloadPDF(template, 'blob');
       if (blob instanceof Blob) {
         const url = URL.createObjectURL(blob);
@@ -354,6 +622,29 @@ export default function QuotationView() {
     }
   };
 
+  const handleSubmitForApproval = async () => {
+    if (!quotationId || !organisation?.id || !quotation) return;
+    if (!window.confirm(`Submit ${quotation.quotation_no} for MD / manager approval?`)) return;
+    try {
+      const res = await ApprovalIntegration.createQuotationApproval(
+        quotationId,
+        quotation.client?.client_name || quotation.client?.name || 'Client',
+        quotation.quotation_no,
+        Number(quotation.grand_total) || 0
+      );
+      if (res.approvalId) {
+        alert('Submitted for approval successfully!');
+        quotationQuery.refetch();
+        quotationsQuery.refetch();
+      } else {
+        alert(res.error || 'No approval required for this quotation.');
+      }
+    } catch (err: any) {
+      console.error('Error submitting for approval:', err);
+      alert('Error submitting for approval: ' + (err?.message || err));
+    }
+  };
+
   const handleDeleteQuotation = async () => {
     if (!confirm('Are you sure you want to delete this quotation? This cannot be undone.')) return;
 
@@ -379,7 +670,6 @@ export default function QuotationView() {
         .eq('id', quotationId);
 
       setSelectedTemplateId(templateId);
-      setShowTemplateMenu(false);
       quotationQuery.refetch();
     } catch (err) {
       console.error('Error selecting template:', err);
@@ -388,7 +678,7 @@ export default function QuotationView() {
   };
 
   // Informational availability: batched read-only stock check per quotation line.
-  // Deliberately writes NOTHING — quotations are offers, not demand. Reservations
+  // Deliberately writes NOTHING - quotations are offers, not demand. Reservations
   // and MRP apply only after conversion to a Sales Order (see docs/GLOSSARY.md).
   const availabilityBadge = (status: string) => {
     const map: Record<string, { bg: string; color: string; label: string }> = {
@@ -406,7 +696,7 @@ export default function QuotationView() {
   };
 
   const handleOpenAvailability = async () => {
-    setShowActionsMenu(false);
+    setShowHeaderMenu(false);
     setShowAvailability(true);
     setAvailabilityLoading(true);
     try {
@@ -421,8 +711,8 @@ export default function QuotationView() {
           timedSupabaseQuery(
             supabase
               .from('item_stock')
-              .select('material_id, qty, warehouse_id, warehouse:warehouses(name)')
-              .in('material_id', materialIds as any),
+              .select('item_id, current_stock, warehouse_id, warehouse:warehouses(name, warehouse_name)')
+              .in('item_id', materialIds as any),
             'Quotation availability stock',
           ),
           timedSupabaseQuery(
@@ -434,9 +724,9 @@ export default function QuotationView() {
           ),
         ]);
         ((stockRes as any) || []).forEach((s: any) => {
-          const list = stockByMaterial.get(s.material_id) || [];
+          const list = stockByMaterial.get(s.item_id) || [];
           list.push(s);
-          stockByMaterial.set(s.material_id, list);
+          stockByMaterial.set(s.item_id, list);
         });
         ((resRes as any) || []).forEach((r: any) => {
           const key = `${r.item_id}::${r.warehouse_id}`;
@@ -457,11 +747,12 @@ export default function QuotationView() {
 
         const warehouses = (stockByMaterial.get(materialId) || []).map((s: any) => {
           const reserved = reservedByMaterialWarehouse.get(`${materialId}::${s.warehouse_id}`) || 0;
+          const currentStock = parseFloat(s.current_stock) || 0;
           return {
-            warehouse_name: s.warehouse?.name || 'Unknown Store',
-            stock: parseFloat(s.qty) || 0,
+            warehouse_name: s.warehouse?.name || s.warehouse?.warehouse_name || 'Main Warehouse',
+            stock: currentStock,
             reserved,
-            available: Math.max(0, (parseFloat(s.qty) || 0) - reserved),
+            available: Math.max(0, currentStock - reserved),
           };
         });
         const available = warehouses.reduce((acc: number, w: any) => acc + w.available, 0);
@@ -488,7 +779,7 @@ export default function QuotationView() {
         .from('procurement_lists')
         .insert({
           organisation_id: organisation?.id,
-          title: `${quotation.quotation_no || 'Quotation'} — Stock Check`,
+          title: `${quotation.quotation_no || 'Quotation'} \u2014 Stock Check`,
           source: 'quotation',
           quotation_id: quotation.id || null,
           quotation_no: quotation.quotation_no || null,
@@ -534,7 +825,7 @@ export default function QuotationView() {
       }
 
       setShowStockCheckModal(false);
-      setShowActionsMenu(false);
+      setShowHeaderMenu(false);
       navigate(`/procurement/detail?id=${listData.id}`);
     } catch (e: any) {
       alert('Error launching stock check: ' + e.message);
@@ -546,7 +837,7 @@ export default function QuotationView() {
   const handlePrintAction = async (action, templateId = null) => {
     try {
       setPrintLoading(true);
-      setShowPrintMenu(false);
+      setShowHeaderMenu(false);
       let template = null;
       console.log('handlePrintAction called with:', { action, templateId, quotationId });
 
@@ -600,7 +891,7 @@ export default function QuotationView() {
         await downloadPDF(template, 'print');
       }
 
-      setShowPrintMenu(false);
+      setShowHeaderMenu(false);
     } catch (err) {
       console.error('Error preparing print action:', err);
       alert('Unable to load print template. Please verify template settings.');
@@ -1705,56 +1996,90 @@ export default function QuotationView() {
     <>
     <ResizablePanelGroup direction="horizontal" autoSaveId="quotation-split" className="flex h-[calc(100vh-48px)] bg-zinc-100 overflow-hidden">
       {/* Sidebar List (300px) */}
-      <ResizablePanel defaultSize={22} minSize={16} maxSize={38} className="flex flex-col bg-white shadow-sm">
-        <div className="py-5 px-6 border-b border-zinc-100 bg-zinc-50/50 flex justify-between items-center">
-          <h2 className="text-sm font-bold text-zinc-700">All Quotes</h2>
-          <button 
-            onClick={() => navigate('/quotation/create')}
-            className="p-1.5 bg-sky-500 text-white rounded hover:bg-sky-600 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
+      <ResizablePanel defaultSize={32} minSize={26} maxSize={42} className="flex flex-col bg-white border-r border-[#EEF0F3]">
+        <div className="px-4 pt-4 pb-3 border-b border-[#EEF0F3]">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-baseline gap-2 min-w-0">
+              <h2 className="text-[21px] font-semibold text-zinc-900 leading-none">Quotations</h2>
+              <span className="text-xs text-zinc-400 whitespace-nowrap">{quotations.length} {quotations.length === 1 ? 'quotation' : 'quotations'}</span>
+            </div>
+            <button
+              onClick={() => navigate('/quotation/create')}
+              className="h-8 px-3 rounded-md bg-[#2563EB] text-white text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors whitespace-nowrap"
+            >
+              + New
+            </button>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+            <input
+              value={listSearch}
+              onChange={(e) => setListSearch(e.target.value)}
+              placeholder="Search quotations..."
+              className="w-full h-9 pl-9 pr-3 text-[13px] text-zinc-900 rounded-lg border border-[#E5E7EB] placeholder:text-zinc-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-5 px-4 border-b border-[#EEF0F3]">
+          {LIST_TABS.map((tab) => {
+            const active = listStatusTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => setListStatusTab(tab)}
+                className={`py-1.5 text-[13px] border-b-2 -mb-px transition-colors ${active ? 'text-[#2563EB] font-medium border-[#2563EB]' : 'text-zinc-500 border-transparent hover:text-zinc-800'}`}
+              >
+                {tab} <span className={active ? '' : 'text-zinc-400'}>{listStatusCounts[tab] ?? 0}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-between px-4" style={{ height: 32 }}>
+          <button onClick={() => setListSortAsc((v) => !v)} className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-600 transition-colors">
+            {listSortAsc ? 'Oldest first' : 'Newest first'}
+            <ChevronDown className="w-3 h-3" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto">
           {quotationsQuery.isPending ? (
-            <div className="p-8 text-center text-zinc-400 text-sm italic">Loading quotes...</div>
-          ) : quotations.length === 0 ? (
-            <div className="p-8 text-center text-zinc-400 text-sm italic">No quotations found</div>
+            <div className="p-8 text-center text-zinc-400 text-sm">Loading quotes...</div>
+          ) : visibleQuotations.length === 0 ? (
+            <div className="p-8 text-center text-zinc-400 text-sm">{quotations.length === 0 ? 'No quotations found' : 'No quotations match'}</div>
           ) : (
-            <div className="divide-y divide-zinc-100">
-              {quotations.map((q) => (
-                <div 
-                  key={q.id}
-                  onClick={() => navigate(`/quotation/view?id=${q.id}`)}
-                  className={`px-4 cursor-pointer transition-colors hover:bg-sky-50/30 ${quotationId === q.id ? 'bg-sky-100' : 'bg-white'}`}
-                  style={{ paddingTop: '14px', paddingBottom: '14px' }}
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-[13px] font-bold text-zinc-900 truncate pr-2" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
-                      {q.client?.client_name || 'Walk-in Client'}
-                    </span>
-                    <span className="text-[12px] font-bold text-zinc-900" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
-                      {formatCurrency(q.grand_total)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center mt-1 gap-4">
-                    <div className="text-[11px] font-inter flex items-center" style={{ paddingLeft: '10px', paddingRight: '10px', marginLeft: '1px', gap: '5px' }}>
-                      <span className="text-zinc-700 font-medium">{q.quotation_no}</span>
-                      <span className="text-zinc-300">•</span>
-                      <span className="text-blue-500">{formatDate(q.date)}</span>
+            <div>
+              {visibleQuotations.map((q) => {
+                const selected = quotationId === q.id;
+                const st = LIST_STATUS_STYLE[q.status] || LIST_STATUS_STYLE.Draft;
+                return (
+                  <div
+                    key={q.id}
+                    onClick={() => navigate(`/quotation/view?id=${q.id}`)}
+                    className="px-4 cursor-pointer border-b border-[#EEF0F3] hover:bg-[#F8FAFC]"
+                    style={{
+                      minHeight: 70,
+                      paddingTop: 12,
+                      paddingBottom: 12,
+                      background: selected ? '#F0F7FF' : undefined,
+                      boxShadow: selected ? 'inset 0 0 0 1px #BFDBFE' : undefined,
+                    }}
+                  >
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-sm font-semibold text-zinc-900 truncate">{q.client?.client_name || 'Walk-in Client'}</span>
+                      <span className="text-sm font-semibold text-zinc-900 tabular-nums whitespace-nowrap">{formatCurrency(q.grand_total)}</span>
                     </div>
-                    <span 
-                      className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
-                      style={{ 
-                        backgroundColor: q.status === 'Approved' ? '#d1fae5' : q.status === 'Draft' ? '#f3f4f6' : '#fff7ed',
-                        color: q.status === 'Approved' ? '#047857' : q.status === 'Draft' ? '#6b7280' : '#c2410c'
-                      }}
-                    >
-                      {q.status}
-                    </span>
+                    <div className="flex items-center justify-between gap-3 mt-0.5">
+                      <div className="flex items-center gap-1.5 min-w-0 text-xs">
+                        <span className="font-medium text-zinc-600 whitespace-nowrap">{q.quotation_no}</span>
+                        <span className="text-zinc-300">&middot;</span>
+                        <span className="text-zinc-400 whitespace-nowrap">{formatDate(q.date)}</span>
+                      </div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap" style={{ backgroundColor: st.bg, color: st.color }}>
+                        {q.status}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -1762,423 +2087,473 @@ export default function QuotationView() {
       <ResizableHandle withHandle />
 
       {/* Main Content (70%) */}
-      <ResizablePanel defaultSize={78} className="bg-zinc-50 overflow-y-auto">
-        <div className="max-w-5xl mx-auto py-12 px-8 sm:px-12 lg:px-16">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold text-zinc-900">{quotation.quotation_no}</h1>
-              <span 
-                className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border"
-                style={{ 
-                  backgroundColor: quotation.status === 'Approved' ? '#d1fae5' : '#f3f4f6',
-                  color: quotation.status === 'Approved' ? '#047857' : '#6b7280',
-                  borderColor: quotation.status === 'Approved' ? '#10b981' : '#e5e7eb'
-                }}
-              >
-                {quotation.status}
-              </span>
+      <ResizablePanel defaultSize={78} className="bg-zinc-50">
+        <div className="h-full overflow-auto">
+          <div className="max-w-5xl mx-auto pt-6 pb-12 px-4 sm:px-6 lg:px-8">
+          <div className="bg-white border border-[#E5E7EB] rounded-xl px-5 pt-4 pb-0 mb-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-semibold text-zinc-900 whitespace-nowrap">{quotation.quotation_no}</h1>
+                {quotation.revision_no && quotation.revision_no > 1 ? (
+                  <span className="text-xs font-semibold text-amber-800 bg-amber-100 border border-amber-200/80 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
+                    (Rev {String(quotation.revision_no).padStart(2, '0')})
+                  </span>
+                ) : null}
+                <span
+                  className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap shrink-0"
+                  style={{
+                    backgroundColor: (LIST_STATUS_STYLE[quotation.status] || LIST_STATUS_STYLE.Draft).bg,
+                    color: (LIST_STATUS_STYLE[quotation.status] || LIST_STATUS_STYLE.Draft).color
+                  }}
+                >
+                  {quotation.status}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <button 
-                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none"
-                onClick={() => handlePrintAction('download')}
-              >
-                <Printer className="w-[14px] h-[14px]" />
-                Print
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-[20px] mb-6 px-8 border-t border-zinc-200" style={{ paddingTop: '16px', paddingBottom: '16px' }}>
-            {isEditable && (
-              <button className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold" onClick={handleEdit}>
-                <Edit className="w-[14px] h-[14px]" />
-                Edit
-              </button>
-            )}
-            {canApprove && (
-              <button className="inline-flex items-center gap-2 px-3 py-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-all text-[13px] font-semibold" onClick={() => handleApprovalAction('APPROVED')}>
-                <CheckCircle className="w-[14px] h-[14px]" />
-                Approve
-              </button>
-            )}
-            <button className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold" onClick={handleDuplicate}>
-              <Copy className="w-[14px] h-[14px]" />
-              Duplicate
-            </button>
-
-            <div className="relative">
-              <button 
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold" 
-                onClick={() => { setShowConvertMenu(!showConvertMenu); setShowPrintMenu(false); setShowTemplateMenu(false); setShowActionsMenu(false); }}
-              >
-                <FileText className="w-[14px] h-[14px]" />
-                Convert
-                <ChevronDown className={`w-[14px] h-[14px] transition-transform ${showConvertMenu ? 'rotate-180' : ''}`} />
-              </button>
-
-              {showConvertMenu && (
-                <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-zinc-200 shadow-xl p-1">
-                  <button onClick={() => handleConvert('proforma-invoice')} className="block w-full text-left px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-sky-50">Proforma Invoice</button>
-                  <button onClick={() => handleConvert('invoice')} className="block w-full text-left px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-sky-50">Tax Invoice</button>
-                </div>
+            <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
+              {['Draft', 'Sent', 'Rejected', 'Under Negotiation'].includes(quotation?.status) && (
+                <button
+                  onClick={handleSubmitForApproval}
+                  className="inline-flex items-center gap-1 h-8 px-2 rounded-md border border-[#E5E7EB] text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+                >
+                  <Send className="w-[14px] h-[14px]" />
+                  Submit for Approval
+                </button>
               )}
-            </div>
-
-            <div className="relative">
-              <button 
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold" 
-                onClick={() => { 
-                  setShowPrintMenu(!showPrintMenu); 
-                  setShowConvertMenu(false); 
-                  setShowTemplateMenu(false);
-                  setShowActionsMenu(false);
-                }}
+              {canApprove && (
+                <button
+                  onClick={() => handleApprovalAction('APPROVED')}
+                  className="inline-flex items-center gap-1 h-8 px-2 rounded-md bg-emerald-600 text-white text-[13px] font-semibold hover:bg-emerald-700 transition-colors"
+                >
+                  <CheckCircle className="w-[14px] h-[14px]" />
+                  Approve
+                </button>
+              )}
+              {isEditable && (
+                <button
+                  onClick={handleEdit}
+                  className="inline-flex items-center gap-1 h-8 px-2 rounded-md border border-[#E5E7EB] text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+                >
+                  <Edit className="w-[14px] h-[14px]" />
+                  Edit
+                </button>
+              )}
+              <button
+                onClick={() => handlePrintAction('download')}
                 disabled={printLoading}
+                className="inline-flex items-center gap-1 h-8 px-2 rounded-md border border-[#E5E7EB] text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 transition-colors disabled:opacity-50"
               >
                 {printLoading ? (
                   <Loader2 className="w-[14px] h-[14px] animate-spin" />
                 ) : (
                   <Printer className="w-[14px] h-[14px]" />
                 )}
-                Print ({getSelectedTemplateName()})
-                <ChevronDown className={`w-[14px] h-[14px] transition-transform ${showPrintMenu ? 'rotate-180' : ''}`} />
+                Print
               </button>
-
-              {showPrintMenu && (
-                <div ref={printMenuRef} className="absolute left-0 top-full mt-1 z-50 min-w-[240px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
-                  {printMenuView === 'main' ? (
-                    <>
-                      <button 
-                        onClick={() => handlePrintAction('preview')}
-                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
-                        style={{ padding: '12px' }}
+              <div className="relative">
+                <button
+                  onClick={() => { setShowConvertMenu((v) => !v); setShowHeaderMenu(false); setShowTemplateSelect(false); }}
+                  className="inline-flex items-center gap-1 h-8 px-2 rounded-md border border-[#E5E7EB] text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+                >
+                  <FileText className="w-[14px] h-[14px]" />
+                  Convert
+                  <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${showConvertMenu ? 'rotate-180' : ''}`} />
+                </button>
+                {showConvertMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowConvertMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-zinc-200 rounded-md shadow-lg p-1">
+                      <button onClick={() => { setShowConvertMenu(false); handleConvert('proforma-invoice'); }} className="block w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors">Proforma Invoice</button>
+                      <button onClick={() => { setShowConvertMenu(false); handleConvert('invoice'); }} className="block w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors">Tax Invoice</button>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="relative">
+                <button
+                  onClick={() => { setShowHeaderMenu((v) => !v); setShowTemplateSelect(false); setShowConvertMenu(false); }}
+                  title="More actions"
+                  className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-[#E5E7EB] text-zinc-600 hover:bg-zinc-50 transition-colors"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+                {showHeaderMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowHeaderMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-50 min-w-[210px] bg-white border border-zinc-200 rounded-md shadow-lg p-1">
+                      <button
+                        onClick={() => { setShowHeaderMenu(false); handlePrintAction('preview'); }}
+                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors"
                       >
-                        <Eye className="w-4 h-4 text-sky-500" />
+                        <Eye className="w-[14px] h-[14px] text-zinc-400" />
                         Preview
                       </button>
-                      <button 
-                        onClick={() => handlePrintAction('download')}
-                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
-                        style={{ padding: '12px' }}
+                      <button
+                        onClick={() => { setShowHeaderMenu(false); handleDuplicate(); }}
+                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors"
                       >
-                        <Download className="w-4 h-4 text-sky-500" />
-                        Download PDF
+                        <Copy className="w-[14px] h-[14px] text-zinc-400" />
+                        Duplicate
+                      </button>
+                      <button
+                        onClick={() => { setShowHeaderMenu(false); setRevisionDialogOpen(true); }}
+                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors"
+                      >
+                        <RotateCcw className="w-[14px] h-[14px] text-zinc-400" />
+                        Revision History {quotation?.revision_history?.length ? `(${quotation.revision_history.length})` : ''}
+                      </button>
+                      {quotation?.revision_history?.length > 0 && (
+                        <button
+                          onClick={() => { setShowHeaderMenu(false); setShowCompareModal(true); }}
+                          className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors"
+                        >
+                          <Table2 className="w-[14px] h-[14px] text-blue-600" />
+                          Compare Revisions Grid
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setShowHeaderMenu(false); setShowDocumentSettings(true); }}
+                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors"
+                      >
+                        <Settings2 className="w-[14px] h-[14px] text-zinc-400" />
+                        Document Settings
                       </button>
                       <div className="h-px bg-zinc-100 my-1" />
-                      <button 
-                        onClick={() => setPrintMenuView('templates')}
-                        className="flex items-center justify-between w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors group"
-                        style={{ padding: '12px' }}
+                      <button
+                        onClick={() => { setShowHeaderMenu(false); handleOpenAvailability(); }}
+                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors"
                       >
-                        <div className="flex items-center gap-3">
-                          <FileText className="w-4 h-4 text-sky-500" />
-                          Choose Template
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-sky-500 transition-colors" />
+                        <PackageSearch className="w-[14px] h-[14px] text-zinc-400 shrink-0" />
+                        <span>
+                          <span className="block">Check Availability</span>
+                          <span className="block text-[10px] font-normal text-zinc-400">View live stock per line (read-only)</span>
+                        </span>
                       </button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-2 p-2 mb-1 border-b border-zinc-100">
-                        <button 
-                          onClick={() => setPrintMenuView('main')}
-                          className="p-1 hover:bg-zinc-100 rounded transition-colors"
+                      <button
+                        onClick={() => { setShowHeaderMenu(false); handleLaunchStockCheck(); }}
+                        disabled={launchingStockCheck}
+                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {launchingStockCheck ? (
+                          <Loader2 className="w-[14px] h-[14px] text-zinc-400 animate-spin" />
+                        ) : (
+                          <ClipboardList className="w-[14px] h-[14px] text-zinc-400 shrink-0" />
+                        )}
+                        <span>
+                          <span className="block">Stock Check</span>
+                          <span className="block text-[10px] font-normal text-zinc-400">Create procurement tracker</span>
+                        </span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setShowHeaderMenu(false);
+                          setLaunchingRevision(true);
+                          try {
+                            if (organisation?.id && quotationId) {
+                              await initiateQuotationRevision(organisation.id, quotationId);
+                            }
+                          } finally {
+                            setLaunchingRevision(false);
+                          }
+                        }}
+                        disabled={launchingRevision}
+                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {launchingRevision ? (
+                          <Loader2 className="w-[14px] h-[14px] text-zinc-400 animate-spin" />
+                        ) : (
+                          <FileEdit className="w-[14px] h-[14px] text-zinc-400 shrink-0" />
+                        )}
+                        <span>
+                          <span className="block">Request Revision</span>
+                          <span className="block text-[10px] font-normal text-zinc-400">Flag for quotation revision</span>
+                        </span>
+                      </button>
+                      {(isCancellable || isDeletable) && (
+                        <div className="h-px bg-zinc-100 my-1" />
+                      )}
+                      {isCancellable && (
+                        <button
+                          onClick={() => { setShowHeaderMenu(false); handleCancel(); }}
+                          className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-red-600 hover:bg-red-50 rounded transition-colors"
                         >
-                          <ChevronLeft className="w-4 h-4 text-zinc-500" />
+                          <XCircle className="w-[14px] h-[14px]" />
+                          Cancel
                         </button>
-                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Select Template</span>
-                      </div>
-                      <div className="max-h-[300px] overflow-y-auto">
-                        {templates.map(t => (
-                          <button 
-                            key={t.id} 
-                            onClick={() => {
-                              handleSelectTemplate(t.id);
-                              setPrintMenuView('main');
-                            }} 
-                            className={`block w-full text-left text-xs font-bold transition-colors ${selectedTemplateId === t.id ? 'bg-sky-50 text-sky-600' : 'text-zinc-700 hover:bg-sky-50/50'}`}
-                            style={{ padding: '10px 12px' }}
-                          >
-                            {t.template_name}
-                            {t.is_default && <span className="ml-2 text-[10px] text-zinc-400 font-normal italic">(Default)</span>}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+                      )}
+                      {isDeletable && (
+                        <button
+                          onClick={() => { setShowHeaderMenu(false); handleDelete(); }}
+                          className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-red-600 hover:bg-red-50 rounded transition-colors"
+                        >
+                          <Trash2 className="w-[14px] h-[14px]" />
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-
-            <button 
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold" 
-              onClick={() => { 
-                setShowDocumentSettings(true); 
-                setShowPrintMenu(false); 
-                setShowConvertMenu(false);
-                setShowTemplateMenu(false);
-                setShowActionsMenu(false);
-              }}
-            >
-              <Settings2 className="w-[14px] h-[14px]" />
-              Document Settings
-            </button>
-
-            <div className="relative">
-              <button 
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-all text-[13px] font-semibold" 
-                onClick={() => { 
-                  setShowActionsMenu(!showActionsMenu); 
-                  setShowPrintMenu(false); 
-                  setShowConvertMenu(false);
-                  setShowTemplateMenu(false);
-                }}
-              >
-                <MoreHorizontal className="w-[14px] h-[14px]" />
-              </button>
-
-              {showActionsMenu && (
-                <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
-                  <button
-                    onClick={() => {
-                      setShowActionsMenu(false);
-                      handleOpenAvailability();
-                    }}
-                    className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors"
-                    style={{ padding: '12px' }}
-                  >
-                    <span className="text-base">📊</span>
-                    <div>
-                      <div>Check Availability</div>
-                      <div className="text-[10px] font-normal text-zinc-400">View live stock per line (read-only)</div>
-                    </div>
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setShowActionsMenu(false);
-                      handleLaunchStockCheck();
-                    }}
-                    disabled={launchingStockCheck}
-                    className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ padding: '12px' }}
-                  >
-                    {launchingStockCheck ? (
-                      <Loader2 className="w-4 h-4 text-sky-500 animate-spin" />
-                    ) : (
-                      <span className="text-base">📦</span>
-                    )}
-                    <div>
-                      <div>Stock Check</div>
-                      <div className="text-[10px] font-normal text-zinc-400">Create procurement tracker</div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setShowActionsMenu(false);
-                      setLaunchingRevision(true);
-                      try {
-                        if (organisation?.id && quotationId) {
-                          await initiateQuotationRevision(
-                            organisation.id,
-                            quotationId
-                          );
-                        }
-                      } finally {
-                        setLaunchingRevision(false);
-                      }
-                    }}
-                    disabled={launchingRevision}
-                    className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ padding: '12px' }}
-                  >
-                    {launchingRevision ? (
-                      <Loader2 className="w-4 h-4 text-amber-500 animate-spin" />
-                    ) : (
-                      <span className="text-base">📋</span>
-                    )}
-                    <div>
-                      <div>Request Revision</div>
-                      <div className="text-[10px] font-normal text-zinc-400">Flag for quotation revision</div>
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {isCancellable && (
-              <button className="inline-flex items-center gap-2 px-3 py-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all text-[13px] font-semibold" onClick={handleCancel}>
-                <XCircle className="w-[14px] h-[14px]" />
-                Cancel
-              </button>
-            )}
-            
-            {isDeletable && (
-              <button className="inline-flex items-center gap-2 px-3 py-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-all text-[13px] font-semibold" onClick={handleDelete}>
-                <Trash2 className="w-[14px] h-[14px]" />
-                Delete
-              </button>
-            )}
           </div>
 
-          <div className="space-y-6 bg-white border border-zinc-200 shadow-2xl min-h-[1120px] mb-12 rounded-none" style={{ padding: '14px' }}>
-            <div className="border-b border-zinc-100 pb-10">
-              <div className="grid grid-cols-4 gap-x-8 mb-3">
-                <h3 className="text-[11px] font-bold text-blue-600 uppercase tracking-[0.08em]">Document</h3>
-                <h3 className="text-[11px] font-bold text-blue-600 uppercase tracking-[0.08em]">Terms</h3>
-                <h3 className="text-[11px] font-bold text-blue-600 uppercase tracking-[0.08em]">Client</h3>
-                <h3 className="text-[11px] font-bold text-blue-600 uppercase tracking-[0.08em]">Project & Shipping</h3>
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-5">
+              {[
+                { key: 'Preview', icon: Eye, count: null },
+                { key: 'History', icon: History, count: historyEvents.length },
+                { key: 'Attachments', icon: Paperclip, count: 0 },
+              ].map((tab: any) => {
+                const active = previewTab === tab.key;
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setPreviewTab(tab.key)}
+                    className={`flex items-center gap-1.5 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${active ? 'text-[#2563EB] border-[#2563EB]' : 'text-zinc-500 border-transparent hover:text-zinc-800'}`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {tab.key}
+                    {tab.count !== null && tab.count !== undefined ? (
+                      <span className={`rounded-full px-1.5 py-px text-[10px] font-bold ${active ? 'bg-[#EFF6FF] text-[#2563EB]' : 'bg-zinc-100 text-zinc-500'}`}>{tab.count}</span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="relative">
+              <button
+                onClick={() => { setShowTemplateSelect((v) => !v); setShowHeaderMenu(false); setShowConvertMenu(false); }}
+                className="inline-flex items-center gap-1.5 h-8 px-3 mb-1 rounded-md border border-[#E5E7EB] text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+              >
+                {getSelectedTemplateName()}
+                <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+              </button>
+              {showTemplateSelect && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowTemplateSelect(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 min-w-[210px] max-h-[300px] overflow-y-auto bg-white border border-zinc-200 rounded-md shadow-lg p-1">
+                    {templates.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => { handleSelectTemplate(t.id); setShowTemplateSelect(false); }}
+                        className={`block w-full text-left px-2.5 py-2 text-[13px] rounded transition-colors ${selectedTemplateId === t.id ? 'bg-[#EFF6FF] text-[#2563EB] font-medium' : 'text-zinc-700 hover:bg-zinc-50'}`}
+                      >
+                        {t.template_name}
+                        {t.is_default && <span className="ml-2 text-[11px] text-zinc-400 font-normal italic">(Default)</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          </div>
+
+          {previewTab === 'History' && (
+            <div className="py-6 max-w-2xl">
+              {historyEvents.length === 0 ? (
+                <div className="py-16 text-center">
+                  <div className="text-sm font-medium text-zinc-500">No history yet</div>
+                  <div className="mt-1 text-[13px] text-zinc-400">Events for this quotation will appear here.</div>
+                </div>
+              ) : (
+                <div className="relative pl-6">
+                  <div className="absolute top-2 bottom-2 w-px bg-[#E5E7EB]" style={{ left: 5 }} />
+                  <div className="space-y-4">
+                    {historyEvents.map((ev: any) => (
+                      <div key={ev.key} className="relative">
+                        <span className="absolute rounded-full bg-white" style={{ width: 11, height: 11, left: -24, top: 5, border: `3px solid ${ev.color}` }} />
+                        <div className="bg-white border border-[#EEF0F3] rounded-lg px-3.5 py-2.5">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[13px] font-semibold text-zinc-900">{ev.title}</span>
+                            <span className="text-[11px] text-zinc-400 whitespace-nowrap">{formatDateTime(ev.at)}</span>
+                          </div>
+                          {ev.by ? <div className="mt-0.5 text-xs text-zinc-500">by {ev.by}</div> : null}
+                          {ev.desc ? <div className="mt-0.5 text-xs text-zinc-500">{ev.desc}</div> : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {previewTab === 'Attachments' && (
+            <div className="py-16 text-center">
+              <div className="text-sm font-medium text-zinc-500">No attachments</div>
+              <div className="mt-1 text-[13px] text-zinc-400">Files attached to this quotation will appear here.</div>
+            </div>
+          )}
+          <div style={{ display: previewTab === 'Preview' ? undefined : 'none' }}>
+          <div className="space-y-4 mb-12">
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+              <div className="bg-white border border-[#E5E7EB] rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Building2 className="w-3.5 h-3.5 text-[#2563EB]" />
+                  <h3 className="text-[11px] font-bold text-[#2563EB] uppercase tracking-[0.08em]">Client</h3>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[13px] font-semibold text-zinc-900 truncate" title={quotation.client?.client_name || quotation.client?.name || '-'}>{quotation.client?.client_name || quotation.client?.name || '-'}</div>
+                  <div className="text-[12px] text-zinc-500 truncate">{quotation.contact_no || quotation.client?.phone || '-'}</div>
+                  <div className="text-[12px] text-zinc-500 truncate" title={quotation.gstin || quotation.client?.gstin || '-'}>GST: {quotation.gstin || quotation.client?.gstin || '-'}</div>
+                  <div className="text-[12px] text-zinc-500 truncate">{quotation.state || quotation.client?.state || '-'}</div>
+                </div>
               </div>
-              <div className="border-t border-blue-200 mb-6"></div>
-              <div className="grid grid-cols-4 gap-x-8">
-                <div className="space-y-3">
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">Quotation No</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.quotation_no || '-'}</dd>
+              <div className="bg-white border border-[#E5E7EB] rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="w-3.5 h-3.5 text-[#2563EB]" />
+                  <h3 className="text-[11px] font-bold text-[#2563EB] uppercase tracking-[0.08em]">Document</h3>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="text-[11px] text-zinc-400 shrink-0">Quotation No</dt>
+                    <dd className="text-[12px] font-semibold text-zinc-900 text-right truncate" title={quotation.quotation_no || '-'}>{quotation.quotation_no || '-'}</dd>
                   </div>
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">Date</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{formatDate(quotation.date)}</dd>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="text-[11px] text-zinc-400 shrink-0">Date</dt>
+                    <dd className="text-[12px] font-semibold text-zinc-900 text-right truncate">{formatDate(quotation.date)}</dd>
                   </div>
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">Valid Till</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{formatDate(quotation.valid_till)}</dd>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="text-[11px] text-zinc-400 shrink-0">Valid Till</dt>
+                    <dd className="text-[12px] font-semibold text-zinc-900 text-right truncate">{formatDate(quotation.valid_till)}</dd>
                   </div>
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">Revision No</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.revision_no || '00'}</dd>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="text-[11px] text-zinc-400 shrink-0">Revision No</dt>
+                    <dd className="flex items-center justify-end gap-2 min-w-0">
+                      <span className="text-[12px] font-semibold text-zinc-900">{quotation.revision_no ? `Rev ${String(quotation.revision_no).padStart(2, '0')}` : '01'}</span>
+                    </dd>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">Payment Terms</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.payment_terms || '-'}</dd>
+              </div>
+              <div className="bg-white border border-[#E5E7EB] rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <ScrollText className="w-3.5 h-3.5 text-[#2563EB]" />
+                  <h3 className="text-[11px] font-bold text-[#2563EB] uppercase tracking-[0.08em]">Terms</h3>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="text-[11px] text-zinc-400 shrink-0">Payment Terms</dt>
+                    <dd className="text-[12px] font-semibold text-zinc-900 text-right truncate" title={quotation.payment_terms || '-'}>{quotation.payment_terms || '-'}</dd>
                   </div>
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">Reference</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.reference || '-'}</dd>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="text-[11px] text-zinc-400 shrink-0">Reference</dt>
+                    <dd className="text-[12px] font-semibold text-zinc-900 text-right truncate" title={quotation.reference || '-'}>{quotation.reference || '-'}</dd>
                   </div>
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">Prepared By</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.prepared_by || '-'}</dd>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="text-[11px] text-zinc-400 shrink-0">Prepared By</dt>
+                    <dd className="text-[12px] font-semibold text-zinc-900 text-right truncate" title={quotation.prepared_by || '-'}>{quotation.prepared_by || '-'}</dd>
                   </div>
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">Remarks</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5 truncate max-w-[200px]" title={quotation.remarks || quotation.reference || '-'}>{quotation.remarks || quotation.reference || '-'}</dd>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="text-[11px] text-zinc-400 shrink-0">Remarks</dt>
+                    <dd className="text-[12px] font-semibold text-zinc-900 text-right truncate" title={quotation.remarks || quotation.reference || '-'}>{quotation.remarks || quotation.reference || '-'}</dd>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">Name</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.client?.client_name || quotation.client?.name || '-'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">Contact No</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.contact_no || quotation.client?.phone || '-'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">GSTIN</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.gstin || quotation.client?.gstin || '-'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">State</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.state || quotation.client?.state || '-'}</dd>
-                  </div>
+              </div>
+              <div className="bg-white border border-[#E5E7EB] rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Truck className="w-3.5 h-3.5 text-[#2563EB]" />
+                  <h3 className="text-[11px] font-bold text-[#2563EB] uppercase tracking-[0.08em]">Project & Shipping</h3>
                 </div>
-                <div className="space-y-3">
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">Project</dt>
-                    <dd className="text-[13px] font-bold text-zinc-900 mt-0.5">{quotation.project?.project_name || '-'}</dd>
+                <div className="space-y-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="text-[11px] text-zinc-400 shrink-0">Project</dt>
+                    <dd className="text-[12px] font-semibold text-zinc-900 text-right truncate" title={quotation.project?.project_name || '-'}>{quotation.project?.project_name || '-'}</dd>
                   </div>
-                  <div>
-                    <dt className="text-[11px] text-zinc-400">Billing Address</dt>
-                    <dd className="text-[13px] text-zinc-600 mt-0.5 leading-snug line-clamp-2">{quotation.billing_address || '-'}</dd>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="text-[11px] text-zinc-400 shrink-0">Billing Address</dt>
+                    <dd className="text-[12px] font-semibold text-zinc-600 text-right truncate" title={quotation.billing_address || '-'}>{quotation.billing_address || '-'}</dd>
                   </div>
                   {quotation.shipping_address && quotation.shipping_address !== quotation.billing_address && (
-                    <div>
-                      <dt className="text-[11px] text-zinc-400">Shipping Address</dt>
-                      <dd className="text-[13px] text-zinc-600 mt-0.5 leading-snug line-clamp-2">{quotation.shipping_address}</dd>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <dt className="text-[11px] text-zinc-400 shrink-0">Shipping Address</dt>
+                      <dd className="text-[12px] font-semibold text-zinc-600 text-right truncate" title={quotation.shipping_address}>{quotation.shipping_address}</dd>
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            <div>
-              <h3 className="text-lg font-bold text-zinc-900 mb-6">Line Items</h3>
+            <div className="bg-white border border-[#E5E7EB] rounded-xl p-5">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-zinc-900">Line Items</h3>
+                  <span className="rounded-full bg-[#EFF6FF] px-2 py-0.5 text-[11px] font-bold text-[#2563EB]">{(quotation.items || []).filter((i: any) => !i.is_header && !i.is_subtotal).length} Items</span>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                  <input
+                    value={itemFilter}
+                    onChange={(e) => setItemFilter(e.target.value)}
+                    placeholder="Filter items..."
+                    className="h-8 w-44 pl-8 pr-2 text-[12px] text-zinc-900 rounded-md border border-[#E5E7EB] placeholder:text-zinc-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
+                  />
+                </div>
+              </div>
               {!quotation.items || quotation.items.length === 0 ? (
                 <div className="text-center py-12 text-zinc-500">
                   <div className="text-lg font-medium mb-2">No line items found</div>
                   <div className="text-sm">This quotation may not have any items saved yet.</div>
                 </div>
+              ) : visibleItems.length === 0 ? (
+                <div className="py-10 text-center text-sm text-zinc-400">No items match this filter.</div>
               ) : (
-                <div className="overflow-x-auto -mx-12">
+                <div className="overflow-x-auto">
                   <table className="min-w-full border border-zinc-200">
                   <thead className="bg-zinc-100">
                     <tr className="border-b border-zinc-200">
                       {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.sno !== false && (
                         <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">#</span></th>
                       )}
-                      {quotation.items?.some(i => i.sac_code || i.hsn_code || i.item?.hsn_code) && (
+                      {showPrev.hsn && (
                         <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">HSN/SAC</span></th>
                       )}
-                      {quotation.items?.some(i => i.item?.item_code) && (
+                      {showPrev.itemCode && (
                         <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Part No</span></th>
                       )}
-                      {quotation.items?.some(i => i.make) && (
+                      {showPrev.make && (
                         <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Make</span></th>
                       )}
                       <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Description</span></th>
-                      {quotation.items?.some(i => i.variant_id) && (
+                      {showPrev.variant && (
                         <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Variant</span></th>
                       )}
-                      <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Qty</span></th>
-                      <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Unit</span></th>
-                      <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Rate</span></th>
+                      {showPrev.qty && (
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Qty</span></th>
+                      )}
+                      {showPrev.uom && (
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">Unit</span></th>
+                      )}
+                      {showPrev.rate && (
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Rate</span></th>
+                      )}
 
-                      {quotation.items?.some(i => i.discount_percent > 0) && (
+                      {showPrev.disc && (
                         <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Disc %</span></th>
                       )}
-                      {quotation.items?.some(i => i.tax_percent > 0) && (
+                      {showPrev.netRate && (
+                        <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Net Rate</span></th>
+                      )}
+                      {showPrev.tax && (
                         <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Tax %</span></th>
                       )}
-                      {quotation.items?.some(i => i.custom1) && (
+                      {showPrev.custom1 && (
                         <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom1 || 'Custom 1'}</span></th>
                       )}
-                      {quotation.items?.some(i => i.custom2) && (
+                      {showPrev.custom2 && (
                         <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom2 || 'Custom 2'}</span></th>
                       )}
                       <th className="border-r border-zinc-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block text-right">Total</span></th>
                     </tr>
                   </thead>
                    <tbody className="bg-white">
-                    {quotation.items?.map((item, index) => {
+                    {visibleItems.map((item: any, index: number) => {
                       const template = templates.find(t => t.id === selectedTemplateId);
                       const optCols = template?.column_settings?.optional || {};
                       
-                      const hasHSN = quotation.items?.some(i => i.sac_code || i.hsn_code || i.item?.hsn_code);
-                      const hasItemCode = quotation.items?.some(i => i.item?.item_code);
-                      const hasMake = quotation.items?.some(i => i.make);
-                      const hasVariant = quotation.items?.some(i => i.variant_id);
-                      const hasDiscount = quotation.items?.some(i => i.discount_percent > 0);
-                      const hasTax = quotation.items?.some(i => i.tax_percent > 0);
-                      const hasCustom1 = quotation.items?.some(i => i.custom1);
-                      const hasCustom2 = quotation.items?.some(i => i.custom2);
-
                       if (item.is_header) {
-                        let colCount = 0;
-                        if (optCols.sno !== false) colCount++;
-                        if (hasHSN) colCount++;
-                        if (hasItemCode) colCount++;
-                        if (hasMake) colCount++;
-                        colCount++;
-                        if (hasVariant) colCount++;
-                        colCount += 3;
-                        if (hasDiscount) colCount++;
-                        if (hasTax) colCount++;
-                        if (hasCustom1) colCount++;
-                        if (hasCustom2) colCount++;
-                        colCount++;
+                        const colCount = previewColCount();
                         return (
                           <tr key={item.id} style={{ background: '#f8fafc' }}>
                             <td colSpan={colCount} style={{ padding: '10px 14px' }}>
@@ -2195,19 +2570,7 @@ export default function QuotationView() {
                           if (prev.is_subtotal || prev.is_header) break;
                           subtotalAmount += parseFloat(prev.line_total) || 0;
                         }
-                        let colCount = 0;
-                        if (optCols.sno !== false) colCount++;
-                        if (hasHSN) colCount++;
-                        if (hasItemCode) colCount++;
-                        if (hasMake) colCount++;
-                        colCount++;
-                        if (hasVariant) colCount++;
-                        colCount += 3;
-                        if (hasDiscount) colCount++;
-                        if (hasTax) colCount++;
-                        if (hasCustom1) colCount++;
-                        if (hasCustom2) colCount++;
-                        colCount++;
+                        let colCount = previewColCount();
                         return (
                           <tr key={item.id} style={{ background: '#fef9c3', borderTop: '2px solid #eab308' }}>
                             <td colSpan={colCount} style={{ padding: '10px 14px' }}>
@@ -2222,10 +2585,10 @@ export default function QuotationView() {
 
                       return (
                         <tr key={item.id} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors align-top">
-                          {optCols.sno !== false && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-400 font-medium block">{String(index + 1).padStart(2, '0')}</span></td>}
-                          {hasHSN && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 font-mono block">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</span></td>}
-                          {hasItemCode && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.item?.item_code || '-'}</span></td>}
-                          {hasMake && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-400 italic block">{item.make || '-'}</span></td>}
+                          {showPrev.sno && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-400 font-medium block">{String(index + 1).padStart(2, '0')}</span></td>}
+                          {showPrev.hsn && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 font-mono block">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</span></td>}
+                          {showPrev.itemCode && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="inline-block rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600">{item.item?.item_code || '-'}</span></td>}
+                          {showPrev.make && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-400 italic block">{item.make || '-'}</span></td>}
                           <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}>
                             <div className="text-[12px] font-medium text-zinc-900 leading-tight">{item.item?.display_name || item.item?.name || '-'}</div>
                             {item.description && item.description !== (item.item?.display_name || item.item?.name) && (
@@ -2235,19 +2598,20 @@ export default function QuotationView() {
                               <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-100">Modified</span>
                             )}
                           </td>
-                          {hasVariant && (
+                          {showPrev.variant && (
                             <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}>
                               <span className="text-[11px] text-zinc-500 block">{allVariants.find(v => v.id === item.variant_id)?.variant_name || '-'}</span>
                             </td>
                           )}
-                          <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-900 text-right font-medium block">{item.qty}</span></td>
-                          <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-400 block">{item.uom}</span></td>
-                          <td className="border-l border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-900 text-right block">{formatCurrency(item.rate)}</span></td>
+                          {showPrev.qty && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-900 text-right font-medium block">{item.qty}</span></td>}
+                          {showPrev.uom && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-400 block">{item.uom}</span></td>}
+                          {showPrev.rate && <td className="border-l border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-900 text-right block">{formatCurrency(item.rate)}</span></td>}
 
-                          {hasDiscount && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-red-500 text-right font-medium block">{item.discount_percent}%</span></td>}
-                          {hasTax && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 text-right block">{item.tax_percent}%</span></td>}
-                          {hasCustom1 && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.custom1 || '-'}</span></td>}
-                          {hasCustom2 && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.custom2 || '-'}</span></td>}
+                          {showPrev.disc && <td style={{ padding: '14px 7px' }}><span className={`text-[10px] text-right font-medium block rounded px-1.5 py-0.5 ${parseFloat(item.discount_percent) >= 40 ? 'text-red-600 bg-red-50' : parseFloat(item.discount_percent) > 0 ? 'text-amber-600' : 'text-zinc-400'}`}>{item.discount_percent}%</span></td>}
+                          {showPrev.netRate && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-900 text-right font-semibold block">{formatCurrency(item.rate)}</span></td>}
+                          {showPrev.tax && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 text-right block">{item.tax_percent}%</span></td>}
+                          {showPrev.custom1 && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.custom1 || '-'}</span></td>}
+                          {showPrev.custom2 && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.custom2 || '-'}</span></td>}
                           <td className="bg-zinc-50" style={{ padding: '14px 7px' }}><span className="text-[11px] font-bold text-zinc-900 text-right block">{formatCurrency(item.line_total)}</span></td>
                         </tr>
                       );
@@ -2258,61 +2622,63 @@ export default function QuotationView() {
               )}
             </div>
 
-            <div className="flex justify-end pt-12 border-t border-zinc-100">
-              <div className="w-full max-w-sm space-y-4">
-                <div className="flex justify-between text-[13px] text-zinc-500">
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 mt-4">
+            <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 xl:order-2 xl:col-start-4 xl:col-span-2">
+              <div className="w-full space-y-2">
+                <div className="flex justify-between text-[12px] text-zinc-500">
                   <span>Subtotal</span>
                   <span className="font-bold text-zinc-900">{formatCurrency(quotation.subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-[13px] text-zinc-500">
+                <div className="flex justify-between text-[12px] text-zinc-500">
                   <span>Total Item Discount</span>
                   <span className="text-red-500 font-bold">- {formatCurrency(quotation.total_item_discount)}</span>
                 </div>
-                <div className="flex justify-between text-[13px] text-zinc-500">
+                <div className="flex justify-between text-[12px] text-zinc-500">
                   <span>Extra Discount ({quotation.extra_discount_percent}%)</span>
                   <span className="text-red-500 font-bold">- {formatCurrency(quotation.extra_discount_amount)}</span>
                 </div>
                 
                 {quotation.state && (organisation?.state || 'Maharashtra') && 
                 quotation.state.trim().toLowerCase() !== (organisation?.state || 'Maharashtra').trim().toLowerCase() ? (
-                  <div className="flex justify-between text-[13px] text-zinc-500">
+                  <div className="flex justify-between text-[12px] text-zinc-500">
                     <span>IGST</span>
                     <span className="font-bold text-zinc-900">{formatCurrency(quotation.total_tax)}</span>
                   </div>
                 ) : (
                   <>
-                    <div className="flex justify-between text-[13px] text-zinc-500">
+                    <div className="flex justify-between text-[12px] text-zinc-500">
                       <span>CGST</span>
                       <span className="font-bold text-zinc-900">{formatCurrency(quotation.total_tax / 2)}</span>
                     </div>
-                    <div className="flex justify-between text-[13px] text-zinc-500">
+                    <div className="flex justify-between text-[12px] text-zinc-500">
                       <span>SGST</span>
                       <span className="font-bold text-zinc-900">{formatCurrency(quotation.total_tax / 2)}</span>
                     </div>
                   </>
                 )}
 
-                <div className="flex justify-between text-[13px] text-zinc-500">
+                <div className="flex justify-between text-[12px] text-zinc-500">
                   <span>Round Off</span>
                   <span className="font-bold text-zinc-900">{formatCurrency(quotation.round_off)}</span>
                 </div>
 
-                <div className="pt-4 border-t-2 border-zinc-900 flex justify-between items-center">
-                  <span className="text-[15px] font-bold text-zinc-900 uppercase">Grand Total</span>
-                  <span className="text-2xl font-black text-zinc-900">{formatCurrency(quotation.grand_total)}</span>
+                <div className="pt-3 border-t-2 border-zinc-900 flex justify-between items-center">
+                  <span className="text-[13px] font-bold text-zinc-900 uppercase">Grand Total</span>
+                  <span className="text-xl font-black text-zinc-900">{formatCurrency(quotation.grand_total)}</span>
                 </div>
+                <div className="pt-1 text-[11px] text-zinc-500 italic leading-relaxed">Amount in Words: {quotation.amount_in_words || numberToInrWords(Number(quotation.grand_total) || 0)}</div>
               </div>
             </div>
 
           {/* Terms & Conditions Section */}
           {termsConditionsQuery.data?.custom_content && (
-            <div className="mt-8 border-t border-zinc-200 pt-8">
+          <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 xl:order-1 xl:col-span-3">
               <h3 className="text-lg font-bold text-zinc-900 mb-4">Terms & Conditions</h3>
               <div className="bg-zinc-50 rounded-lg p-6">
                 {(() => {
                   try {
                     const termsData = typeof termsConditionsQuery.data.custom_content === 'string' 
-                      ? JSON.parse(termsConditionsQuery.data.custom_content) 
+                      ? (termsConditionsQuery.data.custom_content.trim() ? JSON.parse(termsConditionsQuery.data.custom_content) : null) 
                       : termsConditionsQuery.data.custom_content;
                     
                     if (termsData && termsData.sections) {
@@ -2326,7 +2692,7 @@ export default function QuotationView() {
                               {section.items.map((item: any, itemIndex: number) => (
                                 <div key={itemIndex} className="text-sm text-zinc-600 flex items-start">
                                   <span className="mr-2 text-zinc-400">
-                                    {item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`}
+                                    {item.item_type === 'bullet' ? '\u2022' : `${itemIndex + 1}.`}
                                   </span>
                                   <span>{item.content}</span>
                                 </div>
@@ -2336,6 +2702,16 @@ export default function QuotationView() {
                         </div>
                       ));
                     }
+                    return (
+                      <div className="space-y-1">
+                        {['Payment as per terms mentioned above.', 'This is a system-generated document.'].map((t: string, i: number) => (
+                          <div key={i} className="text-sm text-zinc-600 flex items-start">
+                            <span className="mr-2 text-zinc-400">{i + 1}.</span>
+                            <span>{t}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
                   } catch (error) {
                     // Fallback to plain text if JSON parsing fails
                     return (
@@ -2349,8 +2725,27 @@ export default function QuotationView() {
               </div>
             </div>
           )}
-</div>
+          {selectedSignatory && (
+            <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 xl:col-span-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-[11px] text-zinc-400">For, {organisation?.name || 'Company'}</div>
+                  <div className="mt-0.5 text-[13px] font-bold text-zinc-900">{selectedSignatory.name || 'Authorised Signatory'}</div>
+                  {(selectedSignatory.designation || organisation?.signatory_designation) ? (
+                    <div className="text-[11px] text-zinc-500">{selectedSignatory.designation || organisation?.signatory_designation}</div>
+                  ) : null}
+                </div>
+                {selectedSignatory.url ? (
+                  <img src={selectedSignatory.url} alt="Authorised signature" className="h-12 object-contain" />
+                ) : null}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+    </div>
+    </div>
+    </div>
     </ResizablePanel>
     </ResizablePanelGroup>
 
@@ -2372,6 +2767,16 @@ export default function QuotationView() {
               )}
             </div>
             <div className="flex items-center gap-3">
+              {/* Revision History Button */}
+              <button
+                onClick={() => setRevisionDialogOpen(true)}
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-zinc-100 text-zinc-700 rounded hover:bg-zinc-200 transition-colors"
+                title="View revision history"
+              >
+                <RotateCcw className="w-4 h-4" />
+                History {quotation?.revision_history?.length ? `(${quotation.revision_history.length})` : ''}
+              </button>
+
               {/* Edit Button */}
               <button
                 onClick={() => {
@@ -2546,7 +2951,7 @@ export default function QuotationView() {
           <div className="p-6">
             <div className="bg-zinc-50 border border-zinc-200 rounded p-4 mb-4">
               <div className="flex items-center gap-3 mb-2">
-                <span className="text-2xl">📦</span>
+                <PackageSearch className="w-6 h-6 text-zinc-400" />
                 <div>
                   <div className="text-sm font-bold text-zinc-900">{quotation.quotation_no || 'Quotation'}</div>
                   <div className="text-xs text-zinc-500">{(quotation.items || []).filter((i: any) => !i.is_header).length} line items will be imported</div>
@@ -2554,9 +2959,9 @@ export default function QuotationView() {
               </div>
             </div>
             <div className="text-xs text-zinc-400 space-y-1">
-              <p>• BOQ quantities will be copied as required quantities</p>
-              <p>• Stock & local quantities start at 0</p>
-              <p>• You'll be taken to the procurement tracker to fill gaps</p>
+              <p>&bull; BOQ quantities will be copied as required quantities</p>
+              <p>&bull; Stock & local quantities start at 0</p>
+              <p>&bull; You'll be taken to the procurement tracker to fill gaps</p>
             </div>
           </div>
           <div className="p-6 border-t border-zinc-100 flex gap-3 justify-end">
@@ -2592,14 +2997,14 @@ export default function QuotationView() {
           <div className="p-6 border-b border-zinc-100 flex items-start justify-between">
             <div>
               <h3 className="text-lg font-bold text-zinc-900">Stock Availability</h3>
-              <p className="text-sm text-zinc-500 mt-1">{quotation.quotation_no || 'Quotation'} — live stock per line item</p>
+              <p className="text-sm text-zinc-500 mt-1">{quotation.quotation_no || 'Quotation'} &mdash; live stock per line item</p>
             </div>
-            <button onClick={() => setShowAvailability(false)} className="text-zinc-400 hover:text-zinc-600 transition-colors">✕</button>
+            <button onClick={() => setShowAvailability(false)} className="text-zinc-400 hover:text-zinc-600 transition-colors"><X className="w-4 h-4" /></button>
           </div>
           <div className="p-6 space-y-3">
             {availabilityLoading ? (
               <div className="flex items-center justify-center py-10 text-zinc-400 text-sm">
-                <Loader2 className="w-5 h-5 animate-spin mr-2" />Checking stock…
+                <Loader2 className="w-5 h-5 animate-spin mr-2" />Checking stock&hellip;
               </div>
             ) : availabilityRows.length === 0 ? (
               <div className="text-sm text-zinc-400 py-10 text-center">No line items to check.</div>
@@ -2610,10 +3015,10 @@ export default function QuotationView() {
                     <div className="min-w-0">
                       <div className="text-sm font-bold text-zinc-900 truncate">
                         {row.name}
-                        {row.code ? <span className="text-zinc-400 font-normal"> · {row.code}</span> : null}
+                        {row.code ? <span className="text-zinc-400 font-normal"> &middot; {row.code}</span> : null}
                       </div>
                       <div className="text-xs text-zinc-500 mt-0.5">
-                        Required: <b>{row.required}</b> · Available: <b>{row.available === null ? '—' : row.available}</b>
+                        Required: <b>{row.required}</b> &middot; Available: <b>{row.available === null ? '\u2014' : row.available}</b>
                       </div>
                     </div>
                     {availabilityBadge(row.status)}
@@ -2624,7 +3029,7 @@ export default function QuotationView() {
                         <div key={wi} className="flex items-center justify-between text-xs text-zinc-600">
                           <span>{w.warehouse_name}</span>
                           <span>
-                            stock <b>{w.stock}</b> · reserved <b>{w.reserved}</b> · free <b>{w.available}</b>
+                            stock <b>{w.stock}</b> &middot; reserved <b>{w.reserved}</b> &middot; free <b>{w.available}</b>
                           </span>
                         </div>
                       ))}
@@ -2634,7 +3039,7 @@ export default function QuotationView() {
               ))
             )}
             <div className="text-xs text-zinc-400 bg-zinc-50 border border-zinc-200 rounded p-3">
-              Informational only — no stock is reserved and nothing is created. Availability is re-checked when this
+              Informational only &mdash; no stock is reserved and nothing is created. Availability is re-checked when this
               quotation converts to a Sales Order, where reservations and MRP apply.
             </div>
           </div>
@@ -2658,6 +3063,38 @@ export default function QuotationView() {
       onTemplateChanged={() => {
         quotationQuery.refetch();
         templatesQuery.refetch();
+      }}
+    />
+
+    <RevisionHistoryDialog
+      open={revisionDialogOpen}
+      onClose={() => setRevisionDialogOpen(false)}
+      quotationId={quotationId}
+      currentItems={quotation?.items || []}
+      currentHeader={quotation}
+      revisionHistory={quotation?.revision_history || []}
+      currentRevisionNo={quotation?.revision_no || 1}
+      currentTotal={quotation?.total_amount || quotation?.grand_total || 0}
+      documentNumber={quotation?.quotation_no || 'Quotation'}
+      onRestoreRevision={(rev) => {
+        setRevisionDialogOpen(false);
+        navigate(`/quotation/edit?id=${quotationId}&restoreRev=${rev.revision_no}`);
+      }}
+    />
+
+    <QuotationRevisionCompareModal
+      open={showCompareModal}
+      onClose={() => setShowCompareModal(false)}
+      quotationId={quotationId}
+      documentNumber={quotation?.quotation_no || 'Quotation'}
+      revisionHistory={quotation?.revision_history || []}
+      currentRevisionNo={quotation?.revision_no || 1}
+      currentItems={quotation?.items || []}
+      currentHeader={quotation}
+      currentTotal={quotation?.total_amount || quotation?.grand_total || 0}
+      onRestoreRevision={(rev) => {
+        setShowCompareModal(false);
+        navigate(`/quotation/edit?id=${quotationId}&restoreRev=${rev.revision_no}`);
       }}
     />
     </>

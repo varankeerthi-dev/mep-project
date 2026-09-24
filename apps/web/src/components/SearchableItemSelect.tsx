@@ -13,6 +13,8 @@ type SearchableItemSelectProps = {
   materials: Material[];
   onChange: (materialId: string, material: Material) => void;
   placeholder?: string;
+  customText?: string;
+  onCustomText?: (text: string) => void;
 };
 
 export const SearchableItemSelect: React.FC<SearchableItemSelectProps> = ({
@@ -20,6 +22,8 @@ export const SearchableItemSelect: React.FC<SearchableItemSelectProps> = ({
   materials,
   onChange,
   placeholder = 'Select Item',
+  customText = '',
+  onCustomText,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -129,6 +133,19 @@ export const SearchableItemSelect: React.FC<SearchableItemSelectProps> = ({
     setSearch('');
   }, [onChange]);
 
+  const commitCustomText = useCallback(() => {
+    const text = search.trim();
+    if (!text || !onCustomText) return;
+    onCustomText(text);
+    setIsOpen(false);
+    setSearch('');
+  }, [search, onCustomText]);
+
+  const showCustomOption = !!onCustomText && search.trim() !== '';
+  const displayText = selected
+    ? (selected.display_name || selected.name)
+    : (customText || placeholder);
+
   const openDropdown = useCallback(() => {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
@@ -159,7 +176,7 @@ export const SearchableItemSelect: React.FC<SearchableItemSelectProps> = ({
           padding: '4px 8px',
           cursor: 'default',
           fontSize: '12px',
-          color: selected ? '#1e293b' : '#94a3b8',
+          color: selected || customText ? '#1e293b' : '#94a3b8',
           background: '#fff',
           border: '1px solid transparent',
           borderRadius: '0',
@@ -177,7 +194,7 @@ export const SearchableItemSelect: React.FC<SearchableItemSelectProps> = ({
         }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-          {selected ? selected.display_name || selected.name : placeholder}
+          {displayText}
         </span>
       </div>
 
@@ -191,6 +208,12 @@ export const SearchableItemSelect: React.FC<SearchableItemSelectProps> = ({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && showCustomOption) {
+                e.preventDefault();
+                commitCustomText();
+              }
+            }}
             placeholder="Search items..."
             style={{
               width: '100%',
@@ -208,7 +231,26 @@ export const SearchableItemSelect: React.FC<SearchableItemSelectProps> = ({
               maxHeight: '230px',
             }}
           >
-            {filtered.length === 0 ? (
+            {showCustomOption && (
+              <div
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  commitCustomText();
+                }}
+                style={{
+                  padding: '8px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  color: '#1d4ed8',
+                  fontWeight: 600,
+                  borderBottom: '1px solid #f1f5f9',
+                  background: '#eff6ff',
+                }}
+              >
+                + Add &ldquo;{search.trim()}&rdquo; as custom item
+              </div>
+            )}
+            {filtered.length === 0 && !showCustomOption ? (
               <div
                 style={{
                   padding: '12px',

@@ -11,6 +11,8 @@ import {
   NextActionsWidget,
   WarrantyClaimsSLA,
   ContinuousImprovementCenter,
+  DashboardComingSoon,
+  DashboardLedgerSplit,
 } from '../components/dashboard';
 
 export const DASHBOARD_QUERY_KEYS = {
@@ -58,10 +60,22 @@ export function invalidateDashboardQueries(queryClient: ReturnType<typeof useQue
   });
 }
 
+type SubTabId = 'home' | 'followups' | 'crm' | 'upcoming-production' | 'ledger';
+
+const SUB_TABS: { id: SubTabId; label: string }[] = [
+  { id: 'home', label: 'Home' },
+  { id: 'followups', label: 'Followups' },
+  { id: 'crm', label: 'CRM' },
+  { id: 'upcoming-production', label: 'Upcoming Production' },
+  { id: 'ledger', label: 'Ledger' },
+];
+
 export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) => void }) {
   const { user, organisation, organisations } = useAuth();
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<SubTabId>('home');
+
 
   const { data: projects = [], isLoading: projectsLoading } = useProjects();
 
@@ -226,53 +240,131 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
       `}</style>
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px 40px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         
-        {/* Greeting + Alert Badges + Actions — 0ms */}
-        <div style={{ animation: 'staggerFadeIn 0.35s ease 0ms both' }}>
-          <DashboardHeader
-            userName={userName}
-            isRefreshing={isRefreshing}
-            onRefresh={handleRefresh}
+        {/* Breadcrumb Bar */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '13px', color: '#6B7280' }}>
+            <span 
+              style={{ cursor: 'pointer' }} 
+              className="hover:text-zinc-900 transition-colors"
+              onClick={() => setActiveSubTab('home')}
+            >
+              Home
+            </span>
+            <span>/</span>
+            <span 
+              style={{ 
+                color: activeSubTab === 'home' ? '#111827' : '#6B7280', 
+                fontWeight: activeSubTab === 'home' ? 600 : 500,
+                cursor: activeSubTab !== 'home' ? 'pointer' : 'default' 
+              }}
+              onClick={() => { if (activeSubTab !== 'home') setActiveSubTab('home'); }}
+              className={activeSubTab !== 'home' ? 'hover:text-zinc-900 transition-colors' : ''}
+            >
+              Dashboard
+            </span>
+            {activeSubTab !== 'home' && (
+              <>
+                <span>/</span>
+                <span style={{ color: '#111827', fontWeight: 600 }}>
+                  {SUB_TABS.find(t => t.id === activeSubTab)?.label}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Sub-Tabs Navigation Bar */}
+        <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #ECECEC', paddingBottom: '10px' }}>
+          {SUB_TABS.map(tab => (
+            <button 
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: activeSubTab === tab.id ? 600 : 500,
+                color: activeSubTab === tab.id ? '#111827' : '#6B7280',
+                backgroundColor: activeSubTab === tab.id ? '#F3F4F6' : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 150ms ease'
+              }}
+              className="hover:text-zinc-900 hover:bg-zinc-100"
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* --- Home Tab: Existing Full Dashboard Page --- */}
+        {activeSubTab === 'home' && (
+          <>
+            {/* Greeting + Alert Badges + Actions — 0ms */}
+            <div style={{ animation: 'staggerFadeIn 0.35s ease 0ms both' }}>
+              <DashboardHeader
+                userName={userName}
+                isRefreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                onNavigate={onNavigate}
+              />
+            </div>
+
+            {/* Stat Cards Row — 80ms */}
+            <div style={{ animation: 'staggerFadeIn 0.35s ease 80ms both' }}>
+              <StatsRow
+                projectsLoading={projectsLoading}
+                projectsCount={projects.length}
+                claimsLoading={claimsLoading}
+                claimsStats={claimsStats}
+              />
+            </div>
+
+            {/* Work Items Grid — 160ms */}
+            <div style={{ animation: 'staggerFadeIn 0.35s ease 160ms both' }}>
+              <NextActionsWidget
+                nextActions={nextActions}
+                nextActionsHistory={nextActionsHistory}
+                loading={nextActionsLoading}
+                overdueCount={overdueCount}
+                acknowledge={acknowledge}
+                isAcknowledging={isAcknowledging}
+                resolve={resolve}
+                isResolving={isResolving}
+                onNavigate={onNavigate}
+                userMap={userMap}
+              />
+            </div>
+
+            {/* Bottom 3-Column: Activity, Deadlines, Root Causes — 240ms */}
+            <div style={{ animation: 'staggerFadeIn 0.35s ease 240ms both' }}>
+              <ContinuousImprovementCenter
+                insightsLoading={insightsLoading}
+                topRootCauses={topRootCauses}
+                filteredInsightsCount={filteredInsights.filter((i: any) => i.root_cause).length}
+                nextActionsHistory={nextActionsHistory}
+                userMap={userMap}
+                projectMap={projectMap}
+              />
+            </div>
+          </>
+        )}
+
+        {/* --- Followups, CRM, Upcoming Production: Enterprise Coming Soon --- */}
+        {(activeSubTab === 'followups' || activeSubTab === 'crm' || activeSubTab === 'upcoming-production') && (
+          <DashboardComingSoon
+            tabKey={activeSubTab}
+            onNavigate={onNavigate}
+            onGoHome={() => setActiveSubTab('home')}
+          />
+        )}
+
+        {/* --- Ledger Tab: Split-Screen Receivables & Payables Ledger --- */}
+        {activeSubTab === 'ledger' && (
+          <DashboardLedgerSplit
             onNavigate={onNavigate}
           />
-        </div>
-
-        {/* Stat Cards Row — 80ms */}
-        <div style={{ animation: 'staggerFadeIn 0.35s ease 80ms both' }}>
-          <StatsRow
-            projectsLoading={projectsLoading}
-            projectsCount={projects.length}
-            claimsLoading={claimsLoading}
-            claimsStats={claimsStats}
-          />
-        </div>
-
-        {/* Work Items Grid — 160ms */}
-        <div style={{ animation: 'staggerFadeIn 0.35s ease 160ms both' }}>
-          <NextActionsWidget
-            nextActions={nextActions}
-            nextActionsHistory={nextActionsHistory}
-            loading={nextActionsLoading}
-            overdueCount={overdueCount}
-            acknowledge={acknowledge}
-            isAcknowledging={isAcknowledging}
-            resolve={resolve}
-            isResolving={isResolving}
-            onNavigate={onNavigate}
-            userMap={userMap}
-          />
-        </div>
-
-        {/* Bottom 3-Column: Activity, Deadlines, Root Causes — 240ms */}
-        <div style={{ animation: 'staggerFadeIn 0.35s ease 240ms both' }}>
-          <ContinuousImprovementCenter
-            insightsLoading={insightsLoading}
-            topRootCauses={topRootCauses}
-            filteredInsightsCount={filteredInsights.filter((i: any) => i.root_cause).length}
-            nextActionsHistory={nextActionsHistory}
-            userMap={userMap}
-            projectMap={projectMap}
-          />
-        </div>
+        )}
 
       </div>
     </div>

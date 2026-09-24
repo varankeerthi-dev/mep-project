@@ -356,9 +356,15 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
   doc.setDrawColor(...C.accent);
   doc.line(MARGIN, metaY + 6, MARGIN + halfW, metaY + 6);
 
+  const formattedQuoteNo = (header.revision_no && header.revision_no > 1)
+    ? `${header.quotation_no} (Rev ${String(header.revision_no).padStart(2, '0')})`
+    : header.quotation_no;
+
+  const formattedRevNo = header.revision_no ? `Rev ${String(header.revision_no).padStart(2, '0')}` : 'Rev 01';
+
   const metaLeft: [string, string][] = [
-    ['Quotation No.',  header.quotation_no],
-    ['Revision',       header.revision_no ? `Rev ${header.revision_no}` : '1'],
+    ['Quotation No.',  formattedQuoteNo],
+    ['Revision',       formattedRevNo],
     ['Date',           header.date],
     ['Valid Till',     header.valid_till ?? '—'],
     ['Reference',      header.reference ?? '—'],
