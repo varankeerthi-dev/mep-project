@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Truck,
   Package,
+  PackageCheck,
   Clock,
   CircleDashed,
   Info,
@@ -32,11 +33,12 @@ import { cn } from '../lib/utils';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
-const STATUSES = ['Pending', 'Sourcing', 'PO Raised', 'Received', 'Dispatched'] as const;
+const STATUSES = ['Pending', 'In Stock', 'Sourcing', 'PO Raised', 'Received', 'Dispatched'] as const;
 type Status = typeof STATUSES[number];
 
 const STATUS_CONFIG: Record<Status, { bg: string; color: string; border: string, icon: any }> = {
   Pending:    { bg: '#fefce8', color: '#a16207', border: '#fef08a', icon: CircleDashed },
+  'In Stock': { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0', icon: PackageCheck },
   Sourcing:   { bg: '#f0f9ff', color: '#0369a1', border: '#bae6fd', icon: Search },
   'PO Raised':{ bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe', icon: Package },
   Received:   { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0', icon: CheckCircle2 },
@@ -140,6 +142,9 @@ export default function ProcurementDetail() {
   const confirmLink = async () => {
     const matched = linkLines.filter((p) => p.match);
     if (matched.length === 0) { alert('No matching lines found — item names must match the PO lines'); return; }
+    const poVendorId = linkPOs.find((p) => p.id === linkPoId)?.vendor_id || null;
+    const conflicts = matched.filter((p) => p.item.vendor_id && poVendorId && p.item.vendor_id !== poVendorId);
+    if (conflicts.length > 0) { alert('Vendor mismatch - these rows name a different vendor than the PO:\n' + conflicts.map((p) => p.item.item_name).join('\n')); return; }
     setLinking(true);
     try {
       await Promise.all(matched.map((p) =>
@@ -147,6 +152,7 @@ export default function ProcurementDetail() {
           po_id: linkPoId,
           po_item_id: p.match.id,
           expected_date: p.match.expected_delivery_date || p.fallbackDate || null,
+          vendor_id: p.item.status === 'In Stock' ? null : (p.item.vendor_id || poVendorId || null),
           status: (p.item.status === 'Pending' || p.item.status === 'Sourcing') ? 'PO Raised' : p.item.status,
           updated_at: new Date().toISOString(),
         }).eq('id', p.item.id)
@@ -159,6 +165,7 @@ export default function ProcurementDetail() {
           po_id: linkPoId,
           po_item_id: m.match.id,
           expected_date: m.match.expected_delivery_date || m.fallbackDate || it.expected_date,
+          vendor_id: it.status === 'In Stock' ? null : (it.vendor_id || poVendorId || null),
           status: (it.status === 'Pending' || it.status === 'Sourcing') ? 'PO Raised' as Status : it.status,
           _dirty: false,
         };
@@ -416,7 +423,7 @@ export default function ProcurementDetail() {
         boq_qty: parseFloat(String(item.boq_qty)) || 0,
         stock_qty: parseFloat(String(item.stock_qty)) || 0,
         local_qty: parseFloat(String(item.local_qty)) || 0,
-        vendor_id: item.vendor_id || null,
+        vendor_id: item.status === 'In Stock' ? null : (item.vendor_id || null),
         notes: item.notes || null,
         status: item.status,
         expected_date: item.expected_date || null,
@@ -806,7 +813,7 @@ export default function ProcurementDetail() {
                         <select
                           value={item.vendor_id || ''}
                           onChange={(e) => updateItem(item.id, 'vendor_id', e.target.value || null)}
-                          disabled={isDispatched}
+                          disabled={isDispatched || item.status === 'In Stock'}
                           className="w-full border-none bg-transparent px-1.5 py-1 text-[10px] text-center text-zinc-900 outline-none focus:ring-1 focus:ring-blue-500/20 rounded cursor-pointer"
                         >
                           <option value="">Select Vendor...</option>
@@ -820,7 +827,12 @@ export default function ProcurementDetail() {
                         <div className="relative">
                           <select
                             value={item.status}
-                            onChange={(e) => updateItem(item.id, 'status', e.target.value as Status)}
+                            onChange={(e) => {
+                              const v = e.target.value as Status;
+                              setItems((prev) => prev.map((it) => it.id === item.id
+                                ? { ...it, status: v, vendor_id: v === 'In Stock' ? null : it.vendor_id, _dirty: true }
+                                : it));
+                            }}
                             className={cn(
                               "w-full cursor-pointer appearance-none rounded border px-2 py-1 text-[10px] font-bold uppercase tracking-wider outline-none transition-all",
                               "hover:brightness-95 active:scale-[0.98]"

@@ -73,7 +73,8 @@ export default function SalesOrderList() {
       const matchesSearch = 
         so.sales_order_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         so.client?.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        so.project?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+        so.project?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        so.quotation_no?.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus = statusFilter === 'All' || so.status === statusFilter;
       return matchesSearch && matchesStatus;
@@ -109,7 +110,7 @@ export default function SalesOrderList() {
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by SO no, client, project..."
+              placeholder="Search by SO no, client, project, quotation..."
               className="pl-9 bg-zinc-50 border-zinc-200 text-sm focus-visible:ring-emerald-500"
             />
           </div>
@@ -159,7 +160,9 @@ export default function SalesOrderList() {
                     <th className="py-3 px-4">SO Number</th>
                     <th className="py-3 px-4">Client</th>
                     <th className="py-3 px-4">Project</th>
+                    <th className="py-3 px-4">Quotation</th>
                     <th className="py-3 px-4">Date</th>
+                    <th className="py-3 px-4">Converted</th>
                     <th className="py-3 px-4">Total Amount</th>
                     <th className="py-3 px-4">Approval Status</th>
                     <th className="py-3 px-4">Inventory Status</th>
@@ -177,7 +180,9 @@ export default function SalesOrderList() {
                         <td className="py-3.5 px-4 font-medium text-zinc-900">{so.sales_order_no}</td>
                         <td className="py-3.5 px-4">{so.client?.client_name || '-'}</td>
                         <td className="py-3.5 px-4">{so.project?.name || '-'}</td>
+                        <td className="py-3.5 px-4">{so.quotation_no || '-'}</td>
                         <td className="py-3.5 px-4">{formatDate(so.order_date)}</td>
+                        <td className="py-3.5 px-4">{so.converted_at ? formatDate(so.converted_at) : '-'}</td>
                         <td className="py-3.5 px-4 font-semibold text-zinc-900">{formatCurrency(so.grand_total)}</td>
                         <td className="py-3.5 px-4">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusMeta.bg} ${statusMeta.color}`}>

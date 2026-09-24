@@ -483,9 +483,8 @@ export default function App() {
       case '/quotation/view': return <QuotationView />;
       case '/quotation/edit': return <CreateQuotation onSuccess={() => navigate('/quotation')} onCancel={() => navigate('/quotation')} editMode={true} />;
       case '/sales-orders': return <SalesOrderList />;
-      case '/sales-orders/create': return <SalesOrderCreate onSuccess={() => navigate('/sales-orders')} onCancel={() => navigate('/sales-orders')} />;
-      case '/sales-orders/create-v2': return <SalesOrderCreateV2 />;
-      case '/sales-orders/edit': return <SalesOrderCreate onSuccess={() => navigate('/sales-orders')} onCancel={() => navigate('/sales-orders')} editMode={true} />;
+      case '/sales-orders/create': return <SalesOrderCreateV2 />;
+      case '/sales-orders/edit': return <SalesOrderCreateV2 editMode={true} />;
       case '/sales-orders/view': return <SalesOrderDetail />;
       case '/client-lookup': return <PermissionGuard permission="quick_lookup.read" fallback={<div className="p-6">Access Denied</div>}><ClientLookup /></PermissionGuard>;
       case '/invoices': return <InvoiceListPage />;

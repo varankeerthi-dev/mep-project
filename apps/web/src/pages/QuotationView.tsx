@@ -790,19 +790,30 @@ export default function QuotationView() {
   // Deliberately writes NOTHING - quotations are offers, not demand. Reservations
   // and MRP apply only after conversion to a Sales Order (see docs/GLOSSARY.md).
   const availabilityBadge = (status: string) => {
-    const map: Record<string, { bg: string; color: string; label: string }> = {
-      in_stock: { bg: '#d1fae5', color: '#047857', label: 'In Stock' },
-      partial: { bg: '#fef3c7', color: '#b45309', label: 'Partial' },
-      out: { bg: '#fee2e2', color: '#dc2626', label: 'No Stock' },
-      unlinked: { bg: '#f3f4f6', color: '#6b7280', label: 'Not linked' },
+    const map: Record<string, { bg: string; color: string; border: string; label: string }> = {
+      in_stock: { bg: '#ECFDF5', color: '#047857', border: '#A7F3D0', label: 'In Stock' },
+      partial: { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A', label: 'Partial' },
+      out: { bg: '#FEF2F2', color: '#DC2626', border: '#FECACA', label: 'No Stock' },
+      unlinked: { bg: '#F1F5F9', color: '#64748B', border: '#E2E8F0', label: 'Not linked' },
     };
     const s = map[status] || map.unlinked;
     return (
-      <span style={{ background: s.bg, color: s.color, padding: '2px 10px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+      <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, padding: '2px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap' }}>
         {s.label}
       </span>
     );
   };
+
+  const availabilitySummary = useMemo(() => {
+    const rows = availabilityRows || [];
+    return {
+      total: rows.length,
+      inStock: rows.filter((r: any) => r.status === 'in_stock').length,
+      partial: rows.filter((r: any) => r.status === 'partial').length,
+      out: rows.filter((r: any) => r.status === 'out').length,
+      unlinked: rows.filter((r: any) => r.status === 'unlinked').length,
+    };
+  }, [availabilityRows]);
 
   const handleOpenAvailability = async () => {
     setShowHeaderMenu(false);
@@ -884,49 +895,111 @@ export default function QuotationView() {
       const client = quotation.client;
       const project = quotation.project;
 
-      const { data: listData, error: listError } = await supabase
-        .from('procurement_lists')
-        .insert({
-          organisation_id: organisation?.id,
-          title: `${quotation.quotation_no || 'Quotation'} \u2014 Stock Check`,
-          source: 'quotation',
-          quotation_id: quotation.id || null,
-          quotation_no: quotation.quotation_no || null,
-          client_id: quotation.client_id || client?.id || null,
-          client_name: client?.client_name || client?.name || null,
-          project_id: quotation.project_id || project?.id || null,
-          project_name: project?.project_name || null,
-          status: 'Active',
-        })
-        .select()
-        .single();
+      // Live warehouse cover drives the starting status: fully covered lines
+      // open as In Stock instead of Pending, so only real gaps need sourcing.
+      const launchIds = Array.from(new Set((quotation.items || [])
+        .filter((item: any) => !item.is_header)
+        .map((item: any) => item.item?.id || item.item_id)
+        .filter(Boolean)));
+      const launchCover = new Map<string, number>();
+      if (launchIds.length > 0) {
+        const coverRes: any = await timedSupabaseQuery(
+          supabase.from('item_stock').select('item_id, current_stock').in('item_id', launchIds as any),
+          'Stock check launch cover',
+        );
+        ((coverRes as any) || []).forEach((s: any) => {
+          launchCover.set(s.item_id, (launchCover.get(s.item_id) || 0) + (parseFloat(s.current_stock) || 0));
+        });
+      }
 
-      if (listError) throw listError;
+      // Reuse the quote's open tracker when one exists: only genuinely new lines
+      // are appended, so repeated launches never duplicate the tracker.
+      const normLaunchName = (s: any) => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+      const launchRowKey = (id: any, name: any) => `${id || ''}::${normLaunchName(name)}`;
+      let targetListId: string | null = null;
+      let displayBase = 0;
+      const seenLaunchKeys = new Set<string>();
+      if (quotation.id) {
+        const { data: openLists } = await supabase
+          .from('procurement_lists')
+          .select('id')
+          .eq('quotation_id', quotation.id)
+          .eq('status', 'Active')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (openLists && openLists[0]) {
+          targetListId = openLists[0].id;
+          const { data: existingItems } = await supabase
+            .from('procurement_items')
+            .select('item_id, item_name, display_order')
+            .eq('list_id', targetListId);
+          (existingItems || []).forEach((ei: any) => {
+            seenLaunchKeys.add(launchRowKey(ei.item_id, ei.item_name));
+            if (typeof ei.display_order === 'number' && ei.display_order >= displayBase) displayBase = ei.display_order + 1;
+          });
+        }
+      }
 
-      const rows = (quotation.items || [])
+      const candidateRows = (quotation.items || [])
         .filter((item: any) => !item.is_header && (item.description || item.item_id || item.qty))
-        .map((item: any, index: number) => {
+        .map((item: any) => {
           const material = item.item || {};
           const clientId = quotation.client_id || client?.id;
           const mapping = clientId && material?.mappings?.find((m: any) => m.client_id === clientId);
+          const boqQty = parseFloat(String(item.qty)) || 0;
+          const coverQty = launchCover.get(material.id || item.item_id) || 0;
+          const rowName = mapping?.client_description || item.description || material.display_name || material.name || '';
           return {
-            list_id: listData.id,
             organisation_id: organisation?.id,
             item_id: material.id || item.item_id || null,
-            item_name: mapping?.client_description || item.description || material.display_name || material.name || '',
+            item_name: rowName,
             make: item.make || material.make || null,
             variant_name: item.variant?.variant_name || null,
             uom: item.uom || material.unit || null,
-            boq_qty: parseFloat(String(item.qty)) || 0,
+            boq_qty: boqQty,
             stock_qty: 0,
             local_qty: 0,
             vendor_id: null,
             notes: null,
-            status: 'Pending',
-            display_order: index,
+            status: boqQty > 0 && (material.id || item.item_id) && coverQty >= boqQty ? 'In Stock' : 'Pending',
             is_header_row: false,
+            _key: launchRowKey(material.id || item.item_id, rowName),
           };
+        })
+        .filter((r: any) => {
+          if (!(r.boq_qty > 0)) return false;
+          if (seenLaunchKeys.has(r._key)) return false;
+          seenLaunchKeys.add(r._key);
+          return true;
         });
+
+      if (!targetListId) {
+        if (candidateRows.length === 0) { alert('No line items to send to procurement.'); return; }
+        const { data: listData, error: listError } = await supabase
+          .from('procurement_lists')
+          .insert({
+            organisation_id: organisation?.id,
+            title: `${quotation.quotation_no || 'Quotation'} \u2014 Stock Check`,
+            source: 'quotation',
+            quotation_id: quotation.id || null,
+            quotation_no: quotation.quotation_no || null,
+            client_id: quotation.client_id || client?.id || null,
+            client_name: client?.client_name || client?.name || null,
+            project_id: quotation.project_id || project?.id || null,
+            project_name: project?.project_name || null,
+            status: 'Active',
+          })
+          .select()
+          .single();
+
+        if (listError) throw listError;
+        targetListId = listData.id;
+      }
+
+      const rows = candidateRows.map((r: any, i: number) => {
+        const { _key, ...rest } = r;
+        return { ...rest, list_id: targetListId, display_order: displayBase + i };
+      });
 
       if (rows.length > 0) {
         const { error } = await supabase.from('procurement_items').insert(rows);
@@ -935,7 +1008,7 @@ export default function QuotationView() {
 
       setShowStockCheckModal(false);
       setShowHeaderMenu(false);
-      navigate(`/procurement/detail?id=${listData.id}`);
+      navigate(`/procurement/detail?id=${targetListId}`);
     } catch (e: any) {
       alert('Error launching stock check: ' + e.message);
     } finally {
@@ -2340,7 +2413,7 @@ export default function QuotationView() {
                         </span>
                       </button>
                       <button
-                        onClick={() => { setShowHeaderMenu(false); handleLaunchStockCheck(); }}
+                        onClick={() => { setShowHeaderMenu(false); setShowStockCheckModal(true); }}
                         disabled={launchingStockCheck}
                         className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -3069,39 +3142,44 @@ export default function QuotationView() {
 
     {/* Stock Check Confirmation Modal */}
     {showStockCheckModal && (
-      <div className="fixed inset-0 z-[2000] bg-black/45 flex items-center justify-center" onClick={() => setShowStockCheckModal(false)}>
-        <div className="bg-white rounded-lg shadow-2xl w-[420px] max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
-          <div className="p-6 border-b border-zinc-100">
-            <h3 className="text-lg font-bold text-zinc-900">Launch Stock Check</h3>
-            <p className="text-sm text-zinc-500 mt-1">Create a procurement tracker from this quotation's line items.</p>
+      <div className="fixed inset-0 z-[2000] bg-black/45 flex items-center justify-center p-4" onClick={() => setShowStockCheckModal(false)}>
+        <div className="bg-white rounded-xl shadow-2xl w-[440px] max-w-full max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="px-5 py-4 border-b border-[#E2E8F0] flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EFF6FF]">
+              <ClipboardList className="h-5 w-5 text-[#2563EB]" />
+            </span>
+            <div>
+              <h3 className="text-[15px] font-bold text-[#0B1C30]">Launch Stock Check</h3>
+              <p className="text-xs text-[#475569] mt-0.5">Create a procurement tracker from this quotation.</p>
+            </div>
           </div>
-          <div className="p-6">
-            <div className="bg-zinc-50 border border-zinc-200 rounded p-4 mb-4">
-              <div className="flex items-center gap-3 mb-2">
-                <PackageSearch className="w-6 h-6 text-zinc-400" />
+          <div className="px-5 py-4">
+            <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-4 mb-3">
+              <div className="flex items-center gap-3">
+                <PackageSearch className="w-6 h-6 text-[#2563EB] shrink-0" />
                 <div>
-                  <div className="text-sm font-bold text-zinc-900">{quotation.quotation_no || 'Quotation'}</div>
-                  <div className="text-xs text-zinc-500">{(quotation.items || []).filter((i: any) => !i.is_header).length} line items will be imported</div>
+                  <div className="text-[13px] font-bold text-[#0B1C30]">{quotation.quotation_no || 'Quotation'}</div>
+                  <div className="text-xs text-[#475569]">{(quotation.items || []).filter((i: any) => !i.is_header).length} line items will be imported</div>
                 </div>
               </div>
             </div>
-            <div className="text-xs text-zinc-400 space-y-1">
-              <p>&bull; BOQ quantities will be copied as required quantities</p>
-              <p>&bull; Stock & local quantities start at 0</p>
-              <p>&bull; You'll be taken to the procurement tracker to fill gaps</p>
+            <div className="text-xs text-[#475569] space-y-1.5">
+              <p>- BOQ quantities are copied as required quantities</p>
+              <p>- Live warehouse stock is checked: fully covered lines open as In Stock</p>
+              <p>- Only the remaining gaps need vendor sourcing in the tracker</p>
             </div>
           </div>
-          <div className="p-6 border-t border-zinc-100 flex gap-3 justify-end">
+          <div className="px-5 py-4 border-t border-[#E2E8F0] flex gap-2 justify-end">
             <button
               onClick={() => setShowStockCheckModal(false)}
-              className="px-4 py-2 text-sm font-bold text-zinc-700 bg-white border border-zinc-300 rounded hover:bg-zinc-50 transition-colors"
+              className="h-9 px-4 text-[13px] font-semibold text-[#0B1C30] bg-white border border-[#CBD5E1] rounded-lg hover:bg-zinc-50 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleLaunchStockCheck}
               disabled={launchingStockCheck || !(quotation.items || []).some((i: any) => !i.is_header)}
-              className="px-4 py-2 text-sm font-bold text-white bg-green-600 rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="h-9 px-4 text-[13px] font-bold text-white bg-[#2563EB] rounded-lg hover:bg-[#1D4ED8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
               {launchingStockCheck ? (
                 <>
@@ -3117,46 +3195,76 @@ export default function QuotationView() {
       </div>
     )}
 
-    {/* Stock Availability Modal (informational, read-only) */}
+        {/* Stock Availability Modal (informational, read-only) */}
     {showAvailability && (
-      <div className="fixed inset-0 z-[2000] bg-black/45 flex items-center justify-center" onClick={() => setShowAvailability(false)}>
-        <div className="bg-white rounded-lg shadow-2xl w-[720px] max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
-          <div className="p-6 border-b border-zinc-100 flex items-start justify-between">
-            <div>
-              <h3 className="text-lg font-bold text-zinc-900">Stock Availability</h3>
-              <p className="text-sm text-zinc-500 mt-1">{quotation.quotation_no || 'Quotation'} &mdash; live stock per line item</p>
+      <div className="fixed inset-0 z-[2000] bg-black/45 flex items-center justify-center p-4" onClick={() => setShowAvailability(false)}>
+        <div className="bg-white rounded-xl shadow-2xl w-[760px] max-w-full max-h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="px-5 py-4 border-b border-[#E2E8F0] flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EFF6FF]">
+                <PackageSearch className="h-5 w-5 text-[#2563EB]" />
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-[15px] font-bold text-[#0B1C30]">Stock Availability</h3>
+                <p className="text-xs text-[#475569] mt-0.5 truncate">{quotation.quotation_no || 'Quotation'} - live stock per line item</p>
+              </div>
             </div>
-            <button onClick={() => setShowAvailability(false)} className="text-zinc-400 hover:text-zinc-600 transition-colors"><X className="w-4 h-4" /></button>
+            <button onClick={() => setShowAvailability(false)} aria-label="Close" className="p-1.5 text-[#475569] hover:text-[#0B1C30] hover:bg-zinc-100 rounded-md transition-colors"><X className="w-4 h-4" /></button>
           </div>
-          <div className="p-6 space-y-3">
+          {!availabilityLoading && availabilityRows.length > 0 && (
+            <div className="px-5 py-3 border-b border-[#E2E8F0] bg-[#F8FAFC] flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] px-2.5 py-1 text-[11px] font-bold text-[#047857]">
+                In Stock {availabilitySummary.inStock}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FFFBEB] border border-[#FDE68A] px-2.5 py-1 text-[11px] font-bold text-[#B45309]">
+                Partial {availabilitySummary.partial}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FEF2F2] border border-[#FECACA] px-2.5 py-1 text-[11px] font-bold text-[#DC2626]">
+                No Stock {availabilitySummary.out}
+              </span>
+              {availabilitySummary.unlinked > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F1F5F9] border border-[#E2E8F0] px-2.5 py-1 text-[11px] font-bold text-[#64748B]">
+                  Not linked {availabilitySummary.unlinked}
+                </span>
+              )}
+              <span className="ml-auto text-[11px] text-[#475569]">{availabilitySummary.total} lines</span>
+            </div>
+          )}
+          <div className="px-5 py-4 space-y-3 overflow-y-auto">
             {availabilityLoading ? (
-              <div className="flex items-center justify-center py-10 text-zinc-400 text-sm">
-                <Loader2 className="w-5 h-5 animate-spin mr-2" />Checking stock&hellip;
+              <div className="flex items-center justify-center py-10 text-[#475569] text-sm">
+                <Loader2 className="w-5 h-5 animate-spin mr-2 text-[#2563EB]" />Checking stock...
               </div>
             ) : availabilityRows.length === 0 ? (
-              <div className="text-sm text-zinc-400 py-10 text-center">No line items to check.</div>
+              <div className="text-sm text-[#475569] py-10 text-center">No line items to check.</div>
             ) : (
               availabilityRows.map((row: any) => (
-                <div key={row.id} className="border border-zinc-200 rounded-lg p-4">
+                <div key={row.id} className="border border-[#E2E8F0] rounded-xl px-4 py-3">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="text-sm font-bold text-zinc-900 truncate">
+                      <div className="text-[13px] font-bold text-[#0B1C30] truncate">
                         {row.name}
-                        {row.code ? <span className="text-zinc-400 font-normal"> &middot; {row.code}</span> : null}
+                        {row.code ? <span className="text-[#475569] font-normal"> - {row.code}</span> : null}
                       </div>
-                      <div className="text-xs text-zinc-500 mt-0.5">
-                        Required: <b>{row.required}</b> &middot; Available: <b>{row.available === null ? '\u2014' : row.available}</b>
+                      <div className="text-xs text-[#475569] mt-1 tabular-nums">
+                        Required <b className="text-[#0B1C30]">{row.required}</b>
+                        <span className="mx-1.5 text-[#CBD5E1]">|</span>
+                        Available <b className="text-[#0B1C30]">{row.available === null ? '-' : row.available}</b>
                       </div>
                     </div>
                     {availabilityBadge(row.status)}
                   </div>
                   {row.warehouses.length > 0 && (
-                    <div className="mt-3 border-t border-zinc-100 pt-2 space-y-1">
+                    <div className="mt-2.5 border-t border-[#F1F5F9] pt-2 space-y-1">
                       {row.warehouses.map((w: any, wi: number) => (
-                        <div key={wi} className="flex items-center justify-between text-xs text-zinc-600">
-                          <span>{w.warehouse_name}</span>
-                          <span>
-                            stock <b>{w.stock}</b> &middot; reserved <b>{w.reserved}</b> &middot; free <b>{w.available}</b>
+                        <div key={wi} className="flex items-center justify-between text-xs text-[#475569]">
+                          <span className="truncate">{w.warehouse_name}</span>
+                          <span className="tabular-nums whitespace-nowrap">
+                            Stock <b className="text-[#0B1C30]">{w.stock}</b>
+                            <span className="mx-1.5 text-[#CBD5E1]">|</span>
+                            Reserved <b className="text-[#0B1C30]">{w.reserved}</b>
+                            <span className="mx-1.5 text-[#CBD5E1]">|</span>
+                            Free <b className="text-[#0B1C30]">{w.available}</b>
                           </span>
                         </div>
                       ))}
@@ -3165,17 +3273,28 @@ export default function QuotationView() {
                 </div>
               ))
             )}
-            <div className="text-xs text-zinc-400 bg-zinc-50 border border-zinc-200 rounded p-3">
-              Informational only &mdash; no stock is reserved and nothing is created. Availability is re-checked when this
+            <div className="text-xs text-[#475569] bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-3">
+              Informational only - no stock is reserved and nothing is created. Availability is re-checked when this
               quotation converts to a Sales Order, where reservations and MRP apply.
             </div>
           </div>
-          <div className="p-6 border-t border-zinc-100 flex gap-3 justify-end">
+          <div className="px-5 py-4 border-t border-[#E2E8F0] flex gap-2 justify-end">
             <button
               onClick={() => setShowAvailability(false)}
-              className="px-4 py-2 text-sm font-bold text-zinc-700 bg-white border border-zinc-300 rounded hover:bg-zinc-50 transition-colors"
+              className="h-9 px-4 text-[13px] font-semibold text-[#0B1C30] bg-white border border-[#CBD5E1] rounded-lg hover:bg-zinc-50 transition-colors"
             >
               Close
+            </button>
+            <button
+              onClick={handleLaunchStockCheck}
+              disabled={launchingStockCheck || availabilityRows.length === 0}
+              className="h-9 px-4 text-[13px] font-bold text-white bg-[#2563EB] rounded-lg hover:bg-[#1D4ED8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            >
+              {launchingStockCheck ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Creating...</>
+              ) : (
+                <><ClipboardList className="w-4 h-4" />Send to Procurement</>
+              )}
             </button>
           </div>
         </div>

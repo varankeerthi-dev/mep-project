@@ -64,11 +64,11 @@ export default function StockCheckPanel({
         const { data: stockData } = await supabase
           .from('item_stock')
           .select(`
-            qty,
+            current_stock,
             warehouse_id,
             warehouse:warehouses(name)
           `)
-          .eq('material_id', item.item_id);
+          .eq('item_id', item.item_id);
 
         // 2. Fetch active reservations by warehouse
         const { data: resData } = await supabase
@@ -84,12 +84,13 @@ export default function StockCheckPanel({
         // 3. Map warehouse stock
         const stocks: WarehouseStock[] = (stockData || []).map((s: any) => {
           const reserved = resMap.get(s.warehouse_id) || 0;
+          const inStock = parseFloat(s.current_stock) || 0;
           return {
             warehouse_id: s.warehouse_id,
             warehouse_name: s.warehouse?.name || 'Unknown Store',
-            current_stock: parseFloat(s.qty) || 0,
+            current_stock: inStock,
             reserved_qty: reserved,
-            available_qty: Math.max(0, (parseFloat(s.qty) || 0) - reserved),
+            available_qty: Math.max(0, inStock - reserved),
             to_reserve: 0
           };
         });
@@ -172,6 +173,25 @@ export default function StockCheckPanel({
       fetchStockData();
     } catch (err: any) {
       toast.error(err.message || 'Failed to save reservations');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReleaseItem = async (check: ItemStockCheck) => {
+    if (!check.currently_reserved || check.currently_reserved <= 0) return;
+    if (!confirm(`Release ${check.currently_reserved} reserved units of ${check.name}? Stock becomes available to other orders.`)) return;
+    try {
+      setSaving(true);
+      const { error } = await supabase
+        .from('sales_order_reservations')
+        .delete()
+        .eq('sales_order_item_id', check.so_item_id);
+      if (error) throw error;
+      toast.success('Reservations released');
+      fetchStockData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to release reservations');
     } finally {
       setSaving(false);
     }
@@ -290,17 +310,30 @@ export default function StockCheckPanel({
                       <h3 className="font-bold text-sm text-zinc-900">{check.name}</h3>
                       <p className="text-[10px] text-zinc-400">Order Target: {check.qty} | Reserved: {check.currently_reserved}</p>
                     </div>
-                    {check.shortfall > 0 ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        Shortfall: {check.shortfall}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <PackageCheck className="h-3.5 w-3.5" />
-                        Fully Reserved
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {check.shortfall > 0 ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          Shortfall: {check.shortfall}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <PackageCheck className="h-3.5 w-3.5" />
+                          Fully Reserved
+                        </span>
+                      )}
+                      {check.currently_reserved > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={saving}
+                          onClick={() => handleReleaseItem(check)}
+                          className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                        >
+                          Release
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Warehouse stocks listing */}
