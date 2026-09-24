@@ -41,7 +41,7 @@ export function useProjectDetails(
   const transactionsQuery = useQuery<ProjectDetails>({
     queryKey: projectKeys.transactions(pId),
     queryFn: async () => {
-      const [posResult, invoicesResult, expensesResult, paymentsResult] = await Promise.all([
+      const [posResult, invoicesResult, expensesResult, paymentsResult, quotationsResult] = await Promise.all([
         supabase.from('client_purchase_orders').select('*').eq('project_id', pId),
         supabase
           .from('project_invoices')
@@ -61,6 +61,12 @@ export function useProjectDetails(
           .eq('project_id', pId)
           .eq('organisation_id', organisationId)
           .order('payment_date', { ascending: false }),
+        supabase
+          .from('quotation_header')
+          .select('id, quotation_no, date, grand_total, status, client_id, client:clients(client_name)')
+          .eq('project_id', pId)
+          .eq('organisation_id', organisationId)
+          .order('created_at', { ascending: false }),
       ]);
 
       if (posResult.error) throw posResult.error;
@@ -68,11 +74,19 @@ export function useProjectDetails(
       if (expensesResult.error) throw expensesResult.error;
       if (paymentsResult.error) throw paymentsResult.error;
 
+      let quotations: any[] = [];
+      if (quotationsResult.error) {
+        console.warn('Project quotations unavailable:', quotationsResult.error.message);
+      } else {
+        quotations = quotationsResult.data ?? [];
+      }
+
       return {
         pos: posResult.data ?? [],
         invoices: invoicesResult.data ?? [],
         expenses: expensesResult.data ?? [],
         payments: paymentsResult.data ?? [],
+        quotations,
       };
     },
     enabled: isTransactionsEnabled && !!organisationId,

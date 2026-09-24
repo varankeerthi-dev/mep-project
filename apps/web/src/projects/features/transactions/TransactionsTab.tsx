@@ -11,6 +11,7 @@ interface TransactionsTabProps {
   projectInvoices: any[];
   projectExpenses: any[];
   projectPayments: any[];
+  projectQuotations: any[];
   projectMaterials: any[];
   projectJointMeasurements: any[];
   financialSummary: any;
@@ -31,6 +32,7 @@ export function TransactionsTab({
   projectInvoices,
   projectExpenses,
   projectPayments,
+  projectQuotations,
   projectMaterials,
   projectJointMeasurements,
   financialSummary,
@@ -45,13 +47,14 @@ export function TransactionsTab({
   const [expandedPoId, setExpandedPoId] = useState<string | null>(null);
 
   const transactionSubTabs: Array<{
-    id: 'po-utilization' | 'pos' | 'invoices' | 'payments' | 'reconciliation';
+    id: 'po-utilization' | 'pos' | 'invoices' | 'payments' | 'reconciliation' | 'quotations';
     label: string;
     count: number;
   }> = [
     { id: 'po-utilization', label: 'PO Utilization', count: projectPOs.length },
     { id: 'pos', label: 'POs', count: projectPOs.length },
     { id: 'invoices', label: 'Invoices', count: projectInvoices.length },
+    { id: 'quotations', label: 'Quotations', count: projectQuotations.length },
     { id: 'payments', label: 'Payments', count: projectPayments.length },
     { id: 'reconciliation', label: 'Material Reconciliation', count: projectMaterials.length },
   ];
@@ -506,6 +509,65 @@ export function TransactionsTab({
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── Quotations (linked by project) ── */}
+      {activeTransactionTab === 'quotations' && (
+        <div className="pl-card">
+          <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Quotations</h3>
+              <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Quotations raised against this project. Click a row to open the quotation.
+              </p>
+            </div>
+          </div>
+          {projectQuotations.length === 0 ? (
+            <div className="pl-empty">
+              <Folder className="pl-empty-icon" />
+              <p className="pl-empty-text">No quotations linked to this project yet. Quotations saved with this project appear here.</p>
+            </div>
+          ) : (
+            <table className="pl-table">
+              <thead>
+                <tr>
+                  <th>Quotation</th>
+                  <th>Date</th>
+                  <th>Client</th>
+                  <th style={{ textAlign: 'left' }}>Amount</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projectQuotations.map((q: any) => (
+                  <tr key={q.id} onClick={() => navigate(`/quotation/view?id=${q.id}`)} style={{ cursor: 'pointer' }}>
+                    <td style={{ fontWeight: 500 }}>{q.quotation_no}</td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{fmtD(q.date)}</td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{q.client?.client_name || '-'}</td>
+                    <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500, textAlign: 'left' }}>{fmt(q.grand_total)}</td>
+                    <td><span className="pl-status">{q.status || 'Draft'}</span></td>
+                    <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                      <Button variant="default" size="sm" onClick={() => navigate(`/quotation/view?id=${q.id}`)}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text-secondary)',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          fontSize: '0.6875rem',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        View
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}

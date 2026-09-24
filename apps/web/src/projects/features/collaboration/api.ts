@@ -427,6 +427,19 @@ export async function fetchChannelMembers(channelId: string): Promise<MemberSumm
   }));
 }
 
+/** Post (or retrieve, idempotently) the quotation card message in the project's channel. */
+export async function postQuotationChannelCard(
+  quotationId: string,
+  event: 'created' | 'submitted' | 'approved' | 'rejected' | 'returned',
+): Promise<{ message_id: string; channel_id: string }> {
+  const { data, error } = await supabase.rpc('post_quotation_channel_card', {
+    p_quotation_id: quotationId,
+    p_event: event,
+  });
+  if (error) throw error;
+  return data as { message_id: string; channel_id: string };
+}
+
 /** Post or retrieve the authoritative task card in a collaboration channel. */
 export async function postTaskChannelCard(
   projectId: string | null | undefined,

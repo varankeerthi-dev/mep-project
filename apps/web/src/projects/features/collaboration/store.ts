@@ -45,6 +45,7 @@ interface CollabUIState {
   taskDetailId: string | null;
   reminderDrawerOpen: boolean;
   reminderInitial: CollabReminderCreateInitial | null;
+  pdfDrawerQuotationId: string | null;
 
   /** A message id the list should scroll to, then clear. */
   scrolledToMessageId: string | null;
@@ -83,6 +84,10 @@ interface CollabUIState {
   closeTaskDetail: () => void;
   openReminderCreate: (initial: CollabReminderCreateInitial) => void;
   closeReminderCreate: () => void;
+  openPdfDrawer: (quotationId: string) => void;
+  closePdfDrawer: () => void;
+  pdfDrawerMinimized: boolean;
+  togglePdfDrawerMinimized: () => void;
 }
 
 export const useCollabStore = create<CollabUIState>((set) => ({
@@ -105,6 +110,8 @@ export const useCollabStore = create<CollabUIState>((set) => ({
   taskDetailId: null,
   reminderDrawerOpen: false,
   reminderInitial: null,
+  pdfDrawerQuotationId: null,
+  pdfDrawerMinimized: false,
   scrolledToMessageId: null,
   setScrolledToMessageId: (id) => set({ scrolledToMessageId: id }),
 
@@ -131,6 +138,9 @@ export const useCollabStore = create<CollabUIState>((set) => ({
       reminderDrawerOpen: false,
       reminderInitial: null,
     }),
+  openPdfDrawer: (quotationId) => set({ pdfDrawerQuotationId: quotationId, pdfDrawerMinimized: false }),
+  closePdfDrawer: () => set({ pdfDrawerQuotationId: null, pdfDrawerMinimized: false }),
+  togglePdfDrawerMinimized: () => set((s) => ({ pdfDrawerMinimized: !s.pdfDrawerMinimized })),
 
   setDraft: (channelId, draft) =>
     set((s) => ({ composerDrafts: { ...s.composerDrafts, [channelId]: draft } })),

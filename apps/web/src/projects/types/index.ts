@@ -32,6 +32,7 @@ export type ProjectDetails = {
   invoices: any[];
   expenses: any[];
   payments: any[];
+  quotations: any[];
 };
 
 export type ProjectFormData = {

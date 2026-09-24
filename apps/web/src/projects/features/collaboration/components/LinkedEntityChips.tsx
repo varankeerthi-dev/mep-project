@@ -18,6 +18,7 @@ const ROUTES: Record<LinkedEntity['type'], (id: string) => string> = {
   boq: (id) => `/boq/${id}`,
   material: (id) => `/materials/${id}`,
   po: (id) => `/purchase-orders/${id}`,
+  quotation: (id) => `/quotation/view?id=${id}`,
 };
 
 const COLORS: Record<LinkedEntity['type'], string> = {
@@ -31,6 +32,7 @@ const COLORS: Record<LinkedEntity['type'], string> = {
   boq: 'bg-cyan-50 border-cyan-200 text-cyan-800',
   material: 'bg-orange-50 border-orange-200 text-orange-800',
   po: 'bg-pink-50 border-pink-200 text-pink-800',
+  quotation: 'bg-teal-50 border-teal-200 text-teal-800',
 };
 
 export function LinkedEntityChips({ entities }: Props) {

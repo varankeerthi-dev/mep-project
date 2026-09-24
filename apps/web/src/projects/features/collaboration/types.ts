@@ -89,7 +89,8 @@ export interface LinkedEntity {
     | 'rfi'
     | 'boq'
     | 'material'
-    | 'po';
+    | 'po'
+    | 'quotation';
   id: string;
   label: string;
   snapshot?: Record<string, unknown>;

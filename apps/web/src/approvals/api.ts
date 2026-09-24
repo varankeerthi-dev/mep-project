@@ -302,6 +302,10 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'NOT_FOUND', message: 'Approval not found' } };
       }
 
+      if (approval.reviewer_id && approval.reviewer_id !== user.id) {
+        return { success: false, error: { code: 'UNAUTHORIZED', message: 'You are not the designated reviewer' } };
+      }
+
       if (approval.status !== 'PENDING') {
         return { success: false, error: { code: 'INVALID_STATE', message: 'Approval is not in pending state' } };
       }

@@ -6,6 +6,7 @@ import { ChannelHeader } from './ChannelHeader';
 import { MessageList } from './MessageList';
 import { Composer } from './Composer';
 import { ReminderCreateDrawer } from './ReminderCreateDrawer';
+import { QuotationPdfDrawer } from './QuotationPdfDrawer';
 import { UserAvatar } from './UserAvatar';
 import TaskCreateDrawer from '../../../../components/tasks/TaskCreateDrawer';
 import TaskDetailDrawer from '../../../../components/tasks/TaskDetailDrawer';
@@ -211,6 +212,8 @@ export function ProjectCollaborationTab({
       )}
 
       <ReminderCreateDrawer />
+
+      <QuotationPdfDrawer />
     </div>
   );
 }

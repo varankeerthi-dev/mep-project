@@ -64,7 +64,7 @@ export default function ProjectDetailView({
   }, [organisations, organisation]);
 
   const [activeTab, setActiveTab] = useState('summary');
-  const [activeTransactionTab, setActiveTransactionTab] = useState<'po-utilization' | 'pos' | 'invoices' | 'payments' | 'reconciliation'>('po-utilization');
+  const [activeTransactionTab, setActiveTransactionTab] = useState<'po-utilization' | 'pos' | 'invoices' | 'payments' | 'reconciliation' | 'quotations'>('po-utilization');
   const [expandedPoId, setExpandedPoId] = useState<string | null>(null);
   const [invoiceModal, setInvoiceModal] = useState<
     | { open: false }
@@ -179,6 +179,7 @@ export default function ProjectDetailView({
   const projectInvoices = projectDetails?.invoices ?? [];
   const projectExpenses = projectDetails?.expenses ?? [];
   const projectPayments = projectDetails?.payments ?? [];
+  const projectQuotations = projectDetails?.quotations ?? [];
 
   const { data: milestones = [] } = useProjectMilestones(selectedProject.id);
   const createMilestoneMutation = useCreateMilestone();
@@ -544,6 +545,7 @@ export default function ProjectDetailView({
             projectInvoices={projectInvoices}
             projectExpenses={projectExpenses}
             projectPayments={projectPayments}
+            projectQuotations={projectQuotations}
             projectMaterials={projectMaterials}
             projectJointMeasurements={projectJointMeasurements}
             financialSummary={financialSummary}

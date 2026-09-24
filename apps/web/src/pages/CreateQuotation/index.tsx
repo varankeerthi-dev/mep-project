@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+﻿import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import { useClients } from '../../hooks/useClients';
 import { useProjects } from '../../hooks/useProjects';
 import { useVariants } from '../../hooks/useVariants';
 import { ApprovalIntegration } from '../../approvals/integration';
+import { postQuotationChannelCard } from '../../projects/features/collaboration/api';
 import { useConvertDocument, useConversionStatus, getSourceTableName } from '../../conversions/hooks';
 import type { ConversionType } from '../../conversions/types';
 import ItemCreateDrawer from '../../components/ItemCreateDrawer';
@@ -39,6 +40,7 @@ import { usePresence } from './hooks/usePresence';
 import { DocumentConversionChain } from '../../components/DocumentConversionChain';
 import { PresenceBanner } from './components/PresenceBanner';
 import { autoCreateOrUpdateErection } from '../../utils/erectionUtils';
+import { FloatingQuoteChat } from '../../projects/features/collaboration/components/FloatingQuoteChat';
 
 const DEFAULT_PAYMENT_TERMS = 'Net 30 Days';
 
@@ -1401,7 +1403,7 @@ export default function CreateQuotation() {
           if ('rate' in updates) {
             rate = parseFloat(updates.rate) || 0;
             // Only a manual rate edit marks the row overridden. Item/make/variant
-            // selections bundle a recalculated rate with new context — those must
+            // selections bundle a recalculated rate with new context â€” those must
             // preserve the caller's is_override flag so header discount changes
             // keep applying to the row.
             const recalcedWithContext = 'item_id' in updates || 'variant_id' in updates || 'make' in updates || 'material' in updates;
@@ -1412,7 +1414,7 @@ export default function CreateQuotation() {
             const variantId = 'variant_id' in updates ? updates.variant_id : item.variant_id;
             const make = 'make' in updates ? updates.make : item.make;
             const mat = materials.find(m => m.id === item.item_id);
-            // Discount/qty/tax edits must only change the net rate — the MRP
+            // Discount/qty/tax edits must only change the net rate â€” the MRP
             // (base_rate_snapshot) stays untouched. Refetch the base only when
             // the item context itself changed or no base was captured yet.
             const contextChanged = 'variant_id' in updates || 'make' in updates || 'item_id' in updates || 'material' in updates;
@@ -1592,7 +1594,7 @@ export default function CreateQuotation() {
       if (!isMatch) return item;
       if (excludedIds.includes(String(item.id))) return item;
       if (item.is_override && !includeOverrides) return item;
-      // Only the net rate changes — base_rate_snapshot (MRP) is preserved.
+      // Only the net rate changes â€” base_rate_snapshot (MRP) is preserved.
       const baseRate = item.base_rate_snapshot || item.rate || 0;
       const finalRate = calculateVariantDiscountedRate(baseRate, discountVal);
       const qty = parseFloat(item.qty) || 0;
@@ -1621,7 +1623,7 @@ export default function CreateQuotation() {
     if (matching.length === 0) return;
     const needsDecision = matching.some(item => (parseFloat(item.discount_percent) || 0) !== discountVal);
     if (!needsDecision) {
-      // Every row already carries the new value — quietly clear stale override flags.
+      // Every row already carries the new value â€” quietly clear stale override flags.
       applyCategoryDiscountToItems(categoryId, discountVal, type);
       return;
     }
@@ -2293,7 +2295,7 @@ export default function CreateQuotation() {
 
       }
 
-      // The record/update RPCs don't accept status or negotiation_mode — persist
+      // The record/update RPCs don't accept status or negotiation_mode â€” persist
       // them here, otherwise the Negotiation Mode toggle and status select silently
       // reset to their DB defaults on reload.
       const { error: hdrError } = await supabase
@@ -2376,7 +2378,28 @@ export default function CreateQuotation() {
 
       const savedItems = await saveItemsDiff(quotationId, rawItems, originalItems);
 
-      // Build temp-ID → DB-ID map so erection items' linked_material_id stays correct after save
+      if (!isAutosave) {
+        supabase.from('quotation_activity_log').insert({
+          organisation_id: organisation.id,
+          quotation_id: quotationId,
+          event_type: editId ? 'edited' : 'created',
+          summary: {
+            items: cleanItems.filter((it: any) => !it.is_header && !it.is_subtotal).length,
+            total: calculations.grandTotal || 0
+          },
+          created_by: user?.id || null
+        }).then(({ error }: any) => {
+          if (error) console.warn('Activity log write failed:', error.message);
+        });
+      }
+
+      if (!isAutosave && !editId && formData.project_id) {
+        postQuotationChannelCard(quotationId, 'created').catch((err: any) => {
+          console.warn('Quotation channel post failed:', err?.message || err);
+        });
+      }
+
+      // Build temp-ID â†’ DB-ID map so erection items' linked_material_id stays correct after save
       const idMap = new Map<string, string>();
       cleanItems.forEach((item, index) => {
         const saved = savedItems[index];
@@ -2422,11 +2445,11 @@ export default function CreateQuotation() {
       }
 
       if (isMultiDC && quotationId && dcAllocations.length > 0) {
-        // Validate allocated amount matches quotation total (₹1 tolerance)
+        // Validate allocated amount matches quotation total (â‚¹1 tolerance)
         const totalAllocated = dcAllocations.reduce((sum, dc) => sum + dc.allocated_amount, 0);
         const quotationTotal = calculations.grandTotal || 0;
         if (Math.abs(totalAllocated - quotationTotal) > 1) {
-          throw new Error(`Allocated amount (₹${totalAllocated.toFixed(2)}) does not match quotation total (₹${quotationTotal.toFixed(2)}). Please adjust allocations.`);
+          throw new Error(`Allocated amount (â‚¹${totalAllocated.toFixed(2)}) does not match quotation total (â‚¹${quotationTotal.toFixed(2)}). Please adjust allocations.`);
         }
 
         const links = dcAllocations.map(dc => ({
@@ -3011,12 +3034,14 @@ export default function CreateQuotation() {
                   <span className="text-red-500 font-bold">- {formatCurrency(calculations.totalItemDiscount)}</span>
                 </div>
               )}
-              {calculations.extraDiscountAmount > 0 && (
-                <div className="flex justify-between text-[13px] text-zinc-500">
-                  <span>Extra Discount ({formData.extra_discount_percent}%)</span>
-                  <span className="text-red-500 font-bold">- {formatCurrency(calculations.extraDiscountAmount)}</span>
-                </div>
-              )}
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[13px] text-zinc-500">Extra Discount %</span>
+                <input type="number" className="form-input text-zinc-700" style={{ width: '80px', textAlign: 'right', height: '32px', padding: '4px 8px', fontSize: '13px' }} value={formData.extra_discount_percent} onChange={(e) => setFormData({ ...formData, extra_discount_percent: e.target.value })} min="0" max="100" step="0.01" />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[13px] text-zinc-500">Extra Discount Amt</span>
+                <input type="number" className="form-input text-zinc-700" style={{ width: '100px', textAlign: 'right', height: '32px', padding: '4px 8px', fontSize: '13px' }} value={formData.extra_discount_amount} onChange={(e) => setFormData({ ...formData, extra_discount_amount: e.target.value })} min="0" step="0.01" />
+              </div>
               <div className="flex justify-between text-[13px] text-zinc-500">
                 <span>Taxable Value</span>
                 <span className="font-bold text-zinc-900">{formatCurrency(calculations.subtotal - calculations.extraDiscountAmount)}</span>
@@ -3038,9 +3063,12 @@ export default function CreateQuotation() {
                   </div>
                 </>
               )}
-              <div className="flex justify-between text-[13px] text-zinc-500">
-                <span>Round Off</span>
-                <span className="font-bold text-zinc-900">{formatCurrency(calculations.roundOff)}</span>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="roundOffToggle" style={{ width: '14px', height: '14px', cursor: 'pointer' }} checked={formData.round_off_enabled} onChange={(e) => setFormData({ ...formData, round_off_enabled: e.target.checked })} />
+                  <label htmlFor="roundOffToggle" style={{ fontSize: '13px', cursor: 'pointer', userSelect: 'none', fontWeight: 500, color: '#6b7280' }}>Round Off</label>
+                </div>
+                <input type="number" className="form-input text-zinc-700" style={{ width: '100px', textAlign: 'right', height: '32px', padding: '4px 8px', fontSize: '13px', backgroundColor: formData.round_off_enabled ? '#f8fafc' : 'white', color: formData.round_off_enabled ? '#64748b' : '#1e293b' }} value={calculations.roundOff.toFixed(2)} readOnly={formData.round_off_enabled} onChange={(e) => !formData.round_off_enabled && setFormData({ ...formData, round_off: e.target.value })} step="0.01" />
               </div>
               <div className="pt-4 border-t-2 border-zinc-900 flex justify-between items-center">
                 <span className="text-[15px] font-bold text-zinc-900 uppercase">Grand Total</span>
@@ -3048,6 +3076,19 @@ export default function CreateQuotation() {
               </div>
               <div className="text-right text-sm text-zinc-500">
                 INR {calculations.amountInWords}
+              </div>
+              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e5e7eb' }}>
+                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest leading-none mb-2">Authorized Signatory</div>
+                <div className="sig-dropdown-container relative cursor-pointer flex items-center justify-between px-3 py-1.5 border border-zinc-300 rounded-md bg-white text-zinc-700 text-xs font-medium hover:bg-zinc-50 hover:border-zinc-400 transition-all shadow-sm" onClick={() => setIsSigDropdownOpen(!isSigDropdownOpen)}>
+                  <span>{formData.authorized_signatory_id ? ((organisation as any)?.signatures || []).find((s: any) => String(s.id) === String(formData.authorized_signatory_id))?.name || 'Select Signatory...' : 'Select Signatory...'}</span>
+                  <svg className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${isSigDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  {isSigDropdownOpen && (
+                    <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: '4px', zIndex: 50, background: 'white', border: '1px solid #d1d5db', borderRadius: '6px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6', fontWeight: 500 }} onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'} onMouseLeave={e => e.currentTarget.style.background = 'white'} onClick={() => { setFormData({ ...formData, authorized_signatory_id: '' }); setIsSigDropdownOpen(false); }}>Select Signatory...</div>
+                      {((organisation as any)?.signatures || []).length > 0 ? (((organisation as any)?.signatures || []).map((sig: any) => (<div key={String(sig.id)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }} onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'} onMouseLeave={e => e.currentTarget.style.background = 'white'} onClick={() => handleSigChange(String(sig.id))}>{sig.name}</div>))) : (<div style={{ padding: '8px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No signatures uploaded</div>)}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -3063,7 +3104,7 @@ export default function CreateQuotation() {
           />
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_300px] gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <div className="card" style={{ padding: '12px', height: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContainer: 'space-between', marginBottom: '8px' }}>
@@ -3109,109 +3150,6 @@ export default function CreateQuotation() {
                 value={formData.terms_text || ''}
                 onChange={(e) => setFormData({ ...formData, terms_text: e.target.value })}
               />
-            </div>
-          </div>
-          <div className="card" style={{ padding: '12px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px' }}>
-              <div style={{ fontWeight: 600, fontSize: '11px', color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '6px', marginBottom: '4px' }}>Adjustments</div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 500, color: '#4b5563' }}>Extra Discount %</span>
-                <input type="number" className="form-input text-zinc-700" style={{ width: '80px', textAlign: 'right', height: '32px', padding: '4px 8px', fontSize: '13px' }} value={formData.extra_discount_percent} onChange={(e) => setFormData({ ...formData, extra_discount_percent: e.target.value })} min="0" max="100" step="0.01" />
-              </div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 500, color: '#4b5563' }}>Extra Discount Amt</span>
-                <input type="number" className="form-input text-zinc-700" style={{ width: '100px', textAlign: 'right', height: '32px', padding: '4px 8px', fontSize: '13px' }} value={formData.extra_discount_amount} onChange={(e) => setFormData({ ...formData, extra_discount_amount: e.target.value })} min="0" step="0.01" />
-              </div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <input 
-                    type="checkbox" 
-                    id="roundOffToggle"
-                    style={{ width: '14px', height: '14px', cursor: 'pointer' }}
-                    checked={formData.round_off_enabled} 
-                    onChange={(e) => setFormData({ ...formData, round_off_enabled: e.target.checked })} 
-                  />
-                  <label htmlFor="roundOffToggle" style={{ fontSize: '13px', cursor: 'pointer', userSelect: 'none', fontWeight: 500, color: '#4b5563' }}>Round Off</label>
-                </div>
-                <input 
-                  type="number" 
-                  className="form-input text-zinc-700" 
-                  style={{ 
-                    width: '100px', 
-                    textAlign: 'right', 
-                    height: '32px', 
-                    padding: '4px 8px', 
-                    fontSize: '13px',
-                    backgroundColor: formData.round_off_enabled ? '#f8fafc' : 'white',
-                    color: formData.round_off_enabled ? '#64748b' : '#1e293b'
-                  }} 
-                  value={calculations.roundOff.toFixed(2)} 
-                  readOnly={formData.round_off_enabled}
-                  onChange={(e) => !formData.round_off_enabled && setFormData({ ...formData, round_off: e.target.value })} 
-                  step="0.01" 
-                />
-              </div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '10px', borderTop: '2px solid #e5e7eb' }}>
-                <span style={{ fontWeight: 700, color: '#1f2937', fontSize: '13px' }}>Grand Total</span>
-                <span style={{ fontWeight: 800, color: '#185FA5', fontSize: '15px' }}>{formatCurrency(calculations.grandTotal)}</span>
-              </div>
-
-              <div style={{ marginTop: '12px', padding: '12px', borderTop: '1px solid #e5e7eb', fontFamily: 'Inter, sans-serif' }}>
-                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest leading-none mb-2">Authorized Signatory</div>
-                <div 
-                  className="sig-dropdown-container relative cursor-pointer flex items-center justify-between px-3 py-1.5 border border-zinc-300 rounded-md bg-white text-zinc-700 text-xs font-medium hover:bg-zinc-50 hover:border-zinc-400 transition-all shadow-sm"
-                  onClick={() => setIsSigDropdownOpen(!isSigDropdownOpen)}
-                >
-                  <span>
-                    {formData.authorized_signatory_id
-                      ? ((organisation as any)?.signatures || []).find((s: any) => String(s.id) === String(formData.authorized_signatory_id))?.name || 'Select Signatory...'
-                      : 'Select Signatory...'}
-                  </span>
-                  <svg className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${isSigDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                  </svg>
-
-                  {isSigDropdownOpen && (
-                    <div style={{
-                      position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: '4px',
-                      zIndex: 50, background: 'white', border: '1px solid #d1d5db', borderRadius: '6px',
-                      boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
-                      maxHeight: '200px', overflowY: 'auto'
-                    }} onClick={e => e.stopPropagation()}>
-                      <div 
-                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6', fontWeight: 500 }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                        onClick={() => {
-                          setFormData({ ...formData, authorized_signatory_id: '' });
-                          setIsSigDropdownOpen(false);
-                        }}
-                      >
-                        Select Signatory...
-                      </div>
-                      {((organisation as any)?.signatures || []).length > 0 ? (
-                        ((organisation as any)?.signatures || []).map((sig: any) => (
-                          <div 
-                            key={String(sig.id)} 
-                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6' }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                            onClick={() => handleSigChange(String(sig.id))}
-                          >
-                            {sig.name}
-                          </div>
-                        ))
-                      ) : (
-                        <div style={{ padding: '8px 12px', fontSize: '11px', color: '#9ca3af', fontStyle: 'italic', textAlign: 'center' }}>No signatures uploaded</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -3396,7 +3334,7 @@ export default function CreateQuotation() {
           <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '90%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#18181b' }}>Column Settings</h3>
-              <button onClick={() => setShowCustomLabelEditor(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '0 4px', color: '#71717a' }}>×</button>
+              <button onClick={() => setShowCustomLabelEditor(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '0 4px', color: '#71717a' }}>Ã—</button>
             </div>
             <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>
               Toggle columns to show/hide on the printed document. You can also customize their display labels.
@@ -3487,7 +3425,7 @@ export default function CreateQuotation() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', width: '90%', height: '80vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header" style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b', margin: 0 }}>Add Multiple Items</h3>
-              <Button variant="ghost" size="icon" onClick={() => setShowItemPicker(false)} style={{ fontSize: '20px' }}>×</Button>
+              <Button variant="ghost" size="icon" onClick={() => setShowItemPicker(false)} style={{ fontSize: '20px' }}>Ã—</Button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
               <div style={{ borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -3534,7 +3472,7 @@ export default function CreateQuotation() {
                             </td>
                             <td style={{ padding: '10px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'center' }}>
                               {isSelected ? (
-                                <span style={{ color: '#16a34a', fontSize: '14px' }}>✓</span>
+                                <span style={{ color: '#16a34a', fontSize: '14px' }}>âœ“</span>
                               ) : (
                                 <button style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', cursor: 'pointer', fontSize: '11px', fontWeight: 500 }}>+</button>
                               )}
@@ -3575,7 +3513,7 @@ export default function CreateQuotation() {
                             <button 
                               onClick={() => handleRemoveFromPicker(p.item_id)} 
                               style={{ background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '4px', width: '24px', height: '24px', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            >×</button>
+                            >Ã—</button>
                           </div>
                         </div>
                       ))}
@@ -3740,8 +3678,8 @@ export default function CreateQuotation() {
             Delete Selected
           </button>
 
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={() => setSelectedItemIds([])}
             style={{ padding: '6px 12px', background: 'transparent', color: '#94a3b8', border: '1px solid #334155', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
           >
@@ -3749,6 +3687,7 @@ export default function CreateQuotation() {
           </button>
         </div>
       )}
+      {formData.project_id ? <FloatingQuoteChat projectId={formData.project_id} /> : null}
     </div>
   );
 }

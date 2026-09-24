@@ -18,6 +18,7 @@ import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, CheckCircle, Arro
 import { useVariants } from '../hooks/useVariants';
 import { ApprovalAPI } from '../approvals/api';
 import { ApprovalIntegration } from '../approvals/integration';
+import { postQuotationChannelCard } from '../projects/features/collaboration/api';
 import { initiateQuotationRevision } from '../lib/quotation-workflow';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../components/ui/resizable';
 import DocumentSettingsDrawer from '../components/document-settings/DocumentSettingsDrawer';
@@ -27,6 +28,7 @@ import { generateQuotationPdf } from '../pdf/enterpriseQuotationPdf';
 import { generateSakthiPdf } from '../pdf/sakthiTemplatePdf';
 import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import { QuotationRevisionCompareModal } from '../components/QuotationRevisionCompareModal';
+import { FloatingQuoteChat } from '../projects/features/collaboration/components/FloatingQuoteChat';
 
 const getStatusBadge = (status) => {
   const colors = {
@@ -102,6 +104,9 @@ export default function QuotationView() {
   const [embedError, setEmbedError] = useState<string | null>(null);
 
   const [showConvertMenu, setShowConvertMenu] = useState(false);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [reviewComments, setReviewComments] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [showStockCheckModal, setShowStockCheckModal] = useState(false);
   const [launchingStockCheck, setLaunchingStockCheck] = useState(false);
   // Informational stock availability (display-only - no reservations, no writes)
@@ -122,6 +127,7 @@ export default function QuotationView() {
   const [listStatusTab, setListStatusTab] = useState('All');
   const [listSortAsc, setListSortAsc] = useState(false);
   const [previewTab, setPreviewTab] = useState('Preview');
+  const [historySubTab, setHistorySubTab] = useState<'timeline' | 'feedback'>('timeline');
   const [itemFilter, setItemFilter] = useState('');
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [showTemplateSelect, setShowTemplateSelect] = useState(false);
@@ -277,6 +283,26 @@ export default function QuotationView() {
     enabled: !!quotationId && quoteApprovalIds.length > 0,
   });
 
+  const quoteActivityQuery = useQuery({
+    queryKey: ['quotation-activity', quotationId],
+    queryFn: async () => {
+      if (!quotationId) return [];
+      try {
+        const { data, error } = await supabase
+          .from('quotation_activity_log')
+          .select('id, event_type, summary, created_by, created_at')
+          .eq('quotation_id', quotationId)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        return data || [];
+      } catch (err) {
+        console.warn('Unable to load quotation activity:', err);
+        return [];
+      }
+    },
+    enabled: !!quotationId,
+  });
+
   const historyUserIds = useMemo(() => {
     const ids = new Set<string>();
     const qq: any = quotation;
@@ -284,8 +310,9 @@ export default function QuotationView() {
     (qq?.revision_history || []).forEach((r: any) => { if (r?.saved_by) ids.add(r.saved_by); });
     (quoteApprovalsQuery.data || []).forEach((a: any) => { if (a.requested_by) ids.add(a.requested_by); });
     (quoteApprovalActionsQuery.data || []).forEach((x: any) => { if (x.approver_id) ids.add(x.approver_id); });
+    (quoteActivityQuery.data || []).forEach((l: any) => { if (l?.created_by) ids.add(l.created_by); });
     return Array.from(ids);
-  }, [quotation, quoteApprovalsQuery.data, quoteApprovalActionsQuery.data]);
+  }, [quotation, quoteApprovalsQuery.data, quoteApprovalActionsQuery.data, quoteActivityQuery.data]);
 
   const userNamesQuery = useQuery({
     queryKey: ['quotation-history-users', quotationId, historyUserIds.join('|')],
@@ -364,12 +391,42 @@ export default function QuotationView() {
     );
   }, [quotation?.items, itemFilter]);
 
+  const quoteSuggestionQuery = useQuery({
+    queryKey: ['quotation-suggestions', quotationId],
+    queryFn: async () => {
+      if (!quotationId) return [];
+      try {
+        const { data: parents, error: e1 } = await supabase
+          .from('project_collaboration_messages')
+          .select('id')
+          .eq('message_type', 'system')
+          .contains('metadata', { linked_entities: [{ type: 'quotation', id: quotationId }] });
+        if (e1) throw e1;
+        const ids = (parents || []).map((p: any) => p.id);
+        if (ids.length === 0) return [];
+        const { data, error } = await supabase
+          .from('project_collaboration_messages')
+          .select('id, content, created_at, sender_id, sender:user_profiles!sender_id(full_name, avatar_url)')
+          .in('parent_message_id', ids)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        return data || [];
+      } catch (err) {
+        console.warn('Unable to load quotation suggestions:', err);
+        return [];
+      }
+    },
+    enabled: !!quotationId,
+  });
+
   const historyEvents = useMemo(() => {
     const evts: any[] = [];
     const q: any = quotation;
     const userNames: Record<string, string> = userNamesQuery.data || {};
     const nameOf = (id: any) => (id && userNames[id]) || '';
-    if (q?.created_at) {
+    const activityLogs = quoteActivityQuery.data || [];
+    const hasCreatedLog = activityLogs.some((l: any) => l.event_type === 'created');
+    if (q?.created_at && !hasCreatedLog) {
       evts.push({
         key: 'created',
         at: q.created_at,
@@ -428,6 +485,7 @@ export default function QuotationView() {
             title: d.label,
             by: nameOf(x.approver_id),
             desc: [x.approver_role, x.comments].filter(Boolean).join(' \u00b7 '),
+            hasFeedback: !!x.comments,
           });
         });
       } else if (a.status && decisionStyle[a.status]) {
@@ -436,10 +494,38 @@ export default function QuotationView() {
         if (at) evts.push({ key: `dec-${a.id}`, at, color: d.color, title: d.label, desc: '' });
       }
     });
-    return evts
+    activityLogs.forEach((l: any) => {
+      if (!l?.created_at) return;
+      const s = l.summary || {};
+      evts.push({
+        key: `log-${l.id}`,
+        at: l.created_at,
+        color: l.event_type === 'created' ? '#2563EB' : '#6B7280',
+        title: l.event_type === 'created' ? 'Quotation created' : 'Quotation edited',
+        by: nameOf(l.created_by),
+        desc: s.items != null ? `${s.items} items - Total ${formatCurrency(s.total || 0)}` : '',
+      });
+    });
+    (quoteSuggestionQuery.data || []).forEach((m: any) => {
+      if (!m?.created_at) return;
+      evts.push({
+        key: `sug-${m.id}`,
+        at: m.created_at,
+        color: '#0F766E',
+        title: 'Change suggested',
+        by: m.sender?.full_name || '',
+        desc: m.content || '',
+      });
+    });
+    const all = evts
       .filter((e) => e.at && !isNaN(new Date(e.at).getTime()))
       .sort((x, y) => new Date(x.at).getTime() - new Date(y.at).getTime());
-  }, [quotation, quoteApprovalsQuery.data, quoteApprovalActionsQuery.data, userNamesQuery.data]);
+    return {
+      all,
+      journey: all.filter((e) => !e.key.startsWith('sug-')),
+      feedback: all.filter((e) => e.key.startsWith('sug-') || e.hasFeedback),
+    };
+  }, [quotation, quoteApprovalsQuery.data, quoteApprovalActionsQuery.data, userNamesQuery.data, quoteActivityQuery.data, quoteSuggestionQuery.data]);
 
   const visibleQuotations = useMemo(() => {
     const s = listSearch.trim().toLowerCase();
@@ -601,24 +687,42 @@ export default function QuotationView() {
     }
   };
 
-  const handleApprovalAction = async (action: 'APPROVED' | 'REJECTED') => {
+  const handleApprovalAction = async (action: 'APPROVED' | 'REJECTED' | 'RETURNED', comments?: string) => {
     if (!quotationId || !quotation) return;
     
     try {
       const res = await ApprovalAPI.processApproval(
         quotation.approval_id || quotationId,
-        { action, comments: `${action === 'APPROVED' ? 'Approved via quotation view' : 'Rejected via quotation view'}` }
+        { action, comments: comments || (action === 'APPROVED' ? 'Approved via quotation view' : action === 'REJECTED' ? 'Rejected via quotation view' : 'Changes requested via quotation view') }
       );
 
       if (res.success) {
         alert(`Quotation ${action.toLowerCase()} successfully!`);
         quotationQuery.refetch();
+        if (quotation.project_id) {
+          const ev = action === 'APPROVED' ? 'approved' : action === 'REJECTED' ? 'rejected' : 'returned';
+          postQuotationChannelCard(quotationId, ev).catch((err: any) => {
+            console.warn('Quotation channel post failed:', err?.message || err);
+          });
+        }
       } else {
         alert(res.error?.message || `Failed to ${action.toLowerCase()} quotation`);
       }
     } catch (error) {
       console.error('Error processing approval:', error);
       alert('Error processing approval. Please try again.');
+    }
+  };
+
+  const submitReview = async (action: 'APPROVED' | 'REJECTED' | 'RETURNED') => {
+    if (!reviewComments.trim()) return;
+    setReviewSubmitting(true);
+    try {
+      await handleApprovalAction(action, reviewComments.trim());
+      setShowReviewDialog(false);
+      setReviewComments('');
+    } finally {
+      setReviewSubmitting(false);
     }
   };
 
@@ -636,6 +740,11 @@ export default function QuotationView() {
         alert('Submitted for approval successfully!');
         quotationQuery.refetch();
         quotationsQuery.refetch();
+        if (quotation.project_id) {
+          postQuotationChannelCard(quotationId, 'submitted').catch((err: any) => {
+            console.warn('Quotation channel post failed:', err?.message || err);
+          });
+        }
       } else {
         alert(res.error || 'No approval required for this quotation.');
       }
@@ -2123,11 +2232,11 @@ export default function QuotationView() {
               )}
               {canApprove && (
                 <button
-                  onClick={() => handleApprovalAction('APPROVED')}
+                  onClick={() => { setReviewComments(''); setShowReviewDialog(true); }}
                   className="inline-flex items-center gap-1 h-8 px-2 rounded-md bg-emerald-600 text-white text-[13px] font-semibold hover:bg-emerald-700 transition-colors"
                 >
                   <CheckCircle className="w-[14px] h-[14px]" />
-                  Approve
+                  Review
                 </button>
               )}
               {isEditable && (
@@ -2302,7 +2411,7 @@ export default function QuotationView() {
             <div className="flex items-center gap-5">
               {[
                 { key: 'Preview', icon: Eye, count: null },
-                { key: 'History', icon: History, count: historyEvents.length },
+                { key: 'History', icon: History, count: historyEvents.all.length },
                 { key: 'Attachments', icon: Paperclip, count: 0 },
               ].map((tab: any) => {
                 const active = previewTab === tab.key;
@@ -2353,16 +2462,34 @@ export default function QuotationView() {
 
           {previewTab === 'History' && (
             <div className="py-6 max-w-2xl">
-              {historyEvents.length === 0 ? (
+              <div className="mb-4 flex items-center gap-2">
+                {[
+                  { key: 'timeline', label: 'Timeline', count: historyEvents.journey.length },
+                  { key: 'feedback', label: 'Changes / Feedback', count: historyEvents.feedback.length },
+                ].map((t: any) => {
+                  const active = historySubTab === t.key;
+                  return (
+                    <button
+                      key={t.key}
+                      onClick={() => setHistorySubTab(t.key)}
+                      className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-semibold transition-colors ${active ? 'bg-[#0B1C30] text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+                    >
+                      {t.label}
+                      <span className={`rounded-full px-1.5 py-px text-[10px] font-bold ${active ? 'bg-white/20 text-white' : 'bg-white text-zinc-500'}`}>{t.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {(historySubTab === 'feedback' ? historyEvents.feedback : historyEvents.journey).length === 0 ? (
                 <div className="py-16 text-center">
-                  <div className="text-sm font-medium text-zinc-500">No history yet</div>
-                  <div className="mt-1 text-[13px] text-zinc-400">Events for this quotation will appear here.</div>
+                  <div className="text-sm font-medium text-zinc-500">{historySubTab === 'feedback' ? 'No feedback yet' : 'No history yet'}</div>
+                  <div className="mt-1 text-[13px] text-zinc-400">{historySubTab === 'feedback' ? 'Suggestions from the project channel and reviewer comments will appear here.' : 'Events for this quotation will appear here.'}</div>
                 </div>
               ) : (
                 <div className="relative pl-6">
                   <div className="absolute top-2 bottom-2 w-px bg-[#E5E7EB]" style={{ left: 5 }} />
                   <div className="space-y-4">
-                    {historyEvents.map((ev: any) => (
+                    {(historySubTab === 'feedback' ? historyEvents.feedback : historyEvents.journey).map((ev: any) => (
                       <div key={ev.key} className="relative">
                         <span className="absolute rounded-full bg-white" style={{ width: 11, height: 11, left: -24, top: 5, border: `3px solid ${ev.color}` }} />
                         <div className="bg-white border border-[#EEF0F3] rounded-lg px-3.5 py-2.5">
@@ -3066,6 +3193,28 @@ export default function QuotationView() {
       }}
     />
 
+    {showReviewDialog && (
+      <div className="fixed inset-0 z-[100] bg-black/45 flex items-center justify-center p-4" onClick={() => setShowReviewDialog(false)}>
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="text-sm font-bold text-zinc-900">Review {quotation?.quotation_no}</div>
+          <div className="mt-1 text-xs text-zinc-500">Your comment is required and will be visible to the quote creator in History.</div>
+          <textarea
+            value={reviewComments}
+            onChange={(e) => setReviewComments(e.target.value)}
+            rows={4}
+            placeholder="e.g. Approved - ensure dispatch via ABC Transport and confirm the date with the client"
+            className="mt-3 w-full rounded-md border border-[#E5E7EB] p-2.5 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
+          />
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowReviewDialog(false)}>Cancel</Button>
+            <Button variant="warning" size="sm" disabled={reviewSubmitting || !reviewComments.trim()} onClick={() => submitReview('RETURNED')}>Request Changes</Button>
+            <Button variant="destructive" size="sm" disabled={reviewSubmitting || !reviewComments.trim()} onClick={() => submitReview('REJECTED')}>Reject</Button>
+            <Button variant="success" size="sm" disabled={reviewSubmitting || !reviewComments.trim()} onClick={() => submitReview('APPROVED')}>Approve</Button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <RevisionHistoryDialog
       open={revisionDialogOpen}
       onClose={() => setRevisionDialogOpen(false)}
@@ -3097,6 +3246,8 @@ export default function QuotationView() {
         navigate(`/quotation/edit?id=${quotationId}&restoreRev=${rev.revision_no}`);
       }}
     />
+
+    {quotation?.project_id ? <FloatingQuoteChat projectId={quotation.project_id} /> : null}
     </>
   );
 }

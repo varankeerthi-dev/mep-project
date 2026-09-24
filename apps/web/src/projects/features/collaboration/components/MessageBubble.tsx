@@ -16,6 +16,7 @@ import { useAddReaction, useDeleteMessage, useRemoveReaction, useCreatePersonalT
 import { ReactionBar } from './ReactionBar';
 import { LinkedEntityChips } from './LinkedEntityChips';
 import { DailyReportCard } from './DailyReportCard';
+import { QuotationCard } from './QuotationCard';
 import { TaskCard } from './TaskCard';
 import { ReminderCard } from './ReminderCard';
 import { useCollabStore } from '../store';
@@ -128,6 +129,9 @@ export const MessageBubble = memo(function MessageBubble({
     }
     if ((entity as any)?.type === 'reminder') {
       return <ReminderCard message={message} />;
+    }
+    if ((entity as any)?.type === 'quotation') {
+      return <QuotationCard message={message} />;
     }
     return (
       <div className="text-[11px] text-slate-400 italic px-2 py-1 text-center" data-testid="collab-msg-system">
