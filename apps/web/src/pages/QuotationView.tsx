@@ -30,6 +30,7 @@ import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import { QuotationRevisionCompareModal } from '../components/QuotationRevisionCompareModal';
 import { FloatingQuoteChat } from '../projects/features/collaboration/components/FloatingQuoteChat';
 import { DocumentTimeline } from '../components/document/DocumentTimeline';
+import { DocumentActions } from '../components/document/DocumentActions';
 
 const getStatusBadge = (status) => {
   const colors = {

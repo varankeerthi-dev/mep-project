@@ -75,6 +75,7 @@ export default function CreateQuotation() {
 
   const isInitiallyLoadedRef = useRef(false);
   const ignoreDirtyRef = useRef(false);
+  const skipDupeCheckRef = useRef(false);
   const itemsTableRef = useRef<HTMLDivElement>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -2151,6 +2152,41 @@ export default function CreateQuotation() {
         toast.error('Validation error', { description: 'Please add at least one item.' });
       }
       return false;
+    }
+
+    // Same item twice in one section is usually accidental (legit splits live in
+    // different sections). Warn once on manual save; autosave never interrupts.
+    if (!isAutosave && !skipDupeCheckRef.current) {
+      const seen = new Map<string, any>();
+      const dupes: any[] = [];
+      cleanItems.forEach((item: any) => {
+        if (!item.item_id || item.is_header || item.is_subtotal) return;
+        const key = `${item.section || 'materials'}::${item.item_id}::${item.variant_id || ''}::${(item.make || '').toLowerCase()}`;
+        if (seen.has(key)) {
+          if (!dupes.includes(seen.get(key))) dupes.push(seen.get(key));
+          dupes.push(item);
+        } else {
+          seen.set(key, item);
+        }
+      });
+      if (dupes.length > 0) {
+        const names = [...new Set(dupes.map((d: any) => {
+          const mat = materials.find((m: any) => m.id === d.item_id);
+          return d.description || mat?.display_name || mat?.name || 'Unnamed item';
+        }))].slice(0, 5).join(', ');
+        const extra = dupes.length > 5 ? ` and ${dupes.length - 5} more row(s)` : '';
+        setConfirmDialog({
+          title: 'Duplicate line items',
+          description: `These items appear more than once in the same section: ${names}${extra}. Save anyway, or cancel to fix them first.`,
+          confirmLabel: 'Save Anyway',
+          onConfirm: () => {
+            setConfirmDialog(null);
+            skipDupeCheckRef.current = true;
+            handleSave(saveAndNew, isAutosave).finally(() => { skipDupeCheckRef.current = false; });
+          },
+        });
+        return false;
+      }
     }
 
     setSaving(true);

@@ -425,7 +425,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
                           }
                         }}
                       >
-                        <td className="px-4 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                        <td className="px-4 py-3 align-middle text-center border-t border-zinc-200/70">
                           <input
                             type="checkbox"
                             checked={selectedIds.has(rowId)}
@@ -441,7 +441,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
                           <td
                             key={col.id}
                             className={cn(
-                              'px-6 py-[26px] align-middle text-sm border-t border-zinc-200/70',
+                              'px-6 py-3 align-middle text-sm border-t border-zinc-200/70',
                               col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left',
                               col.tdClass
                             )}
@@ -450,7 +450,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
                           </td>
                         ))}
                         {eye && (
-                          <td className="px-0 py-[26px] align-middle border-t border-zinc-200/70">
+                          <td className="px-0 py-3 align-middle border-t border-zinc-200/70">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -480,12 +480,12 @@ export function DocumentListShell(props: DocumentListShellProps) {
                           </td>
                         )}
                         {rowActions && (
-                          <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                          <td className="px-5 pl-1 py-3 align-middle text-center border-t border-zinc-200/70">
                             {rowActions(row)}
                           </td>
                         )}
                         {rowMenuItems && (
-                          <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
+                          <td className="px-5 pl-1 py-3 align-middle text-center border-t border-zinc-200/70">
                             <div className="relative inline-block" ref={openMenuId === rowId ? menuRef : undefined}>
                               <button
                                 onClick={(e) => {

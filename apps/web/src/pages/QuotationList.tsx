@@ -457,7 +457,7 @@ export default function QuotationList() {
     { id: 'project', label: 'Project', width: '200px' },
     { id: 'client', label: 'Client', width: '400px' },
     { id: 'prepared_by', label: 'Created By', width: '150px' },
-    { id: 'status', label: 'Status', width: '140px', tdClass: 'py-[18px] text-left whitespace-nowrap' },
+    { id: 'status', label: 'Status', width: '140px', tdClass: 'text-left whitespace-nowrap' },
     { id: 'subtotal', label: 'Sub-total', width: '100px', align: 'right', tdClass: 'font-medium text-zinc-900 tabular-nums whitespace-nowrap' },
     { id: 'total_tax', label: 'Tax Amount', width: '100px', align: 'right', tdClass: 'font-medium text-zinc-900 tabular-nums whitespace-nowrap' },
     { id: 'grand_total', label: 'Amount', width: '100px', align: 'right', tdClass: 'font-medium text-zinc-900 tabular-nums whitespace-nowrap' },
@@ -572,6 +572,7 @@ export default function QuotationList() {
       { label: 'Convert to Invoice', dividerBefore: true, onClick: () => navigate(`/invoices/create?convertFrom=quotation-to-invoice&sourceId=${q.id}`) },
       { label: 'Convert to Proforma', onClick: () => navigate(`/proforma-invoices/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`) },
       { label: 'Convert to Delivery', onClick: () => navigate(`/dc/create?convertFrom=quotation-to-dc&sourceId=${q.id}`) },
+      { label: 'Convert to Sales Order', onClick: () => navigate(`/sales-orders/create?quotationId=${q.id}`) },
       { label: 'Edit', dividerBefore: true, onClick: () => navigate(`/quotation/edit?id=${q.id}`) },
     );
     if (q.status === 'Draft' || q.status === 'Approved') {
