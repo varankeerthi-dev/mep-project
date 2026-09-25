@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   ChevronLeft as ChevronLeftIcon,
+  ChevronDown as ChevronDownIcon,
   Play as PlayIcon,
   Printer as PrinterIcon,
   CheckCircle,
@@ -22,6 +23,10 @@ import { toast } from '../../lib/logger';
 import { formatDate, formatCurrency } from '../../utils/formatters';
 import { ApprovalIntegration } from '../../approvals/integration';
 import StockCheckPanel from './components/StockCheckPanel';
+import { SalesOrderListPane } from './components/SalesOrderListPane';
+import { DocumentActions } from '../../components/document/DocumentActions';
+import { DocumentTimeline } from '../../components/document/DocumentTimeline';
+import { DocumentPreviewTabs } from '../../components/document/DocumentPreviewTabs';
 
 const STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
   draft:            { bg: 'bg-zinc-100', color: 'text-zinc-700', label: 'Draft' },
@@ -43,6 +48,7 @@ export default function SalesOrderDetail() {
 
   const [submittingApproval, setSubmittingApproval] = useState(false);
   const [showStockCheck, setShowStockCheck] = useState(false);
+  const [previewTab, setPreviewTab] = useState('Preview');
 
   // Fetch Sales Order details
   const { data: order, isLoading } = useQuery({
@@ -64,6 +70,53 @@ export default function SalesOrderDetail() {
     },
     enabled: !!id
   });
+
+
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [showTemplateSelect, setShowTemplateSelect] = useState(false);
+
+  useEffect(() => { setPreviewTab('Preview'); }, [id]);
+
+  const { data: soTemplates = [] } = useQuery({
+    queryKey: ['documentTemplates', 'Sales Order'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('document_templates')
+        .select('*')
+        .eq('document_type', 'Sales Order')
+        .eq('active', true)
+        .order('is_default', { ascending: false });
+      if (error) return [];
+      return data || [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (order) setSelectedTemplateId((order as any).template_id || null);
+  }, [order]);
+
+  const getSelectedTemplateName = () => {
+    if (!selectedTemplateId) return 'Default';
+    const template = (soTemplates || []).find((t: any) => t.id === selectedTemplateId);
+    return template?.template_name || 'Default';
+  };
+
+  const handleSelectTemplate = async (templateId: string) => {
+    if (!id) return;
+    try {
+      const { error } = await supabase
+        .from('sales_orders')
+        .update({ template_id: templateId })
+        .eq('id', id);
+      if (error) throw error;
+      setSelectedTemplateId(templateId);
+      queryClient.invalidateQueries({ queryKey: ['sales-order', id] });
+    } catch (err: any) {
+      console.error('Error selecting template:', err);
+      toast.error('Error: ' + err.message);
+    }
+  };
 
   // Fetch Sales Order items
   const { data: items = [] } = useQuery({
@@ -121,6 +174,22 @@ export default function SalesOrderDetail() {
     enabled: !!id
   });
 
+  // Fetch activity trail
+  const { data: activityLog = [] } = useQuery({
+    queryKey: ['sales-order-activity', id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from('sales_order_activity_log')
+        .select('*')
+        .eq('sales_order_id', id)
+        .order('created_at', { ascending: true });
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!id
+  });
+
   // Fetch linked Delivery Challans
   const { data: deliveryChallans = [] } = useQuery({
     queryKey: ['sales-order-delivery-challans', id],
@@ -163,17 +232,25 @@ export default function SalesOrderDetail() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-40">
-        <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
-        <span className="text-sm text-zinc-500 mt-2">Loading Sales Order details...</span>
+      <div className="flex h-full min-h-0">
+        <SalesOrderListPane selectedId={id} onSelect={(soId) => navigate(`/sales-orders/view?id=${soId}`)} />
+        <div className="flex-1 overflow-y-auto min-w-0 flex flex-col items-center justify-center py-40">
+          <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+          <span className="text-sm text-zinc-500 mt-2">Loading Sales Order details...</span>
+        </div>
       </div>
     );
   }
 
   if (!order) {
     return (
-      <div className="text-center py-20 text-sm text-zinc-500 italic">
-        Sales Order not found.
+      <div className="flex h-full min-h-0">
+        <SalesOrderListPane selectedId={id} onSelect={(soId) => navigate(`/sales-orders/view?id=${soId}`)} />
+        <div className="flex-1 overflow-y-auto min-w-0">
+          <div className="text-center py-20 text-sm text-zinc-500 italic">
+            Select a sales order to preview.
+          </div>
+        </div>
       </div>
     );
   }
@@ -181,7 +258,10 @@ export default function SalesOrderDetail() {
   const statusMeta = STATUS_COLORS[order.status] || { bg: 'bg-zinc-100', color: 'text-zinc-700', label: order.status };
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="flex h-full min-h-0">
+      <SalesOrderListPane selectedId={id} onSelect={(soId) => navigate(`/sales-orders/view?id=${soId}`)} />
+      <div className="flex-1 overflow-y-auto min-w-0">
+      <div className="p-6 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
         <div className="flex items-center gap-3">
@@ -202,35 +282,25 @@ export default function SalesOrderDetail() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <PrinterIcon className="h-4 w-4 mr-1.5" />
-            Print SO
-          </Button>
-
-          {order.status === 'draft' && (
-            <Button
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={handleSubmitApproval}
-              disabled={submittingApproval}
-            >
-              {submittingApproval ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-              ) : (
-                <CheckCircle className="h-4 w-4 mr-1.5" />
-              )}
-              Submit for Approval
-            </Button>
-          )}
-
-          {order.status !== 'draft' && order.status !== 'cancelled' && (
-            <Button
-              onClick={() => setShowStockCheck(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <PlayIcon className="h-4 w-4 mr-1.5" />
-              Run Stock Check
-            </Button>
-          )}
+          <DocumentActions
+            submitForApproval={order.status === 'draft' ? { visible: true, onClick: handleSubmitApproval, loading: submittingApproval } : undefined}
+            print={{ onClick: () => window.print() }}
+            menuItems={[
+              {
+                label: 'Convert',
+                children: [
+                  { label: 'Tax Invoice', onClick: () => navigate(`/invoices/create?convertFrom=sales-order-to-invoice&sourceId=${id}`) },
+                  { label: 'Delivery Challan', onClick: () => navigate(`/dc/create?convertFrom=sales-order-to-challan&sourceId=${id}`) },
+                ],
+              },
+              {
+                label: 'Run Stock Check',
+                hint: 'Check warehouse stock and reserve',
+                icon: PlayIcon,
+                onClick: () => setShowStockCheck(true),
+              },
+            ]}
+          />
         </div>
       </div>
 
@@ -245,6 +315,45 @@ export default function SalesOrderDetail() {
         </div>
       )}
 
+      <div className="mt-4 flex items-center justify-between">
+        <DocumentPreviewTabs
+          tabs={[
+            { key: 'Preview', label: 'Preview' },
+            { key: 'History', label: 'History', count: activityLog.length },
+            { key: 'Attachments', label: 'Attachments', count: 0 },
+          ]}
+          active={previewTab}
+          onChange={setPreviewTab}
+        />
+        <div className="relative">
+          <button
+            onClick={() => setShowTemplateSelect((v) => !v)}
+            className="inline-flex items-center gap-1.5 h-8 px-3 mb-1 rounded-md border border-[#E5E7EB] text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+          >
+            {getSelectedTemplateName()}
+            <ChevronDownIcon className="w-3.5 h-3.5 text-zinc-400" />
+          </button>
+          {showTemplateSelect && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowTemplateSelect(false)} />
+              <div className="absolute right-0 top-full mt-1 z-50 min-w-[210px] max-h-[300px] overflow-y-auto bg-white border border-zinc-200 rounded-md shadow-lg p-1">
+                {(soTemplates || []).map((t: any) => (
+                  <button
+                    key={t.id}
+                    onClick={() => { handleSelectTemplate(t.id); setShowTemplateSelect(false); }}
+                    className={`block w-full text-left px-2.5 py-2 text-[13px] rounded transition-colors ${selectedTemplateId === t.id ? 'bg-[#EFF6FF] text-[#2563EB] font-medium' : 'text-zinc-700 hover:bg-zinc-50'}`}
+                  >
+                    {t.template_name}
+                    {t.is_default && <span className="ml-2 text-[11px] text-zinc-400 font-normal italic">(Default)</span>}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: previewTab === 'Preview' ? undefined : 'none' }}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Details & Addresses */}
         <div className="md:col-span-2 space-y-6 bg-white p-6 rounded-xl border border-zinc-200 shadow-sm">
@@ -420,6 +529,35 @@ export default function SalesOrderDetail() {
         </div>
       </div>
 
+      </div>
+
+      {previewTab === 'History' && (
+        <div className="py-6 max-w-2xl">
+          <DocumentTimeline
+            events={(activityLog || []).map((l: any) => {
+              const s = l.summary || {};
+              return {
+                key: l.id,
+                color: '#2563EB',
+                title: l.event_type === 'created'
+                  ? (s.converted_from_quotation ? `Converted from ${s.quotation_no || 'quotation'}` : 'Sales order created')
+                  : l.event_type,
+                time: l.created_at ? new Date(l.created_at).toLocaleString() : '',
+                desc: s.total != null && s.total !== '' ? `Total ${formatCurrency(s.total)}` : '',
+              };
+            })}
+            emptyTitle="No history yet"
+            emptyHint="Events for this sales order will appear here."
+          />
+        </div>
+      )}
+      {previewTab === 'Attachments' && (
+        <div className="py-16 text-center">
+          <div className="text-sm font-medium text-zinc-500">No attachments</div>
+          <div className="mt-1 text-[13px] text-zinc-400">Files attached to this sales order will appear here.</div>
+        </div>
+      )}
+
       {/* Stock Check Modal / Panel */}
       {showStockCheck && (
         <StockCheckPanel
@@ -435,6 +573,8 @@ export default function SalesOrderDetail() {
           order={order}
         />
       )}
+      </div>
+      </div>
     </div>
   );
 }

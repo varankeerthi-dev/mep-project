@@ -29,6 +29,7 @@ import { generateSakthiPdf } from '../pdf/sakthiTemplatePdf';
 import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import { QuotationRevisionCompareModal } from '../components/QuotationRevisionCompareModal';
 import { FloatingQuoteChat } from '../projects/features/collaboration/components/FloatingQuoteChat';
+import { DocumentTimeline } from '../components/document/DocumentTimeline';
 
 const getStatusBadge = (status) => {
   const colors = {
@@ -497,13 +498,14 @@ export default function QuotationView() {
     activityLogs.forEach((l: any) => {
       if (!l?.created_at) return;
       const s = l.summary || {};
+      const isConverted = l.event_type === 'converted';
       evts.push({
         key: `log-${l.id}`,
         at: l.created_at,
-        color: l.event_type === 'created' ? '#2563EB' : '#6B7280',
-        title: l.event_type === 'created' ? 'Quotation created' : 'Quotation edited',
+        color: l.event_type === 'created' ? '#2563EB' : isConverted ? '#0F766E' : '#6B7280',
+        title: l.event_type === 'created' ? 'Quotation created' : isConverted ? 'Converted to sales order' : 'Quotation edited',
         by: nameOf(l.created_by),
-        desc: s.items != null ? `${s.items} items - Total ${formatCurrency(s.total || 0)}` : '',
+        desc: s.sales_order_no ? `${s.sales_order_no}${s.total ? ' - Total ' + formatCurrency(s.total) : ''}` : (s.items != null ? `${s.items} items - Total ${formatCurrency(s.total || 0)}` : ''),
       });
     });
     (quoteSuggestionQuery.data || []).forEach((m: any) => {
@@ -657,7 +659,7 @@ export default function QuotationView() {
     } else if (type === 'delivery-challan') {
       navigate(`/dc/create?convertFrom=quotation-to-dc&sourceId=${quotationId}`);
     } else if (type === 'sales-order') {
-      alert('Sales Order conversion not implemented yet.');
+      navigate(`/sales-orders/create?quotationId=${quotationId}`);
     }
 
     setShowConvertMenu(false);
@@ -2293,191 +2295,94 @@ export default function QuotationView() {
                 </span>
               </div>
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
-              {['Draft', 'Sent', 'Rejected', 'Under Negotiation'].includes(quotation?.status) && (
-                <button
-                  onClick={handleSubmitForApproval}
-                  className="inline-flex items-center gap-1 h-8 px-2 rounded-md border border-[#E5E7EB] text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
-                >
-                  <Send className="w-[14px] h-[14px]" />
-                  Submit for Approval
-                </button>
-              )}
-              {canApprove && (
-                <button
-                  onClick={() => { setReviewComments(''); setShowReviewDialog(true); }}
-                  className="inline-flex items-center gap-1 h-8 px-2 rounded-md bg-emerald-600 text-white text-[13px] font-semibold hover:bg-emerald-700 transition-colors"
-                >
-                  <CheckCircle className="w-[14px] h-[14px]" />
-                  Review
-                </button>
-              )}
-              {isEditable && (
-                <button
-                  onClick={handleEdit}
-                  className="inline-flex items-center gap-1 h-8 px-2 rounded-md border border-[#E5E7EB] text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
-                >
-                  <Edit className="w-[14px] h-[14px]" />
-                  Edit
-                </button>
-              )}
-              <button
-                onClick={() => handlePrintAction('download')}
-                disabled={printLoading}
-                className="inline-flex items-center gap-1 h-8 px-2 rounded-md border border-[#E5E7EB] text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 transition-colors disabled:opacity-50"
-              >
-                {printLoading ? (
-                  <Loader2 className="w-[14px] h-[14px] animate-spin" />
-                ) : (
-                  <Printer className="w-[14px] h-[14px]" />
-                )}
-                Print
-              </button>
-              <div className="relative">
-                <button
-                  onClick={() => { setShowConvertMenu((v) => !v); setShowHeaderMenu(false); setShowTemplateSelect(false); }}
-                  className="inline-flex items-center gap-1 h-8 px-2 rounded-md border border-[#E5E7EB] text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
-                >
-                  <FileText className="w-[14px] h-[14px]" />
-                  Convert
-                  <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${showConvertMenu ? 'rotate-180' : ''}`} />
-                </button>
-                {showConvertMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowConvertMenu(false)} />
-                    <div className="absolute right-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-zinc-200 rounded-md shadow-lg p-1">
-                      <button onClick={() => { setShowConvertMenu(false); handleConvert('proforma-invoice'); }} className="block w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors">Proforma Invoice</button>
-                      <button onClick={() => { setShowConvertMenu(false); handleConvert('invoice'); }} className="block w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors">Tax Invoice</button>
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="relative">
-                <button
-                  onClick={() => { setShowHeaderMenu((v) => !v); setShowTemplateSelect(false); setShowConvertMenu(false); }}
-                  title="More actions"
-                  className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-[#E5E7EB] text-zinc-600 hover:bg-zinc-50 transition-colors"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-                {showHeaderMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowHeaderMenu(false)} />
-                    <div className="absolute right-0 top-full mt-1 z-50 min-w-[210px] bg-white border border-zinc-200 rounded-md shadow-lg p-1">
-                      <button
-                        onClick={() => { setShowHeaderMenu(false); handlePrintAction('preview'); }}
-                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors"
-                      >
-                        <Eye className="w-[14px] h-[14px] text-zinc-400" />
-                        Preview
-                      </button>
-                      <button
-                        onClick={() => { setShowHeaderMenu(false); handleDuplicate(); }}
-                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors"
-                      >
-                        <Copy className="w-[14px] h-[14px] text-zinc-400" />
-                        Duplicate
-                      </button>
-                      <button
-                        onClick={() => { setShowHeaderMenu(false); setRevisionDialogOpen(true); }}
-                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors"
-                      >
-                        <RotateCcw className="w-[14px] h-[14px] text-zinc-400" />
-                        Revision History {quotation?.revision_history?.length ? `(${quotation.revision_history.length})` : ''}
-                      </button>
-                      {quotation?.revision_history?.length > 0 && (
-                        <button
-                          onClick={() => { setShowHeaderMenu(false); setShowCompareModal(true); }}
-                          className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors"
-                        >
-                          <Table2 className="w-[14px] h-[14px] text-blue-600" />
-                          Compare Revisions Grid
-                        </button>
-                      )}
-                      <button
-                        onClick={() => { setShowHeaderMenu(false); setShowDocumentSettings(true); }}
-                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors"
-                      >
-                        <Settings2 className="w-[14px] h-[14px] text-zinc-400" />
-                        Document Settings
-                      </button>
-                      <div className="h-px bg-zinc-100 my-1" />
-                      <button
-                        onClick={() => { setShowHeaderMenu(false); handleOpenAvailability(); }}
-                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors"
-                      >
-                        <PackageSearch className="w-[14px] h-[14px] text-zinc-400 shrink-0" />
-                        <span>
-                          <span className="block">Check Availability</span>
-                          <span className="block text-[10px] font-normal text-zinc-400">View live stock per line (read-only)</span>
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => { setShowHeaderMenu(false); setShowStockCheckModal(true); }}
-                        disabled={launchingStockCheck}
-                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {launchingStockCheck ? (
-                          <Loader2 className="w-[14px] h-[14px] text-zinc-400 animate-spin" />
-                        ) : (
-                          <ClipboardList className="w-[14px] h-[14px] text-zinc-400 shrink-0" />
-                        )}
-                        <span>
-                          <span className="block">Stock Check</span>
-                          <span className="block text-[10px] font-normal text-zinc-400">Create procurement tracker</span>
-                        </span>
-                      </button>
-                      <button
-                        onClick={async () => {
-                          setShowHeaderMenu(false);
-                          setLaunchingRevision(true);
-                          try {
-                            if (organisation?.id && quotationId) {
-                              await initiateQuotationRevision(organisation.id, quotationId);
-                            }
-                          } finally {
-                            setLaunchingRevision(false);
-                          }
-                        }}
-                        disabled={launchingRevision}
-                        className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {launchingRevision ? (
-                          <Loader2 className="w-[14px] h-[14px] text-zinc-400 animate-spin" />
-                        ) : (
-                          <FileEdit className="w-[14px] h-[14px] text-zinc-400 shrink-0" />
-                        )}
-                        <span>
-                          <span className="block">Request Revision</span>
-                          <span className="block text-[10px] font-normal text-zinc-400">Flag for quotation revision</span>
-                        </span>
-                      </button>
-                      {(isCancellable || isDeletable) && (
-                        <div className="h-px bg-zinc-100 my-1" />
-                      )}
-                      {isCancellable && (
-                        <button
-                          onClick={() => { setShowHeaderMenu(false); handleCancel(); }}
-                          className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-red-600 hover:bg-red-50 rounded transition-colors"
-                        >
-                          <XCircle className="w-[14px] h-[14px]" />
-                          Cancel
-                        </button>
-                      )}
-                      {isDeletable && (
-                        <button
-                          onClick={() => { setShowHeaderMenu(false); handleDelete(); }}
-                          className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 text-[13px] font-medium text-red-600 hover:bg-red-50 rounded transition-colors"
-                        >
-                          <Trash2 className="w-[14px] h-[14px]" />
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
+            <DocumentActions
+              submitForApproval={
+                ['Draft', 'Sent', 'Rejected', 'Under Negotiation'].includes(quotation?.status)
+                  ? { visible: true, onClick: handleSubmitForApproval }
+                  : undefined
+              }
+              review={
+                canApprove
+                  ? { visible: true, onClick: () => { setReviewComments(''); setShowReviewDialog(true); } }
+                  : undefined
+              }
+              edit={isEditable ? { visible: true, onClick: handleEdit } : undefined}
+              print={{ onClick: () => handlePrintAction('download'), loading: printLoading }}
+              convertItems={[
+                { label: 'Proforma Invoice', onClick: () => handleConvert('proforma-invoice') },
+                { label: 'Tax Invoice', onClick: () => handleConvert('invoice') },
+                { label: 'Sales Order', onClick: () => handleConvert('sales-order') },
+              ]}
+              menuItems={[
+                { label: 'Preview', icon: Eye, onClick: () => handlePrintAction('preview') },
+                { label: 'Duplicate', icon: Copy, onClick: () => handleDuplicate() },
+                {
+                  label: `Revision History ${quotation?.revision_history?.length ? `(${quotation.revision_history.length})` : ''}`,
+                  icon: RotateCcw,
+                  onClick: () => setRevisionDialogOpen(true),
+                },
+                ...(quotation?.revision_history?.length > 0
+                  ? [{
+                      label: 'Compare Revisions Grid',
+                      icon: Table2,
+                      iconClassName: 'text-blue-600',
+                      onClick: () => setShowCompareModal(true),
+                    }]
+                  : []),
+                { label: 'Document Settings', icon: Settings2, onClick: () => setShowDocumentSettings(true) },
+                {
+                  label: 'Check Availability',
+                  hint: 'View live stock per line (read-only)',
+                  icon: PackageSearch,
+                  onClick: () => handleOpenAvailability(),
+                },
+                {
+                  label: 'Stock Check',
+                  hint: 'Create procurement tracker',
+                  icon: ClipboardList,
+                  disabled: launchingStockCheck,
+                  loading: launchingStockCheck,
+                  onClick: () => setShowStockCheckModal(true),
+                },
+                {
+                  label: 'Request Revision',
+                  hint: 'Flag for quotation revision',
+                  icon: FileEdit,
+                  disabled: launchingRevision,
+                  loading: launchingRevision,
+                  onClick: async () => {
+                    setLaunchingRevision(true);
+                    try {
+                      if (organisation?.id && quotationId) {
+                        await initiateQuotationRevision(organisation.id, quotationId);
+                      }
+                    } finally {
+                      setLaunchingRevision(false);
+                    }
+                  },
+                },
+                ...(isCancellable
+                  ? [{
+                      label: 'Cancel',
+                      icon: XCircle,
+                      iconClassName: 'text-red-600',
+                      danger: true,
+                      dividerBefore: true,
+                      onClick: () => handleCancel(),
+                    }]
+                  : []),
+                ...(isDeletable
+                  ? [{
+                      label: 'Delete',
+                      icon: Trash2,
+                      iconClassName: 'text-red-600',
+                      danger: true,
+                      dividerBefore: !isCancellable,
+                      onClick: () => handleDelete(),
+                    }]
+                  : []),
+              ]}
+            />
           </div>
 
           <div className="mt-4 flex items-center justify-between">
@@ -2559,24 +2464,16 @@ export default function QuotationView() {
                   <div className="mt-1 text-[13px] text-zinc-400">{historySubTab === 'feedback' ? 'Suggestions from the project channel and reviewer comments will appear here.' : 'Events for this quotation will appear here.'}</div>
                 </div>
               ) : (
-                <div className="relative pl-6">
-                  <div className="absolute top-2 bottom-2 w-px bg-[#E5E7EB]" style={{ left: 5 }} />
-                  <div className="space-y-4">
-                    {(historySubTab === 'feedback' ? historyEvents.feedback : historyEvents.journey).map((ev: any) => (
-                      <div key={ev.key} className="relative">
-                        <span className="absolute rounded-full bg-white" style={{ width: 11, height: 11, left: -24, top: 5, border: `3px solid ${ev.color}` }} />
-                        <div className="bg-white border border-[#EEF0F3] rounded-lg px-3.5 py-2.5">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[13px] font-semibold text-zinc-900">{ev.title}</span>
-                            <span className="text-[11px] text-zinc-400 whitespace-nowrap">{formatDateTime(ev.at)}</span>
-                          </div>
-                          {ev.by ? <div className="mt-0.5 text-xs text-zinc-500">by {ev.by}</div> : null}
-                          {ev.desc ? <div className="mt-0.5 text-xs text-zinc-500">{ev.desc}</div> : null}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <DocumentTimeline
+                  events={(historySubTab === 'feedback' ? historyEvents.feedback : historyEvents.journey).map((ev: any) => ({
+                    key: ev.key,
+                    color: ev.color,
+                    title: ev.title,
+                    by: ev.by || '',
+                    desc: ev.desc || '',
+                    time: formatDateTime(ev.at),
+                  }))}
+                />
               )}
             </div>
           )}

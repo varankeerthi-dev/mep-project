@@ -8,6 +8,7 @@ import {
   type InvoiceSourceData,
   type POSourceData,
   type PurchaseOrderSourceData,
+  type SalesOrderSourceData,
   type ConvertedInvoiceData,
   type ConvertedProformaData,
   type ConvertedQuotationData,
@@ -26,7 +27,7 @@ export async function fetchSourceDocument(
   type: ConversionType,
   sourceId: string,
   organisationId: string
-): Promise<QuotationSourceData | DCSourceData | ProformaSourceData | InvoiceSourceData | POSourceData | PurchaseOrderSourceData> {
+): Promise<QuotationSourceData | DCSourceData | ProformaSourceData | InvoiceSourceData | POSourceData | PurchaseOrderSourceData | SalesOrderSourceData> {
   if (type === 'quotation-to-proforma' || type === 'quotation-to-invoice' || type === 'quotation-to-dc') {
     const { data, error } = await supabase
       .from('quotation_header')
@@ -117,6 +118,92 @@ export async function fetchSourceDocument(
       total_tax: 0,
       grand_total: data.grand_total || 0,
       items: mappedItems,
+    };
+  }
+
+  if (type === 'sales-order-to-invoice' || type === 'sales-order-to-challan') {
+    const { data, error } = await supabase
+      .from('sales_orders')
+      .select(`
+        id,
+        sales_order_no,
+        client_id,
+        project_id,
+        billing_address,
+        shipping_address,
+        gstin,
+        state,
+        order_date,
+        remarks,
+        subtotal,
+        grand_total,
+        client_po_id,
+        items:sales_order_items(
+          id,
+          item_id,
+          variant_id,
+          description,
+          qty,
+          uom,
+          rate,
+          discount_percent,
+          tax_percent,
+          line_total,
+          make
+        )
+      `)
+      .eq('id', sourceId)
+      .eq('organisation_id', organisationId)
+      .single();
+
+    if (error) throw error;
+    if (!data) throw new Error('Sales order not found');
+
+    let clientPoNumber: string | null = null;
+    let clientPoDate: string | null = null;
+    if ((data as any).client_po_id) {
+      const { data: po } = await supabase
+        .from('client_purchase_orders')
+        .select('po_number, po_date')
+        .eq('id', (data as any).client_po_id)
+        .maybeSingle();
+      if (po) {
+        clientPoNumber = (po as any).po_number || null;
+        clientPoDate = (po as any).po_date || null;
+      }
+    }
+
+    return {
+      id: data.id,
+      sales_order_no: (data as any).sales_order_no,
+      client_id: (data as any).client_id,
+      client_state: (data as any).state,
+      project_id: (data as any).project_id,
+      billing_address: (data as any).billing_address,
+      shipping_address: (data as any).shipping_address,
+      gstin: (data as any).gstin,
+      state: (data as any).state,
+      order_date: (data as any).order_date,
+      payment_terms: null,
+      remarks: (data as any).remarks,
+      subtotal: (data as any).subtotal || 0,
+      grand_total: (data as any).grand_total || 0,
+      client_po_number: clientPoNumber,
+      client_po_date: clientPoDate,
+      items: ((data as any).items || []).map((item: any) => ({
+        id: item.id,
+        item_id: item.item_id,
+        variant_id: item.variant_id,
+        description: item.description,
+        hsn_code: null,
+        qty: Number(item.qty),
+        uom: item.uom,
+        rate: Number(item.rate || 0),
+        discount_percent: Number(item.discount_percent || 0),
+        tax_percent: Number(item.tax_percent || 0),
+        line_total: Number(item.line_total || 0),
+        make: item.make,
+      })),
     };
   }
 
@@ -599,6 +686,92 @@ export function transformQuotationToDC(
   };
 }
 
+// Transform Sales Order to Tax Invoice
+export function transformSalesOrderToInvoice(
+  source: SalesOrderSourceData
+): ConversionResult {
+  const items: ConvertedInvoiceItem[] = source.items.map((item) => {
+    // SO rate is the base rate; discount lives in discount_percent
+    const effectiveRate = item.rate * (1 - (item.discount_percent || 0) / 100);
+    const taxableAmount = item.qty * effectiveRate;
+
+    return {
+      description: item.description,
+      hsn_code: item.hsn_code,
+      qty: item.qty,
+      rate: effectiveRate,
+      amount: taxableAmount,
+      tax_percent: item.tax_percent,
+      meta_json: {
+        source_item_id: item.id,
+        item_id: item.item_id,
+      },
+    };
+  });
+
+  const data: ConvertedInvoiceData = {
+    client_id: source.client_id,
+    source_type: 'sales-order',
+    source_id: source.id,
+    template_type: 'standard',
+    mode: 'itemized',
+    invoice_no: null, // Will be auto-generated
+    invoice_date: new Date().toISOString().split('T')[0],
+    po_number: source.client_po_number,
+    po_date: source.client_po_date,
+    company_state: null, // Will be fetched from organisation
+    client_state: source.client_state,
+    items,
+  };
+
+  return {
+    data,
+    sourceType: 'Sales Order',
+    sourceNumber: source.sales_order_no,
+    conversionType: 'sales-order-to-invoice',
+    targetDocumentType: 'invoice',
+  };
+}
+
+// Transform Sales Order to Delivery Challan
+export function transformSalesOrderToChallan(
+  source: SalesOrderSourceData
+): ConversionResult {
+  const items: ConvertedDCItem[] = source.items.map((item) => {
+    const effectiveRate = item.rate * (1 - (item.discount_percent || 0) / 100);
+    const lineTotal = item.qty * effectiveRate;
+
+    return {
+      material_id: item.item_id,
+      material_name: item.description,
+      quantity: item.qty,
+      rate: effectiveRate,
+      amount: lineTotal,
+    };
+  });
+
+  const data: ConvertedDCData = {
+    client_id: source.client_id,
+    client_name: null, // Resolved in CreateDC from clients list
+    project_id: source.project_id,
+    dc_number: null, // Will be auto-generated
+    dc_date: new Date().toISOString().split('T')[0],
+    ship_to_address: source.shipping_address,
+    ship_to_state: source.state,
+    po_number: source.client_po_number,
+    remarks: source.remarks,
+    items,
+  };
+
+  return {
+    data,
+    sourceType: 'Sales Order',
+    sourceNumber: source.sales_order_no,
+    conversionType: 'sales-order-to-challan',
+    targetDocumentType: 'dc',
+  };
+}
+
 // Transform DC to Invoice
 export function transformDCToInvoice(source: DCSourceData): ConversionResult {
   const items: ConvertedInvoiceItem[] = source.items.map((item) => ({
@@ -918,7 +1091,7 @@ export function transformPurchasePOToBill(
 // Main transform function that routes to specific transformer
 export function transformSourceToTarget(
   type: ConversionType,
-  sourceData: QuotationSourceData | DCSourceData | ProformaSourceData | InvoiceSourceData | POSourceData | PurchaseOrderSourceData
+  sourceData: QuotationSourceData | DCSourceData | ProformaSourceData | InvoiceSourceData | POSourceData | PurchaseOrderSourceData | SalesOrderSourceData
 ): ConversionResult {
   switch (type) {
     case 'quotation-to-proforma':
@@ -943,6 +1116,10 @@ export function transformSourceToTarget(
       return transformDCToInvoice(sourceData as DCSourceData);
     case 'purchase-po-to-bill':
       return transformPurchasePOToBill(sourceData as PurchaseOrderSourceData);
+    case 'sales-order-to-invoice':
+      return transformSalesOrderToInvoice(sourceData as SalesOrderSourceData);
+    case 'sales-order-to-challan':
+      return transformSalesOrderToChallan(sourceData as SalesOrderSourceData);
     default:
       throw new Error(`Unknown conversion type: ${type}`);
   }
@@ -976,6 +1153,11 @@ export async function resolveClientIdFromName(
 // - Proforma/Invoice DB uses lowercase statuses: 'draft', 'sent', 'converted', 'final', etc.
 // This function returns the correct casing per target table.
 // When adding new conversion types, match the target table's convention.
+//
+// NOTE: sales-order-to-* types are deliberately absent. An SO status is driven
+// by fulfillment events (reserve / produce / ship), so no static value is safe
+// here (it could clobber e.g. partially_shipped back to open). postgrest-js
+// strips undefined, so converters only stamp conversion_status on sales_orders.
 export function getSourceStatusAfterConversion(conversionType: ConversionType): string {
   const statusMap: Record<ConversionType, string> = {
     'quotation-to-proforma': 'Converted',
@@ -998,6 +1180,7 @@ export function getSourceStatusAfterConversion(conversionType: ConversionType): 
 // Get source table name for status update
 export function getSourceTableName(conversionType: ConversionType): string {
   if (conversionType.startsWith('quotation-')) return 'quotation_header';
+  if (conversionType.startsWith('sales-order-')) return 'sales_orders';
   if (conversionType.startsWith('dc-')) return 'delivery_challans';
   if (conversionType === 'proforma-to-invoice') return 'proforma_invoices';
   if (conversionType === 'invoice-to-creditnote') return 'invoices';

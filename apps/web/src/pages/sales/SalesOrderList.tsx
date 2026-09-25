@@ -5,20 +5,11 @@ import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../../utils/formatters';
 import { useAuth } from '../../contexts/AuthContext';
 import { PermissionGuard } from '../../rbac';
-import {
-  Search as SearchIcon,
-  Plus as PlusIcon,
-  Eye as EyeIcon,
-  MoreHorizontal as MoreHorizontalIcon,
-  ChevronDown as ChevronDownIcon,
-  ArrowUpDown as ArrowUpDownIcon,
-  Loader2,
-  PackageCheck,
-  AlertTriangle,
-  FolderSync
-} from 'lucide-react';
+import { Eye as EyeIcon, PackageCheck, AlertTriangle, FolderSync, Edit as EditIcon, Copy as CopyIcon, Trash2 as Trash2Icon } from 'lucide-react';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from '../../lib/logger';
+import { DocumentListShell, type ShellColumn } from '../../components/document/DocumentListShell';
 
 const SO_STATUSES = ['All', 'draft', 'waiting_approval', 'open', 'in_production', 'partially_shipped', 'completed', 'cancelled'];
 
@@ -38,14 +29,39 @@ const STOCK_STATUS_COLORS: Record<string, { bg: string; text: string; icon: any;
   shortfall: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', icon: AlertTriangle, label: 'Stock Shortfall' }
 };
 
+const SO_COLUMNS: ShellColumn[] = [
+  { id: 'soNumber', label: 'SO Number', width: '140px', mandatory: true },
+  { id: 'client', label: 'Client', width: '200px', mandatory: true },
+  { id: 'project', label: 'Project', width: '180px' },
+  { id: 'quotation', label: 'Quotation', width: '140px' },
+  { id: 'date', label: 'Date', width: '120px' },
+  { id: 'converted', label: 'Converted', width: '120px' },
+  { id: 'total', label: 'Total Amount', width: '140px', align: 'right', mandatory: true },
+  { id: 'approval', label: 'Approval Status', width: '160px' },
+  { id: 'inventory', label: 'Inventory Status', width: '170px' },
+];
+
+const DEFAULT_VISIBLE = SO_COLUMNS.map((c) => c.id);
+
 export default function SalesOrderList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { organisation } = useAuth();
   const orgId = organisation?.id;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [visibleIds, setVisibleIds] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('so-list-columns');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch { /* keep defaults */ }
+    return DEFAULT_VISIBLE;
+  });
 
   // Fetch Sales Orders
   const { data: salesOrders = [], isLoading } = useQuery({
@@ -69,154 +85,210 @@ export default function SalesOrderList() {
   });
 
   const filteredOrders = useMemo(() => {
+    const q = searchTerm.toLowerCase();
     return salesOrders.filter((so: any) => {
-      const matchesSearch = 
-        so.sales_order_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        so.client?.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        so.project?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        so.quotation_no?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch =
+        so.sales_order_no?.toLowerCase().includes(q) ||
+        so.client?.client_name?.toLowerCase().includes(q) ||
+        so.project?.name?.toLowerCase().includes(q) ||
+        so.quotation_no?.toLowerCase().includes(q);
 
       const matchesStatus = statusFilter === 'All' || so.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [salesOrders, searchTerm, statusFilter]);
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) =>
+      prev.size === filteredOrders.length && filteredOrders.length > 0
+        ? new Set()
+        : new Set(filteredOrders.map((so: any) => so.id))
+    );
+  };
+
+  const deleteOrders = async (ids: string[]) => {
+    if (ids.length === 0) return false;
+    if (!confirm(`Are you sure you want to delete ${ids.length} sales order(s)? Reservations on their lines will be released.`)) return false;
+    try {
+      const { data: lineIds } = await supabase
+        .from('sales_order_items')
+        .select('id')
+        .in('sales_order_id', ids);
+      const itemIds = (lineIds || []).map((r: any) => r.id);
+      if (itemIds.length > 0) {
+        await supabase.from('sales_order_reservations').delete().in('sales_order_item_id', itemIds);
+        await supabase.from('sales_order_items').delete().in('id', itemIds);
+      }
+      const { error } = await supabase.from('sales_orders').delete().in('id', ids).eq('organisation_id', orgId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['sales-orders'] });
+      setSelectedIds(new Set());
+      toast.success('Deleted successfully');
+      return true;
+    } catch (e: any) {
+      toast.error('Delete failed: ' + (e.message || e));
+      return false;
+    }
+  };
+
+  const duplicateOrder = async (so: any) => {
+    if (!orgId) return;
+    try {
+      const { data: soNo, error: noErr } = await supabase.rpc('generate_sales_order_no', { p_org_id: orgId });
+      if (noErr || !soNo) throw noErr || new Error('Could not generate SO number');
+      const { data: header, error: headErr } = await supabase
+        .from('sales_orders')
+        .select('*')
+        .eq('id', so.id)
+        .single();
+      if (headErr || !header) throw headErr || new Error('Order not found');
+      const { data: lines } = await supabase
+        .from('sales_order_items')
+        .select('*')
+        .eq('sales_order_id', so.id);
+      const { id: _drop, sales_order_no: _no, quotation_id: _q, quotation_no: _qn, converted_at: _c, created_at: _ca, updated_at: _ua, cancelled_at: _x, closed_at: _cl, ...rest } = header as any;
+      const { data: created, error: createErr } = await supabase
+        .from('sales_orders')
+        .insert({ ...rest, organisation_id: orgId, sales_order_no: soNo, status: 'draft' })
+        .select()
+        .single();
+      if (createErr || !created) throw createErr || new Error('Duplicate failed');
+      if (lines && lines.length > 0) {
+        const { error: linesErr } = await supabase.from('sales_order_items').insert(
+          lines.map((l: any) => {
+            const { id: _lid, sales_order_id: _lso, created_at: _lca, ...lrest } = l;
+            return { ...lrest, sales_order_id: created.id };
+          })
+        );
+        if (linesErr) throw linesErr;
+      }
+      queryClient.invalidateQueries({ queryKey: ['sales-orders'] });
+      toast.success(`Duplicated as ${soNo}`);
+    } catch (e: any) {
+      toast.error('Duplicate failed: ' + (e.message || e));
+    }
+  };
+
+  const soRowMenuItems = (so: any) => [
+    { label: 'View Details', icon: EyeIcon, onClick: () => navigate(`/sales-orders/view?id=${so.id}`) },
+    { label: 'Edit', icon: EditIcon, onClick: () => navigate(`/sales-orders/edit?id=${so.id}`) },
+    {
+      label: 'Convert',
+      dividerBefore: true,
+      children: [
+        { label: 'Tax Invoice', onClick: () => navigate(`/invoices/create?convertFrom=sales-order-to-invoice&sourceId=${so.id}`) },
+        { label: 'Delivery Challan', onClick: () => navigate(`/dc/create?convertFrom=sales-order-to-challan&sourceId=${so.id}`) },
+      ],
+    },
+    { label: 'Duplicate', icon: CopyIcon, dividerBefore: true, onClick: () => duplicateOrder(so) },
+    { label: 'Delete', icon: Trash2Icon, danger: true, dividerBefore: true, onClick: () => deleteOrders([so.id]) },
+  ];
+
+  const renderCell = (col: ShellColumn, so: any) => {
+    if (col.id === 'soNumber') return <span className="font-medium text-zinc-900">{so.sales_order_no}</span>;
+    if (col.id === 'client') {
+      return (
+        <div className="max-w-[180px] truncate" title={so.client?.client_name || '-'}>
+          {so.client?.client_name || '-'}
+        </div>
+      );
+    }
+    if (col.id === 'project') {
+      return (
+        <div className="max-w-[160px] truncate" title={so.project?.name || '-'}>
+          {so.project?.name || '-'}
+        </div>
+      );
+    }
+    if (col.id === 'quotation') return <span>{so.quotation_no || '-'}</span>;
+    if (col.id === 'date') return <span className="whitespace-nowrap">{formatDate(so.order_date)}</span>;
+    if (col.id === 'converted') return <span className="whitespace-nowrap">{so.converted_at ? formatDate(so.converted_at) : '-'}</span>;
+    if (col.id === 'total') return <span className="font-semibold text-zinc-900">{formatCurrency(so.grand_total)}</span>;
+    if (col.id === 'approval') {
+      const meta = STATUS_COLORS[so.status] || { bg: 'bg-zinc-100', color: 'text-zinc-700', label: so.status };
+      return (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${meta.bg} ${meta.color}`}>
+          {meta.label}
+        </span>
+      );
+    }
+    if (col.id === 'inventory') {
+      const meta = STOCK_STATUS_COLORS[so.stock_status || 'shortfall'];
+      const StockIcon = meta.icon;
+      return (
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${meta.bg} ${meta.text}`}>
+          <StockIcon className="h-3.5 w-3.5" />
+          {meta.label}
+        </span>
+      );
+    }
+    return null;
+  };
+
   return (
     <PermissionGuard permissions={['sales.view']}>
-      <div className="space-y-6 p-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Sales Orders</h1>
-            <p className="text-sm text-zinc-500">
-              Manage client orders, warehouse stock checks, and MRP calculations.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={() => navigate('/sales-orders/create')}
-            >
-              <PlusIcon className="h-4 w-4 mr-2" />
-              Create Sales Order
-            </Button>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-xl border border-zinc-200 shadow-sm">
-          <div className="relative w-full md:w-80">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by SO no, client, project, quotation..."
-              className="pl-9 bg-zinc-50 border-zinc-200 text-sm focus-visible:ring-emerald-500"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <span className="text-xs text-zinc-500 shrink-0">Status:</span>
-            <div className="flex flex-wrap gap-1">
-              {SO_STATUSES.map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    statusFilter === status
-                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                      : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
-                  }`}
-                >
-                  {status === 'All' ? 'All' : STATUS_COLORS[status]?.label || status}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Table/List */}
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-zinc-200 shadow-sm">
-            <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
-            <span className="text-sm text-zinc-500 mt-2">Loading Sales Orders...</span>
-          </div>
-        ) : filteredOrders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-zinc-200 shadow-sm text-center">
-            <div className="p-3 bg-zinc-100 rounded-full text-zinc-400 mb-3">
-              <PackageCheck className="h-8 w-8" />
-            </div>
-            <h3 className="text-base font-semibold text-zinc-900">No Sales Orders found</h3>
-            <p className="text-sm text-zinc-500 max-w-sm mt-1">
-              Try adjusting your search terms, filter by status, or create a new sales order.
-            </p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-zinc-200 bg-zinc-50/50 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-                    <th className="py-3 px-4">SO Number</th>
-                    <th className="py-3 px-4">Client</th>
-                    <th className="py-3 px-4">Project</th>
-                    <th className="py-3 px-4">Quotation</th>
-                    <th className="py-3 px-4">Date</th>
-                    <th className="py-3 px-4">Converted</th>
-                    <th className="py-3 px-4">Total Amount</th>
-                    <th className="py-3 px-4">Approval Status</th>
-                    <th className="py-3 px-4">Inventory Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200">
-                  {filteredOrders.map((so: any) => {
-                    const statusMeta = STATUS_COLORS[so.status] || { bg: 'bg-zinc-100', color: 'text-zinc-700', label: so.status };
-                    const stockMeta = STOCK_STATUS_COLORS[so.stock_status || 'shortfall'];
-                    const StockIcon = stockMeta.icon;
-
-                    return (
-                      <tr key={so.id} className="hover:bg-zinc-50/50 transition-colors text-sm text-zinc-700">
-                        <td className="py-3.5 px-4 font-medium text-zinc-900">{so.sales_order_no}</td>
-                        <td className="py-3.5 px-4">{so.client?.client_name || '-'}</td>
-                        <td className="py-3.5 px-4">{so.project?.name || '-'}</td>
-                        <td className="py-3.5 px-4">{so.quotation_no || '-'}</td>
-                        <td className="py-3.5 px-4">{formatDate(so.order_date)}</td>
-                        <td className="py-3.5 px-4">{so.converted_at ? formatDate(so.converted_at) : '-'}</td>
-                        <td className="py-3.5 px-4 font-semibold text-zinc-900">{formatCurrency(so.grand_total)}</td>
-                        <td className="py-3.5 px-4">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusMeta.bg} ${statusMeta.color}`}>
-                            {statusMeta.label}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${stockMeta.bg} ${stockMeta.text}`}>
-                            <StockIcon className="h-3.5 w-3.5" />
-                            {stockMeta.label}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="relative inline-block text-left">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigate(`/sales-orders/view?id=${so.id}`)}
-                              className="text-zinc-600 hover:text-zinc-950 font-medium text-xs px-2.5 py-1.5 border border-zinc-200 bg-white rounded-lg shadow-sm"
-                            >
-                              <EyeIcon className="h-3.5 w-3.5 mr-1" />
-                              View
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+      <DocumentListShell
+        title="Sales Orders"
+        count={filteredOrders.length}
+        subtitle="Manage client orders, warehouse stock checks, and MRP calculations."
+        search={searchTerm}
+        onSearch={setSearchTerm}
+        searchPlaceholder="Search by SO no, client, project, quotation..."
+        statusOptions={SO_STATUSES}
+        statusFilter={statusFilter}
+        onStatusFilter={setStatusFilter}
+        statusLabel={(s) => (STATUS_COLORS[s]?.label || s)}
+        statusFilterStyle="pills"
+        onCreate={() => navigate('/sales-orders/create')}
+        createLabel="Create Sales Order"
+        columns={SO_COLUMNS}
+        visibleIds={visibleIds}
+        onVisibleChange={setVisibleIds}
+        columnStorageKey="so-list-columns"
+        rows={filteredOrders}
+        getRowId={(so: any) => so.id}
+        selectedIds={selectedIds}
+        onToggleSelect={toggleSelect}
+        onToggleSelectAll={toggleSelectAll}
+        onRowClick={(so: any) => navigate(`/sales-orders/view?id=${so.id}`)}
+        renderCell={renderCell}
+        rowActions={(so: any) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(`/sales-orders/view?id=${so.id}`)}
+            className="text-zinc-600 hover:text-zinc-950 font-medium text-xs px-2.5 py-1.5 border border-zinc-200 bg-white rounded-lg shadow-sm"
+          >
+            <EyeIcon className="h-3.5 w-3.5 mr-1" />
+            View
+          </Button>
         )}
-      </div>
+        rowMenuItems={soRowMenuItems}
+        bulkBar={{
+          render: (ids, clear) => (
+            <button
+              onClick={async () => { if (await deleteOrders(Array.from(ids))) clear(); }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-red-700 transition-all active:scale-[0.98]"
+            >
+              <Trash2Icon className="w-3.5 h-3.5" />
+              Delete All
+            </button>
+          ),
+        }}
+        loading={isLoading}
+        loadingText="Loading Sales Orders..."
+        emptyTitle="No Sales Orders found"
+        emptyHint="Try adjusting your search terms, filter by status, or create a new sales order."
+      />
     </PermissionGuard>
   );
 }

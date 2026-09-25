@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
@@ -10,20 +9,13 @@ import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { ApprovalAPI } from '../approvals/api';
 import { initiateQuotationRevision } from '../lib/quotation-workflow';
 import { duplicateQuotation } from '../api';
+import { DocumentListShell, type ShellColumn } from '../components/document/DocumentListShell';
 import {
 
-  Search as SearchIcon,
-  Plus as PlusIcon,
   Download as DownloadIcon,
   Eye as EyeIcon,
-  MoreHorizontal as MoreHorizontalIcon,
-  ChevronDown as ChevronDownIcon,
   Trash2 as Trash2Icon,
-  ArrowUpDown as ArrowUpDownIcon,
-  ArrowUp as ArrowUpIcon,
-  ArrowDown as ArrowDownIcon,
   Printer as PrinterIcon,
-  X as XIcon,
   MessageSquare,
   Loader2,
   Share2,
@@ -86,8 +78,6 @@ export default function QuotationList() {
   const [subTab, setSubTab] = useState('All Quotes');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showColumnCustomizer, setShowColumnCustomizer] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
   const [returnComment, setReturnComment] = useState<{ open: boolean; quotationId: string | null; comment: string; loading: boolean }>({ open: false, quotationId: null, comment: '', loading: false });
@@ -100,8 +90,6 @@ export default function QuotationList() {
   });
   const [tempVisibleColumns, setVisibleColumnsTemp] = useState<string[]>(visibleColumns);
 
-  const menuRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const columnCustomizerRef = useRef<HTMLDivElement>(null);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -137,42 +125,6 @@ export default function QuotationList() {
     }
     setSelectedIds(next);
   };
-
-  useEffect(() => {
-    if (!openMenuId) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpenMenuId(null);
-      }
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpenMenuId(null);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [openMenuId]);
-
-  useEffect(() => {
-    if (!showStatusDropdown) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowStatusDropdown(false);
-      }
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowStatusDropdown(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [showStatusDropdown]);
 
   useEffect(() => {
     if (!showColumnCustomizer) return;
@@ -350,7 +302,6 @@ export default function QuotationList() {
   };
 
   const downloadQuotationPDF = async (quotationId: string) => {
-    setOpenMenuId(null);
     if (!organisation) {
       alert('Organisation data not available');
       return;
@@ -499,175 +450,213 @@ export default function QuotationList() {
     }
   };
 
-  return (
-    <div className="flex flex-col h-full bg-white relative">
-      {/* Sticky Bulk Action Header (Activates for 2+ items) */}
-      <AnimatePresence>
-        {selectedIds.size >= 2 && (
-          <motion.div 
-            initial={{ y: -64, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -64, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="sticky top-0 z-[120] w-full bg-zinc-900 text-white px-6 py-[12px] flex items-center justify-between shadow-2xl"
-          >
-            <div className="flex items-center gap-6">
-              <button 
-                onClick={() => setSelectedIds(new Set())}
-                className="p-1 hover:bg-zinc-800 rounded-full transition-colors"
-              >
-                <XIcon className="w-5 h-5" />
-              </button>
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold">{selectedIds.size} items selected</span>
-                <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold leading-none">Bulk Operations Active</span>
-              </div>
-            </div>
+  const QUOTE_SHELL_COLUMNS: ShellColumn[] = [
+    { id: 'date', label: 'Date', width: '120px', sortable: true },
+    { id: 'quotation_no', label: 'Quote No', width: '120px' },
+    { id: 'revision_no', label: 'Rev No', width: '90px' },
+    { id: 'project', label: 'Project', width: '200px' },
+    { id: 'client', label: 'Client', width: '400px' },
+    { id: 'prepared_by', label: 'Created By', width: '150px' },
+    { id: 'status', label: 'Status', width: '140px', tdClass: 'py-[18px] text-left whitespace-nowrap' },
+    { id: 'subtotal', label: 'Sub-total', width: '100px', align: 'right', tdClass: 'font-medium text-zinc-900 tabular-nums whitespace-nowrap' },
+    { id: 'total_tax', label: 'Tax Amount', width: '100px', align: 'right', tdClass: 'font-medium text-zinc-900 tabular-nums whitespace-nowrap' },
+    { id: 'grand_total', label: 'Amount', width: '100px', align: 'right', tdClass: 'font-medium text-zinc-900 tabular-nums whitespace-nowrap' },
+  ];
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleBulkPrint}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-zinc-900 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-zinc-100 transition-all active:scale-[0.98]"
-              >
-                <PrinterIcon className="w-3.5 h-3.5" />
-                Print Selected
-              </button>
-              <button
-                onClick={() => {
-                  if (confirm(`Are you sure you want to delete ${selectedIds.size} quotation(s)?`)) {
-                    supabase
-                      .from('quotation_header')
-                      .delete()
-                      .in('id', Array.from(selectedIds))
-                      .eq('organisation_id', organisation?.id)
-                      .then(({ error }) => {
-                        if (error) alert('Error: ' + error.message);
-                        else {
-                          queryClient.invalidateQueries({ queryKey: ['quotations'] });
-                          setSelectedIds(new Set());
-                        }
-                      });
-                  }
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-red-700 transition-all active:scale-[0.98]"
-              >
-                <Trash2Icon className="w-3.5 h-3.5" />
-                Delete All
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Main Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-base font-medium text-zinc-900">Quotations</h1>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-              {paginationData.totalItems}
-            </span>
-          </div>
-          <div className="h-4 w-px bg-zinc-200" />
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mx-1">Draft</span>
-              <span className="text-xs font-medium text-zinc-700 mx-1">{stats.draft}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mx-1">Sent</span>
-              <span className="text-xs font-medium text-blue-700 mx-1">{stats.sent}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mx-1">Approved</span>
-              <span className="text-xs font-medium text-emerald-700 mx-1">{stats.approved}</span>
-            </div>
-          </div>
-          <div className="h-4 w-px bg-zinc-200" />
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider mx-1">Total Value</span>
-            <span className="text-sm font-medium text-zinc-900 mx-1">{formatCurrency(paginationData.totalValue)}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search quotations..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-          </div>
-        </div>
+  const renderQuoteCell = (col: ShellColumn, q: any) => {
+    if (col.id === 'date') return <span className="font-medium text-zinc-900 whitespace-nowrap">{formatDate(q.date)}</span>;
+    if (col.id === 'quotation_no') return (
+      <span>
+        <span className="font-semibold text-zinc-900">{q.quotation_no}</span>
+        {q.revision_no && q.revision_no > 1 ? (
+          <span className="ml-1.5 px-1.5 py-0.5 text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80 rounded inline-block">
+            (Rev {String(q.revision_no).padStart(2, '0')})
+          </span>
+        ) : null}
+      </span>
+    );
+    if (col.id === 'revision_no') return (
+      <span className="px-2 py-0.5 text-xs font-semibold bg-zinc-100 text-zinc-700 rounded border border-zinc-200 inline-block">
+        Rev {String(q.revision_no || 1).padStart(2, '0')}
+      </span>
+    );
+    if (col.id === 'project') return (
+      <div className="max-w-[180px] truncate" title={q.project?.project_name || '-'}>
+        {q.project?.project_name || '-'}
       </div>
-
-      {/* Sub-tabs & Filter Row */}
-      <div 
-        className="flex items-center justify-between px-6 border-b border-zinc-100 bg-zinc-50/50"
-        style={{ paddingTop: '15px', paddingBottom: '15px' }}
-      >
-        <div className="flex items-center gap-2">
-          {SUB_TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setSubTab(tab)}
-              className={`w-[150px] h-[26px] px-4 text-sm font-medium transition-colors ${
-                subTab === tab
-                  ? 'bg-blue-600/10 text-blue-600'
-                  : 'text-zinc-600 hover:bg-zinc-100'
+    );
+    if (col.id === 'client') return (
+      <div className="max-w-[350px] truncate" title={q.client?.client_name || '-'}>
+        {q.client?.client_name || '-'}
+      </div>
+    );
+    if (col.id === 'prepared_by') return (
+      <div className="truncate" title={q.prepared_by || '-'}>
+        {q.prepared_by || '-'}
+      </div>
+    );
+    if (col.id === 'status') return (
+      <div className="flex flex-col gap-1">
+        <span
+          className="text-sm font-medium"
+          style={{ color: getStatusColor(displayStatus(q)).color }}
+        >
+          {displayStatus(q)}
+        </span>
+        {q.approval_status && q.approval_status !== 'none' && (
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${
+                q.approval_status === 'Revision Requested'
+                  ? 'bg-orange-100 text-orange-700'
+                  : q.approval_status === 'Pending'
+                  ? 'bg-amber-100 text-amber-700'
+                  : q.approval_status === 'Approved'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : q.approval_status === 'Rejected'
+                  ? 'bg-red-100 text-red-700'
+                  : 'bg-zinc-100 text-zinc-600'
               }`}
             >
-              {tab}
-            </button>
-          ))}
-          
-          {/* Status Dropdown - Only show in All Quotes tab */}
-          {subTab === 'All Quotes' && (
-            <div className="relative" ref={dropdownRef}>
+              {q.approval_status === 'Revision Requested' ? 'Returned/Query' : q.approval_status === 'Pending' ? 'Pending Approval' : q.approval_status}
+            </span>
+            {q.approval_status === 'Revision Requested' && (
               <button
-                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                className="w-[150px] h-[26px] flex items-center justify-center gap-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  setReturnComment({ open: true, quotationId: q.id, comment: '', loading: true });
+                  try {
+                    const { data: approvals } = await supabase
+                      .from('approvals')
+                      .select('id')
+                      .eq('reference_id', q.id)
+                      .eq('reference_type', 'quotations')
+                      .maybeSingle();
+                    if (approvals) {
+                      const res = await ApprovalAPI.getApprovalHistory(approvals.id);
+                      const returned = (res.data || []).filter((a: any) => a.action === 'RETURNED');
+                      const comment = returned.length > 0 ? (returned[returned.length - 1].comments || 'No details') : 'No details';
+                      setReturnComment({ open: true, quotationId: q.id, comment, loading: false });
+                    } else {
+                      setReturnComment({ open: true, quotationId: q.id, comment: 'No approval record found', loading: false });
+                    }
+                  } catch {
+                    setReturnComment({ open: true, quotationId: q.id, comment: 'Failed to load', loading: false });
+                  }
+                }}
+                className="text-[11px] text-blue-600 hover:underline font-medium"
               >
-                {statusFilter === 'All' ? 'All Statuses' : statusFilter}
-                <ChevronDownIcon className="w-4 h-4" />
+                View
               </button>
-              {showStatusDropdown && (
-                <div className="absolute left-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-zinc-200 rounded-lg shadow-lg py-1">
-                  {STATUS_FILTER_OPTIONS.map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => {
-                        setStatusFilter(status);
-                        setShowStatusDropdown(false);
-                      }}
-                      className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
-                        statusFilter === status
-                          ? 'bg-indigo-50 text-indigo-700'
-                          : 'text-zinc-700 hover:bg-zinc-50'
-                      }`}
-                    >
-                      {status === 'All' ? 'All Statuses' : status}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+    if (col.id === 'subtotal') return <div className="text-right">{formatCurrency(q.subtotal)}</div>;
+    if (col.id === 'total_tax') return <div className="text-right">{formatCurrency(q.total_tax)}</div>;
+    if (col.id === 'grand_total') return <div className="text-right">{formatCurrency(q.grand_total)}</div>;
+    return null;
+  };
 
-        <div className="flex items-center gap-[10px]">
-          <PermissionGuard permission="quotations.create">
-            <button
-              onClick={() => navigate('/quotation/create')}
-              className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
-              style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
-            >
-              Create Quotation
-            </button>
-          </PermissionGuard>
+  const quoteRowMenuItems = (q: any) => {
+    const items: any[] = [
+      { label: 'View Details', icon: EyeIcon, onClick: () => navigate(`/quotation/view?id=${q.id}`) },
+      { label: 'Download PDF', icon: DownloadIcon, onClick: () => downloadQuotationPDF(q.id) },
+      { label: `Revision History ${q.revision_history?.length ? `(${q.revision_history.length})` : ''}`, icon: RotateCcw, onClick: () => setSelectedHistoryQuotation(q) },
+    ];
+    if (q.revision_history?.length > 0) {
+      items.push({ label: 'Compare Revisions (Excel View)', icon: Table2, tone: 'blue', onClick: () => setSelectedCompareQuotation(q) });
+    }
+    items.push(
+      { label: 'Convert to Invoice', dividerBefore: true, onClick: () => navigate(`/invoices/create?convertFrom=quotation-to-invoice&sourceId=${q.id}`) },
+      { label: 'Convert to Proforma', onClick: () => navigate(`/proforma-invoices/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`) },
+      { label: 'Convert to Delivery', onClick: () => navigate(`/dc/create?convertFrom=quotation-to-dc&sourceId=${q.id}`) },
+      { label: 'Edit', dividerBefore: true, onClick: () => navigate(`/quotation/edit?id=${q.id}`) },
+    );
+    if (q.status === 'Draft' || q.status === 'Approved') {
+      items.push({
+        label: 'Mark as Sent', tone: 'blue',
+        onClick: async () => {
+          const now = new Date().toISOString();
+          const update: any = { updated_at: now, sent_at: now };
+          if (q.status === 'Draft') update.status = 'Sent';
+          const { error } = await supabase
+            .from('quotation_header')
+            .update(update)
+            .eq('id', q.id)
+            .eq('organisation_id', organisation?.id);
+          if (error) {
+            alert('Failed to mark as sent: ' + error.message);
+            return;
+          }
+          queryClient.invalidateQueries({ queryKey: ['quotations'] });
+        },
+      });
+    }
+    items.push(
+      {
+        label: 'Duplicate',
+        onClick: async () => {
+          try {
+            await duplicateQuotation(q.id);
+            await queryClient.invalidateQueries({
+              queryKey: ['quotations', statusFilter, organisation?.id]
+            });
+          } catch (err: any) {
+            console.error('Duplicate exception:', err);
+            alert('Error duplicating quotation: ' + (err?.message || err));
+          }
+        },
+      },
+      {
+        label: 'Request Revision', tone: 'amber',
+        onClick: async () => {
+          if (organisation?.id && q.id) {
+            await initiateQuotationRevision(organisation.id, q.id);
+          }
+        },
+      },
+      {
+        label: 'Delete', danger: true, dividerBefore: true,
+        onClick: () => {
+          if (confirm('Are you sure you want to delete this quotation?')) {
+            supabase.from('approvals').delete().eq('reference_id', q.id).then(() => supabase.from('quotation_header').delete().eq('id', q.id)).then(() => {
+              queryClient.invalidateQueries({ queryKey: ['quotations'] });
+            });
+          }
+        },
+      },
+    );
+    return items;
+  };
 
-          {/* Column Customizer */}
+  return (
+    <>
+      <DocumentListShell
+
+        title="Quotations"
+        count={paginationData.totalItems}
+        stats={[
+          { label: 'Draft', value: stats.draft, valueClass: 'text-zinc-700' },
+          { label: 'Sent', value: stats.sent, labelClass: 'text-blue-400', valueClass: 'text-blue-700' },
+          { label: 'Approved', value: stats.approved, labelClass: 'text-emerald-400', valueClass: 'text-emerald-700' },
+        ]}
+        totalValue={{ label: 'Total Value', value: formatCurrency(paginationData.totalValue) }}
+        search={searchTerm}
+        onSearch={setSearchTerm}
+        searchPlaceholder="Search quotations..."
+        subTabs={SUB_TABS}
+        activeSubTab={subTab}
+        onSubTab={setSubTab}
+        statusOptions={subTab === 'All Quotes' ? STATUS_FILTER_OPTIONS : []}
+        statusFilter={statusFilter}
+        onStatusFilter={setStatusFilter}
+        sort={{ value: sortOrder, onToggle: toggleSort, columnId: 'date' }}
+        columns={QUOTE_SHELL_COLUMNS}
+        visibleIds={visibleColumns}
+        onVisibleChange={setVisibleColumns}
+        columnCustomizer={(
           <div className="relative" ref={columnCustomizerRef}>
             <button
               onClick={() => setShowColumnCustomizer(!showColumnCustomizer)}
@@ -734,536 +723,134 @@ export default function QuotationList() {
               </div>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="flex-1 overflow-auto">
-        <div className="min-w-full">
-          <table className="w-full border-separate border-spacing-0">
-            <thead className="z-10">
-              <tr>
-                <th className="sticky top-0 z-10 h-[36px] px-4 text-center align-middle w-[50px] bg-white border-b border-zinc-200">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.size === paginationData.currentItems.length && paginationData.currentItems.length > 0}
-                    onChange={toggleSelectAll}
-                    className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                </th>
-                {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => (
-                  <th 
-                    key={col.id}
-                    style={{ width: col.width }}
-                    className={`sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 ${
-                      ['subtotal', 'total_tax', 'grand_total'].includes(col.id) ? 'text-right' : 'text-left'
-                    }`}
-                  >
-                    {col.id === 'date' ? (
-                      <button 
-                        onClick={toggleSort}
-                        className="flex items-center gap-2 hover:text-zinc-900 transition-colors group"
-                      >
-                        {col.label}
-                        <div className="flex flex-col">
-                          {!sortOrder && <ArrowUpDownIcon className="w-3 h-3 text-zinc-300 group-hover:text-zinc-400" />}
-                          {sortOrder === 'asc' && <ArrowUpIcon className="w-3 h-3 text-indigo-600" />}
-                          {sortOrder === 'desc' && <ArrowDownIcon className="w-3 h-3 text-indigo-600" />}
-                        </div>
-                      </button>
-                    ) : col.label}
-                  </th>
-                ))}
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[70px] bg-white border-b border-zinc-200">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white">
-              {loading ? (
-                <tr>
-                  <td colSpan={visibleColumns.length + 2} className="px-5 py-16 text-center text-sm text-zinc-500">
-                    Loading quotations...
-                  </td>
-                </tr>
-              ) : paginationData.currentItems.length === 0 ? (
-                <tr>
-                  <td colSpan={visibleColumns.length + 2} className="px-5 py-16 text-center text-sm text-zinc-500">
-                    No quotations found
-                  </td>
-                </tr>
-              ) : (
-                <AnimatePresence mode="popLayout">
-                  {paginationData.currentItems.map((q: any, index) => (
-                    <motion.tr
-                      key={q.id}
-                      layout
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ 
-                        type: "spring", 
-                        stiffness: 400, 
-                        damping: 30,
-                        opacity: { duration: 0.2 }
-                      }}
-                      className={`cursor-pointer transition-all duration-200 border-l-2 border-transparent hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm group relative ${
-                        openMenuId === q.id ? 'z-50' : 'z-0'
-                      } ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
-                      } ${selectedIds.has(q.id) ? 'bg-indigo-50/50 border-l-blue-600' : ''}`}
-                      onClick={() => {
-                        if (selectedIds.size === 0) {
-                          navigate(`/quotation/view?id=${q.id}`);
-                        } else {
-                          toggleSelect(q.id);
+        )}
+        createButton={(
+          <PermissionGuard permission="quotations.create">
+            <button
+              onClick={() => navigate('/quotation/create')}
+              className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
+              style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+            >
+              Create Quotation
+            </button>
+          </PermissionGuard>
+        )}
+        rows={paginationData.currentItems}
+        getRowId={(q: any) => q.id}
+        selectedIds={selectedIds}
+        onToggleSelect={toggleSelect}
+        onToggleSelectAll={toggleSelectAll}
+        onClearSelection={() => setSelectedIds(new Set())}
+        onRowClick={(q: any) => {
+          if (selectedIds.size === 0) {
+            navigate(`/quotation/view?id=${q.id}`);
+          } else {
+            toggleSelect(q.id);
+          }
+        }}
+        renderCell={renderQuoteCell}
+        eyeButton={(q: any) => ({
+          onPreview: () => { if (!previewLoading) previewQuotationPdf(q.id, q.quotation_no); },
+          loading: previewLoadingId === q.id,
+        })}
+        rowMenuItems={quoteRowMenuItems}
+        bulkBar={{
+          render: (ids, clear) => (
+            <>
+              <button
+                onClick={handleBulkPrint}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-zinc-900 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-zinc-100 transition-all active:scale-[0.98]"
+              >
+                <PrinterIcon className="w-3.5 h-3.5" />
+                Print Selected
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm(`Are you sure you want to delete ${ids.size} quotation(s)?`)) {
+                    supabase
+                      .from('quotation_header')
+                      .delete()
+                      .in('id', Array.from(ids))
+                      .eq('organisation_id', organisation?.id)
+                      .then(({ error }) => {
+                        if (error) alert('Error: ' + error.message);
+                        else {
+                          queryClient.invalidateQueries({ queryKey: ['quotations'] });
+                          clear();
                         }
-                      }}
+                      });
+                  }
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-red-700 transition-all active:scale-[0.98]"
+              >
+                <Trash2Icon className="w-3.5 h-3.5" />
+                Delete All
+              </button>
+            </>
+          ),
+        }}
+        paginationRender={(
+          <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
+            <div className="text-sm font-medium text-zinc-600">
+              Showing {paginationData.totalItems === 0 ? 0 : paginationData.startIndex + 1} to {Math.min(paginationData.endIndex, paginationData.totalItems)} of {paginationData.totalItems} quotes
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={!paginationData.hasPrevPage}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
+                  paginationData.hasPrevPage
+                    ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
+                    : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+                }`}
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1.5">
+                {Array.from({ length: Math.max(1, Math.min(5, paginationData.totalPages)) }, (_, i) => {
+                  let pageNum;
+                  if (paginationData.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= paginationData.totalPages - 2) {
+                    pageNum = paginationData.totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`px-3 py-1 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[32px] flex items-center justify-center ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm'
+                          : 'text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200'
+                      }`}
                     >
-                      <td className="px-4 py-[26px] align-middle text-center border-t border-zinc-200/70">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(q.id)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            toggleSelect(q.id);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                      </td>
-                      
-                      {ALL_COLUMNS.filter(col => visibleColumns.includes(col.id)).map(col => {
-                        if (col.id === 'date') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
-                            {formatDate(q.date)}
-                          </td>
-                        );
-                        if (col.id === 'quotation_no') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
-                            <span className="font-semibold text-zinc-900">{q.quotation_no}</span>
-                            {q.revision_no && q.revision_no > 1 ? (
-                              <span className="ml-1.5 px-1.5 py-0.5 text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80 rounded inline-block">
-                                (Rev {String(q.revision_no).padStart(2, '0')})
-                              </span>
-                            ) : null}
-                          </td>
-                        );
-                        if (col.id === 'revision_no') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
-                            <span className="px-2 py-0.5 text-xs font-semibold bg-zinc-100 text-zinc-700 rounded border border-zinc-200 inline-block">
-                              Rev {String(q.revision_no || 1).padStart(2, '0')}
-                            </span>
-                          </td>
-                        );
-                        if (col.id === 'project') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
-                            <div className="max-w-[180px] truncate" title={q.project?.project_name || '-'}>
-                              {q.project?.project_name || '-'}
-                            </div>
-                          </td>
-                        );
-                        if (col.id === 'client') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
-                            <div className="max-w-[350px] truncate" title={q.client?.client_name || '-'}>
-                              {q.client?.client_name || '-'}
-                            </div>
-                          </td>
-                        );
-                        if (col.id === 'prepared_by') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
-                            <div className="truncate" title={q.prepared_by || '-'}>
-                              {q.prepared_by || '-'}
-                            </div>
-                          </td>
-                        );
-                        if (col.id === 'status') return (
-                          <td key={col.id} className="px-6 py-[18px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
-                            <div className="flex flex-col gap-1">
-                              <span 
-                                className="text-sm font-medium"
-                                style={{ color: getStatusColor(displayStatus(q)).color }}
-                              >
-                                {displayStatus(q)}
-                              </span>
-                              {q.approval_status && q.approval_status !== 'none' && (
-                                <div className="flex items-center gap-1.5">
-                                  <span
-                                    className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${
-                                      q.approval_status === 'Revision Requested'
-                                        ? 'bg-orange-100 text-orange-700'
-                                        : q.approval_status === 'Pending'
-                                        ? 'bg-amber-100 text-amber-700'
-                                        : q.approval_status === 'Approved'
-                                        ? 'bg-emerald-100 text-emerald-700'
-                                        : q.approval_status === 'Rejected'
-                                        ? 'bg-red-100 text-red-700'
-                                        : 'bg-zinc-100 text-zinc-600'
-                                    }`}
-                                  >
-                                    {q.approval_status === 'Revision Requested' ? 'Returned/Query' : q.approval_status === 'Pending' ? 'Pending Approval' : q.approval_status}
-                                  </span>
-                                  {q.approval_status === 'Revision Requested' && (
-                                    <button
-                                      onClick={async (e) => {
-                                        e.stopPropagation();
-                                        setReturnComment({ open: true, quotationId: q.id, comment: '', loading: true });
-                                        try {
-                                          const { data: approvals } = await supabase
-                                            .from('approvals')
-                                            .select('id')
-                                            .eq('reference_id', q.id)
-                                            .eq('reference_type', 'quotations')
-                                            .maybeSingle();
-                                          if (approvals) {
-                                            const res = await ApprovalAPI.getApprovalHistory(approvals.id);
-                                            const returned = (res.data || []).filter((a: any) => a.action === 'RETURNED');
-                                            const comment = returned.length > 0 ? (returned[returned.length - 1].comments || 'No details') : 'No details';
-                                            setReturnComment({ open: true, quotationId: q.id, comment, loading: false });
-                                          } else {
-                                            setReturnComment({ open: true, quotationId: q.id, comment: 'No approval record found', loading: false });
-                                          }
-                                        } catch {
-                                          setReturnComment({ open: true, quotationId: q.id, comment: 'Failed to load', loading: false });
-                                        }
-                                      }}
-                                      className="text-[11px] text-blue-600 hover:underline font-medium"
-                                    >
-                                      View
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        );
-                        if (col.id === 'subtotal') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70">
-                            <div className="text-right">
-                              {formatCurrency(q.subtotal)}
-                            </div>
-                          </td>
-                        );
-                        if (col.id === 'total_tax') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70">
-                            <div className="text-right">
-                              {formatCurrency(q.total_tax)}
-                            </div>
-                          </td>
-                        );
-                        if (col.id === 'grand_total') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70">
-                            <div className="text-right">
-                              {formatCurrency(q.grand_total)}
-                            </div>
-                          </td>
-                        );
-                        return null;
-                      })}
-
-                      <td className="px-0 py-[26px] align-middle border-t border-zinc-200/70">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!previewLoading) previewQuotationPdf(q.id, q.quotation_no);
-                          }}
-                          style={{
-                            padding: '14px',
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#9ca3af',
-                            borderRadius: '0',
-                            cursor: previewLoadingId === q.id ? 'wait' : 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s'
-                          }}
-                          onMouseEnter={e => { if (previewLoadingId !== q.id) e.currentTarget.style.color = '#185FA5'; }}
-                          onMouseLeave={e => { if (previewLoadingId !== q.id) e.currentTarget.style.color = '#9ca3af'; }}
-                        >
-                          {previewLoadingId === q.id ? (
-                            <Loader2 className="w-[18px] h-[18px] animate-spin" />
-                          ) : (
-                            <EyeIcon className="w-[18px] h-[18px]" />
-                          )}
-                        </button>
-                      </td>
-
-                      <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
-                        <div className="relative inline-block" ref={openMenuId === q.id ? menuRef : null}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenMenuId(openMenuId === q.id ? null : q.id);
-                            }}
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors"
-                          >
-                            <MoreHorizontalIcon className="w-4 h-4 text-zinc-500" />
-                          </button>
-                        {openMenuId === q.id && (
-                          <div className={`absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${
-                            index >= paginationData.currentItems.length - 3 && index > 3 ? 'bottom-full mb-1' : 'top-full mt-1'
-                          }`}>
-                            {/* Section 1: Read actions */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/quotation/view?id=${q.id}`);
-                              }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                              style={{ padding: '6px' }}
-                            >
-                              <EyeIcon className="w-3.5 h-3.5" />
-                              View Details
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                downloadQuotationPDF(q.id);
-                              }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                              style={{ padding: '6px' }}
-                            >
-                              <DownloadIcon className="w-3.5 h-3.5" />
-                              Download PDF
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                setSelectedHistoryQuotation(q);
-                              }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                              style={{ padding: '6px' }}
-                            >
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              Revision History {q.revision_history?.length ? `(${q.revision_history.length})` : ''}
-                            </button>
-
-                            {q.revision_history?.length > 0 && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuId(null);
-                                  setSelectedCompareQuotation(q);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-blue-50 hover:text-blue-700 active:scale-[0.98]"
-                                style={{ padding: '6px' }}
-                              >
-                                <Table2 className="w-3.5 h-3.5 text-blue-600" />
-                                Compare Revisions (Excel View)
-                              </button>
-                            )}
-
-                            <div className="my-1 border-t border-zinc-100" />
-
-                            {/* Section 2: Convert actions */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                navigate(`/invoices/create?convertFrom=quotation-to-invoice&sourceId=${q.id}`);
-                              }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                              style={{ padding: '6px' }}
-                            >
-                              Convert to Invoice
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                navigate(`/proforma-invoices/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`);
-                              }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                              style={{ padding: '6px' }}
-                            >
-                              Convert to Proforma
-                            </button>
-
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                navigate(`/dc/create?convertFrom=quotation-to-dc&sourceId=${q.id}`);
-                              }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                              style={{ padding: '6px' }}
-                            >
-                              Convert to Delivery
-                            </button>
-
-                            <div className="my-1 border-t border-zinc-100" />
-
-                            {/* Section 3: Modify actions */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                navigate(`/quotation/edit?id=${q.id}`);
-                              }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                              style={{ padding: '6px' }}
-                            >
-                              Edit
-                            </button>
-                            {(q.status === 'Draft' || q.status === 'Approved') && (
-                              <button
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuId(null);
-                                  const now = new Date().toISOString();
-                                  const update: any = { updated_at: now, sent_at: now };
-                                  if (q.status === 'Draft') update.status = 'Sent';
-                                  const { error } = await supabase
-                                    .from('quotation_header')
-                                    .update(update)
-                                    .eq('id', q.id)
-                                    .eq('organisation_id', organisation?.id);
-                                  if (error) {
-                                    alert('Failed to mark as sent: ' + error.message);
-                                    return;
-                                  }
-                                  queryClient.invalidateQueries({ queryKey: ['quotations'] });
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-blue-600 transition-all hover:bg-blue-50 hover:text-blue-800 font-medium active:scale-[0.98]"
-                                style={{ padding: '6px' }}
-                              >
-                                Mark as Sent
-                              </button>
-                            )}
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                try {
-                                  await duplicateQuotation(q.id);
-                                  await queryClient.invalidateQueries({ 
-                                    queryKey: ['quotations', statusFilter, organisation?.id] 
-                                  });
-                                } catch (err: any) {
-                                  console.error('Duplicate exception:', err);
-                                  alert('Error duplicating quotation: ' + (err?.message || err));
-                                }
-                              }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                              style={{ padding: '6px' }}
-                            >
-                              Duplicate
-                            </button>
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                if (organisation?.id && q.id) {
-                                  await initiateQuotationRevision(
-                                    organisation.id,
-                                    q.id
-                                  );
-                                }
-                              }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-amber-700 transition-all hover:bg-amber-50 hover:text-amber-800 active:scale-[0.98]"
-                              style={{ padding: '6px' }}
-                            >
-                              Request Revision
-                            </button>
-
-                            <div className="my-1 border-t border-zinc-100" />
-
-                            {/* Section 4: Destructive */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                if (confirm('Are you sure you want to delete this quotation?')) {
-                                  supabase.from('approvals').delete().eq('reference_id', q.id).then(() => supabase.from('quotation_header').delete().eq('id', q.id)).then(() => {
-                                    queryClient.invalidateQueries({ queryKey: ['quotations'] });
-                                  });
-                                }
-                              }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600 active:scale-[0.98]"
-                              style={{ padding: '6px' }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </AnimatePresence>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      {/* Pagination Controls */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
-        <div className="text-sm font-medium text-zinc-600">
-          Showing {paginationData.totalItems === 0 ? 0 : paginationData.startIndex + 1} to {Math.min(paginationData.endIndex, paginationData.totalItems)} of {paginationData.totalItems} quotes
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Previous Button */}
-          <button
-            onClick={() => setCurrentPage(currentPage - 1)}
-            disabled={!paginationData.hasPrevPage}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
-              paginationData.hasPrevPage
-                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
-                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
-            }`}
-          >
-            Previous
-          </button>
-          
-          {/* Page Numbers */}
-          <div className="flex items-center gap-1.5">
-            {Array.from({ length: Math.max(1, Math.min(5, paginationData.totalPages)) }, (_, i) => {
-              let pageNum;
-              if (paginationData.totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (currentPage <= 3) {
-                pageNum = i + 1;
-              } else if (currentPage >= paginationData.totalPages - 2) {
-                pageNum = paginationData.totalPages - 4 + i;
-              } else {
-                pageNum = currentPage - 2 + i;
-              }
-              
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
-                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[32px] flex items-center justify-center ${
-                    currentPage === pageNum
-                      ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm'
-                      : 'text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={!paginationData.hasNextPage}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
+                  paginationData.hasNextPage
+                    ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
+                    : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+                }`}
+              >
+                Next
+              </button>
+            </div>
           </div>
-          
-          {/* Next Button */}
-          <button
-            onClick={() => setCurrentPage(currentPage + 1)}
-            disabled={!paginationData.hasNextPage}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
-              paginationData.hasNextPage
-                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
-                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
-            }`}
-          >
-            Next
-          </button>
-        </div>
-      </div>
-
+        )}
+        loading={loading}
+        loadingText="Loading quotations..."
+        emptyTitle="No quotations found"
+      />
       {/* Return Comment Dialog */}
       {returnComment.open && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center" onClick={() => setReturnComment({ open: false, quotationId: null, comment: '', loading: false })}>
@@ -1430,6 +1017,6 @@ export default function QuotationList() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }

@@ -11,6 +11,8 @@ export const conversionTypes = [
   'client-po-to-invoice',
   'dc-to-invoice',
   'purchase-po-to-bill',
+  'sales-order-to-invoice',
+  'sales-order-to-challan',
 ] as const;
 
 export type ConversionType = (typeof conversionTypes)[number];
@@ -98,6 +100,41 @@ export interface DCItemData {
   quantity: number;
   rate: number;
   amount: number;
+}
+
+export interface SalesOrderSourceData {
+  id: string;
+  sales_order_no: string;
+  client_id: string;
+  client_state: string | null;
+  project_id: string | null;
+  billing_address: string | null;
+  shipping_address: string | null;
+  gstin: string | null;
+  state: string | null;
+  order_date: string;
+  payment_terms: string | null;
+  remarks: string | null;
+  subtotal: number;
+  grand_total: number;
+  client_po_number: string | null;
+  client_po_date: string | null;
+  items: SalesOrderItemData[];
+}
+
+export interface SalesOrderItemData {
+  id: string;
+  item_id: string | null;
+  variant_id: string | null;
+  description: string;
+  hsn_code: string | null;
+  qty: number;
+  uom: string | null;
+  rate: number;
+  discount_percent: number;
+  tax_percent: number;
+  line_total: number;
+  make: string | null;
 }
 
 export interface ProformaSourceData {
@@ -241,7 +278,7 @@ export type SourceDocumentData = QuotationSourceData | DCSourceData | ProformaSo
 
 export interface ConvertedInvoiceData {
   client_id: string;
-  source_type: 'quotation' | 'challan' | 'po' | 'direct';
+  source_type: 'quotation' | 'challan' | 'po' | 'direct' | 'sales-order';
   source_id: string;
   template_type: 'standard' | 'lot' | 'client_custom';
   mode: 'itemized' | 'lot';

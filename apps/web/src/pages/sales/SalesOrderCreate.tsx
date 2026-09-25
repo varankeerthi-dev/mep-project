@@ -60,9 +60,12 @@ export default function SalesOrderCreate({ editMode = false }: { editMode?: bool
       if (!orgId) return [];
       const { data } = await supabase
         .from('clients')
-        .select('id, client_name, billing_address, shipping_address, gstin, state')
+        .select('id, client_name, address1, address2, shipping_address, gstin, state')
         .eq('organisation_id', orgId);
-      return data || [];
+      return (data || []).map((c: any) => ({
+        ...c,
+        billing_address: [c.address1, c.address2].filter(Boolean).join(', '),
+      }));
     },
     enabled: !!orgId
   });
@@ -89,10 +92,14 @@ export default function SalesOrderCreate({ editMode = false }: { editMode?: bool
       if (!orgId) return [];
       const { data } = await supabase
         .from('materials')
-        .select('id, name, code, uom, default_sales_rate')
-        .eq('organisation_id', orgId)
-        .eq('category', 'finished_good');
-      return data || [];
+        .select('id, name, item_code, unit, default_sale_price')
+        .eq('organisation_id', orgId);
+      return (data || []).map((m: any) => ({
+        ...m,
+        code: m.item_code,
+        uom: m.unit,
+        default_sales_rate: m.default_sale_price,
+      }));
     },
     enabled: !!orgId
   });
