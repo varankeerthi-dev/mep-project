@@ -119,7 +119,6 @@ const SIDEBAR_MODULE_MAP: Record<string, string> = {
   purchase: 'purchase',
   dc: 'delivery_challans',
   'client-po': 'client_purchase_orders',
-  'non-billable-dc': 'delivery_challans',
   reports: 'reports',
   hr: 'hr',
 };

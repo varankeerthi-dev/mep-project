@@ -54,9 +54,7 @@ const ToolsManagement  = lazyAny(() => import('./pages/ToolsManagement'));
 const DynamicTableDemo = lazyAny(() => import('./components/ui/DynamicTableDemo').then(m => ({ default: m.DynamicTableDemo })));
 const CreateDC = lazyAny(() => import('./pages/CreateDC'));
 const CreateDCV2 = lazyAny(() => import('./pages/CreateDCV2'));
-const CreateNonBillableDC = lazyAny(() => import('./pages/CreateNonBillableDC'));
 const DCList = lazyAny(() => import('./pages/DCList'));
-const NonBillableDCList = lazyAny(() => import('./pages/NonBillableDCList'));
 const DateWiseConsolidation = lazyAny(() => import('./pages/DateWiseConsolidation'));
 const MaterialWiseConsolidation = lazyAny(() => import('./pages/MaterialWiseConsolidation'));
 const DCConsolidation = lazyAny(() => import('./pages/DCConsolidation').then(m => ({ default: m.default })));
@@ -194,7 +192,6 @@ const IssueCreateModal = lazyAny(() => import('./issues/pages/IssueCreateModal')
 const ClientComm = lazyAny(() => _projectMgmtInternal().then(m => ({ default: m.ClientComm })));
 const Documents  = lazyAny(() => _projectMgmtInternal().then(m => ({ default: m.Documents })));
 const DCEdit = lazyAny(() => import('./pages/DCEdit'));
-const NonBillableDCEdit = lazyAny(() => import('./pages/NonBillableDCEdit'));
 const SettingsPage = lazyAny(() => import('./pages/Settings'));
 const SettingsV2Page = lazyAny(() => import('./features/settings-v2/SettingsV2Page'));
 const ModuleSettingsPage = lazyAny(() => import('./components/ModuleSettings'));
@@ -599,6 +596,8 @@ export default function App() {
       // Warehouse Management module
       case '/warehouse':
       case '/warehouse/dashboard':
+      case '/warehouse/stock-requests':
+      case '/warehouse/fulfillment':
       case '/warehouse/designer':
       case '/warehouse/viewer':
       case '/warehouse/inventory':
