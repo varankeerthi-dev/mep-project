@@ -219,11 +219,11 @@ BEGIN
 
       INSERT INTO public.material_logs (
         organisation_id, item_id, company_variant_id, warehouse_id,
-        movement_type, reference_id, quantity_change, remarks
+        type, movement_type, reference_id, quantity_change, remarks
       ) VALUES (
         p_organisation_id,
         NULLIF(v_item->>'material_id', '')::uuid, v_variant, v_wh,
-        'DC_OUT', v_dc_id, -v_qty,
+        'OUT', 'DC_OUT', v_dc_id, -v_qty,
         'Deducted for Delivery Challan ' || v_dc_number
       );
     END IF;
@@ -281,11 +281,11 @@ BEGIN
       END IF;
       INSERT INTO public.material_logs (
         organisation_id, item_id, company_variant_id, warehouse_id,
-        movement_type, reference_id, quantity_change, remarks
+        type, movement_type, reference_id, quantity_change, remarks
       ) VALUES (
         v_dc.organisation_id,
         v_item.material_id, v_item.variant_id, v_item.warehouse_id,
-        'DC_CANCEL', p_dc_id, v_item.quantity,
+        'IN', 'DC_CANCEL', p_dc_id, v_item.quantity,
         'Restored on cancel of Delivery Challan ' || v_dc.dc_number
       );
     END IF;
