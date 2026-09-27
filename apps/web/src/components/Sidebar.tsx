@@ -274,7 +274,6 @@ const menuData: MenuSection[] = [
         submenu: [
           { id: 'dc-list', label: 'DC list', path: '/dc/list' },
           { id: 'dc-create', label: 'Create DC', path: '/dc/create' },
-          { id: 'nb-dc-list', label: 'NB-DC list', path: '/nb-dc/list' },
           { id: 'dc-returns', label: 'Material returns', path: '/returns' },
           { id: 'dc-consolidation', label: 'Consolidation', path: '/dc/consolidation' }
         ]
