@@ -66,6 +66,8 @@ DECLARE
   v_prefix TEXT;
   v_now DATE := CURRENT_DATE;
   v_fy TEXT;
+  -- Drafts reserve a number and store header/items but move NO stock (legacy rule).
+  v_moves_stock BOOLEAN := upper(COALESCE(NULLIF(p_header->>'status', ''), 'active')) <> 'DRAFT';
 BEGIN
   IF NOT public.user_can_access_org(p_organisation_id) THEN
     RAISE EXCEPTION 'Unauthorized organization access';
@@ -192,8 +194,8 @@ BEGIN
       NULLIF(v_item->>'make', '')
     );
 
-    -- Stock movement (WAREHOUSE source, non-service rows only).
-    IF v_source = 'WAREHOUSE' AND NOT v_is_service THEN
+    -- Stock movement (WAREHOUSE source, non-service rows, non-draft only).
+    IF v_source = 'WAREHOUSE' AND NOT v_is_service AND v_moves_stock THEN
       IF v_wh IS NULL THEN
         RAISE EXCEPTION 'Warehouse required for item %', COALESCE(v_item->>'material_name', '?');
       END IF;
@@ -249,6 +251,8 @@ DECLARE
   v_dc RECORD;
   v_item RECORD;
   v_stock RECORD;
+  -- Drafts never moved stock, so cancelling one restores nothing (no-op loop below).
+  v_had_moved_stock BOOLEAN;
 BEGIN
   SELECT * INTO v_dc FROM public.delivery_challans WHERE id = p_dc_id FOR UPDATE;
   IF NOT FOUND THEN
@@ -260,11 +264,12 @@ BEGIN
   IF upper(COALESCE(v_dc.status, '')) = 'CANCELLED' THEN
     RAISE EXCEPTION 'Delivery Challan already cancelled';
   END IF;
+  v_had_moved_stock := upper(COALESCE(v_dc.status, '')) <> 'DRAFT';
 
   FOR v_item IN
     SELECT * FROM public.delivery_challan_items WHERE delivery_challan_id = p_dc_id
   LOOP
-    IF v_dc.source_type = 'WAREHOUSE' AND v_item.warehouse_id IS NOT NULL THEN
+    IF v_had_moved_stock AND v_dc.source_type = 'WAREHOUSE' AND v_item.warehouse_id IS NOT NULL THEN
       SELECT * INTO v_stock FROM public.item_stock
       WHERE item_id = v_item.material_id
         AND warehouse_id = v_item.warehouse_id

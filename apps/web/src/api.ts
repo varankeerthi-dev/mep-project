@@ -442,7 +442,9 @@ export async function updateDeliveryChallan(id: string, updates: Partial<Deliver
 }
 
 export async function cancelDeliveryChallan(id: string, reason?: string): Promise<any> {
-  const { data, error } = await supabase.rpc('cancel_delivery_challan_atomic', {
+  // ADR-001: guarded cancel — restores stock exactly once, double-cancel raises,
+  // draft cancels restore nothing. Legacy blind-restore RPC retired from this path.
+  const { data, error } = await supabase.rpc('cancel_dc_atomic', {
     p_dc_id: id,
     p_reason: reason || null,
   });

@@ -1072,6 +1072,10 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     return true;
   };
 
+  // ADR-001: idempotency key per submit — retries of the same submit return the
+  // original document instead of deducting stock twice. Reset after success.
+  const submitKeyRef = useRef<string | null>(null);
+
   const buildDCData = (statusOverride?: string) => ({
     ...formData,
     warehouse_id: null,
@@ -1103,56 +1107,79 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       }
       
       const dcData = buildDCData(statusOverride);
-      
+
       let dcId;
-      
+      let isDuplicateSubmit = false;
+
       console.log('Saving DC with data:', dcData);
-      
+
       if (isEditing) {
+        // Edit path unchanged (header + items rewrite; no stock movement on edit, as before).
         await supabase.from('delivery_challans').update(dcData).eq('id', editDC.id);
         dcId = editDC.id;
         await supabase.from('delivery_challan_items').delete().eq('delivery_challan_id', dcId);
-      } else {
-        // Generate and reserve DC number on save.
-        // PRD merge §5-F7: numbering scheme follows the billing-type toggle.
-        const dcNumber = isNonBillable ? await generateNBDCNo() : await generateDCNo(true); // true = reserve the number
-        const dcDataWithNumber = { ...dcData, dc_number: dcNumber };
-        
-        const { data, error } = await supabase.from('delivery_challans').insert(dcDataWithNumber).select();
-        
-        if (error) {
-          console.error('Error creating DC:', error);
-          alert('Error creating DC: ' + error.message);
-          setLoading(false);
-          return;
-        }
-        
-        dcId = data[0].id;
-      }
-      
-      console.log('DC saved, ID:', dcId);
-      console.log('Saving items:', validItems);
-      
-      const itemsToSave = validItems.map(item => ({
-        delivery_challan_id: dcId,
-        material_id: item.material_id,
-        variant_id: item.uses_variant && item.variant_id ? item.variant_id : null,
-        make: item.make || null,
-        // PRD merge §5-F2: NB rows inherit the header warehouse when the row has none.
-        warehouse_id: item.warehouse_id || (isNonBillable ? formData.warehouse_id : null) || null,
-        material_name: item.material_name,
-        unit: item.unit,
-        quantity: parseFloat(item.quantity),
-        rate: parseFloat(item.rate) || 0,
-        amount: item.amount,
-        organisation_id: dcData.organisation_id
-      }));
-      
-      const { error: itemsError } = await supabase.from('delivery_challan_items').insert(itemsToSave);
-      if (itemsError) throw itemsError;
 
-      // Update intent status if creating DC from intent
-      if (intentId && organisation?.id && user?.id) {
+        console.log('DC saved, ID:', dcId);
+        console.log('Saving items:', validItems);
+
+        const itemsToSave = validItems.map(item => ({
+          delivery_challan_id: dcId,
+          material_id: item.material_id,
+          variant_id: item.uses_variant && item.variant_id ? item.variant_id : null,
+          make: item.make || null,
+          // PRD merge §5-F2: NB rows inherit the header warehouse when the row has none.
+          warehouse_id: item.warehouse_id || (isNonBillable ? formData.warehouse_id : null) || null,
+          material_name: item.material_name,
+          unit: item.unit,
+          quantity: parseFloat(item.quantity),
+          rate: parseFloat(item.rate) || 0,
+          amount: item.amount,
+          organisation_id: dcData.organisation_id
+        }));
+
+        const { error: itemsError } = await supabase.from('delivery_challan_items').insert(itemsToSave);
+        if (itemsError) throw itemsError;
+      } else {
+        // ADR-001: single atomic call — server-side numbering + header + items +
+        // locked stock deduction + ledger. Replaces the client insert + stock loop.
+        if (!submitKeyRef.current) {
+          submitKeyRef.current = (typeof crypto !== 'undefined' && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        }
+        const rpcItems = validItems.map(item => ({
+          material_id: item.material_id,
+          variant_id: item.uses_variant && item.variant_id ? item.variant_id : null,
+          // PRD merge §5-F2: NB rows inherit the header warehouse when the row has none.
+          warehouse_id: item.warehouse_id || (isNonBillable ? formData.warehouse_id : null) || null,
+          material_name: item.material_name,
+          unit: item.unit,
+          quantity: parseFloat(item.quantity),
+          rate: parseFloat(item.rate) || 0,
+          amount: item.amount,
+          make: item.make || null,
+          is_service: !!item.is_service,
+        }));
+        const { data: rpcData, error: rpcError } = await supabase.rpc('create_dc_atomic', {
+          p_organisation_id: dcData.organisation_id,
+          p_header: { ...dcData, dc_type: isNonBillable ? 'non-billable' : 'billable' },
+          p_items: rpcItems,
+          p_idempotency_key: submitKeyRef.current,
+          p_allow_insufficient: allowInsufficientStock,
+        });
+        if (rpcError) {
+          console.error('Error creating DC:', rpcError);
+          alert('Error creating DC: ' + rpcError.message);
+          setLoading(false);
+          return false;
+        }
+        dcId = rpcData.id;
+        isDuplicateSubmit = rpcData.duplicate === true;
+        if (isDuplicateSubmit) console.log('Duplicate submit ignored, returning original DC:', dcId);
+      }
+
+      // Update intent status if creating DC from intent (skipped on duplicate retry).
+      if (intentId && organisation?.id && user?.id && !isDuplicateSubmit) {
         try {
           await updateIntentOnDCCreated(intentId, dcId, organisation.id, user.id);
         } catch (error) {
@@ -1161,8 +1188,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         }
       }
 
-      // Update source document status if this was a conversion
-      if (conversionRef.current && !isEditing) {
+      // Update source document status if this was a conversion (skipped on duplicate retry).
+      if (conversionRef.current && !isEditing && !isDuplicateSubmit) {
         const { type, sourceId: convSourceId } = conversionRef.current;
         try {
           const tableName = getSourceTableName(type as ConversionType);
@@ -1175,41 +1202,9 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
           console.error('Error updating conversion source status:', error);
         }
       }
-      
-      // Deduct stock per item using each item's own warehouse_id.
-      // PRD merge §5-F1: NB rows fall back to the header warehouse (verbatim NB behavior).
-      for (const item of validItems) {
-        if (item.is_service) continue;
-        const itemWarehouseId = item.warehouse_id || (isNonBillable ? formData.warehouse_id : '');
-        if (!itemWarehouseId) continue;
-        
-        const variantId = item.uses_variant ? item.variant_id : null;
-        let stockQuery = supabase.from('item_stock')
-          .select('*')
-          .eq('item_id', item.material_id)
-          .eq('warehouse_id', itemWarehouseId);
-        
-        if (variantId) {
-          stockQuery = stockQuery.eq('company_variant_id', variantId);
-        } else {
-          stockQuery = stockQuery.is('company_variant_id', null);
-        }
-        
-        const { data: stockRows } = await stockQuery;
-        
-        if (stockRows && stockRows.length > 0) {
-          // Deduct from first matching stock row
-          const existing = stockRows[0];
-          await supabase.from('item_stock')
-            .update({ 
-              current_stock: Math.max(0, (parseFloat(existing.current_stock) || 0) - parseFloat(item.quantity)),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', existing.id);
-        }
-      }
-      
+
       alert(isEditing ? (isNonBillable ? 'NB-DC Updated!' : 'DC Updated!') : (isNonBillable ? 'NB-DC Created!' : 'DC Created!'));
+      submitKeyRef.current = null;
       setIsDirty(false);
       if (onSuccess) {
         onSuccess();
@@ -1273,66 +1268,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     return null;
   };
 
-  // PRD merge §5-F7: NB numbering — verbatim logic from CreateNonBillableDC
-  // (NBDC- prefix, max(dc_number)+1 within dc_type='non-billable', padding from
-  // document_series configs.dc.padding with default 4). Billable path untouched.
-  const generateNBDCNo = async () => {
-    const { data: existingDCs } = await supabase
-      .from('delivery_challans')
-      .select('dc_number')
-      .eq('dc_type', 'non-billable')
-      .order('dc_number', { ascending: false })
-      .limit(1);
-
-    const isMissingColumnError = (error, columnName) => {
-      const code = error?.code;
-      const message = String(error?.message || '').toLowerCase();
-      if (code === '42703') return true;
-      return message.includes(String(columnName).toLowerCase()) && message.includes('does not exist');
-    };
-
-    let padding = 4;
-    try {
-      const { data: seriesList, error: seriesError } = await supabase
-        .from('document_series')
-        .select('configs, created_at')
-        .eq('is_default', true)
-        .limit(1);
-
-      if (seriesError && !isMissingColumnError(seriesError, 'is_default') && !isMissingColumnError(seriesError, 'organisation_id')) {
-        throw seriesError;
-      }
-
-      const series = Array.isArray(seriesList) ? seriesList[0] : null;
-
-      if (series?.configs?.dc?.padding) {
-        padding = parseInt(series.configs.dc.padding) || 4;
-      } else if (seriesError && (isMissingColumnError(seriesError, 'is_default') || isMissingColumnError(seriesError, 'organisation_id'))) {
-        const { data: rows, error: rowsError } = await supabase
-          .from('document_series')
-          .select('configs, created_at')
-          .order('created_at', { ascending: false })
-          .limit(1);
-        if (rowsError && !isMissingColumnError(rowsError, 'is_default') && !isMissingColumnError(rowsError, 'organisation_id')) {
-          throw rowsError;
-        }
-        const fallback = Array.isArray(rows) ? rows[0] : null;
-        padding = parseInt(fallback?.configs?.dc?.padding) || 4;
-      }
-    } catch (e) {
-      console.warn('Unable to load document_series padding; using default padding=4', e);
-    }
-
-    let num = 1;
-    if (existingDCs && existingDCs.length > 0) {
-      const lastNumStr = existingDCs[0].dc_number.replace('NBDC-', '');
-      const lastNum = parseInt(lastNumStr);
-      if (!isNaN(lastNum)) num = lastNum + 1;
-    }
-    const paddedNum = String(num).padStart(padding, '0');
-    return `NBDC-${paddedNum}`;
-  };
-
+  // ADR-001: numbering moved server-side into create_dc_atomic. The client
+  // generators below are retired (kept to minimize diff; safe to delete later).
   const generateDCNo = async (reserveNumber = false) => {
     const seriesData = await fetchSeriesRowForDC();
 
