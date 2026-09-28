@@ -55,7 +55,8 @@ export const InvoiceEditorItemSchema = z.object({
 export const InvoiceEditorMaterialSchema = z.object({
   product_id: z.string().uuid('Product is required.'),
   qty_used: z.coerce.number().positive('Qty used must be greater than zero.'),
-  warehouse_id: z.string().uuid().nullable().optional(),
+  warehouse_id: z.preprocess(emptyToUndefined, z.string().uuid().nullable().optional()),
+  variant_id: z.preprocess(emptyToUndefined, z.string().uuid().nullable().optional()),
   description: z.string().optional(),
 });
 
@@ -276,6 +277,8 @@ export function createEmptyMaterial(
   return {
     product_id: overrides.product_id ?? '',
     qty_used: overrides.qty_used ?? 1,
+    warehouse_id: overrides.warehouse_id ?? null,
+    variant_id: overrides.variant_id ?? null,
     description: overrides.description ?? '',
   };
 }
@@ -425,6 +428,7 @@ export function composeInvoiceInput(
       product_id: material.product_id,
       qty_used: round2(material.qty_used),
       warehouse_id: material.warehouse_id,
+      variant_id: material.variant_id ?? null,
     })),
   } as InvoiceInput;
 }

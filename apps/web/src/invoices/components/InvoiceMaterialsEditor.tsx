@@ -84,6 +84,18 @@ export function InvoiceMaterialsEditor({
               </th>
               <th style={{ 
                 padding: '6px 8px', 
+                textAlign: 'left', 
+                fontSize: '10px', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                color: '#737373',
+                width: '130px'
+              }}>
+                Variant
+              </th>
+              <th style={{ 
+                padding: '6px 8px', 
                 textAlign: 'right', 
                 fontSize: '10px', 
                 fontWeight: 600,
@@ -141,6 +153,40 @@ export function InvoiceMaterialsEditor({
                       onSave={(desc) => setValue(`materials.${index}.description`, desc, { shouldDirty: true })}
                     />
                   )}
+                </td>
+                <td style={{ padding: '4px 8px' }}>
+                  {(() => {
+                    const productId = materials[index]?.product_id as string | undefined;
+                    const variants = (productId
+                      ? (productOptions.find((p) => p.id === productId)?.variants ?? [])
+                      : []).filter((v) => v.variant_id);
+                    if (variants.length === 0) {
+                      return <span style={{ fontSize: '12px', color: '#a3a3a3' }}>-</span>;
+                    }
+                    return (
+                      <select
+                        {...register(`materials.${index}.variant_id`)}
+                        style={{
+                          width: '100%',
+                          padding: '4px 6px',
+                          border: '1px solid transparent',
+                          borderRadius: '2px',
+                          fontSize: '12px',
+                          background: 'transparent',
+                          cursor: 'pointer'
+                        }}
+                        onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                        onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                      >
+                        <option value="">No variant</option>
+                        {variants.map((v) => (
+                          <option key={String(v.variant_id)} value={String(v.variant_id)}>
+                            {v.variant_name || v.make || 'Standard'}
+                          </option>
+                        ))}
+                      </select>
+                    );
+                  })()}
                 </td>
                 <td style={{ padding: '4px 8px' }}>
                   <input

@@ -107,7 +107,8 @@ export const InvoiceMaterialSchema = z
     invoice_id: z.string().uuid().optional(),
     product_id: z.string().uuid('Valid product id is required.'),
     qty_used: PositiveQuantitySchema,
-    warehouse_id: z.string().uuid().nullable().optional(),
+    warehouse_id: z.preprocess(nullToUndefined, z.string().uuid().nullable().optional()),
+    variant_id: z.preprocess(nullToUndefined, z.string().uuid().nullable().optional()),
   });
 
 export const InvoiceSchema = z

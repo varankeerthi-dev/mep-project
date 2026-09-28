@@ -78,7 +78,7 @@ const INVOICE_SELECT = `
   created_at,
   client:clients(id, client_name, gstin, state, default_template_id, email),
   items:invoice_items(id, invoice_id, description, hsn_code, qty, rate, amount, meta_json, is_header, is_subtotal, subtotal_label, display_order, custom1, custom2),
-  materials:invoice_materials(id, invoice_id, product_id, qty_used)
+  materials:invoice_materials(id, invoice_id, product_id, qty_used, warehouse_id, variant_id)
 `;
 
 export const INVOICE_LIST_SELECT = `
@@ -206,6 +206,8 @@ function buildInvoicePayload(invoice: Invoice): {
   materialRows: Array<{
     product_id: string;
     qty_used: number;
+    warehouse_id: string | null;
+    variant_id: string | null;
   }>;
 } {
   const totals = calculateTotals(invoice, {
@@ -252,6 +254,8 @@ function buildInvoicePayload(invoice: Invoice): {
     materialRows: invoice.materials.map((material) => ({
       product_id: material.product_id,
       qty_used: material.qty_used,
+      warehouse_id: material.warehouse_id ?? null,
+      variant_id: material.variant_id ?? null,
     })),
   };
 }
@@ -285,6 +289,8 @@ function parseInvoiceRecord(row: any): InvoiceWithRelations {
           invoice_id: material.invoice_id,
           product_id: material.product_id,
           qty_used: material.qty_used,
+          warehouse_id: material.warehouse_id ?? null,
+          variant_id: material.variant_id ?? null,
         }),
       )
     : [];
