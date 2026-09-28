@@ -42,7 +42,7 @@ export async function loadClientOptions(organisationId: string): Promise<Invoice
 export async function loadMaterialOptions(organisationId: string): Promise<InvoiceMaterialOption[]> {
   const { data: materialsData, error: materialsError } = await supabase
     .from('materials')
-    .select('id, name, display_name, hsn_code, make, unit, sale_price, material, size, item_classification, material_units(unit_name, conversion_factor)')
+    .select('id, name, display_name, hsn_code, make, unit, sale_price, material, size, item_classification, discount_category_id, material_units(unit_name, conversion_factor)')
     .eq('organisation_id', organisationId);
   if (materialsError) throw materialsError;
 
@@ -96,6 +96,7 @@ export async function loadMaterialOptions(organisationId: string): Promise<Invoi
           unit: material.unit || 'nos',
           sale_price: material.sale_price || null,
           item_classification: material.item_classification || null,
+          discount_category_id: material.discount_category_id ?? null,
           variants: [],
           material_units: material.material_units || [],
         };
@@ -111,6 +112,7 @@ export async function loadMaterialOptions(organisationId: string): Promise<Invoi
         unit: material.unit || 'nos',
         sale_price: firstVariant.sale_price || null,
         item_classification: material.item_classification || null,
+        discount_category_id: material.discount_category_id ?? null,
         variants: materialVariants,
         material_units: material.material_units || [],
       };
@@ -305,6 +307,40 @@ export function useInvoiceEditorData(params: {
 
   const [arcPricingMap, setArcPricingMap] = useState<Record<string, any>>({});
 
+  const discountCategoriesQuery = useQuery({
+    queryKey: ['discount-categories', organisationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('discount_categories')
+        .select('id, name, default_discount_percent, min_discount_percent, max_discount_percent')
+        .or(`organisation_id.eq.${organisationId},organisation_id.is.null`)
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: Boolean(organisationId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const discountCategoryMap = useMemo(() => {
+    const map: Record<string, {
+      name?: string | null;
+      default_discount_percent?: number | string | null;
+      min_discount_percent?: number | string | null;
+      max_discount_percent?: number | string | null;
+    }> = {};
+    (discountCategoriesQuery.data ?? []).forEach((c: any) => {
+      map[String(c.id)] = {
+        name: c.name ?? null,
+        default_discount_percent: c.default_discount_percent ?? null,
+        min_discount_percent: c.min_discount_percent ?? null,
+        max_discount_percent: c.max_discount_percent ?? null,
+      };
+    });
+    return map;
+  }, [discountCategoriesQuery.data]);
+
   useEffect(() => {
     if (arcPricingQuery.data) {
       setArcPricingMap(arcPricingQuery.data);
@@ -396,5 +432,7 @@ export function useInvoiceEditorData(params: {
     setArcPricingMap,
     headerDiscounts,
     setHeaderDiscounts,
+    discountCategoriesQuery,
+    discountCategoryMap,
   };
 }

@@ -90,7 +90,7 @@ async function loadClientOptions(organisationId: string): Promise<InvoiceClientO
 }
 
 async function loadMaterialOptions(organisationId: string): Promise<InvoiceMaterialOption[]> {
-  const { data: materialsData, error: materialsError } = await supabase.from('materials').select('id, name, display_name, hsn_code, make, unit, sale_price, material, size, item_classification, material_units(unit_name, conversion_factor)').eq('organisation_id', organisationId);
+  const { data: materialsData, error: materialsError } = await supabase.from('materials').select('id, name, display_name, hsn_code, make, unit, sale_price, material, size, item_classification, discount_category_id, material_units(unit_name, conversion_factor)').eq('organisation_id', organisationId);
   if (materialsError) throw materialsError;
 
   const { data: variantPricingData, error: pricingError } = await supabase
@@ -146,6 +146,7 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
           unit: material.unit || 'nos',
           sale_price: material.sale_price || null,
           item_classification: material.item_classification || null,
+          discount_category_id: material.discount_category_id ?? null,
           variants: [],
           material_units: material.material_units || [],
         };
@@ -161,6 +162,7 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
         unit: material.unit || 'nos',
         sale_price: firstVariant.sale_price || null,
         item_classification: material.item_classification || null,
+        discount_category_id: material.discount_category_id ?? null,
         variants: materialVariants,
         material_units: material.material_units || [],
       };
@@ -1000,6 +1002,39 @@ export default function InvoiceEditorPage() {
   const conversionAppliedRef = useRef(false);
 
   const conversionQuery = useConvertDocument(convertFrom!, sourceId!);
+
+  const discountCategoriesQuery = useQuery({
+    queryKey: ['invoice-ui', 'discount-categories', organisation?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('discount_categories')
+        .select('id, name, default_discount_percent, min_discount_percent, max_discount_percent')
+        .or(`organisation_id.eq.${organisation?.id},organisation_id.is.null`)
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!organisation?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+  const discountCategoryMap = useMemo(() => {
+    const map: Record<string, {
+      name?: string | null;
+      default_discount_percent?: number | string | null;
+      min_discount_percent?: number | string | null;
+      max_discount_percent?: number | string | null;
+    }> = {};
+    (discountCategoriesQuery.data ?? []).forEach((c: any) => {
+      map[String(c.id)] = {
+        name: c.name ?? null,
+        default_discount_percent: c.default_discount_percent ?? null,
+        min_discount_percent: c.min_discount_percent ?? null,
+        max_discount_percent: c.max_discount_percent ?? null,
+      };
+    });
+    return map;
+  }, [discountCategoriesQuery.data]);
 
   const clients = clientsQuery.data ?? [];
   const selectedClient = useMemo(
@@ -1996,6 +2031,7 @@ export default function InvoiceEditorPage() {
           useArcPricing={useArcPricing}
           arcPricingMap={arcPricingMap}
           headerDiscounts={headerDiscounts}
+          discountCategoryMap={discountCategoryMap}
         />
 
         {selectedMode === 'lot' && (

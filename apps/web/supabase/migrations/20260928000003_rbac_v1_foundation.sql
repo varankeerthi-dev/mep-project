@@ -1139,3 +1139,18 @@ BEGIN
                       AND p.is_grantable_v1);
   IF v_bad > 0 THEN RAISE EXCEPTION 'RBAC catalog incomplete: % applicable pair(s) without permission row', v_bad; END IF;
 END $$;
+
+-- ── 12. Action-key alignment (applied 2026-09-28) ───────────────────
+-- The established key convention uses `update` (not `edit`); the initial
+-- seed used `edit` and was renamed here. All renamed rows/grants were created
+-- by this same migration, so no legacy data was reinterpreted.
+INSERT INTO public.rbac_actions (key, label, sort) VALUES ('update', 'Edit', 3)
+ON CONFLICT (key) DO NOTHING;
+
+UPDATE public.rbac_module_actions SET action_key = 'update' WHERE action_key = 'edit';
+
+DELETE FROM public.role_permissions WHERE permission_key LIKE '%.edit';
+
+DELETE FROM public.permissions WHERE action_key = 'edit';
+
+DELETE FROM public.rbac_actions WHERE key = 'edit';

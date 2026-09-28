@@ -39,6 +39,12 @@ type InvoiceItemsEditorProps = {
   useArcPricing?: boolean;
   arcPricingMap?: Record<string, { item_id: string; arc_rate: number; company_variant_id: string | null; pricing_type: string; is_active: boolean }[]>;
   headerDiscounts?: Record<string, number>;
+  discountCategoryMap?: Record<string, {
+    name?: string | null;
+    default_discount_percent?: number | string | null;
+    min_discount_percent?: number | string | null;
+    max_discount_percent?: number | string | null;
+  }>;
   hideHeader?: boolean;
 };
 
@@ -133,6 +139,7 @@ export function InvoiceItemsEditor({
   useArcPricing = false,
   arcPricingMap = {},
   headerDiscounts = {},
+  discountCategoryMap = {},
   hideHeader = false,
 }: InvoiceItemsEditorProps) {
   const { organisation } = useAuth();
@@ -505,8 +512,19 @@ export function InvoiceItemsEditor({
       let discountPercent = Number(items[index]?.discount_percent || 0);
       if (firstVariant?.variant_id && headerDiscounts[firstVariant.variant_id] !== undefined) {
         discountPercent = headerDiscounts[firstVariant.variant_id];
-        setValue(`items.${index}.discount_percent`, discountPercent, { shouldDirty: true });
+      } else {
+        // Fall back to the material's discount-category default (clamped to min/max).
+        const dc = material.discount_category_id ? discountCategoryMap[material.discount_category_id] : null;
+        const dcDefault = Number(dc?.default_discount_percent);
+        if (Number.isFinite(dcDefault)) {
+          const dcMin = Number(dc?.min_discount_percent);
+          const dcMax = Number(dc?.max_discount_percent);
+          discountPercent = dcDefault;
+          if (Number.isFinite(dcMin)) discountPercent = Math.max(discountPercent, dcMin);
+          if (Number.isFinite(dcMax)) discountPercent = Math.min(discountPercent, dcMax);
+        }
       }
+      setValue(`items.${index}.discount_percent`, discountPercent, { shouldDirty: true });
 
       const baseRate = getRateForMaterialVariant(materialId, firstVariant?.variant_id, firstVariant?.make || firstMake);
       const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
@@ -523,7 +541,7 @@ export function InvoiceItemsEditor({
     }
     setOpenDropdowns(prev => ({ ...prev, [index]: false }));
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
-  }, [productOptions, setValue, items, roundOffEnabled, getMaterialVariants, getMaterialMakes, getRateForMaterialVariant]);
+  }, [productOptions, setValue, items, roundOffEnabled, getMaterialVariants, getMaterialMakes, getRateForMaterialVariant, headerDiscounts, discountCategoryMap]);
 
   const handleMaterialChange = useCallback((index: number, materialId: string) => {
     const material = productOptions.find(m => m.id === materialId);
@@ -554,8 +572,19 @@ export function InvoiceItemsEditor({
       let discountPercent = Number(items[index]?.discount_percent || 0);
       if (firstVariant?.variant_id && headerDiscounts[firstVariant.variant_id] !== undefined) {
         discountPercent = headerDiscounts[firstVariant.variant_id];
-        setValue(`items.${index}.discount_percent`, discountPercent, { shouldDirty: true });
+      } else {
+        // Fall back to the material's discount-category default (clamped to min/max).
+        const dc = material.discount_category_id ? discountCategoryMap[material.discount_category_id] : null;
+        const dcDefault = Number(dc?.default_discount_percent);
+        if (Number.isFinite(dcDefault)) {
+          const dcMin = Number(dc?.min_discount_percent);
+          const dcMax = Number(dc?.max_discount_percent);
+          discountPercent = dcDefault;
+          if (Number.isFinite(dcMin)) discountPercent = Math.max(discountPercent, dcMin);
+          if (Number.isFinite(dcMax)) discountPercent = Math.min(discountPercent, dcMax);
+        }
       }
+      setValue(`items.${index}.discount_percent`, discountPercent, { shouldDirty: true });
 
       const baseRate = getRateForMaterialVariant(materialId, firstVariant?.variant_id, firstVariant?.make || firstMake);
       const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
@@ -572,7 +601,7 @@ export function InvoiceItemsEditor({
     }
     setOpenDropdowns(prev => ({ ...prev, [index]: false }));
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
-  }, [productOptions, setValue, items, roundOffEnabled, getMaterialVariants, getMaterialMakes, getRateForMaterialVariant]);
+  }, [productOptions, setValue, items, roundOffEnabled, getMaterialVariants, getMaterialMakes, getRateForMaterialVariant, headerDiscounts, discountCategoryMap]);
 
   const handleKeyDown = useCallback((index: number, e: KeyboardEvent<HTMLInputElement>) => {
     const filtered = getFilteredMaterials(index);
@@ -1435,6 +1464,34 @@ export function InvoiceItemsEditor({
                       onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
                       onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
+                    {(() => {
+                      const materialId = item.meta_json?.material_id as string | undefined;
+                      const dcId = materialId
+                        ? (productOptions.find((m) => m.id === materialId)?.discount_category_id ?? null)
+                        : null;
+                      const dcName = dcId ? discountCategoryMap[dcId]?.name : null;
+                      if (!dcName) return null;
+                      return (
+                        <div
+                          title={`Discount category: ${dcName}`}
+                          style={{
+                            display: 'inline-block',
+                            marginTop: '2px',
+                            padding: '1px 6px',
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            letterSpacing: '0.04em',
+                            color: '#00476E',
+                            background: '#CCE5FF',
+                            borderRadius: '4px',
+                            lineHeight: 1.4,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {dcName}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td style={{ padding: '4px', position: 'relative', display: visibleCols.make ? undefined : 'none' }}>
                     <input

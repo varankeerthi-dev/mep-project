@@ -778,6 +778,7 @@ export default function InvoiceEditorPageV2() {
             useArcPricing={useArcPricing}
             arcPricingMap={editorData.arcPricingMap}
             headerDiscounts={editorData.headerDiscounts}
+            discountCategoryMap={editorData.discountCategoryMap}
           />
         </DocumentLineItemsSurface>
 
