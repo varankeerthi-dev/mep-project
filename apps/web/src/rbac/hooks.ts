@@ -2,17 +2,29 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PermissionKey } from './schemas';
 import {
   approveAccessRequest,
+  assignEmployeeRoleRpc,
   createAccessRequest,
   createRoleWithPermissions,
+  createRoleRpc,
+  deleteRoleRpc,
+  getRolePermissionDiff,
   listEmployees,
+  listModuleCatalog,
   listMyAccessRequests,
   listMyPermissions,
+  listMyPermissionsRpc,
   listOrgAccessRequests,
   listPublicOrganisations,
+  listRoleFieldPermissions,
+  listRoleMemberCounts,
   listRolePermissions,
   listRoles,
+  listSensitiveFields,
   rejectAccessRequest,
   replaceRolePermissions,
+  saveRolePermissionsRpc,
+  setRoleActiveRpc,
+  updateRoleRpc,
   upsertEmployee,
   type PublicOrganisation,
 } from './api';
@@ -212,5 +224,159 @@ export function useHasPermission(permissionKey: PermissionKey | PermissionKey[])
     data: isGranted,
     isLoading,
   };
+}
+
+// ── V1 catalog + RPC-backed administration ──
+
+export function useModuleCatalog() {
+  return useQuery({
+    queryKey: ['rbac', 'module-catalog'],
+    queryFn: listModuleCatalog,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useSensitiveFields() {
+  return useQuery({
+    queryKey: ['rbac', 'sensitive-fields'],
+    queryFn: listSensitiveFields,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useRoleFieldPermissions(roleId?: string | null) {
+  return useQuery({
+    queryKey: ['rbac', 'role-field-permissions', roleId],
+    queryFn: () => listRoleFieldPermissions(roleId ?? ''),
+    enabled: Boolean(roleId),
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useRoleMemberCounts(organisationId?: string | null) {
+  return useQuery({
+    queryKey: ['rbac', 'role-member-counts', organisationId],
+    queryFn: () => listRoleMemberCounts(organisationId ?? ''),
+    enabled: Boolean(organisationId),
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useRolePermissionDiff(
+  organisationId: string | null | undefined,
+  roleId: string | null | undefined,
+  grants: Array<{ module: string; action: string }>,
+  enabled = false,
+) {
+  const key = JSON.stringify(grants);
+  return useQuery({
+    queryKey: ['rbac', 'role-permission-diff', organisationId, roleId, key],
+    queryFn: () => getRolePermissionDiff(organisationId ?? '', roleId ?? '', grants),
+    enabled: Boolean(enabled && organisationId && roleId),
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+  });
+}
+
+function invalidateRoleQueries(qc: ReturnType<typeof useQueryClient>, organisationId?: string | null, roleId?: string | null) {
+  qc.invalidateQueries({ queryKey: ['rbac', 'roles', organisationId] });
+  if (roleId) {
+    qc.invalidateQueries({ queryKey: ['rbac', 'role-permissions', roleId] });
+    qc.invalidateQueries({ queryKey: ['rbac', 'role-field-permissions', roleId] });
+  }
+  qc.invalidateQueries({ queryKey: ['rbac', 'my-permissions'] });
+}
+
+export function useSaveRolePermissions(organisationId?: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      roleId: string;
+      expectedVersion: number;
+      grants: Array<{ module: string; action: string }>;
+      fieldGrants?: Array<{ field: string; granted: boolean }>;
+    }) =>
+      saveRolePermissionsRpc({
+        organisationId: organisationId ?? '',
+        roleId: input.roleId,
+        expectedVersion: input.expectedVersion,
+        grants: input.grants,
+        fieldGrants: input.fieldGrants ?? [],
+      }),
+    onSuccess: (_data, variables) => {
+      invalidateRoleQueries(qc, organisationId, variables.roleId);
+    },
+  });
+}
+
+export function useCreateRoleV2(organisationId?: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string; description?: string | null }) =>
+      createRoleRpc(organisationId ?? '', input.name, input.description ?? null),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rbac', 'roles', organisationId] });
+    },
+  });
+}
+
+export function useUpdateRoleV2(organisationId?: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { roleId: string; name: string; description: string | null; expectedVersion: number }) =>
+      updateRoleRpc(organisationId ?? '', input.roleId, input.name, input.description, input.expectedVersion),
+    onSuccess: (_data, variables) => {
+      invalidateRoleQueries(qc, organisationId, variables.roleId);
+    },
+  });
+}
+
+export function useSetRoleActive(organisationId?: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { roleId: string; active: boolean; expectedVersion: number }) =>
+      setRoleActiveRpc(organisationId ?? '', input.roleId, input.active, input.expectedVersion),
+    onSuccess: (_data, variables) => {
+      invalidateRoleQueries(qc, organisationId, variables.roleId);
+    },
+  });
+}
+
+export function useDeleteRoleV2(organisationId?: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { roleId: string }) => deleteRoleRpc(organisationId ?? '', input.roleId),
+    onSuccess: (_data, variables) => {
+      invalidateRoleQueries(qc, organisationId, variables.roleId);
+    },
+  });
+}
+
+export function useAssignEmployeeRole(organisationId?: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { employeeId: string; roleId: string }) =>
+      assignEmployeeRoleRpc(organisationId ?? '', input.employeeId, input.roleId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rbac', 'employees', organisationId] });
+      qc.invalidateQueries({ queryKey: ['rbac', 'my-permissions'] });
+    },
+  });
+}
+
+export function useMyPermissionsRpc() {
+  const { organisation, selectedOrganisation } = useAuth();
+  const orgId = (organisation as any)?.id || (selectedOrganisation as any)?.id || null;
+  return useQuery({
+    queryKey: ['rbac', 'my-permissions-rpc', orgId],
+    queryFn: () => listMyPermissionsRpc(orgId ?? ''),
+    enabled: Boolean(orgId),
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
 }
 

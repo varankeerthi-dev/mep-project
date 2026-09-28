@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Check, Loader2, Plus, Shield, UserPlus, Users, Mail, Phone, Clock, Sparkles, Crown, Globe } from 'lucide-react';
 import { useApproveAccessRequest, useEmployees, useOrgAccessRequests, useRoles, useUpsertEmployee } from '@/rbac';
+import { RolesManager } from '@/features/rbac/RolesManager';
 import { useAuth } from '@/App';
 import { supabase } from '@/lib/supabase';
 import { useAppDateFormat } from '@/contexts/DateFormatContext';
@@ -413,40 +414,7 @@ export default function AccessControlPage() {
         )}
 
         {tab === 'roles' && (
-          <section className={cardCn}>
-            <div className="border-b border-zinc-200 bg-zinc-50/50 px-3.5 py-2">
-              <div className="text-xs font-bold text-zinc-900">Roles & Permissions</div>
-              <div className="text-[11px] text-zinc-500">Manage team access levels</div>
-            </div>
-            <div className="p-3">
-              {roles.isLoading ? (
-                <div className="text-center py-6">
-                  <Loader2 className="h-4 w-4 text-purple-600 animate-spin mx-auto" />
-                </div>
-              ) : (roles.data ?? []).length === 0 ? (
-                <EmptyState
-                  icon={Shield}
-                  title="No Custom Roles"
-                  description="Create custom roles to define specific permissions."
-                />
-              ) : (
-                <div className="space-y-2">
-                  {(roles.data ?? []).map((role) => (
-                    <div key={role.id} className="flex items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2 shadow-2xs">
-                      <div className="flex items-center gap-2">
-                        <Crown className="h-3.5 w-3.5 text-amber-500" />
-                        <span className="text-xs font-medium text-zinc-900">{role.name}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="mt-4 text-center border-t border-zinc-200 pt-3">
-                <Sparkles className="h-5 w-5 text-zinc-300 mx-auto mb-1" />
-                <div className="text-xs text-zinc-500">More role features coming soon...</div>
-              </div>
-            </div>
-          </section>
+          <RolesManager orgId={orgId ?? ''} />
         )}
       </div>
     </div>

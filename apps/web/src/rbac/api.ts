@@ -11,30 +11,30 @@ import {
 } from './schemas';
 
 export async function hasPermission(userId: string, organisationId: string, permissionKey: PermissionKey): Promise<boolean> {
-  // Check if user is admin (full access)
+  // Check membership + FK role (server truth; text role is never consulted).
   const { data: orgMember } = await supabase
     .from('org_members')
-    .select('role')
+    .select('role, role_id')
     .eq('user_id', userId)
     .eq('organisation_id', organisationId)
     .single();
 
-  if (orgMember?.role === 'admin') return true;
+  if (!orgMember?.role_id) return false;
+
+  // System Owner/Admin resolve from the FK role, never text.
+  const { data: roleRow } = await supabase
+    .from('roles')
+    .select('is_system, name')
+    .eq('id', orgMember.role_id as string)
+    .maybeSingle();
+
+  if (roleRow?.is_system && (roleRow.name === 'Owner' || roleRow.name === 'Admin')) return true;
 
   // Check role permissions
-  const { data: roleData } = await supabase
-    .from('org_members')
-    .select('role_id')
-    .eq('user_id', userId)
-    .eq('organisation_id', organisationId)
-    .single();
-
-  if (!roleData?.role_id) return false;
-
   const { data: permission } = await supabase
     .from('role_permissions')
     .select('permission_key')
-    .eq('role_id', roleData.role_id)
+    .eq('role_id', orgMember.role_id as string)
     .eq('permission_key', permissionKey)
     .single();
 
@@ -50,7 +50,17 @@ export async function listMyPermissions(userId: string, organisationId: string):
     .single();
 
   if (!orgMember) return [];
-  if (orgMember.role === 'admin') return ['admin_all_access'] as any;
+  // System Owner/Admin resolve from the FK role (server truth), never text.
+  if (orgMember.role_id) {
+    const { data: roleRow } = await supabase
+      .from('roles')
+      .select('is_system, name')
+      .eq('id', orgMember.role_id as string)
+      .maybeSingle();
+    if (roleRow?.is_system && (roleRow.name === 'Owner' || roleRow.name === 'Admin')) {
+      return ['admin_all_access'] as any;
+    }
+  }
   if (!orgMember.role_id) return [];
 
   const { data: permissions } = await supabase
@@ -95,6 +105,10 @@ export type RoleRow = {
   organisation_id: string;
   name: string;
   is_system: boolean;
+  description?: string | null;
+  is_active?: boolean;
+  version?: number;
+  updated_at?: string | null;
   created_at?: string;
 };
 
@@ -268,7 +282,7 @@ export async function upsertEmployee(input: EmployeeInput): Promise<EmployeeRow>
 export async function listRoles(organisationId: string): Promise<RoleRow[]> {
   const { data, error } = await supabase
     .from('roles')
-    .select('id, organisation_id, name, is_system, created_at')
+    .select('id, organisation_id, name, is_system, description, is_active, version, updated_at, created_at')
     .eq('organisation_id', organisationId)
     .order('is_system', { ascending: false })
     .order('name', { ascending: true });
@@ -280,6 +294,10 @@ export async function listRoles(organisationId: string): Promise<RoleRow[]> {
     organisation_id: String(row.organisation_id),
     name: String(row.name),
     is_system: Boolean(row.is_system),
+    description: row.description ?? null,
+    is_active: row.is_active ?? true,
+    version: Number(row.version ?? 1),
+    updated_at: row.updated_at ?? null,
     created_at: row.created_at ?? undefined,
   }));
 }
@@ -338,5 +356,199 @@ export async function replaceRolePermissions(roleId: string, permissionKeys: Per
     permissionKeys.map((key) => rolePermissionSchema.parse({ role_id: roleId, permission_key: key })),
   );
   if (insertError) throw insertError;
+}
+
+// ── V1 RPC-backed role administration (server-validated, audited) ──
+// New code must use these instead of the direct-write helpers above.
+
+export type CatalogAction = { key: string; label: string; applicable: boolean };
+export type CatalogModule = { key: string; label: string; grp: string; actions: CatalogAction[] };
+
+export async function listModuleCatalog(): Promise<CatalogModule[]> {
+  const [{ data: modules, error: mErr }, { data: actions, error: aErr }, { data: pairs, error: pErr }] =
+    await Promise.all([
+      supabase.from('rbac_modules').select('key, label, grp, sort').order('sort').order('label'),
+      supabase.from('rbac_actions').select('key, label, sort').order('sort'),
+      supabase.from('rbac_module_actions').select('module_key, action_key, applicable'),
+    ]);
+  if (mErr) throw mErr;
+  if (aErr) throw aErr;
+  if (pErr) throw pErr;
+
+  const applic = new Map<string, boolean>();
+  (pairs ?? []).forEach((p: any) => applic.set(`${p.module_key}.${p.action_key}`, Boolean(p.applicable)));
+
+  return (modules ?? []).map((m: any) => ({
+    key: String(m.key),
+    label: String(m.label),
+    grp: String(m.grp ?? 'General'),
+    actions: (actions ?? []).map((a: any) => ({
+      key: String(a.key),
+      label: String(a.label),
+      applicable: applic.get(`${m.key}.${a.key}`) ?? false,
+    })),
+  }));
+}
+
+export type SensitiveField = { key: string; module_key: string; label: string };
+
+export async function listSensitiveFields(): Promise<SensitiveField[]> {
+  const { data, error } = await supabase
+    .from('rbac_sensitive_fields')
+    .select('key, module_key, label')
+    .order('label');
+  if (error) throw error;
+  return (data ?? []).map((f: any) => ({
+    key: String(f.key),
+    module_key: String(f.module_key),
+    label: String(f.label),
+  }));
+}
+
+export async function listRoleFieldPermissions(
+  roleId: string,
+): Promise<Array<{ field_key: string; granted: boolean }>> {
+  const { data, error } = await supabase
+    .from('rbac_role_field_permissions')
+    .select('field_key, granted')
+    .eq('role_id', roleId);
+  if (error) throw error;
+  return (data ?? []).map((r: any) => ({ field_key: String(r.field_key), granted: Boolean(r.granted) }));
+}
+
+export type PermissionDiff = { added: string[]; removed: string[]; affected_employees: number };
+
+export async function getRolePermissionDiff(
+  organisationId: string,
+  roleId: string,
+  grants: Array<{ module: string; action: string }>,
+): Promise<PermissionDiff> {
+  const { data, error } = await supabase.rpc('role_permission_diff', {
+    p_org_id: organisationId,
+    p_role_id: roleId,
+    p_grants: grants,
+  });
+  if (error) throw error;
+  const d: any = data;
+  return {
+    added: d?.added ?? [],
+    removed: d?.removed ?? [],
+    affected_employees: Number(d?.affected_employees ?? 0),
+  };
+}
+
+export async function saveRolePermissionsRpc(input: {
+  organisationId: string;
+  roleId: string;
+  expectedVersion: number;
+  grants: Array<{ module: string; action: string }>;
+  fieldGrants?: Array<{ field: string; granted: boolean }>;
+}): Promise<PermissionDiff> {
+  const { data, error } = await supabase.rpc('save_role_permissions', {
+    p_org_id: input.organisationId,
+    p_role_id: input.roleId,
+    p_expected_version: input.expectedVersion,
+    p_grants: input.grants,
+    p_field_grants: input.fieldGrants ?? [],
+  });
+  if (error) throw error;
+  const d: any = data;
+  return {
+    added: d?.added ?? [],
+    removed: d?.removed ?? [],
+    affected_employees: Number(d?.affected_employees ?? 0),
+  };
+}
+
+export async function createRoleRpc(
+  organisationId: string,
+  name: string,
+  description?: string | null,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('create_role', {
+    p_org_id: organisationId,
+    p_name: name,
+    p_description: description ?? null,
+  });
+  if (error) throw error;
+  return String(data);
+}
+
+export async function updateRoleRpc(
+  organisationId: string,
+  roleId: string,
+  name: string,
+  description: string | null,
+  expectedVersion: number,
+): Promise<void> {
+  const { error } = await supabase.rpc('update_role', {
+    p_org_id: organisationId,
+    p_role_id: roleId,
+    p_name: name,
+    p_description: description,
+    p_expected_version: expectedVersion,
+  });
+  if (error) throw error;
+}
+
+export async function setRoleActiveRpc(
+  organisationId: string,
+  roleId: string,
+  active: boolean,
+  expectedVersion: number,
+): Promise<void> {
+  const { error } = await supabase.rpc('set_role_active', {
+    p_org_id: organisationId,
+    p_role_id: roleId,
+    p_active: active,
+    p_expected_version: expectedVersion,
+  });
+  if (error) throw error;
+}
+
+export async function deleteRoleRpc(organisationId: string, roleId: string): Promise<void> {
+  const { error } = await supabase.rpc('delete_role', {
+    p_org_id: organisationId,
+    p_role_id: roleId,
+  });
+  if (error) throw error;
+}
+
+export async function assignEmployeeRoleRpc(
+  organisationId: string,
+  employeeId: string,
+  roleId: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('assign_employee_role', {
+    p_org_id: organisationId,
+    p_employee_id: employeeId,
+    p_role_id: roleId,
+  });
+  if (error) throw error;
+}
+
+export async function listMyPermissionsRpc(organisationId: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc('my_permissions', {
+    p_org_id: organisationId,
+  });
+  if (error) throw error;
+  return ((data ?? []) as any[]).map((r: any) => `${r.module_key}.${r.action_key}`);
+}
+
+export async function listRoleMemberCounts(
+  organisationId: string,
+): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('org_members')
+    .select('role_id')
+    .eq('organisation_id', organisationId);
+  if (error) throw error;
+  const counts: Record<string, number> = {};
+  (data ?? []).forEach((m: any) => {
+    if (!m.role_id) return;
+    const k = String(m.role_id);
+    counts[k] = (counts[k] ?? 0) + 1;
+  });
+  return counts;
 }
 
