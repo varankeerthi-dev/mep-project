@@ -535,6 +535,16 @@ export async function listMyPermissionsRpc(organisationId: string): Promise<stri
   return ((data ?? []) as any[]).map((r: any) => `${r.module_key}.${r.action_key}`);
 }
 
+export async function canViewFieldRpc(organisationId: string, fieldKey: string): Promise<boolean> {
+  // Fail-closed: any RPC error means denied.
+  const { data, error } = await supabase.rpc('can_view_field', {
+    p_org_id: organisationId,
+    p_field_key: fieldKey,
+  });
+  if (error) return false;
+  return Boolean(data);
+}
+
 export async function listRoleMemberCounts(
   organisationId: string,
 ): Promise<Record<string, number>> {

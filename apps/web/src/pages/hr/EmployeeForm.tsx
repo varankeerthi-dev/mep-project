@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Input, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui'
 import { useMutateEmployee } from '../../hooks/useEmployees'
+import { useAuth } from '@/contexts/AuthContext'
+import { useCanViewField } from '@/rbac/hooks'
 import { Checkbox } from '@/components/ui/checkbox'
 import { X } from 'lucide-react'
 
@@ -107,6 +109,10 @@ function SearchableDropdown({ options, value, onChange, placeholder = "Search...
 export function EmployeeForm({ onSuccess, employee }: { onSuccess: () => void; employee?: any }) {
   const mutateEmployee = useMutateEmployee()
   const isEditing = !!employee?.id
+  const { organisation } = useAuth()
+  // Fail-closed: salary field renders only after the server confirms access.
+  const salaryAccess = useCanViewField('hr.salary', (organisation as any)?.id ?? null)
+  const canViewSalary = salaryAccess.data === true
 
   const { register, handleSubmit, control, watch, reset, formState: { errors, isSubmitting } } = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
@@ -398,7 +404,7 @@ export function EmployeeForm({ onSuccess, employee }: { onSuccess: () => void; e
             ), true)}
 
             <div style={{ ...sectionHeaderStyle, marginTop: '20px' }}>Payroll</div>
-            {renderHeaderField('Monthly Salary:', <Input type="number" {...register('monthly_salary')} style={inputStyle} />, false, errors.monthly_salary?.message)}
+            {canViewSalary && renderHeaderField('Monthly Salary:', <Input type="number" {...register('monthly_salary')} style={inputStyle} />, false, errors.monthly_salary?.message)}
             {renderHeaderField('', (
               <div className="flex items-center space-x-2 mt-1">
                 <Controller

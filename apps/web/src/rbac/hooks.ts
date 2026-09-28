@@ -3,6 +3,7 @@ import type { PermissionKey } from './schemas';
 import {
   approveAccessRequest,
   assignEmployeeRoleRpc,
+  canViewFieldRpc,
   createAccessRequest,
   createRoleWithPermissions,
   createRoleRpc,
@@ -375,6 +376,19 @@ export function useMyPermissionsRpc() {
     queryKey: ['rbac', 'my-permissions-rpc', orgId],
     queryFn: () => listMyPermissionsRpc(orgId ?? ''),
     enabled: Boolean(orgId),
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useCanViewField(fieldKey: string, organisationId?: string | null) {
+  const { organisation, selectedOrganisation } = useAuth();
+  const orgId =
+    organisationId ?? (organisation as any)?.id ?? (selectedOrganisation as any)?.id ?? null;
+  return useQuery({
+    queryKey: ['rbac', 'can-view-field', orgId, fieldKey],
+    queryFn: () => canViewFieldRpc(orgId ?? '', fieldKey),
+    enabled: Boolean(orgId && fieldKey),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
   });
