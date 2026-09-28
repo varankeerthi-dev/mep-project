@@ -352,6 +352,14 @@ export function useInvoiceSource(params: {
       shouldDirty: true,
       shouldValidate: false,
     });
+    setValue('remarks', convertedData.remarks || '', {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
+    setValue('terms_text', convertedData.terms || '', {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
     setValue('company_state', convertedData.company_state || organisationState || DEFAULT_COMPANY_STATE, {
       shouldDirty: false,
       shouldValidate: false,

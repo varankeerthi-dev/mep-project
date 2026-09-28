@@ -371,6 +371,9 @@ function InvoiceItemsTable({ data }: { data: InvoicePdfData }) {
             {getTraceabilityLine(item.meta_json) && (
               <Text style={styles.traceability}>{getTraceabilityLine(item.meta_json)}</Text>
             )}
+            {(item.custom1 || item.custom2) && (
+              <Text style={styles.traceability}>{[item.custom1, item.custom2].filter(Boolean).join(' | ')}</Text>
+            )}
           </View>
           {showCustomColumn && (
             <View style={[styles.tableCell, { width: widths[1] }]}>

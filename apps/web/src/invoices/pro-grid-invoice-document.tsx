@@ -471,6 +471,11 @@ export const ProGridInvoiceDocument: React.FC<ProGridInvoiceDocumentProps> = ({
               <Text style={[styles.tableCell, { width: colWidths.sno }]}>{index + 1}</Text>
               <Text style={[styles.descriptionCell, { width: colWidths.description }]}>
                 {item.description}
+                {((item as any).custom1 || (item as any).custom2) && (
+                  <Text style={{ fontSize: 7, color: '#64748b' }}>
+                    {'\n' + [(item as any).custom1, (item as any).custom2].filter(Boolean).join(' | ')}
+                  </Text>
+                )}
               </Text>
               <Text style={[styles.tableCell, { width: colWidths.hsn }]}>{item.hsn_code || '-'}</Text>
               <Text style={[styles.tableCell, { width: colWidths.qty }]}>{item.quantity}</Text>

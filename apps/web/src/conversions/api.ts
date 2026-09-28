@@ -633,6 +633,8 @@ export function transformQuotationToInvoice(
     po_date: null,
     company_state: null, // Will be fetched from organisation
     client_state: source.client_state,
+    remarks: source.remarks ?? null,
+    terms: null,
     items,
   };
 
@@ -721,6 +723,8 @@ export function transformSalesOrderToInvoice(
     po_date: source.client_po_date,
     company_state: null, // Will be fetched from organisation
     client_state: source.client_state,
+    remarks: source.remarks ?? null,
+    terms: null,
     items,
   };
 
@@ -799,6 +803,8 @@ export function transformDCToInvoice(source: DCSourceData): ConversionResult {
     po_date: null,
     company_state: null, // Will be fetched from organisation
     client_state: source.ship_to_state,
+    remarks: source.remarks ?? null,
+    terms: null,
     items,
   };
 
@@ -911,6 +917,8 @@ export function transformProformaToInvoice(
     po_date: source.po_date,
     company_state: source.company_state,
     client_state: source.client_state,
+    remarks: source.notes ?? null,
+    terms: source.terms ?? null,
     items,
   };
 
@@ -1024,6 +1032,8 @@ export function transformClientPOToInvoice(
     po_date: source.po_date,
     company_state: null, // Will be fetched from organisation
     client_state: source.client_state,
+    remarks: source.remarks ?? null,
+    terms: null,
     items,
   };
 

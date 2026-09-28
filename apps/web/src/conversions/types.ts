@@ -290,6 +290,8 @@ export interface ConvertedInvoiceData {
   client_state: string | null;
   items: ConvertedInvoiceItem[];
   materials?: ConvertedInvoiceMaterial[];
+  remarks?: string | null;
+  terms?: string | null;
 }
 
 export interface ConvertedInvoiceItem {

@@ -1120,6 +1120,10 @@ export default function InvoiceEditorPage() {
       shouldDirty: true,
       shouldValidate: false,
     });
+    setValue('remarks', convertedData.remarks || '', {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
     setValue('company_state', convertedData.company_state || organisation?.state || DEFAULT_COMPANY_STATE, {
       shouldDirty: false,
       shouldValidate: false,
