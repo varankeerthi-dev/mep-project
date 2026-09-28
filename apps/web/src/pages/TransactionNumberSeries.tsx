@@ -7,15 +7,16 @@ import { SettingToggle } from '../features/settings-v2/components/SettingToggle'
 
 
 // Doc types with a live consumer that reads configs.<id> when generating numbers.
-// Types without a consumer (credit_note, debit_note, so, self_invoice, branch,
-// site_visit, material_indent, client_request) are hidden until their generators
-// are wired — configuring them today would have no effect.
+// sales-order is consumed by generate_sales_order_no. Types without a consumer
+// (credit_note, debit_note, self_invoice, branch, site_visit, material_indent,
+// client_request) stay hidden until their generators are wired.
 const DOCUMENT_TYPES = [
   { id: 'invoice', label: 'Invoice' },
   { id: 'dc', label: 'DC' },
   { id: 'quote', label: 'Quote' },
   { id: 'po', label: 'PO' },
-  { id: 'proforma', label: 'Proforma Invoice' }
+  { id: 'proforma', label: 'Proforma Invoice' },
+  { id: 'so', label: 'Sales Order' }
 ];
 
 export default function TransactionNumberSeries() {

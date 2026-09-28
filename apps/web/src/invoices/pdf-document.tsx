@@ -310,6 +310,17 @@ function getClientCustomColumns(data: InvoicePdfData) {
 function InvoiceItemsTable({ data }: { data: InvoicePdfData }) {
   const { showCustomColumn, extraColumnLabel, widths } = getClientCustomColumns(data);
 
+  // Group subtotals: sum of normal-row amounts since the last header row.
+  const groupSums: Record<number, number> = {};
+  {
+    let running = 0;
+    data.invoice.items.forEach((row: any, idx: number) => {
+      if (row.is_header) { running = 0; return; }
+      if (row.is_subtotal) { groupSums[idx] = running; return; }
+      running += Number(row.amount) || 0;
+    });
+  }
+
   return (
     <View style={styles.tableWrap}>
       <View style={[styles.tableRow, styles.tableHead]} fixed>
@@ -335,7 +346,25 @@ function InvoiceItemsTable({ data }: { data: InvoicePdfData }) {
         </View>
       </View>
 
-      {data.invoice.items.map((item, index) => (
+      {data.invoice.items.map((item: any, index) => {
+        if (item.is_header || item.is_subtotal) {
+          return (
+            <View
+              key={`${item.invoice_id ?? data.invoice.id}-line-${index}`}
+              style={[styles.tableRow, { backgroundColor: item.is_header ? '#eef2ff' : '#f5f5f5' }]}
+              wrap={false}
+            >
+              <View style={[styles.tableCell, { flex: 1 }]}>
+                <Text style={{ fontWeight: 'bold' }}>
+                  {item.is_header
+                    ? stringValue(item.description)
+                    : `${stringValue(item.subtotal_label || item.description || 'Subtotal')}: ${formatCurrency(groupSums[index] ?? 0)}`}
+                </Text>
+              </View>
+            </View>
+          );
+        }
+        return (
         <View key={`${item.invoice_id ?? data.invoice.id}-line-${index}`} style={styles.tableRow} wrap={false}>
           <View style={[styles.tableCell, { width: widths[0] }]}>
             <Text>{stringValue(item.description)}</Text>
@@ -361,7 +390,8 @@ function InvoiceItemsTable({ data }: { data: InvoicePdfData }) {
             <Text style={styles.amountText}>{formatCurrency(item.amount)}</Text>
           </View>
         </View>
-      ))}
+        );
+      })}
     </View>
   );
 }
@@ -491,6 +521,22 @@ export function InvoicePdfDocument({ data }: { data: InvoicePdfData }) {
               </View>
             </View>
           </View>
+
+          {data.terms_text || data.signatory ? (
+            <View style={styles.panel}>
+              {data.terms_text ? (
+                <>
+                  <Text style={styles.sectionLabel}>Terms & Conditions</Text>
+                  <Text style={styles.muted}>{data.terms_text}</Text>
+                </>
+              ) : null}
+              {data.signatory ? (
+                <Text style={[styles.valueLine, { marginTop: 6 }]}>
+                  Authorised Signatory: {data.signatory.name ?? ''}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
         </View>
 
         <Text style={styles.footerLine}>

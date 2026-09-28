@@ -40,6 +40,10 @@ const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
   z.union([JsonLiteralSchema, z.array(JsonValueSchema), z.record(JsonValueSchema)]),
 );
 
+// Persistence writers (PO/quotation/proforma line import) store `null` for
+// unlinked uuids — coerce to `undefined` so `.uuid().optional()` validates.
+const nullToUndefined = (val: unknown) => (val === null ? undefined : val);
+
 export const InvoiceItemMetaSchema = z
   .object({
     tax_percent: PercentSchema.optional(),
@@ -50,9 +54,9 @@ export const InvoiceItemMetaSchema = z
     uom: z.string().optional(),
     base_rate: CurrencySchema.optional(),
     discount_percent: PercentSchema.optional(),
-    material_id: z.string().uuid().optional(),
-    warehouse_id: z.string().uuid().optional(),
-    variant_id: z.string().uuid().optional(),
+    material_id: z.preprocess(nullToUndefined, z.string().uuid().optional()),
+    warehouse_id: z.preprocess(nullToUndefined, z.string().uuid().optional()),
+    variant_id: z.preprocess(nullToUndefined, z.string().uuid().optional()),
     is_service: z.boolean().optional(),
     batch_no: z.string().optional(),
     expiry_date: z.string().optional(),
@@ -66,12 +70,27 @@ export const InvoiceItemSchema = z
     invoice_id: z.string().uuid().optional(),
     description: z.string().trim().min(1, 'Description is required.'),
     hsn_code: z.string().trim().min(1).nullable().optional(),
-    qty: PositiveQuantitySchema,
+    qty: CurrencySchema,
     rate: CurrencySchema,
     amount: CurrencySchema,
+    is_header: z.boolean().optional(),
+    is_subtotal: z.boolean().optional(),
+    subtotal_label: z.string().trim().min(1).nullable().optional(),
+    display_order: z.coerce.number().int().optional(),
+    custom1: z.string().trim().nullable().optional(),
+    custom2: z.string().trim().nullable().optional(),
     meta_json: InvoiceItemMetaSchema.default({}),
   })
   .superRefine((item, ctx) => {
+    const isStructural = item.is_header || item.is_subtotal;
+    if (!isStructural && item.qty <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['qty'],
+        message: 'Quantity must be greater than zero.',
+      });
+    }
+    if (isStructural) return;
     const computed = roundCurrency(item.qty * item.rate);
     if (Math.abs(item.amount - computed) > 0.05) {
       ctx.addIssue({
@@ -113,6 +132,8 @@ export const InvoiceSchema = z
     paid_amount: CurrencySchema.default(0),
     status: z.enum(invoiceStatuses).default('draft'),
     prepared_by: z.string().optional().nullable(),
+    remarks: z.string().trim().nullable().optional(),
+    authorized_signatory_id: z.string().uuid().nullable().optional(),
     submitted_date: z.string().optional().nullable(),
     submitted_by: z.string().optional().nullable(),
     submitted_file_url: z.string().url().optional().nullable(),

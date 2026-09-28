@@ -8,6 +8,8 @@ import { AuditTab } from './AuditTab';
 import { AttributesTab } from './AttributesTab';
 import type { Material } from '../../model/entities';
 import type { ItemTransactions } from '../../model/aggregates';
+import { getItemTypeConfig } from '../../model/aggregates/MaterialEditor';
+import { useEffect } from 'react';
 
 export const ITEM_DETAIL_TABS = [
   { key: 'overview', label: 'Overview' },
@@ -42,6 +44,28 @@ export function ItemDetailsDialog({
   transactions,
   loading,
 }: ItemDetailsDialogProps) {
+  const itemType = (material?.item_type as Material['item_type']) || 'product';
+  const typeConfig = getItemTypeConfig(itemType);
+
+  const visibleTabs = ITEM_DETAIL_TABS.filter((tab) => {
+    if (tab.key === 'warehouse' && !typeConfig.showInventory) return false;
+    if (tab.key === 'adjustments' && !typeConfig.showInventory) return false;
+    if (tab.key === 'attributes' && itemType === 'service') return false;
+    return true;
+  });
+
+  const firstVisibleTab = visibleTabs[0]?.key || 'overview';
+
+  useEffect(() => {
+    if (open && !visibleTabs.find((t) => t.key === activeTab)) {
+      onTabChange(firstVisibleTab);
+    }
+  }, [open, activeTab, visibleTabs, firstVisibleTab, onTabChange]);
+
+  const handleTabChange = (tabKey: string) => {
+    onTabChange(tabKey);
+  };
+
   return (
     <Modal
       isOpen={open}
@@ -54,8 +78,8 @@ export function ItemDetailsDialog({
     >
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-zinc-200 overflow-x-auto">
-        {ITEM_DETAIL_TABS.map((tab) => (
-          <Button variant="default" size="default" key={tab.key} onClick={() => onTabChange(tab.key)}
+        {visibleTabs.map((tab) => (
+          <Button variant="default" size="default" key={tab.key} onClick={() => handleTabChange(tab.key)}
             className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab.key
                 ? 'border-indigo-600 text-indigo-700'
@@ -69,9 +93,9 @@ export function ItemDetailsDialog({
 
       <div className="overflow-y-auto max-h-[60vh]">
         {activeTab === 'overview' && <OverviewTab material={material} />}
-        {activeTab === 'attributes' && <AttributesTab materialId={material?.id} />}
-        {activeTab === 'warehouse' && <WarehouseTab rows={transactions.warehouseRows} loading={loading} />}
-        {activeTab === 'adjustments' && <AdjustmentsTab rows={transactions.adjustmentRows} loading={loading} />}
+        {activeTab === 'attributes' && material && <AttributesTab materialId={material.id} />}
+        {activeTab === 'warehouse' && typeConfig.showInventory && <WarehouseTab rows={transactions.warehouseRows} loading={loading} />}
+        {activeTab === 'adjustments' && typeConfig.showInventory && <AdjustmentsTab rows={transactions.adjustmentRows} loading={loading} />}
         {(activeTab === 'quotation' || activeTab === 'invoice' || activeTab === 'purchase' || activeTab === 'challan') && (
           <TransactionsTab
             quotationRows={transactions.quotationRows}

@@ -1120,7 +1120,7 @@ export default function InvoiceEditorPage() {
       shouldDirty: true,
       shouldValidate: false,
     });
-    setValue('company_state', convertedData.company_state || organisation?.state || null, {
+    setValue('company_state', convertedData.company_state || organisation?.state || DEFAULT_COMPANY_STATE, {
       shouldDirty: false,
       shouldValidate: false,
     });
@@ -1288,6 +1288,7 @@ export default function InvoiceEditorPage() {
     console.log('Items being validated:', values.items);
 
     const invalidItems = values.items.filter((item, index) => {
+      if ((item as any).is_header || (item as any).is_subtotal) return false;
       const rate = Number(item.rate);
       const qty = Number(item.qty);
       const isValid = !isNaN(rate) && rate >= 0 && !isNaN(qty) && qty > 0;
@@ -1971,6 +1972,7 @@ export default function InvoiceEditorPage() {
           items={watchedItems}
           register={register}
           append={itemsFieldArray.append}
+          insert={itemsFieldArray.insert}
           remove={itemsFieldArray.remove}
           move={itemsFieldArray.move}
           mode={selectedMode}

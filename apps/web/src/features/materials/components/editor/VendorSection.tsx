@@ -1,5 +1,5 @@
 import { cn } from '../../../../lib/utils';
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Trash2, ChevronDown } from 'lucide-react';
 import { Input } from '../../../../components/ui/input';
 import { Checkbox } from '../../../../components/ui/checkbox';
@@ -21,18 +21,11 @@ interface VendorSectionProps {
 
 export function VendorSection({ number, vendorMappings, vendors, variants, variantPricing, onAddRow, onRemoveRow, onRowChange }: VendorSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!collapsed && sectionRef.current) {
-      sectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [collapsed]);
 
   const tdStyle: React.CSSProperties = { padding: '12px 16px' };
 
   return (
-    <div ref={sectionRef}>
+    <div>
       <EditorSection
         number={number}
         title="Purchase & Vendor Mapping"

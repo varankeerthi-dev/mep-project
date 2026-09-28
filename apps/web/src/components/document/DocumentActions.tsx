@@ -167,7 +167,7 @@ export function DocumentActions(props: DocumentActionsProps) {
                         {hasSub && <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
                       </button>
                       {hasSub && openSub === m.label && (
-                        <div className="absolute left-full top-0 ml-1 z-[60] min-w-[180px] bg-white border border-zinc-200 rounded-md shadow-lg p-1">
+                        <div className="absolute right-full top-0 mr-1 z-[60] min-w-[180px] bg-white border border-zinc-200 rounded-md shadow-lg p-1">
                           {m.children!.map((c) => (
                             <button
                               key={c.label}

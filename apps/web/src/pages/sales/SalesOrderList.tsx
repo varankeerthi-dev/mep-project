@@ -1,15 +1,14 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../../utils/formatters';
 import { useAuth } from '../../contexts/AuthContext';
 import { PermissionGuard } from '../../rbac';
-import { Eye as EyeIcon, PackageCheck, AlertTriangle, FolderSync, Edit as EditIcon, Copy as CopyIcon, Trash2 as Trash2Icon } from 'lucide-react';
+import { Eye as EyeIcon, PackageCheck, AlertTriangle, FolderSync, Edit as EditIcon, Copy as CopyIcon, Trash2 as Trash2Icon, Download as DownloadIcon } from 'lucide-react';
 import { Button } from '../../components/ui/button';
-import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '../../lib/logger';
 import { DocumentListShell, type ShellColumn } from '../../components/document/DocumentListShell';
+import { useSalesOrders, useDeleteSalesOrders, useDuplicateSalesOrder } from './hooks';
+import { SalesOrderImportModal } from './components/SalesOrderImportModal';
 
 const SO_STATUSES = ['All', 'draft', 'waiting_approval', 'open', 'in_production', 'partially_shipped', 'completed', 'cancelled'];
 
@@ -45,13 +44,13 @@ const DEFAULT_VISIBLE = SO_COLUMNS.map((c) => c.id);
 
 export default function SalesOrderList() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { organisation } = useAuth();
   const orgId = organisation?.id;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showImport, setShowImport] = useState(false);
   const [visibleIds, setVisibleIds] = useState<string[]>(() => {
     try {
       const raw = localStorage.getItem('so-list-columns');
@@ -63,26 +62,10 @@ export default function SalesOrderList() {
     return DEFAULT_VISIBLE;
   });
 
-  // Fetch Sales Orders
-  const { data: salesOrders = [], isLoading } = useQuery({
-    queryKey: ['sales-orders', orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select(`
-          *,
-          client:clients(client_name),
-          project:projects(name)
-        `)
-        .eq('organisation_id', orgId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!orgId
-  });
+  // Fetch Sales Orders (statement-managed)
+  const { data: salesOrders = [], isLoading } = useSalesOrders(orgId);
+  const deleteMutation = useDeleteSalesOrders();
+  const duplicateMutation = useDuplicateSalesOrder();
 
   const filteredOrders = useMemo(() => {
     const q = searchTerm.toLowerCase();
@@ -118,19 +101,9 @@ export default function SalesOrderList() {
   const deleteOrders = async (ids: string[]) => {
     if (ids.length === 0) return false;
     if (!confirm(`Are you sure you want to delete ${ids.length} sales order(s)? Reservations on their lines will be released.`)) return false;
+    if (!orgId) return false;
     try {
-      const { data: lineIds } = await supabase
-        .from('sales_order_items')
-        .select('id')
-        .in('sales_order_id', ids);
-      const itemIds = (lineIds || []).map((r: any) => r.id);
-      if (itemIds.length > 0) {
-        await supabase.from('sales_order_reservations').delete().in('sales_order_item_id', itemIds);
-        await supabase.from('sales_order_items').delete().in('id', itemIds);
-      }
-      const { error } = await supabase.from('sales_orders').delete().in('id', ids).eq('organisation_id', orgId);
-      if (error) throw error;
-      queryClient.invalidateQueries({ queryKey: ['sales-orders'] });
+      await deleteMutation.mutateAsync({ ids, orgId });
       setSelectedIds(new Set());
       toast.success('Deleted successfully');
       return true;
@@ -143,36 +116,8 @@ export default function SalesOrderList() {
   const duplicateOrder = async (so: any) => {
     if (!orgId) return;
     try {
-      const { data: soNo, error: noErr } = await supabase.rpc('generate_sales_order_no', { p_org_id: orgId });
-      if (noErr || !soNo) throw noErr || new Error('Could not generate SO number');
-      const { data: header, error: headErr } = await supabase
-        .from('sales_orders')
-        .select('*')
-        .eq('id', so.id)
-        .single();
-      if (headErr || !header) throw headErr || new Error('Order not found');
-      const { data: lines } = await supabase
-        .from('sales_order_items')
-        .select('*')
-        .eq('sales_order_id', so.id);
-      const { id: _drop, sales_order_no: _no, quotation_id: _q, quotation_no: _qn, converted_at: _c, created_at: _ca, updated_at: _ua, cancelled_at: _x, closed_at: _cl, ...rest } = header as any;
-      const { data: created, error: createErr } = await supabase
-        .from('sales_orders')
-        .insert({ ...rest, organisation_id: orgId, sales_order_no: soNo, status: 'draft' })
-        .select()
-        .single();
-      if (createErr || !created) throw createErr || new Error('Duplicate failed');
-      if (lines && lines.length > 0) {
-        const { error: linesErr } = await supabase.from('sales_order_items').insert(
-          lines.map((l: any) => {
-            const { id: _lid, sales_order_id: _lso, created_at: _lca, ...lrest } = l;
-            return { ...lrest, sales_order_id: created.id };
-          })
-        );
-        if (linesErr) throw linesErr;
-      }
-      queryClient.invalidateQueries({ queryKey: ['sales-orders'] });
-      toast.success(`Duplicated as ${soNo}`);
+      const created: any = await duplicateMutation.mutateAsync({ orderId: so.id, orgId });
+      toast.success(`Duplicated as ${created.sales_order_no}`);
     } catch (e: any) {
       toast.error('Duplicate failed: ' + (e.message || e));
     }
@@ -180,6 +125,20 @@ export default function SalesOrderList() {
 
   const soRowMenuItems = (so: any) => [
     { label: 'View Details', icon: EyeIcon, onClick: () => navigate(`/sales-orders/view?id=${so.id}`) },
+    {
+      label: 'Download PDF',
+      icon: DownloadIcon,
+      onClick: async () => {
+        if (!orgId) return;
+        try {
+          const { downloadSalesOrderPdf } = await import('./utils/soPdf');
+          await downloadSalesOrderPdf(orgId, so.id);
+          toast.success('PDF downloaded');
+        } catch (e: any) {
+          toast.error('PDF download failed: ' + (e.message || e));
+        }
+      },
+    },
     { label: 'Edit', icon: EditIcon, onClick: () => navigate(`/sales-orders/edit?id=${so.id}`) },
     {
       label: 'Convert',
@@ -187,6 +146,7 @@ export default function SalesOrderList() {
       children: [
         { label: 'Tax Invoice', onClick: () => navigate(`/invoices/create?convertFrom=sales-order-to-invoice&sourceId=${so.id}`) },
         { label: 'Delivery Challan', onClick: () => navigate(`/dc/create?convertFrom=sales-order-to-challan&sourceId=${so.id}`) },
+        { label: 'Purchase Order', onClick: () => navigate(`/sales-orders/view?id=${so.id}&po=1`) },
       ],
     },
     { label: 'Duplicate', icon: CopyIcon, dividerBefore: true, onClick: () => duplicateOrder(so) },
@@ -250,6 +210,15 @@ export default function SalesOrderList() {
         statusFilterStyle="pills"
         onCreate={() => navigate('/sales-orders/create')}
         createLabel="Create Sales Order"
+        headerExtra={(
+          <button
+            onClick={() => setShowImport(true)}
+            className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors active:scale-[0.98]"
+            style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+          >
+            Import
+          </button>
+        )}
         columns={SO_COLUMNS}
         visibleIds={visibleIds}
         onVisibleChange={setVisibleIds}
@@ -289,6 +258,9 @@ export default function SalesOrderList() {
         emptyTitle="No Sales Orders found"
         emptyHint="Try adjusting your search terms, filter by status, or create a new sales order."
       />
+      {showImport && orgId && (
+        <SalesOrderImportModal open={showImport} onClose={() => setShowImport(false)} orgId={orgId} />
+      )}
     </PermissionGuard>
   );
 }

@@ -22,6 +22,7 @@ export const ITEM_TABLE_COLUMNS: ColumnDef[] = [
   { key: 'end_connection', label: 'End Connection', default: false },
   { key: 'sale_price', label: 'Sale Price', default: false },
   { key: 'purchase_price', label: 'Purchase Price', default: false },
+  { key: 'item_type', label: 'Type', default: true },
   { key: 'status', label: 'Status', default: true },
   { key: 'actions', label: 'Actions', default: true, locked: true },
 ];

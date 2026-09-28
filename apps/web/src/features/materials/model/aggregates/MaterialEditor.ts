@@ -5,6 +5,7 @@
  */
 import type { MaterialCustomAttribute } from '../entities/Material';
 export interface MaterialEditorFormData {
+  item_type: 'product' | 'service' | 'kit';
   item_code: string;
   item_name: string;
   display_name: string;
@@ -52,8 +53,9 @@ export interface MaterialEditorFormData {
   serial_number_format: string;
 }
 
-export function createDefaultFormData(): MaterialEditorFormData {
+export function createDefaultFormData(overrides: Partial<MaterialEditorFormData> = {}): MaterialEditorFormData {
   return {
+    item_type: 'product',
     item_code: '',
     item_name: '',
     display_name: '',
@@ -99,6 +101,94 @@ export function createDefaultFormData(): MaterialEditorFormData {
     warranty_unit: 'months',
     has_serial_number: false,
     serial_number_format: '',
+    ...overrides,
+  };
+}
+
+export function isServiceItem(formData: MaterialEditorFormData): boolean {
+  return formData.item_type === 'service';
+}
+
+export function isProductItem(formData: MaterialEditorFormData): boolean {
+  return formData.item_type === 'product';
+}
+
+export function isKitItem(formData: MaterialEditorFormData): boolean {
+  return formData.item_type === 'kit';
+}
+
+export function getItemTypeLabel(type: MaterialEditorFormData['item_type']): string {
+  switch (type) {
+    case 'product':
+      return 'Product';
+    case 'service':
+      return 'Service';
+    case 'kit':
+      return 'Kit';
+    default:
+      return 'Product';
+  }
+}
+
+export function getItemTypeBadgeClasses(type: MaterialEditorFormData['item_type']): string {
+  switch (type) {
+    case 'product':
+      return 'bg-green-50 text-green-700 border-green-200';
+    case 'service':
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    case 'kit':
+      return 'bg-purple-50 text-purple-700 border-purple-200';
+    default:
+      return 'bg-green-50 text-green-700 border-green-200';
+  }
+}
+
+export interface ItemTypeConfig {
+  itemType: MaterialEditorFormData['item_type'];
+  label: string;
+  badgeClasses: string;
+  showAccountingTreatment: boolean;
+  showBasicInfo: boolean;
+  showTechnical: boolean;
+  showCommercial: boolean;
+  showDiscountCategory: boolean;
+  showWarranty: boolean;
+  showVariantPricing: boolean;
+  showInventory: boolean;
+  showVendorMapping: boolean;
+  showClientMapping: boolean;
+  showAdditionalInfo: boolean;
+  hsnLabel: string;
+  codePrefix: string;
+  autoGenerateCode: boolean;
+  defaultAccountingTreatment: string;
+  defaultItemClassification: string;
+}
+
+export function getItemTypeConfig(type: MaterialEditorFormData['item_type']): ItemTypeConfig {
+  const isService = type === 'service';
+  const isKit = type === 'kit';
+
+  return {
+    itemType: type,
+    label: getItemTypeLabel(type),
+    badgeClasses: getItemTypeBadgeClasses(type),
+    showAccountingTreatment: !isService,
+    showBasicInfo: true,
+    showTechnical: true,
+    showCommercial: true,
+    showDiscountCategory: true,
+    showWarranty: !isService,
+    showVariantPricing: !isService,
+    showInventory: !isService,
+    showVendorMapping: !isService,
+    showClientMapping: !isService,
+    showAdditionalInfo: !isService,
+    hsnLabel: isService ? 'SAC Code' : 'HSN Code',
+    codePrefix: isService ? 'SVC' : 'ITEM',
+    autoGenerateCode: true,
+    defaultAccountingTreatment: isService ? 'EXPENSE_SERVICE' : 'INVENTORY_STOCK',
+    defaultItemClassification: isService ? 'SERVICE' : 'STOCK_IN_TRADE',
   };
 }
 

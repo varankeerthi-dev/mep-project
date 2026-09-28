@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const MaterialFormSchema = z.object({
+  item_type: z.enum(['product', 'service', 'kit']).default('product'),
   item_name: z.string().min(1, 'Item name is required'),
   display_name: z.string().optional(),
   item_code: z.string().min(1, 'Item code is required'),

@@ -685,7 +685,10 @@ export default function CreateDCV2({ onSuccess, onCancel, editDC }: CreateDCV2Pr
     try {
       const validItems = items.filter((i) => i.valid && i.material_id);
       if (validItems.length === 0) { alert('Please add at least one valid item.'); setLoading(false); return false; }
-      const dcData = { ...formData, warehouse_id: null, variant_id: formData.variant_id || null, eway_bill_date: formData.eway_bill_date || null, eway_valid_till: (formData as any).eway_valid_till || null, po_date: formData.po_date || null, project_id: formData.project_id || null, status: statusOverride || 'active', rate_source: formData.rate_source, authorized_signatory_id: formData.authorized_signatory_id || null, organisation_id: formData.organisation_id || organisation?.id || null };
+      const dcData = { ...formData, warehouse_id: null, variant_id: formData.variant_id || null, eway_bill_date: formData.eway_bill_date || null, eway_valid_till: (formData as any).eway_valid_till || null, po_date: formData.po_date || null, project_id: formData.project_id || null, status: statusOverride || 'active', rate_source: formData.rate_source, authorized_signatory_id: formData.authorized_signatory_id || null, organisation_id: formData.organisation_id || organisation?.id || null } as any;
+      if (conversionRef.current && !isEditing && String((conversionRef.current as any).type || '').startsWith('sales-order-')) {
+        (dcData as any).sales_order_id = (conversionRef.current as any).sourceId;
+      }
       let dcId;
       if (isEditing) {
         await supabase.from('delivery_challans').update(dcData).eq('id', editDC.id);

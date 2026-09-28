@@ -49,6 +49,7 @@ interface DocumentListShellProps {
   onCreate?: () => void;
   createLabel?: string;
   createButton?: React.ReactNode;
+  headerExtra?: React.ReactNode;
   columns: ShellColumn[];
   visibleIds: string[];
   onVisibleChange: (ids: string[]) => void;
@@ -86,7 +87,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
     search, onSearch, searchPlaceholder,
     subTabs, activeSubTab, onSubTab,
     statusOptions, statusFilter, onStatusFilter, statusLabel, statusFilterStyle,
-    onCreate, createLabel, createButton,
+    onCreate, createLabel, createButton, headerExtra,
     columns, visibleIds, onVisibleChange, columnStorageKey, showColumnCustomizer, columnCustomizer,
     rows, getRowId, selectedIds, onToggleSelect, onToggleSelectAll, onClearSelection,
     onRowClick, renderCell, eyeButton, rowActions, rowMenuItems,
@@ -284,6 +285,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
         </div>
 
         <div className="flex items-center gap-[10px]">
+          {headerExtra ? headerExtra : null}
           {createButton ? createButton : (onCreate && (
             <button
               onClick={onCreate}
@@ -532,7 +534,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
                                           {hasSub && <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
                                         </button>
                                         {hasSub && openSub === `${rowId}:${item.label}` && (
-                                          <div className="absolute left-full top-0 ml-1 z-[110] min-w-[180px] bg-white border border-zinc-200 rounded-md shadow-lg p-1">
+                                          <div className="absolute right-full top-0 mr-1 z-[110] min-w-[180px] bg-white border border-zinc-200 rounded-md shadow-lg p-1">
                                             {item.children!.map((c) => (
                                               <button
                                                 key={c.label}

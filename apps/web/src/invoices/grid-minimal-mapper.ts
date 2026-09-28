@@ -22,6 +22,7 @@ export function mapInvoicePdfToGridMinimalVM(
   const company = data.company;
   const client = invoice.client;
 
+  let groupRunning = 0;
   const items = (invoice.items ?? []).map((item, idx) => {
     const meta = (item.meta_json ?? {}) as Record<string, unknown>;
     const qty = toNum(item.qty);
@@ -30,7 +31,47 @@ export function mapInvoicePdfToGridMinimalVM(
     const gstPct = toNum(meta.tax_percent ?? meta.gst_percent ?? meta.gstPct);
 
     const discountedRate = rate * (1 - discPct / 100);
-    const amount = toNum(item.amount) || discountedRate * qty;
+    const lineAmount = toNum(item.amount) || discountedRate * qty;
+    const isHeader = Boolean((item as any).is_header);
+    const isSubtotal = Boolean((item as any).is_subtotal);
+
+    if (isHeader) {
+      groupRunning = 0;
+      return {
+        id: String(item.id ?? idx),
+        sno: idx + 1,
+        hsn: '',
+        description: safe(item.description, 'Section'),
+        make: '',
+        qty: 0,
+        unit: '',
+        rate: 0,
+        discPct: 0,
+        gstPct: 0,
+        amount: 0,
+        is_header: true,
+      };
+    }
+
+    if (isSubtotal) {
+      const sum = groupRunning;
+      return {
+        id: String(item.id ?? idx),
+        sno: idx + 1,
+        hsn: '',
+        description: safe((item as any).subtotal_label, safe(item.description, 'Subtotal')),
+        make: '',
+        qty: 0,
+        unit: '',
+        rate: 0,
+        discPct: 0,
+        gstPct: 0,
+        amount: sum,
+        is_header: true,
+      };
+    }
+
+    groupRunning += lineAmount;
 
     return {
       id: String(item.id ?? idx),
@@ -43,7 +84,8 @@ export function mapInvoicePdfToGridMinimalVM(
       rate,
       discPct: discPct || 0,
       gstPct: gstPct || 18,
-      amount,
+      amount: lineAmount,
+      is_header: false,
     };
   });
 

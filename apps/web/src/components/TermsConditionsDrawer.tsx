@@ -33,10 +33,11 @@ interface TermsConditionsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   quotationId?: string;
+  initialTemplate?: TermsTemplate | null;
   onSave: (termsData: any) => void;
 }
 
-export function TermsConditionsDrawer({ isOpen, onClose, quotationId, onSave }: TermsConditionsDrawerProps) {
+export function TermsConditionsDrawer({ isOpen, onClose, quotationId, initialTemplate, onSave }: TermsConditionsDrawerProps) {
   const { organisation } = useAuth();
   const [templates, setTemplates] = useState<TermsTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<TermsTemplate | null>(null);
@@ -104,7 +105,15 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, onSave }: 
       setTemplates(templatesWithSections);
       if (templatesWithSections.length > 0) {
         const defaultTemplate = templatesWithSections.find(t => t.is_default) || templatesWithSections[0];
-        setSelectedTemplate(defaultTemplate);
+        const preferred = initialTemplate && Array.isArray((initialTemplate as any).sections)
+          ? (initialTemplate as TermsTemplate)
+          : defaultTemplate;
+        setSelectedTemplate(preferred);
+        if (preferred === (initialTemplate as TermsTemplate)) {
+          const sectionIds = new Set<string>();
+          (preferred.sections || []).forEach(s => { if (s?.id) sectionIds.add(s.id); });
+          setExpandedSections(sectionIds);
+        }
       }
     } catch (error) {
       console.error('Error loading templates:', error);

@@ -1,21 +1,29 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../../supabase';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
-import { formatCurrency } from '../../../utils/formatters';
-import { Search as SearchIcon, Loader2 } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { formatDate, formatCurrency } from '../../../utils/formatters';
+import { Search, ChevronDown } from 'lucide-react';
+import { useSalesOrderSummaries } from '../hooks';
 
-const PANE_STATUSES = ['All', 'draft', 'waiting_approval', 'open', 'in_production', 'partially_shipped', 'completed', 'cancelled'];
+const SO_LIST_TABS = ['All', 'Draft', 'Waiting Approval', 'Open', 'Completed', 'Cancelled'];
 
-const PANE_STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
-  draft:            { bg: 'bg-zinc-100', color: 'text-zinc-700', label: 'Draft' },
-  waiting_approval: { bg: 'bg-amber-100', color: 'text-amber-700', label: 'Waiting Approval' },
-  open:             { bg: 'bg-blue-100', color: 'text-blue-700', label: 'Open / Approved' },
-  in_production:    { bg: 'bg-purple-100', color: 'text-purple-700', label: 'In Production' },
-  partially_shipped:{ bg: 'bg-orange-100', color: 'text-orange-700', label: 'Partially Shipped' },
-  completed:        { bg: 'bg-emerald-100', color: 'text-emerald-700', label: 'Completed' },
-  cancelled:        { bg: 'bg-red-100', color: 'text-red-700', label: 'Cancelled' }
+const SO_LIST_TAB_STATUS: Record<string, string | null> = {
+  All: null,
+  Draft: 'draft',
+  'Waiting Approval': 'waiting_approval',
+  Open: 'open',
+  Completed: 'completed',
+  Cancelled: 'cancelled',
+};
+
+const SO_LIST_STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
+  draft:            { bg: '#f3f4f6', color: '#6b7280', label: 'Draft' },
+  waiting_approval: { bg: '#fef3c7', color: '#b45309', label: 'Waiting Approval' },
+  open:             { bg: '#d1fae5', color: '#047857', label: 'Open' },
+  in_production:    { bg: '#f5f3ff', color: '#6d28d9', label: 'In Production' },
+  partially_shipped:{ bg: '#ffedd5', color: '#c2410c', label: 'Partially Shipped' },
+  completed:        { bg: '#d1fae5', color: '#065f46', label: 'Completed' },
+  cancelled:        { bg: '#fee2e2', color: '#991b1b', label: 'Cancelled' },
 };
 
 interface SalesOrderListPaneProps {
@@ -23,106 +31,135 @@ interface SalesOrderListPaneProps {
   onSelect: (id: string) => void;
 }
 
-// SalesOrderListPane - left list pane for the sales order split view,
-// mirroring the quotation view list (search, status pills, 70px rows).
+// SalesOrderListPane - left list pane for the sales order split view.
+// Mirrors the QuotationView sidebar list markup exactly; only the data source,
+// tab set, and destination route differ.
 export function SalesOrderListPane({ selectedId, onSelect }: SalesOrderListPaneProps) {
+  const navigate = useNavigate();
   const { organisation } = useAuth();
   const orgId = organisation?.id;
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [listSearch, setListSearch] = useState('');
+  const [listStatusTab, setListStatusTab] = useState('All');
+  const [listSortAsc, setListSortAsc] = useState(false);
 
-  const { data: orders = [], isLoading } = useQuery({
-    queryKey: ['sales-order-pane-list', orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select('id, sales_order_no, grand_total, status, order_date, client:clients(client_name)')
-        .eq('organisation_id', orgId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!orgId,
-  });
+  const { data: orders = [], isPending } = useSalesOrderSummaries(orgId);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return (orders || []).filter((so: any) => {
-      if (statusFilter !== 'All' && so.status !== statusFilter) return false;
-      if (!q) return true;
+  const listStatusCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: (orders || []).length };
+    (orders || []).forEach((so: any) => {
+      const tab = Object.keys(SO_LIST_TAB_STATUS).find(
+        (t) => SO_LIST_TAB_STATUS[t] === so.status
+      );
+      if (tab) counts[tab] = (counts[tab] || 0) + 1;
+    });
+    return counts;
+  }, [orders]);
+
+  const visibleOrders = useMemo(() => {
+    const s = listSearch.trim().toLowerCase();
+    const filtered = (orders || []).filter((so: any) => {
+      if (listStatusTab !== 'All' && so.status !== SO_LIST_TAB_STATUS[listStatusTab]) return false;
+      if (!s) return true;
       return (
-        so.sales_order_no?.toLowerCase().includes(q) ||
-        so.client?.client_name?.toLowerCase().includes(q)
+        so.sales_order_no?.toLowerCase().includes(s) ||
+        so.client?.client_name?.toLowerCase().includes(s)
       );
     });
-  }, [orders, search, statusFilter]);
+    return [...filtered].sort((a: any, b: any) => {
+      const da = new Date(a.created_at || a.order_date).getTime() || 0;
+      const db = new Date(b.created_at || b.order_date).getTime() || 0;
+      return listSortAsc ? da - db : db - da;
+    });
+  }, [orders, listSearch, listStatusTab, listSortAsc]);
 
   return (
-    <div className="w-[400px] shrink-0 border-r border-zinc-200 bg-white flex flex-col min-h-0">
-      <div className="p-3 border-b border-zinc-100 space-y-2">
+    <>
+      <div className="px-4 pt-4 pb-3 border-b border-[#EEF0F3]">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-baseline gap-2 min-w-0">
+            <h2 className="text-[21px] font-semibold text-zinc-900 leading-none">Sales Orders</h2>
+            <span className="text-xs text-zinc-400 whitespace-nowrap">{orders.length} {orders.length === 1 ? 'order' : 'orders'}</span>
+          </div>
+          <button
+            onClick={() => navigate('/sales-orders/create')}
+            className="h-8 px-3 rounded-md bg-[#2563EB] text-white text-[13px] font-semibold hover:bg-[#1D4ED8] transition-colors whitespace-nowrap"
+          >
+            + New
+          </button>
+        </div>
         <div className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
           <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search orders..."
-            className="w-full pl-9 pr-3 h-9 text-[13px] border border-zinc-200 rounded-lg bg-zinc-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            value={listSearch}
+            onChange={(e) => setListSearch(e.target.value)}
+            placeholder="Search sales orders..."
+            className="w-full h-9 pl-9 pr-3 text-[13px] text-zinc-900 rounded-lg border border-[#E5E7EB] placeholder:text-zinc-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
           />
         </div>
-        <div className="flex flex-wrap gap-1">
-          {PANE_STATUSES.map((s) => (
+      </div>
+      <div className="flex items-center gap-5 px-4 border-b border-[#EEF0F3] overflow-x-auto">
+        {SO_LIST_TABS.map((tab) => {
+          const active = listStatusTab === tab;
+          return (
             <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={cn(
-                'px-2 py-1 rounded-md text-[11px] font-medium border transition-colors',
-                statusFilter === s
-                  ? 'bg-blue-50 border-blue-300 text-blue-700'
-                  : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
-              )}
+              key={tab}
+              onClick={() => setListStatusTab(tab)}
+              className={`py-1.5 text-[13px] border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0 ${active ? 'text-[#2563EB] font-medium border-[#2563EB]' : 'text-zinc-500 border-transparent hover:text-zinc-800'}`}
             >
-              {s === 'All' ? 'All' : (PANE_STATUS_COLORS[s]?.label || s)}
+              {tab} <span className={active ? '' : 'text-zinc-400'}>{listStatusCounts[tab] ?? 0}</span>
             </button>
-          ))}
-        </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-between px-4" style={{ height: 32 }}>
+        <button onClick={() => setListSortAsc((v) => !v)} className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-600 transition-colors">
+          {listSortAsc ? 'Oldest first' : 'Newest first'}
+          <ChevronDown className="w-3 h-3" />
+        </button>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="py-16 text-center text-[13px] text-zinc-400">No sales orders found.</div>
+        {isPending ? (
+          <div className="p-8 text-center text-zinc-400 text-sm">Loading orders...</div>
+        ) : visibleOrders.length === 0 ? (
+          <div className="p-8 text-center text-zinc-400 text-sm">{orders.length === 0 ? 'No sales orders found' : 'No sales orders match'}</div>
         ) : (
-          filtered.map((so: any) => {
-            const meta = PANE_STATUS_COLORS[so.status] || PANE_STATUS_COLORS.draft;
-            const active = selectedId === so.id;
-            return (
-              <button
-                key={so.id}
-                onClick={() => onSelect(so.id)}
-                className={cn(
-                  'w-full text-left px-4 py-3 border-b border-zinc-100 transition-colors min-h-[70px] flex flex-col justify-center gap-0.5',
-                  active ? 'bg-[#F0F7FF]' : 'bg-white hover:bg-zinc-50'
-                )}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[13px] font-bold text-zinc-900 truncate">{so.sales_order_no}</span>
-                  <span className="text-[13px] font-bold text-zinc-900 tabular-nums whitespace-nowrap">{formatCurrency(so.grand_total)}</span>
+          <div>
+            {visibleOrders.map((so: any) => {
+              const selected = selectedId === so.id;
+              const st = SO_LIST_STATUS_STYLE[so.status] || SO_LIST_STATUS_STYLE.draft;
+              return (
+                <div
+                  key={so.id}
+                  onClick={() => onSelect(so.id)}
+                  className="px-4 cursor-pointer border-b border-[#EEF0F3] hover:bg-[#F8FAFC]"
+                  style={{
+                    minHeight: 70,
+                    paddingTop: 12,
+                    paddingBottom: 12,
+                    background: selected ? '#F0F7FF' : undefined,
+                    boxShadow: selected ? 'inset 0 0 0 1px #BFDBFE' : undefined,
+                  }}
+                >
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm font-semibold text-zinc-900 truncate">{so.client?.client_name || 'Walk-in Client'}</span>
+                    <span className="text-sm font-semibold text-zinc-900 tabular-nums whitespace-nowrap">{formatCurrency(so.grand_total)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 mt-0.5">
+                    <div className="flex items-center gap-1.5 min-w-0 text-xs">
+                      <span className="font-medium text-zinc-600 whitespace-nowrap">{so.sales_order_no}</span>
+                      <span className="text-zinc-300">&middot;</span>
+                      <span className="text-zinc-400 whitespace-nowrap">{formatDate(so.order_date)}</span>
+                    </div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap" style={{ backgroundColor: st.bg, color: st.color }}>
+                      {st.label || so.status}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-xs text-zinc-500 truncate">{so.client?.client_name || '-'}</div>
-                <div>
-                  <span className={cn('inline-flex items-center px-2 py-px rounded-full text-[11px] font-medium', meta.bg, meta.color)}>
-                    {meta.label}
-                  </span>
-                </div>
-              </button>
-            );
-          })
+              );
+            })}
+          </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

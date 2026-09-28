@@ -1,5 +1,5 @@
 import { cn } from '../../../../lib/utils';
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Trash2, History, ChevronDown } from 'lucide-react';
 import { Input } from '../../../../components/ui/input';
 import { Checkbox } from '../../../../components/ui/checkbox';
@@ -50,13 +50,6 @@ export function ClientSection({
   const [clientMappingTab, setClientMappingTab] = useState<'code' | 'pricing'>('code');
   const [showPricingHistory, setShowPricingHistory] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!collapsed && sectionRef.current) {
-      sectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [collapsed]);
 
   const handleShowPricingHistory = () => {
     onShowPricingHistory();
@@ -111,7 +104,7 @@ export function ClientSection({
   );
 
   return (
-    <div ref={sectionRef}>
+    <div>
       <EditorSection
         number={number}
         title="Client Mapping"

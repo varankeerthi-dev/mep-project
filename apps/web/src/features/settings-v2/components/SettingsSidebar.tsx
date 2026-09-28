@@ -59,18 +59,18 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
 
   return (
     <aside
-      className="bg-white border-r border-zinc-200/90 flex flex-col shrink-0 min-h-screen overflow-y-auto"
-      style={{ width: '160px', borderColor: '#e5e5e5', padding: '10px' }}
+      className="bg-white border-r border-zinc-200/90 flex flex-col shrink-0 overflow-y-auto"
+      style={{ width: '160px', borderColor: '#e5e5e5', paddingTop: '6px', paddingBottom: '6px', paddingLeft: '8px', paddingRight: '8px' }}
     >
       {CATEGORY_ORDER.map((cat, catIdx) => {
         const catTabs = groupedTabs[cat] || [];
         if (catTabs.length === 0) return null;
 
         return (
-          <div key={cat} className={catIdx === 0 ? 'mb-3' : 'mt-3 mb-3'}>
+          <div key={cat} className={catIdx === 0 ? 'mb-1.5' : 'mt-1.5 mb-1.5'}>
             <h4
-              className="px-2.5 mb-1 font-bold text-zinc-400 uppercase tracking-wider"
-              style={{ fontSize: '10px', letterSpacing: '0.06em' }}
+              className="px-2 mb-0.5 font-bold text-zinc-400 uppercase tracking-wider"
+              style={{ fontSize: '9px', letterSpacing: '0.06em' }}
             >
               {cat}
             </h4>
@@ -82,12 +82,12 @@ export const SettingsSidebar: React.FC<SettingsSidebarProps> = ({
 
                 return (
                   <Button variant="ghost" size="default" key={tab.id} type="button" onClick={() => onSelectTab(tab.id)}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg font-medium transition-all cursor-pointer text-left leading-tight ${
+                    className={`w-full flex items-center justify-between px-2 py-1 rounded-md font-medium transition-all cursor-pointer text-left leading-tight ${
                       isActive
                         ? 'bg-zinc-100 text-zinc-900 font-semibold shadow-2xs'
                         : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50'
                     }`}
-                    style={{ fontSize: '10px', lineHeight: 1.3, paddingTop: 6, paddingBottom: 6, height: 'auto' }}
+                    style={{ fontSize: '10px', lineHeight: 1.2, paddingTop: 3, paddingBottom: 3, height: 'auto' }}
                   >
                     <div className="flex items-center gap-1.5 min-w-0">
                       <Icon

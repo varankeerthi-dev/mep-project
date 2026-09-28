@@ -5,6 +5,7 @@ import { formatCurrency } from '../../../../utils/formatters';
 import { ITEM_TABLE_COLUMNS } from '../../constants';
 import type { Material } from '../../model/entities';
 import { Button } from '@/components/ui/button';
+import { getItemTypeBadgeClasses, getItemTypeLabel } from '../../model/aggregates/MaterialEditor';
 
 const columnHelper = createColumnHelper<any>();
 
@@ -108,6 +109,20 @@ export function buildColumns(
                 {info.getValue() ? 'Active' : 'Inactive'}
               </Badge>
             ),
+          });
+        case 'item_type':
+          return columnHelper.accessor('item_type', {
+            header: 'Type',
+            cell: (info) => {
+              const type = (info.getValue() as Material['item_type']) || 'product';
+              const label = getItemTypeLabel(type);
+              const classes = getItemTypeBadgeClasses(type);
+              return (
+                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${classes}`} title={label}>
+                  {label}
+                </span>
+              );
+            },
           });
         case 'actions':
           return columnHelper.display({

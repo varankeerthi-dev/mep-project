@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Input } from '../../../../components/ui/input';
 import { EditorSection } from './EditorSection';
@@ -15,21 +15,15 @@ interface CommercialSectionProps {
   };
   onChange: (field: string, value: any) => void;
   usesVariant?: boolean;
+  hsnLabel?: string;
 }
 
-export function CommercialSection({ formData, onChange, usesVariant: propUsesVariant }: CommercialSectionProps) {
+export function CommercialSection({ formData, onChange, usesVariant: propUsesVariant, hsnLabel = 'HSN/SAC Code' }: CommercialSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const sectionRef = useRef<HTMLDivElement>(null);
   const usesVariant = propUsesVariant ?? formData.uses_variant ?? false;
 
-  useEffect(() => {
-    if (!collapsed && sectionRef.current) {
-      sectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [collapsed]);
-
   return (
-    <div ref={sectionRef}>
+    <div>
       <EditorSection
         color="orange"
         title="Commercial / Pricing"
@@ -121,7 +115,7 @@ export function CommercialSection({ formData, onChange, usesVariant: propUsesVar
             </div>
           </div>
           <div className="space-y-3">
-            <label className={fieldLabel}>HSN/SAC Code</label>
+            <label className={fieldLabel}>{hsnLabel}</label>
             <Input
               value={formData.hsn_code}
               onChange={(e) => onChange('hsn_code', e.target.value)}

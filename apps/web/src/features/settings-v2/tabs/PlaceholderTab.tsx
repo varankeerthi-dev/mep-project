@@ -24,7 +24,7 @@ export const PlaceholderTab: React.FC<PlaceholderTabProps> = ({ tab }) => {
             {tab.label} (v2 Module)
           </h4>
           <p className="text-xs text-zinc-500 max-w-md leading-relaxed mb-4">
-            This module is defined in <code className="bg-zinc-200/80 px-1.5 py-0.5 rounded text-zinc-800 font-mono text-[11px]">SETTINGS-UNIFIED-UI-PRD.md</code> under the <strong className="text-zinc-700">{tab.category}</strong> category.
+            This module is defined in <code className="bg-zinc-200/80 px-1.5 py-0.5 rounded text-zinc-800 text-[11px]" style={{ fontFamily: "'Inter', sans-serif" }}>SETTINGS-UNIFIED-UI-PRD.md</code> under the <strong className="text-zinc-700">{tab.category}</strong> category.
           </p>
 
           <div className="inline-flex items-center gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full font-medium">
@@ -40,7 +40,8 @@ export const PlaceholderTab: React.FC<PlaceholderTabProps> = ({ tab }) => {
               {tab.searchIndex.map((kw, i) => (
                 <span
                   key={i}
-                  className="text-[11px] bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded font-mono"
+                  className="text-[11px] bg-white border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
                 >
                   {kw}
                 </span>

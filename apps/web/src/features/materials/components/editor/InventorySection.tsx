@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Input } from '../../../../components/ui/input';
 import { Checkbox } from '../../../../components/ui/checkbox';
 import { EditorSection } from './EditorSection';
@@ -37,19 +37,13 @@ export function InventorySection({
   onStockChange,
 }: InventorySectionProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const sectionRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!collapsed && sectionRef.current) {
-      sectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [collapsed]);
   const combos = usesVariant && stockCombos.length > 0
     ? stockCombos
     : [{ variantId: NO_VARIANT_KEY, make: '' }];
 
   return (
-    <div ref={sectionRef}>
+    <div>
       <EditorSection
         color={color || 'teal'}
         title="Inventory"

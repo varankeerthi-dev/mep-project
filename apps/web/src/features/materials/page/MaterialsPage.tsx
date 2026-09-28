@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { getMaterialsTabFromSearch } from '../shared/constants';
 import { SubTabsNav } from '../../../components/ui/SubTabsNav';
 import { ItemsTab } from './ItemsTab';
-import { ServiceTab } from '../service/ServiceTab';
+import { ServiceRatesTab } from '../service/ServiceRatesTab';
 import { CategoryTab } from '../settings/CategoryTab';
 import { UnitTab } from '../settings/UnitTab';
 import { WarehousesTab } from '../settings/WarehouseTab';
@@ -28,7 +28,7 @@ export default function MaterialsPage() {
 
   const tabs = [
     { id: 'items', label: 'Items', path: '/store/materials?tab=items' },
-    { id: 'service', label: 'Service', path: '/store/materials?tab=service' },
+    { id: 'service-rates', label: 'Service Rates', path: '/store/materials?tab=service-rates' },
     { id: 'category', label: 'Category', path: '/store/materials?tab=category' },
     { id: 'unit', label: 'Unit', path: '/store/materials?tab=unit' },
     { id: 'warehouses', label: 'Warehouses', path: '/store/materials?tab=warehouses' },
@@ -51,7 +51,7 @@ export default function MaterialsPage() {
       />
 
       {activeTab === 'items' && <ItemsTab />}
-      {activeTab === 'service' && <ServiceTab />}
+      {activeTab === 'service-rates' && <ServiceRatesTab />}
       {activeTab === 'category' && <CategoryTab />}
       {activeTab === 'unit' && <UnitTab />}
       {activeTab === 'warehouses' && <WarehousesTab />}

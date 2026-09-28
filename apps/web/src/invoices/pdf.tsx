@@ -9,6 +9,7 @@ import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import { generateSakthiPdf } from '../pdf/sakthiTemplatePdf';
 import {
   getInvoiceById,
+  getInvoiceTerms,
   loadInvoiceSource,
   type InvoiceTemplateRecord,
   type InvoiceWithRelations,
@@ -24,7 +25,7 @@ import type {
   InvoicePdfOptions,
 } from './pdf-types';
 import type { InvoiceSourceDocument } from './types';
-import { getInvoiceDisplayNumber } from './ui-utils';
+import { flattenInvoiceTermsText, getInvoiceDisplayNumber } from './ui-utils';
 
 type InvoiceLike = InvoiceWithRelations | string;
 
@@ -132,7 +133,7 @@ async function getInvoiceCompany(organisationId?: string): Promise<InvoicePdfCom
 
   const { data, error } = await supabase
     .from('organisations')
-    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state')
+    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state, signatures')
     .eq('id', organisationId)
     .maybeSingle();
   if (error) throw error;
@@ -155,6 +156,7 @@ async function getInvoiceCompany(organisationId?: string): Promise<InvoicePdfCom
       data.bank_details && typeof data.bank_details === 'object'
         ? (data.bank_details as any)
         : null,
+    signatures: Array.isArray((data as any).signatures) ? (data as any).signatures : null,
   };
 }
 
@@ -189,14 +191,26 @@ export async function resolveInvoicePdfData(
   const invoice = await resolveInvoice(invoiceInput, orgId);
   const finalOrgId = orgId || invoice.organisation_id;
 
-  const [template, source, company, materials] = await Promise.all([
+  const [template, source, company, materials, termsRow] = await Promise.all([
     options.template !== undefined ? Promise.resolve(options.template) : getInvoiceTemplateById(invoice.template_id, finalOrgId),
     options.source !== undefined
       ? Promise.resolve(options.source)
       : loadInvoiceSource(invoice.source_type, invoice.source_id, finalOrgId).catch(() => null as InvoiceSourceDocument | null),
     options.company !== undefined ? Promise.resolve(options.company) : getInvoiceCompany(finalOrgId),
     getMaterialLines(invoice),
+    getInvoiceTerms(invoice.id, finalOrgId).catch(() => null),
   ]);
+
+  const terms_text = termsRow?.custom_content != null
+    ? (flattenInvoiceTermsText(termsRow.custom_content) || null)
+    : null;
+
+  const signatureList = Array.isArray((company as any)?.signatures)
+    ? (company as any).signatures
+    : [];
+  const signatoryEntry = invoice.authorized_signatory_id
+    ? signatureList.find((s: any) => String(s?.id) === String(invoice.authorized_signatory_id))
+    : null;
 
   return {
     invoice,
@@ -204,6 +218,14 @@ export async function resolveInvoicePdfData(
     source,
     company,
     materials,
+    terms_text,
+    signatory: signatoryEntry
+      ? {
+          id: String(signatoryEntry.id),
+          name: signatoryEntry.name ?? null,
+          url: signatoryEntry.url ?? null,
+        }
+      : null,
   };
 }
 
@@ -238,10 +260,23 @@ export async function generateProGridInvoicePDF(
     client_name: 'Client',
   };
 
+  const termsRow = await getInvoiceTerms(invoice.id, finalOrgId).catch(() => null);
+  const terms_conditions = termsRow?.custom_content != null
+    ? (flattenInvoiceTermsText(termsRow.custom_content) || undefined)
+    : undefined;
+
+  const signatureList = Array.isArray((organisation as any)?.signatures)
+    ? (organisation as any).signatures
+    : [];
+  const signatoryEntry = (invoice as any).authorized_signatory_id
+    ? signatureList.find((s: any) => String(s?.id) === String((invoice as any).authorized_signatory_id))
+    : null;
+
   return pdf(<ProGridInvoiceDocument
-    invoice={invoice as any}
+    invoice={{ ...(invoice as any), terms_conditions } as any}
     organisation={organisation as any}
     client={client as any}
+    signatoryName={signatoryEntry?.name ?? null}
   />).toBlob();
 }
 
@@ -370,7 +405,7 @@ async function renderVerticalInvoicePdf(
       po_date: data.source?.header?.po_date,
       eway_bill: data.invoice.eway_bill_number,
       reference: data.invoice.reference,
-      terms_conditions: data.invoice.terms,
+      terms_conditions: data.terms_text ?? (data.invoice as any).terms ?? null,
     };
 
     flushSync(() => {

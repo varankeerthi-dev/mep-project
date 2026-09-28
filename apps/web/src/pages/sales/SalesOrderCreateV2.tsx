@@ -172,6 +172,7 @@ import {
   sharedStyles,
 } from '../../components/document-editor';
 import { User, FileText, Briefcase, Search } from 'lucide-react';
+import { useCreateSalesOrder, useUpdateSalesOrder } from './hooks';
 import { formatCurrency } from '../../utils/formatters';
 
 interface LineItem {
@@ -325,6 +326,29 @@ export default function SalesOrderCreateV2({ editMode = false }: { editMode?: bo
   }, [quotationId, orgId]);
 
   useEffect(() => { if (!orgId || editMode) return; const getSoNumber = async () => { const { data, error } = await supabase.rpc('generate_sales_order_no', { p_org_id: orgId }); if (!error && data) setSoNo(data); }; getSoNumber(); }, [orgId, editMode]);
+
+  const { data: soDefaults } = useQuery({
+    queryKey: ['so-defaults', orgId],
+    queryFn: async () => {
+      if (!orgId) return {};
+      const { data } = await supabase
+        .from('settings')
+        .select('key, value')
+        .eq('organisation_id', orgId)
+        .in('key', ['so_default_payment_terms']);
+      const map: Record<string, string> = {};
+      (data || []).forEach((r: any) => { map[r.key] = r.value; });
+      return map;
+    },
+    enabled: !!orgId,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (quotationId || editId) return;
+    const configured = (soDefaults as any)?.so_default_payment_terms;
+    if (configured && payment === 'Net 30 Days') setPayment(configured);
+  }, [soDefaults, quotationId, editId]);
 
   useEffect(() => {
     if (!editId || !orgId) return;
@@ -604,69 +628,8 @@ export default function SalesOrderCreateV2({ editMode = false }: { editMode?: bo
     setItems(items.map((item, i) => { if (i !== index) return item; const next = { ...item, ...patch }; if (patch.item_id) { const mat = materials.find((m: any) => m.id === patch.item_id); if (mat) { next.uom = mat.uom || 'nos'; next.variant_id = null; next.make = ''; next.rate = mat.default_sales_rate || 0; next.hsn_code = mat.hsn_code || ''; if (mat.gst_rate !== null && mat.gst_rate !== undefined) next.tax_percent = parseFloat(mat.gst_rate) || 0; } } if ((patch as any).discount_percent !== undefined) next.is_override = true; return next; }));
   };
 
-  const handleUpdate = async () => {
-    const { error: headErr } = await supabase.from('sales_orders').update({
-      client_id: clientId,
-      project_id: projectId || null,
-      client_po_id: clientPoId || null,
-      order_date: orderDate,
-      delivery_date: deliveryDate || null,
-      billing_address: billingAddress,
-      shipping_address: shippingAddress,
-      gstin,
-      state,
-      remarks,
-      terms_conditions: terms || null,
-      authorized_signatory_id: authorizedSignatoryId || null,
-      subtotal: totals.subtotal,
-      tax_amount: totals.itemTax,
-      grand_total: totals.grandTotal,
-    }).eq('id', editId);
-    if (headErr) throw headErr;
-    const { data: existing } = await supabase.from('sales_order_items').select('id').eq('sales_order_id', editId);
-    const existingIds = new Set((existing || []).map((r: any) => r.id));
-    const keepIds = new Set(items.filter((i: any) => (i as any).id).map((i: any) => (i as any).id));
-    const removed = [...existingIds].filter((x) => !keepIds.has(x));
-    if (removed.length > 0) {
-      await supabase.from('sales_order_reservations').delete().in('sales_order_item_id', removed);
-      const { error: delErr } = await supabase.from('sales_order_items').delete().in('id', removed);
-      if (delErr) throw delErr;
-    }
-    for (const item of items) {
-      if ((item as any).id) {
-        const { id: _drop, hsn_code: _h, is_override: _o, ...fields } = item as any;
-        const { error } = await supabase
-          .from('sales_order_items')
-          .update({ ...fields, variant_id: item.variant_id || null, make: item.make || null })
-          .eq('id', (item as any).id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('sales_order_items').insert({
-          sales_order_id: editId,
-          item_id: item.item_id,
-          variant_id: item.variant_id || null,
-          make: item.make || null,
-          description: item.description,
-          qty: item.qty,
-          uom: item.uom,
-          rate: item.rate,
-          discount_percent: item.discount_percent,
-          tax_percent: item.tax_percent,
-          line_total: item.line_total,
-        });
-        if (error) throw error;
-      }
-    }
-    supabase.from('sales_order_activity_log').insert({
-      organisation_id: orgId,
-      sales_order_id: editId,
-      event_type: 'edited',
-      summary: { sales_order_no: soNo, total: totals.grandTotal },
-      created_by: (user as any)?.id || null,
-    }).then(({ error }: any) => { if (error) console.warn('SO activity log write failed:', error.message); });
-    toast.success('Sales Order updated successfully');
-    navigate('/sales-orders');
-  };
+  const createMutation = useCreateSalesOrder();
+  const updateMutation = useUpdateSalesOrder();
 
   const handleSave = async () => {
     if (!orgId) return;
@@ -675,33 +638,44 @@ export default function SalesOrderCreateV2({ editMode = false }: { editMode?: bo
     if (items.some((item) => !item.item_id || item.qty <= 0 || item.rate <= 0)) { toast.error('All line items must have a valid product, quantity, and rate'); return; }
     try {
       setSaving(true);
-      if (editId) { await handleUpdate(); return; }
-      const soHeader = { sales_order_no: soNo, client_id: clientId, project_id: projectId || null, quotation_id: quotationId || null, quotation_no: quoteNo || null, converted_at: quotationId ? new Date().toISOString() : null, client_po_id: clientPoId || null, order_date: orderDate, delivery_date: deliveryDate || null, billing_address: billingAddress, shipping_address: shippingAddress, gstin, state, remarks, terms_conditions: terms || null, authorized_signatory_id: authorizedSignatoryId || null, subtotal: totals.subtotal, tax_amount: totals.itemTax, grand_total: totals.grandTotal, status: 'draft', organisation_id: orgId };
-      const { data: savedSo, error: soError } = await supabase.from('sales_orders').insert(soHeader).select().single();
-      if (soError || !savedSo) throw soError;
-      const soItems = items.map((item) => ({ sales_order_id: savedSo.id, item_id: item.item_id, variant_id: item.variant_id || null, make: item.make || null, description: item.description, qty: item.qty, uom: item.uom, rate: item.rate, discount_percent: item.discount_percent, tax_percent: item.tax_percent, line_total: item.line_total }));
-      const { error: itemsError } = await supabase.from('sales_order_items').insert(soItems);
-      if (itemsError) throw itemsError;
-      supabase.from('sales_order_activity_log').insert({
-        organisation_id: orgId,
-        sales_order_id: savedSo.id,
-        event_type: 'created',
-        summary: {
-          sales_order_no: soNo,
-          total: totals.grandTotal,
-          ...(quotationId ? { converted_from_quotation: quotationId, quotation_no: quoteNo || null } : {}),
-        },
-        created_by: (user as any)?.id || null,
-      }).then(({ error }: any) => { if (error) console.warn('SO activity log write failed:', error.message); });
-      if (quotationId) {
-        supabase.from('quotation_activity_log').insert({
-          organisation_id: orgId,
-          quotation_id: quotationId,
-          event_type: 'converted',
-          summary: { sales_order_id: savedSo.id, sales_order_no: soNo, total: totals.grandTotal },
-          created_by: (user as any)?.id || null,
-        }).then(({ error }: any) => { if (error) console.warn('Quotation activity log write failed:', error.message); });
+      const userId = (user as any)?.id || null;
+      if (editId) {
+        await updateMutation.mutateAsync({
+          orderId: editId,
+          orgId,
+          userId,
+          soNo,
+          header: {
+            client_id: clientId,
+            project_id: projectId || null,
+            client_po_id: clientPoId || null,
+            order_date: orderDate,
+            delivery_date: deliveryDate || null,
+            billing_address: billingAddress,
+            shipping_address: shippingAddress,
+            gstin,
+            state,
+            remarks,
+            terms_conditions: terms || null,
+            authorized_signatory_id: authorizedSignatoryId || null,
+            subtotal: totals.subtotal,
+            tax_amount: totals.itemTax,
+            grand_total: totals.grandTotal,
+          },
+          items: items as any,
+        });
+        toast.success('Sales Order updated successfully');
+        navigate('/sales-orders');
+        return;
       }
+      await createMutation.mutateAsync({
+        orgId,
+        userId,
+        header: { sales_order_no: soNo, client_id: clientId, project_id: projectId || null, quotation_id: quotationId || null, quotation_no: quoteNo || null, converted_at: quotationId ? new Date().toISOString() : null, client_po_id: clientPoId || null, order_date: orderDate, delivery_date: deliveryDate || null, billing_address: billingAddress, shipping_address: shippingAddress, gstin, state, remarks, terms_conditions: terms || null, authorized_signatory_id: authorizedSignatoryId || null, subtotal: totals.subtotal, tax_amount: totals.itemTax, grand_total: totals.grandTotal, status: 'draft', organisation_id: orgId },
+        items: items as any,
+        quotationId,
+        quoteNo,
+      });
       toast.success('Sales Order created successfully');
       navigate('/sales-orders');
     } catch (err: any) { toast.error(err.message || 'Failed to save Sales Order'); } finally { setSaving(false); }

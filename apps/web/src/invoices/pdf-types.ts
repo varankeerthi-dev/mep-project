@@ -20,6 +20,11 @@ export interface InvoicePdfCompany {
     ifsc?: string | null;
     branch?: string | null;
   } | null;
+  signatures?: Array<{
+    id: string;
+    name?: string | null;
+    url?: string | null;
+  }> | null;
 }
 
 export interface InvoicePdfMaterialLine {
@@ -28,12 +33,20 @@ export interface InvoicePdfMaterialLine {
   qty_used: number;
 }
 
+export interface InvoicePdfSignatory {
+  id: string;
+  name: string | null;
+  url: string | null;
+}
+
 export interface InvoicePdfData {
   invoice: InvoiceWithRelations;
   company: InvoicePdfCompany | null;
   template: InvoiceTemplateRecord | null;
   source: InvoiceSourceDocument | null;
   materials: InvoicePdfMaterialLine[];
+  terms_text: string | null;
+  signatory: InvoicePdfSignatory | null;
 }
 
 export interface InvoicePdfOptions {

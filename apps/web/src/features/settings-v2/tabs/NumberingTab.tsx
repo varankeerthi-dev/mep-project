@@ -288,7 +288,7 @@ export const NumberingTab: React.FC<NumberingTabProps> = ({
                 <span className="text-xs font-bold text-zinc-900 uppercase tracking-wide">
                   {s.label}
                 </span>
-                <span className="text-xs font-mono font-semibold bg-zinc-100 text-[#185FA5] px-2.5 py-1 rounded border border-zinc-200">
+                <span className="text-xs font-semibold bg-zinc-100 text-[#185FA5] px-2.5 py-1 rounded border border-zinc-200" style={{ fontFamily: "'Inter', sans-serif" }}>
                   Preview: {getPreview(s)}
                 </span>
               </div>

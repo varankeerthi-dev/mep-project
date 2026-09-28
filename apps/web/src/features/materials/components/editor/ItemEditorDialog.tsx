@@ -12,9 +12,10 @@ import { ClientSection } from './ClientSection';
 import { selectField, primaryButton, secondaryButton } from './formStyles';
 import { Boxes, Layers, Wrench, ShoppingCart, Building2, Briefcase, Check, ChevronLeft, Save, FileText, Landmark } from 'lucide-react';
 import { Switch } from '../../../../components/ui/switch';
-import type { MaterialEditorFormData, VariantPricingRow, WarehouseStockMap, VendorMappingRow, ClientMappingRow, ClientPricingRow, AccountingTreatmentOption } from '../../model/aggregates';
-import { variantStockCombos, ACCOUNTING_TREATMENT_OPTIONS } from '../../model/aggregates';
+import type { MaterialEditorFormData, VariantPricingRow, WarehouseStockMap, VendorMappingRow, ClientMappingRow, ClientPricingRow, AccountingTreatmentOption, ItemTypeConfig } from '../../model/aggregates';
+import { variantStockCombos, ACCOUNTING_TREATMENT_OPTIONS, getItemTypeConfig, MATERIAL_TYPES } from '../../model/aggregates';
 import type { Warehouse, Vendor as VendorType, Client, MaterialCustomAttribute, AttributeDefinition } from '../../model/entities';
+import { generateItemCode } from '../../lib/generateItemCode';
 
 const TREATMENT_ICONS: Record<string, any> = {
   INVENTORY_STOCK: ShoppingCart,
@@ -126,9 +127,63 @@ export function ItemEditorDialog({
     onSubmit(e);
   };
 
+  const typeConfig = getItemTypeConfig(formData.item_type || 'product');
+
+  const handleItemTypeChange = (newType: 'product' | 'service' | 'kit') => {
+    const config = getItemTypeConfig(newType);
+    handleChange('item_type', newType);
+
+    if (newType === 'service') {
+      const needsCodeReset = !formData.item_code || formData.item_code === '' || formData.item_code.startsWith('ITEM-');
+      handleChange('accounting_treatment', config.defaultAccountingTreatment);
+      handleChange('item_classification', config.defaultItemClassification);
+      handleChange('uses_variant', false);
+      handleChange('track_inventory', false);
+      if (needsCodeReset) {
+        handleChange('item_code', generateItemCode(config.codePrefix));
+      }
+    } else if (newType === 'product') {
+      handleChange('accounting_treatment', 'INVENTORY_STOCK');
+      handleChange('item_classification', 'STOCK_IN_TRADE');
+    } else if (newType === 'kit') {
+      handleChange('accounting_treatment', 'INVENTORY_STOCK');
+      handleChange('item_classification', 'STOCK_IN_TRADE');
+    }
+  };
+
   // ── Shared form body ─────────────────────────────────────────────────────
   const formBody = (
     <form id="item-form" onSubmit={handleSubmit} className="space-y-6">
+      {/* Item Type Selector — full width */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="md:col-span-3">
+          <label className="block text-xs font-semibold text-slate-700 mb-2">Item Type</label>
+          <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200">
+            {(Object.keys(MATERIAL_TYPES) as Array<keyof typeof MATERIAL_TYPES>).map((key) => {
+              const typeValue = MATERIAL_TYPES[key].toLowerCase() as MaterialEditorFormData['item_type'];
+              const isSelected = (formData.item_type || 'product') === typeValue;
+              return (
+                <button
+                  key={typeValue}
+                  type="button"
+                  onClick={() => handleItemTypeChange(typeValue)}
+                  className={`inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                    isSelected
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {MATERIAL_TYPES[key]}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1.5 text-[11px] text-slate-500">
+            {formData.item_type === 'service' ? 'Service items skip inventory, warehouse, and variant fields.' : formData.item_type === 'kit' ? 'Kits bundle items for quotation/BOQ.' : 'Physical goods tracked in inventory.'}
+          </p>
+        </div>
+      </div>
+
       {/* Item Classification — full width */}
       {/* 1. Accounting Treatment & Item Classification — full width */}
       <EditorSection
@@ -198,6 +253,7 @@ export function ItemEditorDialog({
         </div>
 
         {/* General Ledger Account Overrides (Zoho Books pattern) */}
+        {typeConfig.showAccountingTreatment && (
         <div className="mt-6 border-t border-slate-100 pt-5">
           <div className="flex items-center gap-2 mb-3">
             <Landmark className="h-4 w-4 text-indigo-600" />
@@ -328,12 +384,13 @@ export function ItemEditorDialog({
                     onChange={(e) => handleChange('useful_life_years', e.target.value)}
                     placeholder="e.g. 5"
                   />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </EditorSection>
+                 </div>
+               </div>
+             </div>
+           )}
+         </div>
+         )}
+       </EditorSection>
 
       {/* Row: 2. Basic Information + 3. Technical Attributes — two-column */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -362,6 +419,7 @@ export function ItemEditorDialog({
           formData={formData}
           onChange={handleChange}
           usesVariant={formData.uses_variant}
+          hsnLabel={typeConfig.hsnLabel}
         />
         <EditorSection color="blue" title="Discount Category" description="Choose a discount category for this item (used in quotations).">
           <div className="space-y-3">
@@ -383,6 +441,7 @@ export function ItemEditorDialog({
       </div>
 
       {/* Warranty & Serial Tracking */}
+      {typeConfig.showWarranty && (
       <EditorSection color="orange" title="Warranty & Serial Tracking" description="Configure warranty and serial number tracking for this item.">
         <div className="space-y-4">
           <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
@@ -453,8 +512,10 @@ export function ItemEditorDialog({
           )}
         </div>
       </EditorSection>
+      )}
 
       {/* Row: 8. Variant Pricing + Inventory — two-column */}
+      {(typeConfig.showVariantPricing || typeConfig.showInventory) && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <VariantPricingSection
           number={8}
@@ -479,8 +540,10 @@ export function ItemEditorDialog({
           onStockChange={onStockChange}
         />
       </div>
+      )}
 
       {/* 9. Purchase & Vendor Mapping */}
+      {typeConfig.showVendorMapping && (
       <VendorSection
         number={9}
         vendorMappings={vendorMappings}
@@ -491,8 +554,10 @@ export function ItemEditorDialog({
         onRemoveRow={onRemoveVendorRow}
         onRowChange={onVendorRowChange}
       />
+      )}
 
       {/* 10. Client Mapping — collapsed */}
+      {typeConfig.showClientMapping && (
       <ClientSection
         number={10}
         clientMappings={clientMappings}
@@ -509,11 +574,14 @@ export function ItemEditorDialog({
         onClientPricingRowChange={onClientPricingRowChange}
         onShowPricingHistory={onShowPricingHistory}
       />
+      )}
 
       {/* 11. Additional Information — collapsed */}
+      {typeConfig.showAdditionalInfo && (
       <EditorSection color="slate" title="Additional Information" description="Barcodes, documents, notes and other custom fields." expanded={false}>
         <p className="text-sm text-[#6B7280]">Additional fields will appear here once configured.</p>
       </EditorSection>
+      )}
     </form>
   );
 

@@ -13,7 +13,7 @@ export const SettingsContent: React.FC<SettingsContentProps> = ({
 }) => {
   return (
     <main
-      className="flex-1 bg-zinc-50/50 min-h-screen overflow-y-auto pb-24 sv-content"
+      className="flex-1 bg-white min-h-screen overflow-y-auto pb-24 sv-content"
       style={{
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       }}

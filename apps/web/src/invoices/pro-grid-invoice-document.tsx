@@ -232,6 +232,12 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: '#64748b',
   },
+  signatureName: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    color: '#0f172a',
+    marginTop: 2,
+  },
   termsSection: {
     marginTop: 10,
     padding: 8,
@@ -301,12 +307,14 @@ interface ProGridInvoiceDocumentProps {
     state?: string;
     billing_address?: string;
   };
+  signatoryName?: string | null;
 }
 
 export const ProGridInvoiceDocument: React.FC<ProGridInvoiceDocumentProps> = ({
   invoice,
   organisation,
   client,
+  signatoryName,
 }) => {
   const items = invoice.invoice_items || [];
   const subtotal = items.reduce((sum, item) => sum + (item.amount || 0), 0);
@@ -318,6 +326,17 @@ export const ProGridInvoiceDocument: React.FC<ProGridInvoiceDocumentProps> = ({
   const roundedTotal = Math.round(grandTotal);
 
   const formatCurrency = (amount: number) => `₹${amount.toFixed(2)}`;
+
+  // Group subtotals: sum of normal-row amounts since the last header row.
+  const groupSums: Record<number, number> = {};
+  {
+    let running = 0;
+    items.forEach((row: any, idx: number) => {
+      if (row.is_header) { running = 0; return; }
+      if (row.is_subtotal) { groupSums[idx] = running; return; }
+      running += row.amount || 0;
+    });
+  }
 
   const formatDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return '-';
@@ -431,7 +450,23 @@ export const ProGridInvoiceDocument: React.FC<ProGridInvoiceDocumentProps> = ({
             <Text style={[styles.tableHeaderText, { width: colWidths.igst }]}>IGST</Text>
             <Text style={[styles.tableHeaderText, { width: colWidths.total }]}>Total</Text>
           </View>
-          {items.map((item, index) => (
+          {items.map((item: any, index) => {
+            if (item.is_header || item.is_subtotal) {
+              return (
+                <View
+                  key={item.id || index}
+                  style={[styles.tableRow, { backgroundColor: item.is_header ? '#eef2ff' : '#f8fafc' }]}
+                >
+                  <Text style={[styles.tableCell, { width: colWidths.sno }]}>{index + 1}</Text>
+                  <Text style={{ flex: 1, fontSize: 9, fontFamily: 'Helvetica-Bold', padding: 4 }}>
+                    {item.is_header
+                      ? item.description
+                      : `${item.subtotal_label || item.description || 'Subtotal'}: ₹${(groupSums[index] ?? 0).toFixed(2)}`}
+                  </Text>
+                </View>
+              );
+            }
+            return (
             <View key={item.id || index} style={styles.tableRow}>
               <Text style={[styles.tableCell, { width: colWidths.sno }]}>{index + 1}</Text>
               <Text style={[styles.descriptionCell, { width: colWidths.description }]}>
@@ -457,7 +492,8 @@ export const ProGridInvoiceDocument: React.FC<ProGridInvoiceDocumentProps> = ({
                 )}
               </Text>
             </View>
-          ))}
+            );
+          })}
         </View>
 
         {/* Summary */}
@@ -508,13 +544,14 @@ export const ProGridInvoiceDocument: React.FC<ProGridInvoiceDocumentProps> = ({
         {/* Terms & Conditions */}
         <View style={styles.termsSection}>
           <Text style={styles.termsTitle}>Terms & Conditions</Text>
-          {terms.map((term, i) => (
-            <Text key={i} style={styles.termsList}>
-              {i + 1}. {term}
-            </Text>
-          ))}
-          {invoice.terms_conditions && (
+          {invoice.terms_conditions ? (
             <Text style={styles.termsList}>{invoice.terms_conditions}</Text>
+          ) : (
+            terms.map((term, i) => (
+              <Text key={i} style={styles.termsList}>
+                {i + 1}. {term}
+              </Text>
+            ))
           )}
         </View>
 
@@ -538,6 +575,9 @@ export const ProGridInvoiceDocument: React.FC<ProGridInvoiceDocumentProps> = ({
           <View style={styles.signatureBox}>
             <View style={styles.signatureLine}>
               <Text style={styles.signatureLabel}>Authorised Signatory</Text>
+              {signatoryName ? (
+                <Text style={styles.signatureName}>{signatoryName}</Text>
+              ) : null}
             </View>
           </View>
           <View style={styles.signatureBox}>

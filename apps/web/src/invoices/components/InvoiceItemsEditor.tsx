@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { FieldArrayWithId, UseFieldArrayAppend, UseFieldArrayRemove, UseFormRegister, UseFormSetValue } from 'react-hook-form';
-import { Plus, X, GripVertical } from 'lucide-react';
+import { Plus, X, GripVertical, Copy } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import type { UseFieldArrayInsert } from 'react-hook-form';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { createPortal } from 'react-dom';
@@ -18,6 +19,7 @@ type InvoiceItemsEditorProps = {
   items: InvoiceEditorFormValues['items'];
   register: UseFormRegister<InvoiceEditorFormValues>;
   append: UseFieldArrayAppend<InvoiceEditorFormValues, 'items'>;
+  insert?: UseFieldArrayInsert<InvoiceEditorFormValues, 'items'>;
   remove: UseFieldArrayRemove;
   move: (from: number, to: number) => void;
   mode: InvoiceEditorFormValues['mode'];
@@ -56,11 +58,62 @@ function SortableRow({ children, id, index }: { children: React.ReactNode; id: s
   );
 }
 
+type ItemColumnKey = 'hsn' | 'make' | 'variant' | 'warehouse' | 'stock' | 'custom1' | 'custom2';
+
+const ITEM_COLUMNS_STORAGE_KEY = 'invoice-items-columns-v1';
+
+const DEFAULT_ITEM_COLUMNS: Record<ItemColumnKey, boolean> = {
+  hsn: true,
+  make: true,
+  variant: true,
+  warehouse: true,
+  stock: true,
+  custom1: false,
+  custom2: false,
+};
+
+const ITEM_COLUMN_LABELS: Record<ItemColumnKey, string> = {
+  hsn: 'HSN',
+  make: 'Make',
+  variant: 'Variant',
+  warehouse: 'Warehouse',
+  stock: 'Stock',
+  custom1: 'Custom 1',
+  custom2: 'Custom 2',
+};
+
+const miniActionStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '4px',
+  border: 'none',
+  background: 'transparent',
+  color: '#525252',
+  cursor: 'pointer',
+  borderRadius: '2px',
+};
+
+const toolbarBtnStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '4px',
+  padding: '4px 8px',
+  border: '1px solid #d4d4d4',
+  borderRadius: '4px',
+  background: '#fff',
+  fontSize: '11px',
+  fontWeight: 600,
+  color: '#525252',
+  cursor: 'pointer',
+};
+
 export function InvoiceItemsEditor({
   fields,
   items,
   register,
   append,
+  insert,
   remove,
   move,
   mode,
@@ -121,6 +174,108 @@ export function InvoiceItemsEditor({
         move(oldIndex, newIndex);
       }
     }
+  };
+
+  // ── Column visibility (persisted per browser) ──
+  const [visibleCols, setVisibleCols] = useState<Record<ItemColumnKey, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(ITEM_COLUMNS_STORAGE_KEY);
+      if (raw) return { ...DEFAULT_ITEM_COLUMNS, ...JSON.parse(raw) };
+    } catch { /* ignore corrupt prefs */ }
+    return DEFAULT_ITEM_COLUMNS;
+  });
+  const [columnsOpen, setColumnsOpen] = useState(false);
+
+  const toggleColumn = useCallback((key: ItemColumnKey) => {
+    setVisibleCols((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem(ITEM_COLUMNS_STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  // Columns between # and actions, for structural-row colSpan and tfoot math.
+  // Order: grip, #, MATERIAL, [HSN], ITEM, [MAKE], [VARIANT], [WAREHOUSE], [STOCK],
+  // QTY, UNIT, RATE, DISC, RATE_AFTER, [ARC], GST, [custom], [C1], [C2], AMOUNT, actions.
+  const leadingCols =
+    3 + (visibleCols.hsn ? 1 : 0) + 1 +
+    (visibleCols.make ? 1 : 0) + (visibleCols.variant ? 1 : 0) +
+    (visibleCols.warehouse ? 1 : 0) + (visibleCols.stock ? 1 : 0);
+  const trailingCols =
+    4 + (useArcPricing ? 1 : 0) + 1 +
+    (showCustomColumn ? 1 : 0) + (visibleCols.custom1 ? 1 : 0) + (visibleCols.custom2 ? 1 : 0);
+  const dataSpan = leadingCols + trailingCols;
+
+  // ── Group subtotals: sum of normal rows since the last header row ──
+  const groupSubtotals = useMemo(() => {
+    const sums: Record<number, number> = {};
+    let running = 0;
+    items.forEach((row: any, idx: number) => {
+      if (row?.is_header) { running = 0; return; }
+      if (row?.is_subtotal) { sums[idx] = round2(running); return; }
+      const qty = Number(row?.qty) || 0;
+      const rate = Number(row?.rate) || 0;
+      const disc = Number(row?.discount_percent) || 0;
+      running += round2(qty * (rate - (rate * disc) / 100));
+    });
+    return sums;
+  }, [items]);
+
+  // ── Bulk selection (keyed by stable field id, survives reorder) ──
+  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
+  const [bulkDiscount, setBulkDiscount] = useState('');
+  const selectedCount = fields.filter((f) => selectedIds[f.id]).length;
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      const allSelected = fields.length > 0 && fields.every((f) => prev[f.id]);
+      if (allSelected) return {};
+      const next: Record<string, boolean> = {};
+      fields.forEach((f) => { next[f.id] = true; });
+      return next;
+    });
+  };
+
+  const insertRowBelow = (index: number) => {
+    if (insert) insert(index + 1, createEmptyItem());
+    else append(createEmptyItem());
+  };
+
+  const duplicateRow = (index: number) => {
+    const source = items[index];
+    if (!source) return;
+    const copy = JSON.parse(JSON.stringify(source));
+    delete (copy as any).id;
+    if (insert) insert(index + 1, copy);
+    else append(copy);
+  };
+
+  const deleteSelectedRows = () => {
+    const indices = fields
+      .map((f, idx) => (selectedIds[f.id] ? idx : -1))
+      .filter((idx) => idx >= 0)
+      .sort((a, b) => b - a);
+    if (indices.length === 0) return;
+    remove(indices);
+    setSelectedIds({});
+  };
+
+  const applyBulkDiscount = () => {
+    const percent = Math.max(0, Math.min(100, parseFloat(bulkDiscount) || 0));
+    fields.forEach((f, idx) => {
+      if (!selectedIds[f.id] || !setValue) return;
+      const current: any = items[idx];
+      if (!current || current.is_header || current.is_subtotal) return;
+      const baseRate = Number(current.meta_json?.base_rate ?? current.rate) || 0;
+      const rateAfterDiscount = baseRate - (baseRate * percent / 100);
+      const roundedRate = roundOffEnabled ? Math.round(rateAfterDiscount) : rateAfterDiscount;
+      const qty = Number(current.qty || 0);
+      setValue(`items.${idx}.discount_percent`, percent, { shouldDirty: true });
+      setValue(`items.${idx}.rate`, roundedRate, { shouldDirty: true });
+      setValue(`items.${idx}.meta_json.rate_after_discount`, roundedRate, { shouldDirty: true });
+      setValue(`items.${idx}.amount`, round2(qty * roundedRate), { shouldDirty: true });
+    });
+    setBulkDiscount('');
   };
 
   const handleSearchChange = useCallback((index: number, value: string) => {
@@ -576,9 +731,56 @@ export function InvoiceItemsEditor({
           borderBottom: '1px solid #d4d4d4'
         }}>
           <span style={{ fontSize: '12px', fontWeight: 600, color: '#171717' }}>
-            Line Items
+            Line Items{selectedCount > 0 ? ` (${selectedCount} selected)` : ''}
           </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ position: 'relative' }}>
+              <button type="button" onClick={() => setColumnsOpen((o) => !o)} style={toolbarBtnStyle} title="Show or hide columns">
+                Columns
+              </button>
+              {columnsOpen && (
+                <div style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: '100%',
+                  marginTop: '4px',
+                  background: '#fff',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                  zIndex: 50,
+                  padding: '8px',
+                  minWidth: '160px',
+                }}>
+                  {(Object.keys(ITEM_COLUMN_LABELS) as ItemColumnKey[]).map((key) => (
+                    <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#171717', padding: '4px 2px', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={visibleCols[key]} onChange={() => toggleColumn(key)} />
+                      {ITEM_COLUMN_LABELS[key]}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           {mode !== 'lot' && (
+            <>
+            <button
+              type="button"
+              title="Add section header row"
+              onClick={() => append(createEmptyItem({ description: 'New Section', qty: 0, rate: 0, amount: 0, is_header: true }))}
+              style={toolbarBtnStyle}
+            >
+              <Plus size={12} />
+              Section
+            </button>
+            <button
+              type="button"
+              title="Add subtotal row"
+              onClick={() => append(createEmptyItem({ description: 'Subtotal', qty: 0, rate: 0, amount: 0, is_subtotal: true, subtotal_label: 'Subtotal' }))}
+              style={toolbarBtnStyle}
+            >
+              <Plus size={12} />
+              Subtotal
+            </button>
             <Button variant="default" size="default" type="button" onClick={() => append(createEmptyItem())}
               style={{
                 display: 'inline-flex',
@@ -597,7 +799,41 @@ export function InvoiceItemsEditor({
               <Plus size={12} />
               Add
             </Button>
+            </>
           )}
+          </div>
+        </div>
+      )}
+      {selectedCount > 0 && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '6px 12px',
+          background: '#eff6ff',
+          borderBottom: '1px solid #d4d4d4',
+          fontSize: '11px',
+        }}>
+          <span style={{ fontWeight: 600, color: '#1d4ed8' }}>{selectedCount} selected</span>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step="0.01"
+            value={bulkDiscount}
+            onChange={(e) => setBulkDiscount(e.target.value)}
+            placeholder="Disc %"
+            style={{ width: '70px', padding: '3px 6px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '11px' }}
+          />
+          <button type="button" onClick={applyBulkDiscount} style={toolbarBtnStyle}>
+            Apply Disc
+          </button>
+          <button type="button" onClick={deleteSelectedRows} style={{ ...toolbarBtnStyle, color: '#dc2626' }}>
+            Delete
+          </button>
+          <button type="button" onClick={() => setSelectedIds({})} style={toolbarBtnStyle}>
+            Clear
+          </button>
         </div>
       )}
 
@@ -616,8 +852,16 @@ export function InvoiceItemsEditor({
                 textTransform: 'uppercase',
                 letterSpacing: '0.03em',
                 color: '#737373',
-                width: '32px'
-              }} />
+                width: '44px'
+              }}>
+                <input
+                  type="checkbox"
+                  title="Select all rows"
+                  checked={fields.length > 0 && fields.every((f) => selectedIds[f.id])}
+                  onChange={toggleSelectAll}
+                  style={{ cursor: 'pointer' }}
+                />
+              </th>
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'center', 
@@ -658,6 +902,7 @@ export function InvoiceItemsEditor({
                   MATERIAL
                 </th>
               )}
+              {visibleCols.hsn && (
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'left', 
@@ -670,6 +915,7 @@ export function InvoiceItemsEditor({
               }}>
                 HSN
               </th>
+              )}
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'left', 
@@ -682,6 +928,7 @@ export function InvoiceItemsEditor({
               }}>
                 ITEM
               </th>
+              {visibleCols.make && (
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'left', 
@@ -694,6 +941,8 @@ export function InvoiceItemsEditor({
               }}>
                 MAKE
               </th>
+              )}
+              {visibleCols.variant && (
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'left', 
@@ -706,6 +955,8 @@ export function InvoiceItemsEditor({
               }}>
                 VARIANT
               </th>
+              )}
+              {visibleCols.warehouse && (
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'left', 
@@ -718,6 +969,8 @@ export function InvoiceItemsEditor({
               }}>
                 WAREHOUSE
               </th>
+              )}
+              {visibleCols.stock && (
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'right', 
@@ -730,6 +983,7 @@ export function InvoiceItemsEditor({
               }}>
                 STOCK
               </th>
+              )}
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'right', 
@@ -831,6 +1085,34 @@ export function InvoiceItemsEditor({
                   {extraColumnLabel}
                 </th>
               )}
+              {visibleCols.custom1 && (
+                <th style={{ 
+                  padding: '6px 4px', 
+                  textAlign: 'left', 
+                  fontSize: '10px', 
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.03em',
+                  color: '#737373',
+                  width: '80px'
+                }}>
+                  CUSTOM 1
+                </th>
+              )}
+              {visibleCols.custom2 && (
+                <th style={{ 
+                  padding: '6px 4px', 
+                  textAlign: 'left', 
+                  fontSize: '10px', 
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.03em',
+                  color: '#737373',
+                  width: '80px'
+                }}>
+                  CUSTOM 2
+                </th>
+              )}
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'right', 
@@ -856,11 +1138,120 @@ export function InvoiceItemsEditor({
                   const baseRate = Number(item.rate || 0);
                   const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
                   const amount = round2((Number(item.qty) || 0) * rateAfterDiscount);
+                  const isHeaderRow = Boolean((item as any).is_header);
+                  const isSubtotalRow = Boolean((item as any).is_subtotal);
+
+                  // ── Section header / subtotal rows: full-width structural row ──
+                  if (isHeaderRow || isSubtotalRow) {
+                    return (
+                      <SortableRow key={field.id} id={field.id} index={index}>
+                        <td style={{ padding: '4px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                            <input
+                              type="checkbox"
+                              title="Select row"
+                              checked={Boolean(selectedIds[field.id])}
+                              onChange={() => setSelectedIds((prev) => ({ ...prev, [field.id]: !prev[field.id] }))}
+                              style={{ cursor: 'pointer' }}
+                            />
+                            <span style={{ cursor: 'grab', display: 'inline-flex' }}>
+                              <GripVertical size={14} style={{ color: '#a3a3a3' }} />
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '4px', textAlign: 'center' }}>
+                          <span style={{ fontSize: '11px', color: '#737373' }}>{index + 1}</span>
+                        </td>
+                        <td
+                          colSpan={dataSpan}
+                          style={{
+                            padding: '4px 8px',
+                            background: isHeaderRow ? '#eef2ff' : '#f5f5f5',
+                            borderLeft: isHeaderRow ? '3px solid #3b82f6' : '3px solid #a3a3a3',
+                          }}
+                        >
+                          {isHeaderRow ? (
+                            <input
+                              {...register(`items.${index}.description`)}
+                              placeholder="Section title"
+                              style={{
+                                width: '100%',
+                                padding: '4px 6px',
+                                border: '1px solid transparent',
+                                borderRadius: '2px',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                color: '#1d4ed8',
+                                background: 'transparent',
+                              }}
+                              onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                              onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                            />
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <input
+                                {...register(`items.${index}.subtotal_label`)}
+                                placeholder="Subtotal"
+                                style={{
+                                  flex: 1,
+                                  padding: '4px 6px',
+                                  border: '1px solid transparent',
+                                  borderRadius: '2px',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  color: '#171717',
+                                  background: 'transparent',
+                                }}
+                                onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                                onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                              />
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#171717', whiteSpace: 'nowrap' }}>
+                                {formatCurrency(groupSubtotals[index] ?? 0)}
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '4px', whiteSpace: 'nowrap' }}>
+                          {insert && mode !== 'lot' && (
+                            <button type="button" title="Insert row below" onClick={() => insertRowBelow(index)} style={miniActionStyle}>
+                              <Plus size={14} />
+                            </button>
+                          )}
+                          {insert && mode !== 'lot' && (
+                            <button type="button" title="Duplicate row" onClick={() => duplicateRow(index)} style={miniActionStyle}>
+                              <Copy size={14} />
+                            </button>
+                          )}
+                          {fields.length > 1 ? (
+                            <button
+                              type="button"
+                              title="Remove row"
+                              onClick={() => { remove(index); setSelectedIds({}); }}
+                              style={{ ...miniActionStyle, color: '#dc2626' }}
+                            >
+                              <X size={14} />
+                            </button>
+                          ) : null}
+                        </td>
+                      </SortableRow>
+                    );
+                  }
 
                   return (
                     <SortableRow key={field.id} id={field.id} index={index}>
-                      <td style={{ padding: '4px', textAlign: 'center', cursor: 'grab' }}>
-                        <GripVertical size={14} style={{ color: '#a3a3a3' }} />
+                      <td style={{ padding: '4px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                          <input
+                            type="checkbox"
+                            title="Select row"
+                            checked={Boolean(selectedIds[field.id])}
+                            onChange={() => setSelectedIds((prev) => ({ ...prev, [field.id]: !prev[field.id] }))}
+                            style={{ cursor: 'pointer' }}
+                          />
+                          <span style={{ cursor: 'grab', display: 'inline-flex' }}>
+                            <GripVertical size={14} style={{ color: '#a3a3a3' }} />
+                          </span>
+                        </div>
                       </td>
                       <td style={{ padding: '4px', textAlign: 'center' }}>
                         <span style={{ fontSize: '11px', color: '#737373' }}>{index + 1}</span>
@@ -1001,7 +1392,7 @@ export function InvoiceItemsEditor({
                       )}
                     </td>
                   )}
-                  <td style={{ padding: '4px' }}>
+                  <td style={{ padding: '4px', display: visibleCols.hsn ? undefined : 'none' }}>
                     <input
                       {...register(`items.${index}.hsn_code`)}
                       placeholder="9987"
@@ -1045,7 +1436,7 @@ export function InvoiceItemsEditor({
                       onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
                   </td>
-                  <td style={{ padding: '4px', position: 'relative' }}>
+                  <td style={{ padding: '4px', position: 'relative', display: visibleCols.make ? undefined : 'none' }}>
                     <input
                       ref={(el) => { makeInputRefs.current[index] = el; }}
                       {...register(`items.${index}.meta_json.make` as const)}
@@ -1139,7 +1530,7 @@ export function InvoiceItemsEditor({
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: '4px', position: 'relative' }}>
+                  <td style={{ padding: '4px', position: 'relative', display: visibleCols.variant ? undefined : 'none' }}>
                     <input
                       ref={(el) => { variantInputRefs.current[index] = el; }}
                       {...register(`items.${index}.meta_json.variant` as const)}
@@ -1234,7 +1625,7 @@ export function InvoiceItemsEditor({
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: '4px' }}>
+                  <td style={{ padding: '4px', display: visibleCols.warehouse ? undefined : 'none' }}>
                     {item.meta_json?.material_id ? (
                       <select
                         {...register(`items.${index}.meta_json.warehouse_id` as const)}
@@ -1260,7 +1651,7 @@ export function InvoiceItemsEditor({
                       <span style={{ fontSize: '11px', color: '#a3a3a3' }}>-</span>
                     )}
                   </td>
-                  <td style={{ padding: '4px', textAlign: 'right' }}>
+                  <td style={{ padding: '4px', textAlign: 'right', display: visibleCols.stock ? undefined : 'none' }}>
                     {(() => {
                       const materialId = item.meta_json?.material_id as string | undefined;
                       const warehouseId = item.meta_json?.warehouse_id as string | undefined;
@@ -1532,6 +1923,42 @@ export function InvoiceItemsEditor({
                       />
                     </td>
                   )}
+                  {visibleCols.custom1 && (
+                    <td style={{ padding: '4px' }}>
+                      <input
+                        {...register(`items.${index}.custom1`)}
+                        placeholder="Custom 1"
+                        style={{
+                          width: '100%',
+                          padding: '4px 6px',
+                          border: '1px solid transparent',
+                          borderRadius: '2px',
+                          fontSize: '11px',
+                          background: 'transparent'
+                        }}
+                        onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                        onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                      />
+                    </td>
+                  )}
+                  {visibleCols.custom2 && (
+                    <td style={{ padding: '4px' }}>
+                      <input
+                        {...register(`items.${index}.custom2`)}
+                        placeholder="Custom 2"
+                        style={{
+                          width: '100%',
+                          padding: '4px 6px',
+                          border: '1px solid transparent',
+                          borderRadius: '2px',
+                          fontSize: '11px',
+                          background: 'transparent'
+                        }}
+                        onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                        onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                      />
+                    </td>
+                  )}
                   <td style={{ 
                     padding: '4px 6px',
                     textAlign: 'right',
@@ -1543,9 +1970,19 @@ export function InvoiceItemsEditor({
                   }}>
                     {formatCurrency(amount)}
                   </td>
-                  <td style={{ padding: '4px' }}>
+                  <td style={{ padding: '4px', whiteSpace: 'nowrap' }}>
+                    {insert && mode !== 'lot' && (
+                      <button type="button" title="Insert row below" onClick={() => insertRowBelow(index)} style={miniActionStyle}>
+                        <Plus size={14} />
+                      </button>
+                    )}
+                    {insert && mode !== 'lot' && (
+                      <button type="button" title="Duplicate row" onClick={() => duplicateRow(index)} style={miniActionStyle}>
+                        <Copy size={14} />
+                      </button>
+                    )}
                     {mode !== 'lot' && fields.length > 1 ? (
-                      <Button variant="default" size="default" type="button" onClick={() => remove(index)}
+                      <Button variant="default" size="default" type="button" onClick={() => { remove(index); setSelectedIds({}); }}
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -1571,13 +2008,13 @@ export function InvoiceItemsEditor({
           </SortableContext>
           <tfoot>
             <tr style={{ background: '#fafafa', borderTop: '1px solid #e5e5e5' }}>
-              <td colSpan={5} style={{ padding: '8px 4px', fontWeight: 600, fontSize: '11px', color: '#171717' }}>
+              <td colSpan={leadingCols} style={{ padding: '8px 4px', fontWeight: 600, fontSize: '11px', color: '#171717' }}>
                 TOTAL
               </td>
               <td style={{ padding: '8px 4px', textAlign: 'right', fontWeight: 600, fontSize: '11px', color: '#171717' }}>
                 {items.reduce((sum, i) => sum + (parseFloat(String(i.qty)) || 0), 0).toFixed(2)}
               </td>
-              <td colSpan={showCustomColumn ? 8 : 7}></td>
+              <td colSpan={trailingCols}></td>
               <td style={{ padding: '8px 4px', textAlign: 'right', fontWeight: 700, fontSize: '11px', color: '#171717' }}>
                 {formatCurrency(items.reduce((sum, i) => {
                   const qty = parseFloat(String(i.qty)) || 0;

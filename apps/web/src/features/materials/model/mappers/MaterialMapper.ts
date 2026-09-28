@@ -39,7 +39,7 @@ export function editorToMaterial(
     dimension_unit: formData.dimension_unit || 'cm',
     weight: formData.weight ? parseFloat(formData.weight) : null,
     weight_unit: formData.weight_unit || 'kg',
-    item_type: 'product',
+      item_type: formData.item_type || 'product',
     item_classification: normalizeItemClassification(formData.item_classification),
     allow_purchase: formData.allow_purchase,
     allow_sales: formData.allow_sales,
@@ -100,6 +100,7 @@ export function materialToEditor(
     warranty_unit: (material.warranty_unit === 'years' ? 'years' : 'months') as 'months' | 'years',
     has_serial_number: material.has_serial_number || false,
     serial_number_format: material.serial_number_format || '',
+    item_type: (material.item_type as 'product' | 'service' | 'kit') || 'product',
     custom_attributes: material.custom_attributes || [],
   };
 }

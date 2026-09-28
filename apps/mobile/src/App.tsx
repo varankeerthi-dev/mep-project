@@ -11,14 +11,17 @@ import { ClientModule } from './screens/ClientModule';
 import { ProjectModule } from './screens/ProjectModule';
 import { PurchaseModule } from './screens/PurchaseModule';
 import { AlertTriangle } from 'lucide-react';
-import { Home, ClipboardList, Loader2, MessageSquare, ClipboardCheck, MapPin, LogOut, Wrench } from 'lucide-react';
+import { Home, ClipboardList, Loader2, MessageSquare, MessagesSquare, ListChecks, ClipboardCheck, MapPin, LogOut, Wrench } from 'lucide-react';
 
 import { FieldVariationMobile } from './screens/FieldVariationMobile';
 import { MaterialReturnMobile } from './screens/MaterialReturnMobile';
 import { MachineBoardMobile } from './screens/MachineBoardMobile';
 import { WorkCompletionCertificate } from './screens/WorkCompletionCertificate';
+import { StockRequestMobile } from './screens/StockRequestMobile';
+import { Collaboration } from './screens/Collaboration';
+import { Tasks } from './screens/Tasks';
 
-type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup' | 'field_variation' | 'material_return' | 'machine_board' | 'work_completion';
+type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup' | 'field_variation' | 'material_return' | 'machine_board' | 'work_completion' | 'stock_requests' | 'collaboration' | 'tasks';
 type ModuleScreen = 'none' | 'client' | 'project' | 'purchase';
 
 function App() {
@@ -133,6 +136,8 @@ function App() {
     { key: 'site_report',    label: 'Site Report', Icon: ClipboardCheck },
     { key: 'site_visits',    label: 'Site Visit',  Icon: MapPin },
     { key: 'communications', label: 'Comms',       Icon: MessageSquare },
+    { key: 'collaboration',  label: 'Collab',      Icon: MessagesSquare },
+    { key: 'tasks',          label: 'Tasks',       Icon: ListChecks },
   ] as const;
 
   return (
@@ -147,6 +152,7 @@ function App() {
             onNavigateToFieldVariation={() => setCurrentScreen('field_variation')}
             onNavigateToMaterialReturn={() => setCurrentScreen('material_return')}
             onNavigateToWorkCompletion={() => setCurrentScreen('work_completion')}
+            onNavigateToStockRequests={() => setCurrentScreen('stock_requests')}
             onOpenModule={(m) => setActiveModule(m)}
             isDemo={isDemo}
           />
@@ -156,9 +162,12 @@ function App() {
         {currentScreen === 'site_report' && <SiteReport isDemo={isDemo} onFormDirtyChange={setFormDirty} />}
         {currentScreen === 'site_visits' && <SiteVisits isDemo={isDemo} />}
         {currentScreen === 'communications' && <ClientCommunication isDemo={isDemo} />}
+        {currentScreen === 'collaboration' && <Collaboration isDemo={isDemo} />}
+        {currentScreen === 'tasks' && <Tasks isDemo={isDemo} />}
         {currentScreen === 'field_variation' && <FieldVariationMobile onBack={() => setCurrentScreen('dashboard')} />}
         {currentScreen === 'material_return' && <MaterialReturnMobile onBack={() => setCurrentScreen('dashboard')} />}
         {currentScreen === 'work_completion' && <WorkCompletionCertificate onBack={() => setCurrentScreen('dashboard')} isDemo={isDemo} />}
+        {currentScreen === 'stock_requests' && <StockRequestMobile onBack={() => setCurrentScreen('dashboard')} isDemo={isDemo} />}
         {currentScreen === 'lookup' && (
           <ClientLookup 
             onBack={() => setCurrentScreen('dashboard')} 

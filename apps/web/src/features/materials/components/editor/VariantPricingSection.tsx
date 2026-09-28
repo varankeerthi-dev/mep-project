@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Trash2, ChevronDown } from 'lucide-react';
 import { Input } from '../../../../components/ui/input';
 import { Checkbox } from '../../../../components/ui/checkbox';
@@ -31,16 +31,9 @@ export function VariantPricingSection({
   subtitle,
 }: VariantPricingSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!collapsed && sectionRef.current) {
-      sectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [collapsed]);
 
   return (
-    <div ref={sectionRef}>
+    <div>
       <EditorSection
         number={number}
         title="Variant Pricing"

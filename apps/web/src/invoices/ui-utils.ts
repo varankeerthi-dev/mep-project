@@ -7,30 +7,49 @@ export const DEFAULT_COMPANY_STATE = 'Maharashtra';
 
 const CustomValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 
+// Form writers (conversion hydration, PO/quotation/proforma line import) store
+// `null` (and selects emit `''`) for empty optionals — coerce those to
+// `undefined` so `.optional()` / `.uuid()` fields validate cleanly.
+const emptyToUndefined = (val: unknown) => (val === null || val === '' ? undefined : val);
+
 export const InvoiceEditorItemSchema = z.object({
   description: z.string().trim().min(1, 'Description is required.'),
   hsn_code: z.string().trim().nullable().optional(),
-  qty: z.coerce.number().positive('Qty must be greater than zero.'),
+  qty: z.coerce.number().min(0, 'Qty cannot be negative.'),
   rate: z.coerce.number().min(0, 'Rate cannot be negative.'),
   amount: z.coerce.number().min(0).default(0),
   discount_percent: z.coerce.number().min(0).max(100).optional().default(0),
+  is_header: z.boolean().optional(),
+  is_subtotal: z.boolean().optional(),
+  subtotal_label: z.string().trim().min(1).nullable().optional(),
+  display_order: z.coerce.number().int().optional(),
+  custom1: z.string().trim().nullable().optional(),
+  custom2: z.string().trim().nullable().optional(),
   meta_json: z.object({
-    tax_percent: z.number().optional().default(18),
+    tax_percent: z.coerce.number().optional().default(18),
     uom: z.string().optional().default('Nos'),
     make: z.string().nullish(),
     variant: z.string().nullish(),
-    base_rate: z.number().optional(),
-    rate_after_discount: z.number().optional(),
+    base_rate: z.coerce.number().optional(),
+    rate_after_discount: z.coerce.number().optional(),
     client_custom_label: z.string().optional(),
     client_custom_value: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional(),
-    material_id: z.string().uuid().optional(),
-    warehouse_id: z.string().uuid().optional(),
-    variant_id: z.string().uuid().optional(),
+    material_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+    warehouse_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+    variant_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
     is_service: z.boolean().optional(),
     batch_no: z.string().optional(),
     expiry_date: z.string().optional(),
     serial_numbers: z.array(z.string()).optional(),
   }).catchall(z.unknown()).optional().default({ tax_percent: 18, uom: 'Nos' }),
+}).superRefine((item, ctx) => {
+  if (!item.is_header && !item.is_subtotal && !(item.qty > 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['qty'],
+      message: 'Qty must be greater than zero.',
+    });
+  }
 });
 
 export const InvoiceEditorMaterialSchema = z.object({
@@ -47,11 +66,21 @@ export const InvoiceEditorSchema = z
       (val) => (val === '' ? null : val),
       z.string().uuid('Template is required.').nullable().optional()
     ),
-    invoice_no: z.string().optional(),
+    invoice_no: z.preprocess(emptyToUndefined, z.string().optional()),
     invoice_date: z.string().optional(),
-    po_number: z.string().optional(),
-    po_date: z.string().optional(),
-    prepared_by: z.string().optional(),
+    po_number: z.preprocess(emptyToUndefined, z.string().optional()),
+    po_date: z.preprocess(emptyToUndefined, z.string().optional()),
+    prepared_by: z.preprocess(emptyToUndefined, z.string().optional()),
+    remarks: z.string().optional(),
+    authorized_signatory_id: z.preprocess(
+      (val) => (val === '' ? null : val),
+      z.string().uuid().nullable().optional()
+    ),
+    terms_text: z.string().optional(),
+    terms_template_id: z.preprocess(
+      (val) => (val === '' ? null : val),
+      z.string().uuid().nullable().optional()
+    ),
     source_type: z.enum(invoiceSourceTypes),
     source_id: z.string().uuid('Source document is required.').optional().or(z.literal('')),
     template_type: z.enum(invoiceTemplateTypes),
@@ -212,6 +241,12 @@ export function createEmptyItem(overrides: any = {}): InvoiceEditorFormValues['i
     rate: overrides.rate ?? 0,
     amount: overrides.amount ?? 0,
     discount_percent: overrides.discount_percent ?? 0,
+    is_header: overrides.is_header ?? false,
+    is_subtotal: overrides.is_subtotal ?? false,
+    subtotal_label: overrides.subtotal_label ?? null,
+    display_order: overrides.display_order ?? 0,
+    custom1: overrides.custom1 ?? null,
+    custom2: overrides.custom2 ?? null,
     meta_json: {
       tax_percent: Number(meta?.tax_percent) || 18,
       uom: String(meta?.uom || 'Nos'),
@@ -265,6 +300,10 @@ export function createEmptyInvoiceFormValues(companyState?: string | null): Invo
     default_warehouse_id: null,
     deduct_stock_on_finalize: false,
     allow_insufficient_stock: false,
+    remarks: '',
+    authorized_signatory_id: null,
+    terms_text: '',
+    terms_template_id: null,
     items: [createEmptyItem()],
     materials: [],
   };
@@ -289,6 +328,10 @@ export function invoiceToFormValues(invoice: InvoiceWithRelations): InvoiceEdito
     default_warehouse_id: null,
     deduct_stock_on_finalize: false,
     allow_insufficient_stock: false,
+    remarks: invoice.remarks ?? '',
+    authorized_signatory_id: invoice.authorized_signatory_id ?? null,
+    terms_text: '',
+    terms_template_id: null,
     items: invoice.items.map((item: any) => ({
       description: item.description,
       hsn_code: item.hsn_code ?? '',
@@ -296,6 +339,12 @@ export function invoiceToFormValues(invoice: InvoiceWithRelations): InvoiceEdito
       rate: item.rate,
       amount: item.amount,
       discount_percent: 0,
+      is_header: item.is_header ?? false,
+      is_subtotal: item.is_subtotal ?? false,
+      subtotal_label: item.subtotal_label ?? null,
+      display_order: item.display_order ?? 0,
+      custom1: item.custom1 ?? null,
+      custom2: item.custom2 ?? null,
       meta_json: {
         tax_percent: item.meta_json?.tax_percent ?? 18,
         uom: item.meta_json?.uom ?? 'Nos',
@@ -336,9 +385,11 @@ export function composeInvoiceInput(
     total: totals.total,
     status: values.status,
     prepared_by: values.prepared_by || null,
+    remarks: values.remarks?.trim() ? values.remarks.trim() : null,
+    authorized_signatory_id: values.authorized_signatory_id ?? null,
     company_state: values.company_state,
     client_state: values.client_state ?? null,
-    items: values.items.map((item) => {
+    items: values.items.map((item, index) => {
       const baseRate = Number(item.meta_json?.base_rate) || Number(item.rate) || 0;
       const discountPercent = Number(item.discount_percent) || 0;
       const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
@@ -350,6 +401,12 @@ export function composeInvoiceInput(
         qty: round2(item.qty),
         rate: round2(rateAfterDiscount),
         amount: round2(item.qty * rateAfterDiscount),
+        is_header: item.is_header ?? false,
+        is_subtotal: item.is_subtotal ?? false,
+        subtotal_label: item.subtotal_label ?? null,
+        display_order: index,
+        custom1: item.custom1 ?? null,
+        custom2: item.custom2 ?? null,
         meta_json: {
           tax_percent: Number(meta?.tax_percent) || 18,
           uom: String(meta?.uom || 'Nos'),
@@ -378,6 +435,33 @@ export function formatCurrency(value?: number | null): string {
     currency: 'INR',
     maximumFractionDigits: 2,
   }).format(value ?? 0);
+}
+
+/**
+ * Flatten stored terms content (free `{text}` or full template
+ * `{sections: [{title, items: [{content}]}]}`) into textarea text.
+ */
+export function flattenInvoiceTermsText(customContent: unknown): string {
+  if (!customContent) return '';
+  if (typeof customContent === 'string') {
+    try {
+      return flattenInvoiceTermsText(JSON.parse(customContent));
+    } catch {
+      return customContent;
+    }
+  }
+  if (typeof customContent !== 'object') return String(customContent);
+  const content = customContent as { text?: unknown; sections?: unknown };
+  if (typeof content.text === 'string' && content.text.trim()) return content.text;
+  if (!Array.isArray(content.sections)) return '';
+  const lines: string[] = [];
+  content.sections.forEach((section: any) => {
+    if (section?.title) lines.push(String(section.title));
+    (Array.isArray(section?.items) ? section.items : []).forEach((item: any) => {
+      if (item?.content) lines.push(`- ${String(item.content)}`);
+    });
+  });
+  return lines.join('\n');
 }
 
 export function formatDate(value?: string | null): string {

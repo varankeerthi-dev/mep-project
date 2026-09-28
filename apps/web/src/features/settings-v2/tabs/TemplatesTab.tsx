@@ -20,33 +20,33 @@ const DOCUMENT_TYPES = ['Quotation', 'Sales Order', 'Proforma Invoice', 'Deliver
 const PAGE_SIZES = ['A4', 'Letter'];
 const ORIENTATIONS = ['Portrait', 'Landscape'];
 
-const OPTIONAL_COLUMNS = [
-  { key: 'sno', label: 'S.No.', isMandatory: true },
+const OPTIONAL_COLUMNS: Array<{ key: string; label: string; isMandatory?: boolean; align?: 'left' | 'right' | 'center'; }> = [
+  { key: 'sno', label: 'S.No.', isMandatory: true, align: 'center' },
   { key: 'item', label: 'Tool Name' },
-  { key: 'qty', label: 'Qty', isMandatory: true },
-  { key: 'uom', label: 'Unit (UOM)' },
+  { key: 'qty', label: 'Qty', isMandatory: true, align: 'right' },
+  { key: 'uom', label: 'Unit (UOM)', align: 'center' },
   { key: 'item_code', label: 'Tool Code' },
   { key: 'variant', label: 'Variant' },
   { key: 'description', label: 'Description' },
   { key: 'client_part_no', label: 'Client Part No' },
   { key: 'client_description', label: 'Client Description' },
-  { key: 'hsn_code', label: 'HSN Code' },
-  { key: 'rate', label: 'Rate(before disc)' },
-  { key: 'base_amount', label: 'Amount', isMandatory: true },
-  { key: 'discount_percent', label: 'Disc %' },
-  { key: 'discount_amount', label: 'Discount Amount' },
-  { key: 'rate_after_discount', label: 'Rate(after discount)' },
-  { key: 'tax_percent', label: 'GST %', isMandatory: true },
-  { key: 'tax_amount', label: 'Tax Amount' },
-  { key: 'line_total', label: 'Final Total' },
+  { key: 'hsn_code', label: 'HSN Code', align: 'center' },
+  { key: 'rate', label: 'Rate(before disc)', align: 'right' },
+  { key: 'base_amount', label: 'Amount', isMandatory: true, align: 'right' },
+  { key: 'discount_percent', label: 'Disc %', align: 'right' },
+  { key: 'discount_amount', label: 'Discount Amount', align: 'right' },
+  { key: 'rate_after_discount', label: 'Rate(after discount)', align: 'right' },
+  { key: 'tax_percent', label: 'GST %', isMandatory: true, align: 'center' },
+  { key: 'tax_amount', label: 'Tax Amount', align: 'right' },
+  { key: 'line_total', label: 'Final Total', align: 'right' },
   { key: 'category', label: 'Category' },
   { key: 'make', label: 'Make (Tool Source)' },
   { key: 'custom1', label: 'Custom 1' },
   { key: 'custom2', label: 'Custom 2' },
-  { key: 'subtotal', label: 'Sub-Total' },
-  { key: 'total_tax', label: 'Total Tax' },
-  { key: 'round_off', label: 'Round Off' },
-  { key: 'grand_total', label: 'Grand Total' },
+  { key: 'subtotal', label: 'Sub-Total', align: 'right' },
+  { key: 'total_tax', label: 'Total Tax', align: 'right' },
+  { key: 'round_off', label: 'Round Off', align: 'right' },
+  { key: 'grand_total', label: 'Grand Total', align: 'right' },
   { key: 'po_no', label: 'PO No' },
   { key: 'po_date', label: 'PO Date' },
   { key: 'vendor_no', label: 'Vendor No.' },
@@ -117,6 +117,76 @@ const EMPTY_FORM = {
   }
 };
 
+const DOC_TYPE_GROUPS: { value: string; label: string; types: string[] }[] = [
+  { value: 'all', label: 'All', types: DOCUMENT_TYPES },
+  { value: 'quotations', label: 'Quotations', types: ['Quotation', 'Sales Order'] },
+  { value: 'invoices', label: 'Invoices', types: ['Proforma Invoice', 'Invoice', 'Credit Note', 'Debit Note'] },
+  { value: 'purchases', label: 'Purchases', types: ['Purchase Order', 'Delivery Challan', 'Tools Delivery Challan'] },
+];
+
+// Demo organisation + client used for the in-tab preview only. These match the
+// sample dataset the PDF renderers fall back to when no real organisation is
+// present (see apps/web/src/templates/quotation-data-example.ts and
+// apps/web/src/pdf/sakthiTemplatePdf.ts).
+const DEMO_ORG = {
+  name: 'Your Company Name Pvt. Ltd.',
+  address: '123, Industrial Area, Phase-II, Chandigarh – 160002',
+  phone: '+91 98765 43210',
+  email: 'info@yourcompany.com',
+  gstin: '04XXXXXX1234XXXX',
+  pan: 'AAAAA1234A',
+  cin: 'U52100CH2020PTC123456',
+  bankName: 'State Bank of India',
+  bankBranch: 'Industrial Area Branch',
+  bankAccountNo: 'XXXXXXXXXXXX',
+  bankIfsc: 'SBIN0001234',
+};
+
+const DEMO_CLIENT = {
+  name: 'Client Company Name',
+  contact: 'Mr. Rajesh Kumar',
+  address: '456, Trade Centre, Sector 17, Chandigarh – 160017',
+  city: 'Chandigarh',
+  pincode: '160017',
+  gstin: '04YYYYYY1234YYYY',
+  phone: '+91 98765 11111',
+  shippingCompany: 'Client Company Name – Warehouse',
+  shippingAddress: 'Plot No. 78, Industrial Focal Point, Derabassi, Punjab – 140507',
+  shippingPhone: '+91 98765 22222',
+};
+
+const DEMO_PROJECT = {
+  name: 'Residential MEP Project',
+  poNo: 'PO-2026-0042',
+};
+
+// Items shown in the line-item tables. Matches the shape used by the real
+// PDF renderers (HSN code, qty, rate, GST %, amount).
+const DEMO_ITEMS = [
+  { sno: 1, code: 'P-101', hsn: '8471', description: 'Desktop Computer — Intel Core i5, 8GB RAM, 512GB SSD, 22" LED Monitor', qty: 5, uom: 'Nos', rate: 42500, gst: 18, amount: 250750 },
+  { sno: 2, code: 'P-102', hsn: '8471', description: 'Online UPS 1KVA with 30 min Battery Backup', qty: 5, uom: 'Nos', rate: 14200, gst: 18, amount: 83780 },
+  { sno: 3, code: 'P-103', hsn: '8528', description: 'Network Switch — 24 Port Gigabit Managed (Cisco Compatible)', qty: 2, uom: 'Nos', rate: 18500, gst: 18, amount: 43660 },
+  { sno: 4, code: 'P-104', hsn: '8473', description: 'HP LaserJet Pro MFP — Monochrome, Duplex, Network', qty: 2, uom: 'Nos', rate: 22000, gst: 18, amount: 51920 },
+];
+
+const inr = (n: number) => `\u20b9${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const TERMS_TEXT = '50% advance, balance within 30 days. Goods once sold will not be taken back. Subject to Chandigarh jurisdiction. E. & O.E.';
+
+const styleBadgeClass = (style?: string) => {
+  switch ((style || '').toLowerCase()) {
+    case 'grid_minimal': return 'bg-purple-600';
+    case 'pro_grid': return 'bg-orange-600';
+    case 'saas': return 'bg-blue-700';
+    case 'vertical': return 'bg-blue-900';
+    case 'enterprise': return 'bg-[#2C3E50]';
+    case 'sakthi': return 'bg-teal-700';
+    case 'classic': return 'bg-amber-700';
+    case 'standard': return 'bg-blue-600';
+    default: return 'bg-zinc-600';
+  }
+};
+
 export const TemplatesTab: React.FC<TemplatesTabProps> = ({
   onDirtyChange,
   onRegisterSave,
@@ -133,8 +203,34 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
   const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<any | null>(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [originalFormData, setOriginalFormData] = useState<any>(null);
+  const [docTypeFilter, setDocTypeFilter] = useState<string>('all');
+
+  const filteredByGroup = useMemo(() => {
+    if (docTypeFilter === 'all') return templates;
+    const group = DOC_TYPE_GROUPS.find((g) => g.value === docTypeFilter);
+    if (!group) return templates;
+    return templates.filter((t) => group.types.includes(t.document_type));
+  }, [templates, docTypeFilter]);
+
+  const filteredByStyle = useMemo(() => {
+    if (styleFilter === 'all') return filteredByGroup;
+    return filteredByGroup.filter((t) => (t.column_settings?.print?.style || 'default') === styleFilter);
+  }, [filteredByGroup, styleFilter]);
+
+  const groupedTemplates = useMemo(() => {
+    if (docTypeFilter === 'all') {
+      return DOCUMENT_TYPES
+        .map((docType) => ({
+          docType,
+          templates: filteredByStyle.filter((t) => t.document_type === docType),
+        }))
+        .filter((g) => g.templates.length > 0);
+    }
+    return [{ docType: 'Templates', templates: filteredByStyle }];
+  }, [filteredByStyle, docTypeFilter]);
 
   const loadTemplates = async () => {
     setLoading(true);
@@ -413,11 +509,11 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
     });
 
     return `
-      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 800px; margin: auto; border: 1px solid #eee; background: white;">
+      <div style="font-family: 'Inter', sans-serif; padding: 20px; color: #333; max-width: 800px; margin: auto; border: 1px solid #eee; background: white;">
         <h2 style="text-align: center; color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">${formData.document_type.toUpperCase()} PREVIEW</h2>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; margin-top: 20px;">
-          <div style="line-height: 1.6;"><strong>To:</strong><br>Sample Client Name<br>123 Business Avenue, Tech Park<br>GSTIN: 27AAAAA0000A1Z5<br>State: Maharashtra</div>
-          <div style="line-height: 1.6; text-align: right;"><strong>${formData.document_type} No:</strong> SAMPLE-001<br><strong>Date:</strong> ${new Date().toLocaleDateString('en-IN')}<br><strong>Valid Till:</strong> ${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN')}<br><strong>Project:</strong> Residential MEP Project</div>
+          <div style="line-height: 1.6;"><strong>To:</strong><br>${DEMO_CLIENT.name}<br>${DEMO_CLIENT.contact}<br>${DEMO_CLIENT.address}<br>GSTIN: ${DEMO_CLIENT.gstin}<br>Ph: ${DEMO_CLIENT.phone}</div>
+          <div style="line-height: 1.6; text-align: right;"><strong>${formData.document_type} No:</strong> QT-2026-0042<br><strong>Date:</strong> ${new Date().toLocaleDateString('en-IN')}<br><strong>Valid Till:</strong> ${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN')}<br><strong>Project:</strong> ${DEMO_PROJECT.name}</div>
         </div>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
           <thead><tr style="background-color: #f3f4f6; color: #374151;">${columnsHTML.replace(/<th>/g, '<th style="border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 13px;">')}</tr></thead>
@@ -432,10 +528,369 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
         </div>
         <div style="clear: both; margin-top: 40px; font-size: 12px; color: #666;">
           ${formData.show_terms ? '<p><strong>Terms:</strong> Standard payment terms apply. This is a computer generated document.</p>' : ''}
-          ${formData.show_signature ? '<div style="margin-top: 40px; text-align: right;"><strong>For Sample Organization</strong><br><br><br>Authorized Signatory</div>' : ''}
+          ${formData.show_signature ? `<div style="margin-top: 40px; text-align: right;"><strong>For ${DEMO_ORG.name}</strong><br><br><br>Authorized Signatory</div>` : ''}
         </div>
       </div>
     `;
+  };
+
+  const renderCardPreviewHTML = (template: any) => {
+    const cs = template.column_settings || {};
+    const opt = cs.optional || {};
+    const labels = cs.labels || {};
+    const style = (cs.print?.style || 'default').toLowerCase();
+    const titleRaw = (cs.print?.gridMinimal?.titleOverride || template.document_type || '').toString();
+    const docTitle = (titleRaw || 'Document').toUpperCase();
+    const baseFont = "font-family: 'Inter', sans-serif;";
+    const today = new Date().toLocaleDateString('en-IN');
+
+    // Build the columns and rows once, then theme them per style.
+    // Build the column list from OPTIONAL_COLUMNS so EVERY column the user has
+    // configured (visible OR hidden) appears in the preview. Hidden columns are
+    // rendered struck-through with a red "Hidden" badge so the user can audit
+    // their toggle choices at a glance.
+    type ColDef = {
+      key: string;
+      th: string;
+      align: 'left' | 'right' | 'center';
+      enabled: boolean;
+      isMandatory: boolean;
+      td: (item: typeof DEMO_ITEMS[number]) => string;
+    };
+
+    const colDefs: ColDef[] = OPTIONAL_COLUMNS.map((c) => {
+      const isOn = c.isMandatory || (opt as Record<string, boolean | undefined>)[c.key] === true;
+      let td: (item: typeof DEMO_ITEMS[number]) => string = () => '';
+      switch (c.key) {
+        case 'sno':              td = (i) => String(i.sno); break;
+        case 'item':             td = (i) => i.description.split(' — ')[0]; break;
+        case 'qty':              td = (i) => String(i.qty); break;
+        case 'uom':              td = (i) => i.uom; break;
+        case 'item_code':        td = (i) => i.code; break;
+        case 'variant':          td = () => 'Standard'; break;
+        case 'description':      td = (i) => i.description; break;
+        case 'client_part_no':   td = (i) => `CP-${100 + i.sno}`; break;
+        case 'client_description': td = (i) => i.description.split(' — ')[0] || '—'; break;
+        case 'hsn_code':         td = (i) => i.hsn; break;
+        case 'rate':             td = (i) => i.rate.toLocaleString('en-IN'); break;
+        case 'base_amount':      td = (i) => (i.qty * i.rate).toLocaleString('en-IN'); break;
+        case 'discount_percent': td = () => '0%'; break;
+        case 'discount_amount':  td = () => '0'; break;
+        case 'rate_after_discount': td = (i) => i.rate.toLocaleString('en-IN'); break;
+        case 'tax_percent':      td = (i) => `${i.gst}%`; break;
+        case 'tax_amount':       td = (i) => ((i.qty * i.rate * i.gst) / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 }); break;
+        case 'line_total':       td = (i) => i.amount.toLocaleString('en-IN'); break;
+        case 'category':         td = () => 'Electronics'; break;
+        case 'make':             td = () => 'HP / Cisco'; break;
+        case 'custom1':          td = () => 'Warranty 1Y'; break;
+        case 'custom2':          td = () => 'In Stock'; break;
+        case 'subtotal':         td = () => ''; break; // totals — rendered separately
+        case 'total_tax':        td = () => '';
+        case 'round_off':        td = () => '';
+        case 'grand_total':      td = () => '';
+        case 'po_no':            td = () => DEMO_PROJECT.poNo; break;
+        case 'po_date':          td = () => new Date().toLocaleDateString('en-IN'); break;
+        case 'vendor_no':        td = () => 'VEN-042'; break;
+        case 'valid_till':       td = () => new Date(Date.now() + 7 * 86400000).toLocaleDateString('en-IN'); break;
+        case 'payment_terms':    td = () => '50% Adv.'; break;
+        case 'reference':        td = () => 'Ref-001'; break;
+        case 'eway_bill':        td = () => '—'; break;
+        case 'bill_to':          td = () => DEMO_CLIENT.name; break;
+        case 'ship_to':          td = () => DEMO_CLIENT.shippingCompany; break;
+        case 'project_name':     td = () => DEMO_PROJECT.name; break;
+        case 'prepared_by':      td = () => 'Admin'; break;
+      }
+      return {
+        key: c.key,
+        th: c.label,
+        align: c.align || 'left',
+        enabled: isOn,
+        isMandatory: !!c.isMandatory,
+        td,
+      };
+    });
+
+    const thCell = (c: ColDef) => {
+      const hidden = !c.enabled;
+      const base = `padding:6px 8px;text-align:${c.align};font-weight:600;`;
+      const hiddenStyle = hidden
+        ? `color:#DC2626;text-decoration:line-through;background:#FEF2F2;`
+        : '';
+      const tag = hidden ? ' <span style="font-size:7px;font-weight:700;color:#fff;background:#DC2626;padding:1px 3px;border-radius:2px;margin-left:2px;text-decoration:none;">Hidden</span>' : '';
+      const mandatoryTag = c.isMandatory && !hidden ? ' <span style="color:#DC2626;font-size:8px;">*</span>' : '';
+      return `<th style="${base}${hiddenStyle}">${c.th}${mandatoryTag}${tag}</th>`;
+    };
+    const tdCell = (c: ColDef, item: typeof DEMO_ITEMS[number]) => {
+      if (['subtotal', 'total_tax', 'round_off', 'grand_total'].includes(c.key)) {
+        // totals block handles these — leave cells empty so layout still reflects width
+        return `<td style="padding:6px 8px;text-align:${c.align};background:${c.enabled ? 'transparent' : '#FEF2F2'};${c.enabled ? '' : 'color:#DC2626;text-decoration:line-through;'}"></td>`;
+      }
+      const hidden = !c.enabled;
+      const hiddenStyle = hidden ? `color:#DC2626;text-decoration:line-through;background:#FEF2F2;` : '';
+      return `<td style="padding:6px 8px;text-align:${c.align};${hiddenStyle}">${c.td(item)}</td>`;
+    };
+    const thead = `<tr>${colDefs.map(thCell).join('')}</tr>`;
+    const rows = DEMO_ITEMS.map((item) => `<tr>${colDefs.map((c) => tdCell(c, item)).join('')}</tr>`).join('');
+
+    const totalsBlock = (theme: 'standard' | 'card' | 'dark' | 'minimal' | 'bordered') => {
+      if (!opt.subtotal && !opt.grand_total && !opt.total_tax) return '';
+      // Compute real totals from DEMO_ITEMS so the preview reflects actual amounts.
+      const subtotal = DEMO_ITEMS.reduce((sum, i) => sum + i.qty * i.rate, 0);
+      const taxAmount = DEMO_ITEMS.reduce((sum, i) => sum + (i.qty * i.rate * i.gst) / 100, 0);
+      const grandTotal = subtotal + taxAmount;
+      const styles = {
+        standard: { wrap: 'background:#F8FAFC;padding:8px;border-radius:6px;', line: 'padding:2px 0;color:#475569;', total: 'padding-top:6px;border-top:2px solid #185FA5;font-weight:700;color:#0F172A;' },
+        card: { wrap: 'background:#fff;padding:8px;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.04);', line: 'padding:2px 0;color:#475569;', total: 'padding-top:6px;border-top:2px solid #185FA5;font-weight:700;color:#185FA5;' },
+        dark: { wrap: 'background:#0F172A;color:#fff;padding:8px;border-radius:4px;', line: 'padding:2px 0;color:#CBD5E1;', total: 'padding-top:6px;border-top:1px solid #475569;font-weight:700;color:#fff;' },
+        minimal: { wrap: 'padding:4px 0;', line: 'padding:2px 0;color:#6B7280;', total: 'padding-top:6px;font-weight:600;color:#0F172A;' },
+        bordered: { wrap: 'border:1px solid #000;padding:6px;', line: 'padding:2px 0;border-bottom:1px dotted #999;', total: 'padding-top:4px;border-top:1px solid #000;font-weight:700;background:#f0f0f0;' },
+      }[theme];
+      return `
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+          <div style="width:170px;font-size:9px;${styles.wrap}">
+            ${opt.subtotal ? `<div style="display:flex;justify-content:space-between;${styles.line}"><span>Subtotal</span><span>${inr(subtotal)}</span></div>` : ''}
+            ${opt.total_tax ? `<div style="display:flex;justify-content:space-between;${styles.line}"><span>Tax (GST 18%)</span><span>${inr(taxAmount)}</span></div>` : ''}
+            ${opt.round_off ? `<div style="display:flex;justify-content:space-between;${styles.line}"><span>Round Off</span><span>${inr(0)}</span></div>` : ''}
+            ${opt.grand_total ? `<div style="display:flex;justify-content:space-between;${styles.total}"><span>Grand Total</span><span>${inr(grandTotal)}</span></div>` : ''}
+          </div>
+        </div>`;
+    };
+
+    switch (style) {
+      case 'standard':
+        return `
+          <div style="${baseFont}color:#1f2937;padding:14px;background:#fff;min-height:380px;">
+            <div style="border-bottom:3px solid #185FA5;padding-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+              <div>
+                <div style="font-size:16px;font-weight:800;color:#0F172A;letter-spacing:-0.3px;">${DEMO_ORG.name}</div>
+                <div style="font-size:8px;color:#64748B;margin-top:2px;line-height:1.3;">${DEMO_ORG.address}<br>Ph: ${DEMO_ORG.phone} · GSTIN: ${DEMO_ORG.gstin}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:14px;font-weight:700;color:#185FA5;letter-spacing:1.5px;">${docTitle}</div>
+                <div style="font-size:8px;color:#64748B;margin-top:2px;">No: QT-2026-0042 · ${today}</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;font-size:8px;">
+              <div style="background:#F8FAFC;padding:8px;border-radius:6px;"><div style="font-size:7px;color:#185FA5;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px;">Bill To</div><div style="font-weight:600;">${DEMO_CLIENT.name}</div><div style="color:#475569;">${DEMO_CLIENT.contact}</div><div style="color:#475569;">${DEMO_CLIENT.address}</div><div style="color:#475569;">GSTIN: ${DEMO_CLIENT.gstin} · Ph: ${DEMO_CLIENT.phone}</div></div>
+              <div style="background:#F8FAFC;padding:8px;border-radius:6px;text-align:right;"><div style="font-size:7px;color:#185FA5;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px;">Ship To</div><div style="font-weight:600;">${DEMO_CLIENT.shippingCompany}</div><div style="color:#475569;">${DEMO_CLIENT.shippingAddress}</div><div style="color:#475569;">Ph: ${DEMO_CLIENT.shippingPhone}</div></div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:9px;">
+              <thead style="background:#185FA5;color:#fff;">${thead}</thead>
+              <tbody>${rows.replace(/<td/g, '<td style="padding:6px 8px;border-bottom:1px solid #E5E7EB;"')}</tbody>
+            </table>
+            ${totalsBlock('standard')}
+            ${template.show_terms ? `<div style="margin-top:8px;padding-top:6px;border-top:1px dashed #E5E7EB;font-size:7px;color:#64748B;line-height:1.3;"><strong>Terms &amp; Conditions:</strong> 50% advance, balance within 30 days. Goods once sold will not be taken back. Subject to Chandigarh jurisdiction.</div>` : ''}
+            ${template.show_signature ? `<div style="margin-top:10px;text-align:right;font-size:8px;color:#475569;">For <strong>${DEMO_ORG.name}</strong><br><br>Authorised Signatory</div>` : ''}
+          </div>`;
+
+      case 'classic':
+        return `
+          <div style="${baseFont}color:#000;padding:0;background:#fff;border:2px solid #000;min-height:380px;">
+            <div style="background:#000;color:#fff;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:16px;font-weight:700;letter-spacing:1px;">${DEMO_ORG.name}</div>
+                <div style="font-size:8px;opacity:0.85;">${DEMO_ORG.address}<br>Ph: ${DEMO_ORG.phone}</div>
+              </div>
+              <div style="font-size:18px;font-weight:800;letter-spacing:2px;">${docTitle}</div>
+            </div>
+            <div style="padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;border-bottom:1px solid #000;font-size:9px;">
+              <div><strong>BILL TO</strong><br>${DEMO_CLIENT.name}<br>${DEMO_CLIENT.contact}<br>${DEMO_CLIENT.address}</div>
+              <div style="text-align:right;"><strong>DOC No:</strong> SAMPLE-001<br><strong>Date:</strong> ${today}</div>
+            </div>
+            <div style="padding:0 12px 10px;">
+              <table style="width:100%;border-collapse:collapse;font-size:9px;">
+                <thead><tr style="background:#000;color:#fff;">${thead}</tr></thead>
+                <tbody>${rows.replace(/<td/g, '<td style="padding:5px 8px;border:1px solid #000;"').replace(/<tr>/g, '<tr style="border:1px solid #000;">')}</tbody>
+              </table>
+            </div>
+            <div style="padding:0 12px 10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div style="border:1px solid #000;padding:6px;font-size:8px;"><strong>Amount in Words:</strong><br><em>Nine Thousand Four Hundred Forty only</em></div>
+              <div>${totalsBlock('bordered')}</div>
+            </div>
+            <div style="border-top:1px solid #000;padding:6px 12px;display:flex;justify-content:space-between;font-size:8px;">
+              <div>For ${DEMO_ORG.name}</div>
+              <div>Authorised Signatory</div>
+            </div>
+          </div>`;
+
+      case 'saas':
+        return `
+          <div style="${baseFont}color:#1E293B;padding:0;background:#fff;min-height:380px;">
+            <div style="background:linear-gradient(135deg,#185FA5 0%,#2563EB 100%);color:#fff;padding:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                <div>
+                  <div style="font-size:9px;opacity:0.8;letter-spacing:1px;text-transform:uppercase;">From</div>
+                  <div style="font-size:18px;font-weight:700;margin-top:2px;">${DEMO_ORG.name}</div>
+                  <div style="font-size:9px;opacity:0.85;margin-top:1px;">hello@yourcompany.com</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:22px;font-weight:800;letter-spacing:1px;">${docTitle}</div>
+                  <div style="font-size:9px;opacity:0.85;margin-top:2px;">#SAMPLE-001 · ${today}</div>
+                </div>
+              </div>
+            </div>
+            <div style="padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:9px;">
+              <div style="border:1px solid #E2E8F0;border-radius:8px;padding:8px;"><div style="font-size:8px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">Billed To</div><div style="font-weight:600;margin-top:2px;">${DEMO_CLIENT.name}</div><div style="color:#475569;">${DEMO_CLIENT.address}</div></div>
+              <div style="border:1px solid #E2E8F0;border-radius:8px;padding:8px;text-align:right;"><div style="font-size:8px;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">Status</div><div style="font-weight:600;color:#16A34A;margin-top:2px;">● Active</div><div style="color:#475569;">Valid 7 days</div></div>
+            </div>
+            <div style="padding:0 12px 12px;">
+              <table style="width:100%;border-collapse:collapse;font-size:9px;">
+                <thead><tr style="background:#F1F5F9;color:#334155;">${thead}</tr></thead>
+                <tbody>${rows.replace(/<tr>/g, '<tr style="border-bottom:1px solid #F1F5F9;">').replace(/<td/g, '<td style="padding:7px 8px;"')}</tbody>
+              </table>
+            </div>
+            <div style="padding:0 12px 12px;">${totalsBlock('card')}</div>
+          </div>`;
+
+      case 'grid_minimal':
+        return `
+          <div style="${baseFont}color:#1F2937;padding:18px;background:#fff;min-height:380px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
+              <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:#6B7280;">${docTitle}</div>
+              <div style="font-size:9px;color:#9CA3AF;">SAMPLE-001 · ${today}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;font-size:9px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #F3F4F6;">
+              <div><div style="color:#9CA3AF;text-transform:uppercase;font-size:8px;letter-spacing:0.5px;margin-bottom:3px;">From</div><div style="font-weight:500;">${DEMO_ORG.name}</div><div style="color:#6B7280;">Chandigarh</div></div>
+              <div><div style="color:#9CA3AF;text-transform:uppercase;font-size:8px;letter-spacing:0.5px;margin-bottom:3px;">To</div><div style="font-weight:500;">${DEMO_CLIENT.name}</div><div style="color:#6B7280;">${DEMO_CLIENT.address}</div></div>
+              <div style="text-align:right;"><div style="color:#9CA3AF;text-transform:uppercase;font-size:8px;letter-spacing:0.5px;margin-bottom:3px;">Project</div><div style="font-weight:500;">Residential MEP</div></div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:9px;">
+              <thead><tr style="border-bottom:1px solid #1F2937;">${thead}</tr></thead>
+              <tbody>${rows.replace(/<tr>/g, '<tr style="border-bottom:1px solid #F3F4F6;">').replace(/<td/g, '<td style="padding:8px 4px;"')}</tbody>
+            </table>
+            ${totalsBlock('minimal')}
+          </div>`;
+
+      case 'pro_grid':
+        return `
+          <div style="${baseFont}color:#0F172A;padding:12px;background:#fff;min-height:380px;">
+            <div style="background:#1E293B;color:#fff;padding:10px 12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+              <div><div style="font-size:16px;font-weight:800;letter-spacing:0.5px;">${DEMO_ORG.name}</div><div style="font-size:8px;opacity:0.7;">Chandigarh · GSTIN ${DEMO_ORG.gstin}</div></div>
+              <div style="text-align:center;"><div style="font-size:8px;opacity:0.7;text-transform:uppercase;letter-spacing:1px;">${docTitle}</div><div style="font-size:11px;font-weight:700;margin-top:2px;">SAMPLE-001</div></div>
+              <div style="text-align:right;"><div style="font-size:8px;opacity:0.7;">Date</div><div style="font-size:11px;font-weight:600;">${today}</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin:10px 0;font-size:8px;">
+              <div style="background:#F8FAFC;padding:5px;border-radius:3px;"><div style="color:#9CA3AF;font-size:7px;text-transform:uppercase;">Client</div>${DEMO_CLIENT.name}</div>
+              <div style="background:#F8FAFC;padding:5px;border-radius:3px;"><div style="color:#9CA3AF;font-size:7px;text-transform:uppercase;">PO</div>${DEMO_PROJECT.poNo}</div>
+              <div style="background:#F8FAFC;padding:5px;border-radius:3px;"><div style="color:#9CA3AF;font-size:7px;text-transform:uppercase;">Project</div>${DEMO_PROJECT.name}</div>
+              <div style="background:#F8FAFC;padding:5px;border-radius:3px;"><div style="color:#9CA3AF;font-size:7px;text-transform:uppercase;">Valid</div>7 Days</div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:9px;">
+              <thead><tr style="background:#D97706;color:#fff;">${thead}</tr></thead>
+              <tbody>${rows.replace(/<tr>/g, '<tr style="border-bottom:1px solid #FED7AA;">').replace(/<td/g, '<td style="padding:6px 8px;"')}</tbody>
+            </table>
+            ${totalsBlock('card')}
+          </div>`;
+
+      case 'vertical':
+        return `
+          <div style="${baseFont}color:#0F172A;padding:0;background:#fff;min-height:380px;">
+            <div style="background:#1E3A8A;color:#fff;padding:12px 14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-size:16px;font-weight:800;letter-spacing:0.5px;">${DEMO_ORG.name}</div>
+                <div style="font-size:11px;font-weight:700;background:#fff;color:#1E3A8A;padding:3px 8px;border-radius:3px;">${docTitle}</div>
+              </div>
+              <div style="font-size:8px;opacity:0.85;margin-top:2px;">SAMPLE-001 · ${today}</div>
+            </div>
+            <div style="padding:10px 12px;font-size:8px;display:grid;grid-template-columns:1fr 1fr;gap:10px;border-bottom:2px solid #1E3A8A;">
+              <div><div style="color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;">Billed To</div><div style="font-weight:600;">${DEMO_CLIENT.name}</div><div style="color:#475569;">${DEMO_CLIENT.address}</div></div>
+              <div style="text-align:right;"><div style="color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;">Ship To</div><div style="font-weight:600;">${DEMO_CLIENT.shippingCompany}</div><div style="color:#475569;">${DEMO_CLIENT.shippingAddress}</div></div>
+            </div>
+            <div style="padding:10px 12px;">
+              ${[1, 2, 3, 4].map((i) => `
+                <div style="border:1px solid #E5E7EB;border-radius:6px;padding:8px;margin-bottom:6px;background:#FAFAFA;">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div>
+                      <div style="font-size:9px;font-weight:700;">${DEMO_ITEMS[i - 1]?.description.split(' — ')[0] || 'Item ' + i} <span style="color:#9CA3AF;font-weight:400;">· ${DEMO_ITEMS[i - 1]?.code || ''}</span></div>
+                      <div style="font-size:8px;color:#6B7280;">HSN ${DEMO_ITEMS[i - 1]?.hsn || ''} · ${DEMO_ITEMS[i - 1]?.qty} ${DEMO_ITEMS[i - 1]?.uom} @ ₹${(DEMO_ITEMS[i - 1]?.rate || 0).toLocaleString('en-IN')}</div>
+                    </div>
+                    <div style="font-size:10px;font-weight:700;color:#1E3A8A;">${inr(DEMO_ITEMS[i - 1]?.amount || 0)}</div>
+                  </div>
+                </div>`).join('')}
+            </div>
+            ${totalsBlock('standard')}
+          </div>`;
+
+      case 'enterprise':
+        return `
+          <div style="${baseFont}color:#0F172A;padding:0;background:#fff;min-height:380px;">
+            <div style="background:#0B2545;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:18px;font-weight:700;letter-spacing:1px;">${DEMO_ORG.name}</div>
+                <div style="font-size:8px;opacity:0.75;letter-spacing:0.5px;">ENTERPRISE SOLUTIONS PVT LTD</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:20px;font-weight:800;letter-spacing:2px;">${docTitle}</div>
+                <div style="font-size:9px;opacity:0.75;">Ref: SAMPLE-001 / ${today}</div>
+              </div>
+            </div>
+            <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;border-bottom:1px solid #E5E7EB;font-size:9px;">
+              <div><div style="color:#94A3B8;font-size:8px;text-transform:uppercase;letter-spacing:0.5px;">Client</div><div style="font-weight:600;margin-top:2px;">${DEMO_CLIENT.name}</div><div style="color:#475569;">Chandigarh</div></div>
+              <div><div style="color:#94A3B8;font-size:8px;text-transform:uppercase;letter-spacing:0.5px;">Project</div><div style="font-weight:600;margin-top:2px;">${DEMO_PROJECT.name}</div><div style="color:#475569;">Phase II</div></div>
+              <div><div style="color:#94A3B8;font-size:8px;text-transform:uppercase;letter-spacing:0.5px;">PO Reference</div><div style="font-weight:600;margin-top:2px;">${DEMO_PROJECT.poNo}</div><div style="color:#475569;">${today}</div></div>
+            </div>
+            <div style="padding:10px 16px;">
+              <table style="width:100%;border-collapse:collapse;font-size:9px;">
+                <thead><tr style="background:#F1F5F9;color:#0B2545;">${thead}</tr></thead>
+                <tbody>${rows.replace(/<tr>/g, '<tr style="border-bottom:1px solid #E5E7EB;">').replace(/<td/g, '<td style="padding:7px 8px;"')}</tbody>
+              </table>
+            </div>
+            ${totalsBlock('dark')}
+            <div style="padding:8px 16px;border-top:1px solid #E5E7EB;font-size:8px;color:#64748B;display:flex;justify-content:space-between;">
+              <div>Standard Terms Apply</div>
+              <div>For ${DEMO_ORG.name}</div>
+            </div>
+          </div>`;
+
+      case 'sakthi':
+        return `
+          <div style="${baseFont}color:#0F172A;padding:10px;background:#fff;min-height:380px;font-size:8px;line-height:1.3;">
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0F766E;padding-bottom:6px;margin-bottom:8px;">
+              <div style="font-size:13px;font-weight:700;">${DEMO_ORG.name}</div>
+              <div style="font-size:11px;font-weight:700;color:#0F766E;">${docTitle}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;font-size:8px;">
+              <div><strong>To:</strong> ${DEMO_CLIENT.name}, Chandigarh</div>
+              <div style="text-align:right;"><strong>No:</strong> SAMPLE-001 · ${today}</div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:8px;">
+              <thead><tr style="background:#0F766E;color:#fff;">${thead.replace(/padding:6px 8px/g, 'padding:4px 6px')}</tr></thead>
+              <tbody>${rows.replace(/<tr>/g, '<tr style="border-bottom:1px solid #E5E7EB;">').replace(/<td/g, '<td style="padding:4px 6px;"')}</tbody>
+            </table>
+            <div style="margin-top:8px;${totalsBlock('card').replace(/font-size:9px/g, 'font-size:8px')}</div>
+          </div>`;
+
+      default:
+        return `
+          <div style="${baseFont}color:#1f2937;padding:14px;background:#fff;min-height:380px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #1F2937;padding-bottom:8px;margin-bottom:10px;">
+              <div>
+                <div style="font-size:15px;font-weight:700;letter-spacing:0.5px;">${DEMO_ORG.name}</div>
+                <div style="font-size:9px;color:#6B7280;">${DEMO_ORG.address}</div>
+              </div>
+              <div style="font-size:13px;font-weight:700;letter-spacing:1px;">${docTitle}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;font-size:9px;">
+              <div><strong>To:</strong> ${DEMO_CLIENT.name}<br>${DEMO_CLIENT.address}</div>
+              <div style="text-align:right;"><strong>No:</strong> SAMPLE-001<br><strong>Date:</strong> ${today}</div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:9px;">
+              <thead><tr style="background:#1F2937;color:#fff;">${thead}</tr></thead>
+              <tbody>${rows.replace(/<td/g, '<td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;"')}</tbody>
+            </table>
+            ${totalsBlock('standard')}
+          </div>`;
+    }
+  };
+
+  const openTemplatePreview = (template: any) => {
+    setPreviewTemplate(template);
+    setShowPreview(true);
+  };
+
+  const closeTemplatePreview = () => {
+    setShowPreview(false);
+    setPreviewTemplate(null);
   };
 
   const handleSave = async () => {
@@ -833,10 +1288,10 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-zinc-900">Document Templates</h2>
+          <h2 className="text-base font-bold text-zinc-900">Document Templates · <span className="text-zinc-500">Awesome Templates, Awesome Impressions.</span></h2>
           <p className="text-xs text-zinc-500 mt-1">Manage PDF templates, layout columns, and labels for every document type.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -851,8 +1306,27 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900">{successMessage}</div>
       )}
 
+      <div className="flex items-center gap-1 border-b border-zinc-200">
+        {DOC_TYPE_GROUPS.map((group) => {
+          const count = group.value === 'all'
+            ? templates.length
+            : templates.filter((t) => group.types.includes(t.document_type)).length;
+          return (
+            <button
+              key={group.value}
+              onClick={() => setDocTypeFilter(group.value)}
+              className={`relative px-4 py-2 text-sm font-medium transition-colors ${docTypeFilter === group.value ? 'text-[#185FA5]' : 'text-zinc-600 hover:text-zinc-900'}`}
+            >
+              {group.label}
+              <span className="ml-1.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-600">{count}</span>
+              {docTypeFilter === group.value && <span className="absolute inset-x-0 -bottom-px h-0.5 bg-[#185FA5]" />}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="flex items-center gap-2 overflow-x-auto">
-        <span className="text-xs text-zinc-500">Filter by Style:</span>
+        <span className="text-xs text-zinc-500">Style:</span>
         {[
           { value: 'all', label: 'All' },
           { value: 'default', label: 'Default' },
@@ -861,74 +1335,189 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
           { value: 'pro_grid', label: 'Pro Grid' },
           { value: 'vertical', label: 'Vertical' },
           { value: 'enterprise', label: 'Enterprise' },
-        ].map(filter => (
+          { value: 'sakthi', label: 'Compact' },
+        ].map((filter) => (
           <button
             key={filter.value}
             onClick={() => setStyleFilter(filter.value as any)}
-            className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${styleFilter === filter.value ? 'border-[#185FA5] bg-[#185FA5] text-white' : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'}`}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${styleFilter === filter.value ? 'border-[#185FA5] bg-[#185FA5] text-white' : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'}`}
           >
             {filter.label}
           </button>
         ))}
       </div>
 
-      <SettingSection title="Template Library" description={`${templates.length} template(s) configured`}>
-        {templates.length === 0 ? (
-          <div className="py-8 text-center text-xs text-zinc-500">
+      <SettingSection title="Template Library" description={`${filteredByStyle.length} template(s) visible`}>
+        {filteredByStyle.length === 0 ? (
+          <div className="py-12 text-center text-xs text-zinc-500">
             <p className="font-semibold text-zinc-900 mb-1">No Templates</p>
             <p>Create your first template to get started</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {DOCUMENT_TYPES.map(docType => {
-              const typeTemplates = templates.filter(t => {
-                if (t.document_type !== docType) return false;
-                if (styleFilter === 'all') return true;
-                return (t.column_settings?.print?.style || 'default') === styleFilter;
-              });
-              if (typeTemplates.length === 0) return null;
-              return (
-                <div key={docType}>
-                  <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-zinc-900">
-                    <span>{getDocumentTypeIcon(docType)}</span>
-                    <span>{docType}</span>
+          <div className="space-y-6">
+            {groupedTemplates.map((group) => (
+              <div key={group.docType}>
+                {docTypeFilter === 'all' && (
+                  <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-zinc-900">
+                    <span>{getDocumentTypeIcon(group.docType)}</span>
+                    <span>{group.docType}</span>
+                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600">{group.templates.length}</span>
                   </h3>
-                  <div className="space-y-2">
-                    {typeTemplates.map(template => (
-                      <div key={template.id || template.template_code} className={`flex items-center justify-between rounded-lg border p-4 ${template.is_default ? 'border-emerald-200 bg-emerald-50' : 'border-zinc-200 bg-zinc-50/50'}`}>
-                        <div>
-                          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
-                            {template.template_name}
-                            {template.is_default && <span className="rounded bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white">DEFAULT</span>}
-                            {template.column_settings?.print?.style === 'grid_minimal' && <span className="rounded bg-purple-600 px-2 py-0.5 text-[10px] font-medium text-white">GRID MINIMAL</span>}
-                            {template.column_settings?.print?.style === 'pro_grid' && <span className="rounded bg-orange-600 px-2 py-0.5 text-[10px] font-medium text-white">PRO GRID</span>}
-                            {template.column_settings?.print?.style === 'saas' && <span className="rounded bg-blue-700 px-2 py-0.5 text-[10px] font-medium text-white">SAAS</span>}
-                            {template.column_settings?.print?.style === 'vertical' && <span className="rounded bg-blue-900 px-2 py-0.5 text-[10px] font-medium text-white">VERTICAL</span>}
-                            {template.column_settings?.print?.style === 'enterprise' && <span className="rounded bg-[#2C3E50] px-2 py-0.5 text-[10px] font-medium text-white">ENTERPRISE</span>}
+                )}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+                  {group.templates.map((template) => {
+                    const style = (template.column_settings?.print?.style || 'default').toLowerCase();
+                    const isLandscape = (template.orientation || 'Portrait').toLowerCase() === 'landscape';
+                    const optFlags = (template.column_settings?.optional || {}) as Record<string, boolean | undefined>;
+                    const cardHiddenCount = OPTIONAL_COLUMNS.filter((c) => !c.isMandatory && !optFlags[c.key]).length;
+                    return (
+                      <div
+                        key={template.id || template.template_code}
+                        className="group relative flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#185FA5]/40 hover:shadow-md"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => openTemplatePreview(template)}
+                          className="relative w-full overflow-hidden border-b border-zinc-100 bg-zinc-50 text-left"
+                          style={{ aspectRatio: isLandscape ? '1.414 / 1' : '1 / 1.414' }}
+                          aria-label={`Preview ${template.template_name}`}
+                        >
+                          {/* Scaled-down rendered preview of the template's actual layout */}
+                          <div
+                            className="pointer-events-none absolute left-0 top-0 origin-top-left"
+                            style={{ width: '320%', transform: 'scale(0.3125)' }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderCardPreviewHTML(template)) }}
+                          />
+                          {template.is_default && (
+                            <span className="absolute right-2 top-2 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
+                              ✓ Default
+                            </span>
+                          )}
+                          <span className={`absolute left-2 top-2 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm ${styleBadgeClass(style)}`}>
+                            {style.replace('_', ' ')}
+                          </span>
+                          {cardHiddenCount > 0 && (
+                            <span className="absolute bottom-2 left-2 rounded bg-red-600/95 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
+                              {cardHiddenCount} hidden
+                            </span>
+                          )}
+                          <span className="absolute bottom-2 right-2 rounded bg-zinc-900/80 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white shadow-sm">
+                            A4 {isLandscape ? 'Landscape' : 'Portrait'}
+                          </span>
+                        </button>
+
+                        <div className="flex flex-1 flex-col gap-1 p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-semibold text-zinc-900">{template.template_name}</div>
+                              {template.template_code && (
+                                <div className="truncate text-[11px] text-zinc-500" style={{ fontFamily: "'Inter', sans-serif" }}>
+                                  {template.template_code} · {template.document_type}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-500">
-                            {template.template_code && <span className="rounded border border-zinc-200 bg-zinc-100 px-1 py-0.5 font-mono">{template.template_code}</span>}
-                            {template.page_size} | {template.orientation} |
-                            {template.show_logo && ' Logo'}{template.show_bank_details && ' | Bank'}{template.show_terms && ' | Terms'}{template.show_signature && ' | Signature'}
+                          <div className="mt-1 text-[10px] text-zinc-400">
+                            {template.page_size} · {template.orientation}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {!template.is_default && (
-                            <Button variant="secondary" size="sm" onClick={() => handleSetDefault(template)}>Set Default</Button>
+
+                        {/* Hover actions appear below the card on hover */}
+                        <div className="grid grid-cols-2 gap-px border-t border-zinc-100 bg-zinc-100 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleEdit(template); }}
+                            className="bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition-colors hover:bg-blue-50 hover:text-[#185FA5]"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleClone(template); }}
+                            className="bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
+                          >
+                            Clone
+                          </button>
+                        </div>
+
+                        {/* Secondary actions menu: Set Default / Delete, on hover too */}
+                        <div className="flex items-center justify-between border-t border-zinc-100 bg-white px-2 py-1.5 text-[10px] text-zinc-500">
+                          {!template.is_default ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleSetDefault(template); }}
+                              className="rounded px-2 py-1 text-[10px] font-medium text-zinc-600 hover:bg-zinc-100"
+                            >
+                              Set as Default
+                            </button>
+                          ) : (
+                            <span className="text-[10px] font-semibold text-emerald-700">Current Default</span>
                           )}
-                          <Button variant="secondary" size="sm" onClick={() => handleClone(template)} title="Create a copy of this template">Clone</Button>
-                          <Button variant="secondary" size="sm" onClick={() => handleEdit(template)}>Edit</Button>
-                          <Button variant="secondary" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleDelete(template.id)}>Delete</Button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleDelete(template.id); }}
+                            className="rounded px-2 py-1 text-[10px] font-medium text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         )}
       </SettingSection>
+
+      {/* Card-click preview modal (in-tab, not new browser) */}
+      {showPreview && previewTemplate && (() => {
+        const optFlags = (previewTemplate.column_settings?.optional || {}) as Record<string, boolean | undefined>;
+        const hiddenKeys = OPTIONAL_COLUMNS.filter((c) => !c.isMandatory && !optFlags[c.key]).map((c) => c.label);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeTemplatePreview}>
+            <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-900">{previewTemplate.template_name}</h3>
+                  <p className="text-[11px] text-zinc-500">
+                    {previewTemplate.template_code && <span style={{ fontFamily: "'Inter', sans-serif" }} className="mr-2 rounded border border-zinc-200 bg-zinc-100 px-1 py-0.5">{previewTemplate.template_code}</span>}
+                    {previewTemplate.document_type} · {previewTemplate.page_size || 'A4'} {previewTemplate.orientation || 'Portrait'} · Preview with dummy data
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeTemplatePreview}
+                  className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                  aria-label="Close preview"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto bg-zinc-50 p-6">
+                {hiddenKeys.length > 0 && (
+                  <div className="mx-auto mb-4 max-w-3xl rounded-md border border-red-200 bg-red-50 px-4 py-2 text-[11px] text-red-700">
+                    <strong>{hiddenKeys.length} column{hiddenKeys.length > 1 ? 's' : ''} hidden</strong> in this template:
+                    <span className="ml-1 text-red-600/90">{hiddenKeys.join(', ')}</span>
+                    <span className="ml-2 text-red-500">(shown struck-through in the table below)</span>
+                  </div>
+                )}
+                <div className="mx-auto max-w-3xl rounded-lg border border-zinc-200 bg-white shadow-sm">
+                  <div className="p-6" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderCardPreviewHTML(previewTemplate)) }} />
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-2 border-t border-zinc-200 bg-white px-5 py-3">
+                <Button variant="secondary" onClick={() => { closeTemplatePreview(); handleClone(previewTemplate); }}>Clone</Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" onClick={closeTemplatePreview}>Close</Button>
+                  <Button onClick={() => { closeTemplatePreview(); handleEdit(previewTemplate); }}>Open in Editor</Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

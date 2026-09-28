@@ -87,6 +87,7 @@ import {
   Warehouse,
   FileCode,
   Wrench,
+  ShoppingCart,
 } from 'lucide-react';
 
 export const SETTINGS_TABS: SettingsTabDefinition[] = [
@@ -151,6 +152,14 @@ export const SETTINGS_TABS: SettingsTabDefinition[] = [
     icon: Printer,
     description: 'Printer defaults, page size, orientation, and margins',
     searchIndex: ['print layouts', 'print', 'printer', 'page size', 'orientation', 'margins', 'a4'],
+  },
+  {
+    id: 'sales-orders',
+    label: 'Sales Orders',
+    category: 'Documents',
+    icon: ShoppingCart,
+    description: 'Sales order defaults prefilled on new orders',
+    searchIndex: ['sales orders', 'sales order defaults', 'payment terms', 'so defaults'],
   },
 
   // Commerce

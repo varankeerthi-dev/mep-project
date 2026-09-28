@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,17 +16,26 @@ import {
   FileText,
   Hammer,
   Truck,
-  ShoppingCart
+  ShoppingCart,
+  Download as DownloadIcon,
+  X as XIcon,
+  Mail as MailIcon,
+  Paperclip as PaperclipIcon,
+  Upload as UploadIcon,
+  Trash2 as Trash2Icon
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { toast } from '../../lib/logger';
 import { formatDate, formatCurrency } from '../../utils/formatters';
 import { ApprovalIntegration } from '../../approvals/integration';
+import { useSalesOrder, useSalesOrderItems, useSalesOrderActivity, salesKeys } from './hooks';
 import StockCheckPanel from './components/StockCheckPanel';
 import { SalesOrderListPane } from './components/SalesOrderListPane';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../../components/ui/resizable';
 import { DocumentActions } from '../../components/document/DocumentActions';
 import { DocumentTimeline } from '../../components/document/DocumentTimeline';
 import { DocumentPreviewTabs } from '../../components/document/DocumentPreviewTabs';
+import { previewSalesOrderPdf } from './utils/soPdf';
 
 const STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
   draft:            { bg: 'bg-zinc-100', color: 'text-zinc-700', label: 'Draft' },
@@ -49,31 +58,208 @@ export default function SalesOrderDetail() {
   const [submittingApproval, setSubmittingApproval] = useState(false);
   const [showStockCheck, setShowStockCheck] = useState(false);
   const [previewTab, setPreviewTab] = useState('Preview');
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  // Fetch Sales Order details
-  const { data: order, isLoading } = useQuery({
-    queryKey: ['sales-order', id],
+  // Attachments in the private sales-order bucket: <org_id>/<so_id>/<file>
+  const attachPrefix = orgId && id ? `${orgId}/${id}` : null;
+  const { data: attachments = [], refetch: refetchAttachments } = useQuery({
+    queryKey: ['sales-order-attachments', id],
     queryFn: async () => {
-      if (!id) return null;
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select(`
-          *,
-          client:clients(*),
-          project:projects(*)
-        `)
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      return data;
+      if (!attachPrefix) return [];
+      const { data, error } = await supabase.storage
+        .from('sales-order-attachments')
+        .list(attachPrefix, { limit: 100, sortBy: { column: 'created_at', order: false } });
+      if (error) return [];
+      return (data || []).filter((f: any) => f.id);
     },
-    enabled: !!id
+    enabled: !!attachPrefix,
   });
+
+  const handleAttachUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !attachPrefix) return;
+    setUploading(true);
+    try {
+      const path = `${attachPrefix}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage.from('sales-order-attachments').upload(path, file);
+      if (error) throw error;
+      toast.success('Attachment uploaded');
+      refetchAttachments();
+    } catch (err: any) {
+      toast.error('Upload failed: ' + (err.message || err));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleAttachDelete = async (name: string) => {
+    if (!attachPrefix) return;
+    if (!confirm(`Delete "${name}"?`)) return;
+    try {
+      const { error } = await supabase.storage.from('sales-order-attachments').remove([`${attachPrefix}/${name}`]);
+      if (error) throw error;
+      refetchAttachments();
+    } catch (err: any) {
+      toast.error('Delete failed: ' + (err.message || err));
+    }
+  };
+
+  const handleAttachDownload = async (name: string) => {
+    if (!attachPrefix) return;
+    try {
+      const { data, error } = await supabase.storage
+        .from('sales-order-attachments')
+        .createSignedUrl(`${attachPrefix}/${name}`, 300);
+      if (error || !data?.signedUrl) throw error || new Error('No URL');
+      window.open(data.signedUrl, '_blank');
+    } catch (err: any) {
+      toast.error('Download failed: ' + (err.message || err));
+    }
+  };
+  const openPdfPreview = async () => {
+    if (!id || !orgId || pdfLoading) return;
+    setPdfLoading(true);
+    try {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+      const { url } = await previewSalesOrderPdf(orgId, id);
+      setPdfUrl(url);
+      setShowPdfPreview(true);
+    } catch (e: any) {
+      toast.error('PDF preview failed: ' + (e.message || e));
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  // Fetch Sales Order details (statement-managed)
+  const { data: order, isLoading } = useSalesOrder(id);
 
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [showTemplateSelect, setShowTemplateSelect] = useState(false);
+  const [showPoDialog, setShowPoDialog] = useState(false);
+  const [poVendorId, setPoVendorId] = useState('');
+  const [poLines, setPoLines] = useState<any[]>([]);
+  const [poCreating, setPoCreating] = useState(false);
+  const [poSessionKey, setPoSessionKey] = useState('');
+  const poAutoOpened = useRef(false);
+
+  const { data: poVendors = [] } = useQuery({
+    queryKey: ['so-po-vendors', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await supabase
+        .from('purchase_vendors')
+        .select('id, company_name')
+        .eq('organisation_id', orgId)
+        .eq('status', 'Active')
+        .order('company_name');
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!orgId && showPoDialog,
+  });
+
+  const openPoDialog = () => {
+    const remaining = (items || [])
+      .map((it: any) => ({
+        so_item_id: it.id,
+        item_id: it.item_id,
+        description: it.description || it.material?.name || 'Item',
+        uom: it.uom || 'nos',
+        rate: parseFloat(it.rate) || 0,
+        discount_percent: parseFloat(it.discount_percent) || 0,
+        tax_percent: parseFloat(it.tax_percent) || 0,
+        make: it.make || null,
+        variant: it.variant?.variant_name || null,
+        qty: Math.max(0, (parseFloat(it.qty) || 0) - (parseFloat(it.shipped_qty) || 0) - (parseFloat(it.produced_qty) || 0)),
+      }))
+      .filter((l: any) => l.qty > 0 && l.rate > 0);
+    setPoLines(remaining);
+    setPoVendorId('');
+    setPoSessionKey(`po:so:${id}:${Date.now()}`);
+    setShowPoDialog(true);
+  };
+
+  useEffect(() => {
+    if (searchParams.get('po') === '1' && id && items.length > 0 && !poAutoOpened.current) {
+      poAutoOpened.current = true;
+      openPoDialog();
+    }
+  }, [id, items.length]);
+
+  const handleCreatePo = async () => {
+    if (!poVendorId) { toast.error('Select a vendor'); return; }
+    const lines = poLines.filter((l: any) => (parseFloat(l.qty) || 0) > 0);
+    if (lines.length === 0) { toast.error('No quantities to order'); return; }
+    if (!orgId) return;
+    setPoCreating(true);
+    try {
+      const { data, error } = await supabase.rpc('create_purchase_order_atomic', {
+        p_organisation_id: orgId,
+        p_vendor_id: poVendorId,
+        p_project_id: order?.project_id || order?.project?.id || null,
+        p_internal_notes: `From sales order ${order?.sales_order_no || ''}`,
+        p_items: lines.map((l: any) => ({
+          item_id: l.item_id,
+          item_name: l.description,
+          quantity: parseFloat(l.qty) || 0,
+          unit: l.uom || 'Nos',
+          rate: parseFloat(l.rate) || 0,
+          discount_percent: parseFloat(l.discount_percent) || 0,
+          tax_percent: parseFloat(l.tax_percent) || 0,
+          make: l.make,
+          variant: l.variant,
+        })),
+        p_idempotency_key: poSessionKey,
+      });
+      if (error) throw error;
+      if ((data as any)?.idempotent_replayed) {
+        toast.success(`Purchase order already created (${(data as any).po_number})`);
+      } else {
+        const poId = (data as any).po_id;
+        const { data: poItems } = await supabase
+          .from('purchase_order_items')
+          .select('id')
+          .eq('po_id', poId)
+          .order('sr', { ascending: true });
+        let linkOk = !!(poItems && poItems.length > 0);
+        if (poItems) {
+          for (let i = 0; i < lines.length && i < poItems.length; i++) {
+            const { error: linkErr } = await supabase.from('purchase_order_items').update({ sales_order_item_id: lines[i].so_item_id }).eq('id', (poItems as any)[i].id);
+            if (linkErr) linkOk = false;
+          }
+        }
+        const { error: soLinkErr } = await supabase.from('purchase_orders').update({ sales_order_id: id }).eq('id', poId);
+        if (soLinkErr) linkOk = false;
+        if (!linkOk) {
+          toast.error(`PO ${(data as any).po_number} created, but linking it back to this order failed (check purchase edit permission). Open the PO to verify.`);
+        } else {
+          toast.success(`Purchase order ${(data as any).po_number} created`);
+        }
+        try {
+          await supabase.from('sales_order_activity_log').insert({
+            organisation_id: orgId,
+            sales_order_id: id,
+            event_type: 'po_raised',
+            summary: { po_id: poId, po_number: (data as any).po_number, total: (data as any).total_amount },
+            created_by: null,
+          });
+        } catch { /* activity is best-effort */ }
+      }
+      setShowPoDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['sales-order-purchase-orders', id] });
+      queryClient.invalidateQueries({ queryKey: salesKeys.activity(id || '') });
+    } catch (e: any) {
+      toast.error('PO creation failed: ' + (e.message || e));
+    } finally {
+      setPoCreating(false);
+    }
+  };
 
   useEffect(() => { setPreviewTab('Preview'); }, [id]);
 
@@ -111,36 +297,19 @@ export default function SalesOrderDetail() {
         .eq('id', id);
       if (error) throw error;
       setSelectedTemplateId(templateId);
-      queryClient.invalidateQueries({ queryKey: ['sales-order', id] });
+      queryClient.invalidateQueries({ queryKey: salesKeys.detail(id || '') });
     } catch (err: any) {
       console.error('Error selecting template:', err);
       toast.error('Error: ' + err.message);
     }
   };
 
-  // Fetch Sales Order items
-  const { data: items = [] } = useQuery({
-    queryKey: ['sales-order-items', id],
-    queryFn: async () => {
-      if (!id) return [];
-      const { data, error } = await supabase
-        .from('sales_order_items')
-        .select(`
-          *,
-          material:materials(*),
-          variant:company_variants(variant_name)
-        `)
-        .eq('sales_order_id', id);
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!id
-  });
+  // Fetch Sales Order items (statement-managed)
+  const { data: items = [] } = useSalesOrderItems(id);
 
   // Fetch linked Job Cards
   const { data: jobCards = [] } = useQuery({
-    queryKey: ['sales-order-job-cards', id],
+    queryKey: salesKeys.jobCards(id || ''),
     queryFn: async () => {
       if (!id || items.length === 0) return [];
       const itemIds = items.map((i: any) => i.id);
@@ -174,21 +343,38 @@ export default function SalesOrderDetail() {
     enabled: !!id
   });
 
-  // Fetch activity trail
-  const { data: activityLog = [] } = useQuery({
-    queryKey: ['sales-order-activity', id],
+  // Fetch activity trail (statement-managed)
+  const { data: activityLog = [] } = useSalesOrderActivity(id);
+
+  // Fetch linked invoices via line linkage (invoice_items.meta_json.source_item_id)
+  const soItemIds = useMemo(
+    () => (items || []).map((i: any) => i.id).filter(Boolean),
+    [items]
+  );
+  const { data: linkedInvoices = [] } = useQuery({
+    queryKey: ['sales-order-invoices', id, soItemIds.join('|')],
     queryFn: async () => {
-      if (!id) return [];
+      if (!id || soItemIds.length === 0) return [];
       const { data, error } = await supabase
-        .from('sales_order_activity_log')
-        .select('*')
-        .eq('sales_order_id', id)
-        .order('created_at', { ascending: true });
+        .from('invoice_items')
+        .select('id, qty, rate, amount, meta_json, invoice_id, invoice:invoices(id, invoice_no, invoice_date, grand_total, status)')
+        .filter('meta_json->>source_item_id', 'in', `(${soItemIds.join(',')})`);
       if (error) return [];
       return data || [];
     },
-    enabled: !!id
+    enabled: !!id && soItemIds.length > 0,
   });
+  const invoiceSummary = useMemo(() => {
+    const byInvoice = new Map<string, any>();
+    const billedByItem: Record<string, number> = {};
+    (linkedInvoices || []).forEach((li: any) => {
+      const srcId = li.meta_json?.source_item_id;
+      if (srcId) billedByItem[srcId] = (billedByItem[srcId] || 0) + (parseFloat(li.qty) || 0);
+      const inv = li.invoice;
+      if (inv && !byInvoice.has(inv.id)) byInvoice.set(inv.id, inv);
+    });
+    return { invoices: [...byInvoice.values()], billedByItem };
+  }, [linkedInvoices]);
 
   // Fetch linked Delivery Challans
   const { data: deliveryChallans = [] } = useQuery({
@@ -219,7 +405,7 @@ export default function SalesOrderDetail() {
 
       if (res.success) {
         toast.success(res.error || 'Sales Order submitted for approval');
-        queryClient.invalidateQueries({ queryKey: ['sales-order', id] });
+        queryClient.invalidateQueries({ queryKey: salesKeys.detail(id || '') });
       } else {
         toast.error(res.error || 'Failed to submit for approval');
       }
@@ -232,36 +418,51 @@ export default function SalesOrderDetail() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full min-h-0">
-        <SalesOrderListPane selectedId={id} onSelect={(soId) => navigate(`/sales-orders/view?id=${soId}`)} />
-        <div className="flex-1 overflow-y-auto min-w-0 flex flex-col items-center justify-center py-40">
-          <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
-          <span className="text-sm text-zinc-500 mt-2">Loading Sales Order details...</span>
-        </div>
-      </div>
+      <ResizablePanelGroup direction="horizontal" autoSaveId="sales-order-split" className="flex h-[calc(100vh-48px)] bg-zinc-100 overflow-hidden">
+        <ResizablePanel defaultSize={32} minSize={26} maxSize={42} className="flex flex-col bg-white border-r border-[#EEF0F3]">
+          <SalesOrderListPane selectedId={id} onSelect={(soId) => navigate(`/sales-orders/view?id=${soId}`)} />
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={78} className="bg-zinc-50">
+          <div className="h-full overflow-auto flex flex-col items-center justify-center py-40">
+            <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+            <span className="text-sm text-zinc-500 mt-2">Loading Sales Order details...</span>
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     );
   }
 
   if (!order) {
     return (
-      <div className="flex h-full min-h-0">
-        <SalesOrderListPane selectedId={id} onSelect={(soId) => navigate(`/sales-orders/view?id=${soId}`)} />
-        <div className="flex-1 overflow-y-auto min-w-0">
-          <div className="text-center py-20 text-sm text-zinc-500 italic">
-            Select a sales order to preview.
+      <ResizablePanelGroup direction="horizontal" autoSaveId="sales-order-split" className="flex h-[calc(100vh-48px)] bg-zinc-100 overflow-hidden">
+        <ResizablePanel defaultSize={32} minSize={26} maxSize={42} className="flex flex-col bg-white border-r border-[#EEF0F3]">
+          <SalesOrderListPane selectedId={id} onSelect={(soId) => navigate(`/sales-orders/view?id=${soId}`)} />
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={78} className="bg-zinc-50">
+          <div className="h-full overflow-auto">
+            <div className="text-center py-20 text-sm text-zinc-500 italic">
+              Select a sales order to preview.
+            </div>
           </div>
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     );
   }
 
   const statusMeta = STATUS_COLORS[order.status] || { bg: 'bg-zinc-100', color: 'text-zinc-700', label: order.status };
 
   return (
-    <div className="flex h-full min-h-0">
-      <SalesOrderListPane selectedId={id} onSelect={(soId) => navigate(`/sales-orders/view?id=${soId}`)} />
-      <div className="flex-1 overflow-y-auto min-w-0">
-      <div className="p-6 space-y-6 max-w-5xl mx-auto">
+    <ResizablePanelGroup direction="horizontal" autoSaveId="sales-order-split" className="flex h-[calc(100vh-48px)] bg-zinc-100 overflow-hidden">
+      <ResizablePanel defaultSize={32} minSize={26} maxSize={42} className="flex flex-col bg-white border-r border-[#EEF0F3]">
+        <SalesOrderListPane selectedId={id} onSelect={(soId) => navigate(`/sales-orders/view?id=${soId}`)} />
+      </ResizablePanel>
+      <ResizableHandle withHandle />
+      <ResizablePanel defaultSize={78} className="bg-zinc-50">
+        <div className="h-full overflow-auto">
+          <div className="max-w-5xl mx-auto pt-6 pb-12 px-4 sm:px-6 lg:px-8">
+            <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
         <div className="flex items-center gap-3">
@@ -284,14 +485,36 @@ export default function SalesOrderDetail() {
         <div className="flex gap-2">
           <DocumentActions
             submitForApproval={order.status === 'draft' ? { visible: true, onClick: handleSubmitApproval, loading: submittingApproval } : undefined}
-            print={{ onClick: () => window.print() }}
+            print={{ onClick: openPdfPreview, loading: pdfLoading }}
             menuItems={[
               {
                 label: 'Convert',
                 children: [
                   { label: 'Tax Invoice', onClick: () => navigate(`/invoices/create?convertFrom=sales-order-to-invoice&sourceId=${id}`) },
                   { label: 'Delivery Challan', onClick: () => navigate(`/dc/create?convertFrom=sales-order-to-challan&sourceId=${id}`) },
+                  { label: 'Purchase Order', onClick: () => openPoDialog() },
                 ],
+              },
+              {
+                label: 'Send to Client',
+                hint: order?.email_sent ? `Sent${order?.email_sent_to ? ' to ' + order.email_sent_to : ''}` : 'Record send (email transport later)',
+                icon: MailIcon,
+                onClick: async () => {
+                  if (!id) return;
+                  try {
+                    const { data, error } = await supabase.rpc('record_so_send_atomic', { p_so_id: id });
+                    if (error) throw error;
+                    if ((data as any)?.already_sent) {
+                      toast.success(`Already sent${(data as any)?.sent_to ? ' to ' + (data as any).sent_to : ''}`);
+                    } else {
+                      toast.success(`Send recorded${(data as any)?.sent_to ? ' for ' + (data as any).sent_to : ''}`);
+                    }
+                    queryClient.invalidateQueries({ queryKey: salesKeys.detail(id || '') });
+                    queryClient.invalidateQueries({ queryKey: salesKeys.activity(id || '') });
+                  } catch (e: any) {
+                    toast.error('Send failed: ' + (e.message || e));
+                  }
+                },
               },
               {
                 label: 'Run Stock Check',
@@ -531,6 +754,63 @@ export default function SalesOrderDetail() {
 
       </div>
 
+      {/* Linked Invoices */}
+      {previewTab === 'Preview' && invoiceSummary.invoices.length > 0 && (
+        <div className="bg-white p-6 rounded-xl border border-zinc-200 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 pb-2 border-b">
+            Linked Invoices ({invoiceSummary.invoices.length})
+          </h2>
+          <div className="mt-4 space-y-1.5">
+            {invoiceSummary.invoices.map((inv: any) => (
+              <div
+                key={inv.id}
+                onClick={() => navigate(`/invoices/view?id=${inv.id}`)}
+                className="p-2 border rounded-lg hover:bg-zinc-50 cursor-pointer flex justify-between items-center text-xs"
+              >
+                <div>
+                  <span className="font-semibold text-zinc-900 block">{inv.invoice_no || 'Invoice'}</span>
+                  <span className="text-[10px] text-zinc-400">Date: {inv.invoice_date ? formatDate(inv.invoice_date) : '-'}</span>
+                </div>
+                <div className="text-right">
+                  <span className="font-bold text-zinc-900 block">{formatCurrency(inv.grand_total)}</span>
+                  <span className="text-[10px] text-zinc-400">{inv.status || ''}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 pb-2 border-b mt-6 mb-2">
+            Billed vs Remaining
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-zinc-400 uppercase text-[10px]">
+                  <th className="text-left py-1.5 pr-2">Item</th>
+                  <th className="text-right py-1.5 px-2">Ordered</th>
+                  <th className="text-right py-1.5 px-2">Billed</th>
+                  <th className="text-right py-1.5 pl-2">Remaining</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {(items || []).map((it: any) => {
+                  const ordered = parseFloat(it.qty) || 0;
+                  const billed = invoiceSummary.billedByItem[it.id] || 0;
+                  const remaining = Math.max(0, ordered - billed);
+                  return (
+                    <tr key={it.id}>
+                      <td className="py-1.5 pr-2 text-zinc-800 truncate max-w-[220px]">{it.description || it.material?.name || 'Item'}</td>
+                      <td className="py-1.5 px-2 text-right tabular-nums text-zinc-600">{ordered}</td>
+                      <td className="py-1.5 px-2 text-right tabular-nums text-zinc-600">{billed}</td>
+                      <td className={`py-1.5 pl-2 text-right tabular-nums font-semibold ${remaining > 0 ? 'text-amber-700' : 'text-emerald-600'}`}>{remaining}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {previewTab === 'History' && (
         <div className="py-6 max-w-2xl">
           <DocumentTimeline
@@ -541,7 +821,11 @@ export default function SalesOrderDetail() {
                 color: '#2563EB',
                 title: l.event_type === 'created'
                   ? (s.converted_from_quotation ? `Converted from ${s.quotation_no || 'quotation'}` : 'Sales order created')
-                  : l.event_type,
+                  : l.event_type === 'po_raised'
+                    ? `Purchase order raised${s.po_number ? ' ' + s.po_number : ''}`
+                    : l.event_type === 'sent'
+                      ? `Sent to client${s.sent_to ? ' ' + s.sent_to : ''}`
+                      : l.event_type,
                 time: l.created_at ? new Date(l.created_at).toLocaleString() : '',
                 desc: s.total != null && s.total !== '' ? `Total ${formatCurrency(s.total)}` : '',
               };
@@ -552,9 +836,168 @@ export default function SalesOrderDetail() {
         </div>
       )}
       {previewTab === 'Attachments' && (
-        <div className="py-16 text-center">
-          <div className="text-sm font-medium text-zinc-500">No attachments</div>
-          <div className="mt-1 text-[13px] text-zinc-400">Files attached to this sales order will appear here.</div>
+        <div className="py-6 max-w-2xl">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="text-sm font-semibold text-zinc-900">
+              Attachments ({(attachments || []).length})
+            </div>
+            <label className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-[#E5E7EB] text-[13px] font-medium text-zinc-700 hover:bg-zinc-50 transition-colors cursor-pointer">
+              <UploadIcon className="w-3.5 h-3.5" />
+              {uploading ? 'Uploading...' : 'Upload'}
+              <input type="file" className="hidden" disabled={uploading} onChange={handleAttachUpload} />
+            </label>
+          </div>
+          {(attachments || []).length === 0 ? (
+            <div className="py-16 text-center">
+              <div className="text-sm font-medium text-zinc-500">No attachments</div>
+              <div className="mt-1 text-[13px] text-zinc-400">Files attached to this sales order will appear here.</div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(attachments || []).map((f: any) => (
+                <div key={f.name} className="flex items-center justify-between gap-3 bg-white border border-[#EEF0F3] rounded-lg px-3.5 py-2.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <PaperclipIcon className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                    <span className="text-[13px] text-zinc-800 truncate">{f.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleAttachDownload(f.name)}
+                      className="px-2.5 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAttachDelete(f.name)}
+                      className="p-1.5 text-zinc-400 hover:text-red-600 transition-colors"
+                      aria-label="Delete attachment"
+                    >
+                      <Trash2Icon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PDF Preview Modal */}
+      {showPdfPreview && (
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setShowPdfPreview(false)}>
+          <div className="bg-white rounded-lg w-full max-w-[210mm] h-[90vh] flex flex-col shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center px-4 py-2 bg-zinc-100 border-b border-zinc-200 select-none shrink-0 justify-between" style={{ gap: '4px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 500, color: '#6b7280' }}>{order?.sales_order_no || 'Sales Order'}</span>
+              <div className="flex items-center" style={{ gap: '6px' }}>
+                <button
+                  onClick={async () => {
+                    if (!id || !orgId) return;
+                    try {
+                      const { downloadSalesOrderPdf } = await import('./utils/soPdf');
+                      await downloadSalesOrderPdf(orgId, id);
+                    } catch (e: any) {
+                      toast.error('PDF download failed: ' + (e.message || e));
+                    }
+                  }}
+                  style={{ padding: '7px 16px', background: 'transparent', border: '1px solid #d1d5db', color: '#374151', fontSize: '12px', fontWeight: 500, borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <DownloadIcon size={14} /> Download
+                </button>
+                <button
+                  onClick={() => { setShowPdfPreview(false); if (pdfUrl) { URL.revokeObjectURL(pdfUrl); setPdfUrl(null); } }}
+                  style={{ padding: '6px', background: 'transparent', border: 'none', color: '#9ca3af', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                >
+                  <XIcon size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 bg-zinc-900 min-h-0">
+              {pdfUrl ? (
+                <iframe src={pdfUrl} className="w-full h-full" style={{ border: 'none' }} title="Sales Order PDF Preview" />
+              ) : (
+                <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-zinc-400" /></div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Purchase Order Convert Dialog */}
+      {showPoDialog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowPoDialog(false)}>
+          <div className="w-full max-w-[640px] max-h-[85vh] flex flex-col rounded-xl bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-[#E2E8F0]">
+              <h3 className="text-[15px] font-bold text-[#0B1C30]">Create Purchase Order</h3>
+              <p className="text-xs text-[#475569] mt-0.5">Remaining line quantities from {order?.sales_order_no}. One PO per vendor.</p>
+            </div>
+            <div className="px-5 py-4 overflow-y-auto">
+              <label className="block">
+                <span className="text-xs font-semibold text-[#0B1C30]">Vendor</span>
+                <select
+                  value={poVendorId}
+                  onChange={(e) => setPoVendorId(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-[13px] focus:outline-none focus:border-[#2563EB]"
+                >
+                  <option value="">Select vendor...</option>
+                  {(poVendors || []).map((v: any) => (
+                    <option key={v.id} value={v.id}>{v.company_name}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="mt-4 rounded-xl border border-[#E2E8F0] overflow-hidden">
+                <table className="w-full text-[13px]">
+                  <thead>
+                    <tr className="bg-[#EFF4FF] text-[11px] uppercase tracking-wider text-[#334155]">
+                      <th className="text-left px-3 py-2 font-semibold">Item</th>
+                      <th className="text-right px-3 py-2 font-semibold w-24">Qty</th>
+                      <th className="text-right px-3 py-2 font-semibold w-28">Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {poLines.length === 0 ? (
+                      <tr><td colSpan={3} className="px-3 py-8 text-center text-[13px] text-[#64748B]">No remaining quantities to order.</td></tr>
+                    ) : (
+                      poLines.map((l: any, i: number) => (
+                        <tr key={l.so_item_id} className="border-t border-[#F1F5F9]">
+                          <td className="px-3 py-2 text-[#0B1C30]">{l.description}</td>
+                          <td className="px-3 py-2 text-right">
+                            <input
+                              type="number"
+                              value={l.qty}
+                              min="0"
+                              step="0.01"
+                              onChange={(e) => setPoLines((prev) => prev.map((p, pi) => (pi === i ? { ...p, qty: parseFloat(e.target.value) || 0 } : p)))}
+                              className="w-20 rounded-md border border-[#CBD5E1] px-2 py-1 text-right tabular-nums focus:outline-none focus:border-[#2563EB]"
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-[#0B1C30]">{l.rate}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t border-[#E2E8F0] flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowPoDialog(false)}
+                className="h-9 px-4 text-[13px] font-semibold text-[#0B1C30] bg-white border border-[#CBD5E1] rounded-lg hover:bg-zinc-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreatePo}
+                disabled={poCreating || poLines.length === 0}
+                className="h-9 px-4 text-[13px] font-bold text-white bg-[#2563EB] rounded-lg hover:bg-[#1D4ED8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {poCreating ? 'Creating...' : 'Create PO'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -564,9 +1007,9 @@ export default function SalesOrderDetail() {
           isOpen={showStockCheck}
           onClose={() => {
             setShowStockCheck(false);
-            queryClient.invalidateQueries({ queryKey: ['sales-order', id] });
-            queryClient.invalidateQueries({ queryKey: ['sales-order-items', id] });
-            queryClient.invalidateQueries({ queryKey: ['sales-order-job-cards', id] });
+            queryClient.invalidateQueries({ queryKey: salesKeys.detail(id || '') });
+            queryClient.invalidateQueries({ queryKey: salesKeys.items(id || '') });
+            queryClient.invalidateQueries({ queryKey: salesKeys.jobCards(id || '') });
           }}
           salesOrderId={id || ''}
           items={items}
@@ -575,6 +1018,8 @@ export default function SalesOrderDetail() {
       )}
       </div>
       </div>
-    </div>
+      </div>
+    </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }

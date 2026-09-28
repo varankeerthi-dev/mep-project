@@ -4,13 +4,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
 import { timedSupabaseQuery } from '../../../utils/queryTimeout';
 import { buildItemChangeLog, appendLocalAuditEntry } from '../shared/audit';
-import { generateItemCode } from '../shared/utils';
+import { generateItemCode } from '../lib/generateItemCode';
 import { buildStockKey, variantStockCombos } from '../model/aggregates/WarehouseStock';
+import { getItemTypeConfig } from '../model/aggregates/MaterialEditor';
 
 import type { MaterialEditorFormData } from '../model/aggregates/MaterialEditor';
 import { normalizeItemClassification } from '../model/aggregates/MaterialEditor';
 
 const defaultFormData: MaterialEditorFormData = {
+  item_type: 'product',
   item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
   size: '', pressure_class: '', make: '', material: '', end_connection: '',
   unit: 'nos', has_alternative_unit: false, alternative_units: [] as { unit_name: string; conversion_factor: string }[],
@@ -123,6 +125,7 @@ export function useMaterialForm() {
     setWarehouseStock(wStock);
 
     setFormData({
+      item_type: (material.item_type as MaterialEditorFormData['item_type']) || 'product',
       item_code: material.item_code || '',
       item_name: material.name || '',
       display_name: material.display_name || '',
@@ -146,7 +149,7 @@ export function useMaterialForm() {
       track_inventory: hasStock,
       dimension: material.dimension || '',
       dimension_unit: material.dimension_unit || 'cm',
-      weight: material.weight || '',
+      weight: material.weight ? String(material.weight) : '',
       weight_unit: material.weight_unit || 'kg',
       item_classification: normalizeItemClassification(material.item_classification),
       accounting_treatment: (() => {
@@ -250,7 +253,8 @@ export function useMaterialForm() {
     }
 
     if (formData.hsn_code && !/^\d{1,10}$/.test(formData.hsn_code)) {
-      alert('HSN/SAC must be numeric and up to 10 digits.');
+      const typeConfig = getItemTypeConfig(formData.item_type);
+      alert(`${typeConfig.hsnLabel} must be numeric and up to 10 digits.`);
       setMaterialSavePending(false);
       return;
     }
@@ -316,8 +320,9 @@ export function useMaterialForm() {
       }
     }
 
+    const typeConfig = getItemTypeConfig(formData.item_type);
     const materialData = {
-      item_code: formData.item_code || generateItemCode(),
+      item_code: formData.item_code || generateItemCode(typeConfig.codePrefix),
       name: formData.item_name,
       display_name: formData.display_name || formData.item_name,
       main_category: formData.main_category || null,
@@ -339,7 +344,7 @@ export function useMaterialForm() {
       dimension_unit: formData.dimension_unit || 'cm',
       weight: formData.weight ? parseFloat(formData.weight as string) : null,
       weight_unit: formData.weight_unit || 'kg',
-      item_type: 'product',
+      item_type: formData.item_type || 'product',
       item_classification: normalizeItemClassification(formData.item_classification),
       gl_classification: formData.gl_classification,
       is_stockable: formData.is_stockable,

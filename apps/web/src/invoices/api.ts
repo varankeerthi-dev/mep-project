@@ -70,12 +70,14 @@ const INVOICE_SELECT = `
   paid_amount,
   status,
   prepared_by,
+  remarks,
+  authorized_signatory_id,
   submitted_date,
   submitted_by,
   submitted_file_url,
   created_at,
   client:clients(id, client_name, gstin, state, default_template_id, email),
-  items:invoice_items(id, invoice_id, description, hsn_code, qty, rate, amount, meta_json),
+  items:invoice_items(id, invoice_id, description, hsn_code, qty, rate, amount, meta_json, is_header, is_subtotal, subtotal_label, display_order, custom1, custom2),
   materials:invoice_materials(id, invoice_id, product_id, qty_used)
 `;
 
@@ -193,6 +195,12 @@ function buildInvoicePayload(invoice: Invoice): {
     qty: number;
     rate: number;
     amount: number;
+    is_header: boolean;
+    is_subtotal: boolean;
+    subtotal_label: string | null;
+    display_order: number;
+    custom1: string | null;
+    custom2: string | null;
     meta_json: Record<string, unknown>;
   }>;
   materialRows: Array<{
@@ -221,16 +229,24 @@ function buildInvoicePayload(invoice: Invoice): {
     igst: totals.igst,
     total: totals.total,
     status: invoice.status,
+    remarks: invoice.remarks ?? null,
+    authorized_signatory_id: invoice.authorized_signatory_id ?? null,
   };
 
   return {
     invoiceRow,
-    itemRows: totals.items.map((item) => ({
+    itemRows: totals.items.map((item, index) => ({
       description: item.description,
       hsn_code: item.hsn_code ?? null,
       qty: item.qty,
       rate: item.rate,
       amount: item.amount,
+      is_header: item.is_header ?? false,
+      is_subtotal: item.is_subtotal ?? false,
+      subtotal_label: item.subtotal_label ?? null,
+      display_order: item.display_order ?? index,
+      custom1: item.custom1 ?? null,
+      custom2: item.custom2 ?? null,
       meta_json: item.meta_json ?? {},
     })),
     materialRows: invoice.materials.map((material) => ({
@@ -251,9 +267,15 @@ function parseInvoiceRecord(row: any): InvoiceWithRelations {
           qty: item.qty,
           rate: item.rate,
           amount: item.amount,
+          is_header: item.is_header ?? false,
+          is_subtotal: item.is_subtotal ?? false,
+          subtotal_label: item.subtotal_label ?? null,
+          display_order: item.display_order ?? 0,
+          custom1: item.custom1 ?? null,
+          custom2: item.custom2 ?? null,
           meta_json: item.meta_json ?? {},
         }),
-      )
+      ).sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
     : [];
 
   const materials = Array.isArray(row.materials)
@@ -289,6 +311,8 @@ function parseInvoiceRecord(row: any): InvoiceWithRelations {
     paid_amount: row.paid_amount ?? 0,
     status: row.status,
     prepared_by: row.prepared_by ?? null,
+    remarks: row.remarks ?? null,
+    authorized_signatory_id: row.authorized_signatory_id ?? null,
     submitted_date: row.submitted_date ?? null,
     submitted_by: row.submitted_by ?? null,
     submitted_file_url: row.submitted_file_url ?? null,
@@ -1026,4 +1050,72 @@ export async function loadClientPOs(clientId: string, organisationId: string): P
     po_number: row.po_number,
     po_date: row.po_date,
   }));
+}
+
+export interface InvoiceTermsRow {
+  id: string;
+  invoice_id: string | null;
+  organisation_id: string | null;
+  template_id: string | null;
+  is_custom: boolean | null;
+  custom_content: unknown;
+}
+
+export async function getInvoiceTerms(
+  invoiceId: string,
+  organisationId?: string,
+): Promise<InvoiceTermsRow | null> {
+  let query = supabase
+    .from('invoice_terms_conditions')
+    .select('id, invoice_id, organisation_id, template_id, is_custom, custom_content')
+    .eq('invoice_id', invoiceId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (organisationId) {
+    query = query.eq('organisation_id', organisationId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return (data as InvoiceTermsRow | null) ?? null;
+}
+
+export async function saveInvoiceTerms(input: {
+  invoiceId: string;
+  organisationId: string;
+  templateId: string | null;
+  isCustom: boolean;
+  customContent: unknown;
+}): Promise<void> {
+  // Single writer: replace any existing row so edits never duplicate terms.
+  const { error: deleteError } = await supabase
+    .from('invoice_terms_conditions')
+    .delete()
+    .eq('invoice_id', input.invoiceId)
+    .eq('organisation_id', input.organisationId);
+
+  if (deleteError) throw deleteError;
+
+  const { error: insertError } = await supabase
+    .from('invoice_terms_conditions')
+    .insert({
+      invoice_id: input.invoiceId,
+      organisation_id: input.organisationId,
+      template_id: input.templateId,
+      is_custom: input.isCustom,
+      custom_content: JSON.stringify(input.customContent),
+    });
+
+  if (insertError) throw insertError;
+}
+
+export async function deleteInvoiceTerms(invoiceId: string, organisationId: string): Promise<void> {
+  const { error } = await supabase
+    .from('invoice_terms_conditions')
+    .delete()
+    .eq('invoice_id', invoiceId)
+    .eq('organisation_id', organisationId);
+
+  if (error) throw error;
 }

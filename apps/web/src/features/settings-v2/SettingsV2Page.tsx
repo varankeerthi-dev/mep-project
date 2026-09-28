@@ -15,6 +15,7 @@ import {
   PlaceholderTab,
   TemplatesTab,
   ToolsTab,
+  SalesOrdersTab,
 } from './tabs';
 import { SETTINGS_TABS, SettingsTabContract } from './types';
 import { PageSkeleton } from '@/components/ui/skeleton';
@@ -37,6 +38,24 @@ const TransactionNumberSeries = lazy(() => import('../../pages/TransactionNumber
 export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
+
+  // The global `.main-content` wrapper in App.tsx paints an off-white tint
+  // (`#f9fafb`) by default, with an override that depends on the `:has()`
+  // selector. Apply an inline white background to whichever `<main>` ancestor
+  // is the .main-content, so this works on every browser without relying on
+  // :has() support or HMR timing.
+  React.useLayoutEffect(() => {
+    const parent = document.querySelector<HTMLElement>('main.main-content');
+    if (!parent) return;
+    const prevBg = parent.style.background;
+    const prevPad = parent.style.padding;
+    parent.style.background = '#ffffff';
+    parent.style.padding = '0px';
+    return () => {
+      parent.style.background = prevBg;
+      parent.style.padding = prevPad;
+    };
+  }, []);
 
   const tabFromUrl = useMemo(() => {
     // 1. Check query param: ?tab=xxx
@@ -263,6 +282,15 @@ export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }
           <Suspense fallback={<PageSkeleton variant="form" rows={6} />}>
             <DiscountSettings />
           </Suspense>
+        );
+      case 'sales-orders':
+        return (
+          <SalesOrdersTab
+            onDirtyChange={(isDirty) => handleDirtyChange('sales-orders', isDirty)}
+            onRegisterSave={(saveFn, discardFn) =>
+              handleRegisterSave('sales-orders', saveFn, discardFn)
+            }
+          />
         );
       case 'quick-quote':
         return (
