@@ -82,7 +82,9 @@ export function useEmployees() {
     queryFn: async () => {
       let query = supabase
         .from('employees')
-        .select('*, default_site:sites(site_name)')
+        // Explicit columns: monthly_salary is excluded (hr.salary field
+        // grant required; see list_payroll_inputs + gated form field).
+        .select('id, organisation_id, name, email, phone, status, created_at, updated_at, employee_code, designation, department, dob, deployment_mode, default_site_id, blood_group, marital_status, father_name, mother_name, employment_type, joined_date, shift_id, min_daily_hours, reporting_manager_id, permission_hours, hide_in_attendance, include_in_salary, include_in_task, mobile_no, office_no, personal_no, emergency_contact, address, login_enabled, personal_email, work_email, login_email_type, role, role_id, aadhar_no, pan_no, pf_no, esi_no, driving_license_no, has_own_vehicle, withdraw_full_salary, personal_bank, company_bank, default_site:sites(site_name)')
       
       if (organisation?.id) {
         query = query.eq('organisation_id', organisation?.id)
@@ -105,7 +107,7 @@ export function useEmployee(employeeId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employees')
-        .select('*, default_site:sites(*)')
+        .select('id, organisation_id, name, email, phone, status, created_at, updated_at, employee_code, designation, department, dob, deployment_mode, default_site_id, blood_group, marital_status, father_name, mother_name, employment_type, joined_date, shift_id, min_daily_hours, reporting_manager_id, permission_hours, hide_in_attendance, include_in_salary, include_in_task, mobile_no, office_no, personal_no, emergency_contact, address, login_enabled, personal_email, work_email, login_email_type, role, role_id, aadhar_no, pan_no, pf_no, esi_no, driving_license_no, has_own_vehicle, withdraw_full_salary, personal_bank, company_bank, default_site:sites(*)')
         .eq('id', employeeId)
         .eq('organisation_id', organisation?.id)
         .single()

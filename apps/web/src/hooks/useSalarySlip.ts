@@ -17,12 +17,12 @@ export function useSalarySlipData(month: string) {
       const startDate = `${month}-01`
       const endDate = `${month}-${String(end).padStart(2, '0')}`
 
-      // Fetch active employees
-      const { data: employees } = await supabase
-        .from('employees')
-        .select('*')
-        .eq('organisation_id', organisation.id)
-        .eq('include_in_salary', true)
+      // Fetch active employees via the salary-gated RPC (fail-closed: without
+      // the hr.salary grant this throws and payroll data stays hidden).
+      const { data: employees, error: empError } = await supabase.rpc('list_payroll_inputs', {
+        p_org_id: organisation.id,
+      });
+      if (empError) throw empError;
 
       if (!employees || employees.length === 0) return { employees: [], isLocked: false }
 
