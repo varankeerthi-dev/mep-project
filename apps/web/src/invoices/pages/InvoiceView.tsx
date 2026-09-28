@@ -34,7 +34,7 @@ export default function InvoiceView() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const invoiceId = searchParams.get('id');
-  const { organisation, user } = useAuth();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const [showConvertMenu, setShowConvertMenu] = useState(false);
@@ -101,7 +101,7 @@ export default function InvoiceView() {
     };
   }, [previewPdfUrl]);
 
-  const invoicesQuery = useInvoices();
+  const invoicesQuery = useInvoices({ includeItems: true });
   const templatesQuery = useInvoiceTemplates();
   const templates = templatesQuery.data ?? [];
   const invoices = invoicesQuery.data ?? [];
@@ -109,6 +109,17 @@ export default function InvoiceView() {
   const selectedInvoice = invoices.find((inv) => inv.id === invoiceId) ?? null;
   const totalPaid = (paymentsQuery.data ?? []).filter((p) => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
   const balanceDue = (selectedInvoice?.total ?? 0) - totalPaid;
+
+  // Group subtotals for section/subtotal rows.
+  const viewGroupSums: Record<number, number> = {};
+  {
+    let running = 0;
+    (selectedInvoice?.items ?? []).forEach((row: any, idx: number) => {
+      if (row.is_header) { running = 0; return; }
+      if (row.is_subtotal) { viewGroupSums[idx] = running; return; }
+      running += Number(row.amount ?? row.line_total) || 0;
+    });
+  }
 
   const getSelectedTemplateName = () => {
     if (!selectedTemplateId) return 'Default';
@@ -145,72 +156,12 @@ export default function InvoiceView() {
     setPrintMenuView('main');
   };
 
-  const handleDuplicate = async () => {
+  const handleDuplicate = () => {
     if (!selectedInvoice) return;
-    try {
-      const { data: newInvoice, error } = await supabase
-        .from('invoices')
-        .insert({
-          organisation_id: organisation?.id,
-          client_id: selectedInvoice.client_id,
-          invoice_date: new Date().toISOString().split('T')[0],
-          subtotal: selectedInvoice.subtotal,
-          cgst: selectedInvoice.cgst,
-          sgst: selectedInvoice.sgst,
-          igst: selectedInvoice.igst,
-          total: selectedInvoice.total,
-          status: 'draft',
-          source_type: selectedInvoice.source_type,
-          source_id: selectedInvoice.source_id,
-          template_id: selectedInvoice.template_id,
-          template_type: selectedInvoice.template_type,
-          mode: selectedInvoice.mode,
-          company_state: selectedInvoice.company_state,
-          client_state: selectedInvoice.client_state,
-          shipping_address_id: selectedInvoice.shipping_address_id,
-          deduct_stock_on_finalize: false,
-          meta_json: (selectedInvoice as any).meta_json,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Duplicate items
-      if (selectedInvoice.items?.length) {
-        const itemInserts = selectedInvoice.items.map((item: any) => ({
-          invoice_id: newInvoice.id,
-          description: item.description,
-          hsn_code: item.hsn_code,
-          qty: item.qty,
-          rate: item.rate,
-          discount_percent: item.discount_percent,
-          amount: item.amount,
-          meta_json: item.meta_json,
-        }));
-        const { error: itemsErr } = await supabase.from('invoice_items').insert(itemInserts);
-        if (itemsErr) throw itemsErr;
-      }
-
-      // Duplicate materials
-      if (selectedInvoice.materials?.length) {
-        const matInserts = selectedInvoice.materials.map((mat: any) => ({
-          invoice_id: newInvoice.id,
-          material_id: mat.material_id,
-          qty: mat.qty,
-          rate: mat.rate,
-          amount: mat.amount,
-          meta_json: mat.meta_json,
-        }));
-        const { error: matsErr } = await supabase.from('invoice_materials').insert(matInserts);
-        if (matsErr) throw matsErr;
-      }
-
-      navigate(`/invoices/view?id=${newInvoice.id}`);
-    } catch (err: any) {
-      console.error('Error duplicating invoice:', err);
-      alert('Failed to duplicate invoice: ' + (err?.message || 'Unknown error'));
-    }
+    // Route through the V2 editor duplicate flow (?from=), which carries
+    // items, materials, remarks, signatory and terms correctly. The old
+    // direct-insert path wrote columns that do not exist.
+    navigate(`/invoices/create-v2?from=${selectedInvoice.id}`);
   };
 
   const handleDelete = async () => {
@@ -724,7 +675,24 @@ export default function InvoiceView() {
                                const hasDiscount = selectedInvoice.items?.some((i: any) => i.discount_percent !== undefined && i.discount_percent !== null && i.discount_percent !== 0);
                                const hasTax = selectedInvoice.items?.some((i: any) => i.tax_percent !== undefined && i.tax_percent !== null && i.tax_percent !== 0);
 
-                               return (
+                                if (item.is_header || item.is_subtotal) {
+                                  return (
+                                    <tr key={index} className={item.is_header ? 'bg-indigo-50/60' : 'bg-zinc-100/60'}>
+                                      <td colSpan={99} className="px-6 py-4 text-left">
+                                        {item.is_header ? (
+                                          <span className="text-sm font-bold text-indigo-700">{item.description}</span>
+                                        ) : (
+                                          <span className="flex items-center justify-between text-sm font-bold text-zinc-900">
+                                            <span>{item.subtotal_label || item.description || 'Subtotal'}</span>
+                                            <span>{formatCurrency(viewGroupSums[index] ?? 0)}</span>
+                                          </span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                }
+
+                                return (
                                 <tr 
                                   key={index} 
                                   className={`transition-colors align-top ${index % 2 === 1 ? 'bg-zinc-100/30' : 'bg-white'} hover:bg-sky-50/40`}
