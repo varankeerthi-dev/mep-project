@@ -11,6 +11,7 @@ import {
   Trash2 as TrashIcon,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useCanViewField } from '@/rbac/hooks';
 import { Button } from '@/components/ui/button';
 
 interface ChangeAuditEntry {
@@ -92,9 +93,11 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
   const itemsPerPage = 30;
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const canViewPurchaseRate = useCanViewField('purchase.rate').data === true;
 
   const getColumnConfig = useMemo(() => {
-    const baseCols = EDITABLE_COLUMNS.filter(col => selectedFields.includes(col.key));
+    const baseCols = EDITABLE_COLUMNS.filter(col =>
+      selectedFields.includes(col.key) && (col.key !== 'purchase_price' || canViewPurchaseRate));
     const stockCols = warehouses
       .filter(wh => selectedFields.includes(`stock_${wh.id}`))
       .map(wh => ({
@@ -109,7 +112,7 @@ export function ExcelEditor({ materials, warehouses, selectedFields, variants = 
       }));
     const idCols = EDITABLE_COLUMNS.filter(col => col.key === 'item_code' || col.key === 'name');
     return [...idCols, ...baseCols, ...stockCols];
-  }, [selectedFields, warehouses]);
+  }, [selectedFields, warehouses, canViewPurchaseRate]);
 
   useEffect(() => {
     const initialRows: ExcelEditRow[] = [];
@@ -626,6 +629,7 @@ interface FieldSelectorProps {
 }
 
 export function FieldSelector({ warehouses, selectedFields, onChange }: FieldSelectorProps) {
+  const canViewPurchaseRate = useCanViewField('purchase.rate').data === true;
   const handleToggle = (key: string) => {
     const newSelection = selectedFields.includes(key)
       ? selectedFields.filter(f => f !== key)
@@ -635,7 +639,7 @@ export function FieldSelector({ warehouses, selectedFields, onChange }: FieldSel
 
   const handleSelectAll = () => {
     const allFields = [
-      ...EDITABLE_COLUMNS.filter(c => c.editable).map(c => c.key),
+      ...EDITABLE_COLUMNS.filter(c => c.editable && (c.key !== 'purchase_price' || canViewPurchaseRate)).map(c => c.key),
       ...warehouses.map(wh => `stock_${wh.id}`),
     ];
     onChange(allFields);
@@ -652,7 +656,9 @@ export function FieldSelector({ warehouses, selectedFields, onChange }: FieldSel
     },
     {
       title: 'Pricing & Tax',
-      fields: EDITABLE_COLUMNS.filter(c => ['sale_price', 'purchase_price', 'hsn_code', 'gst_rate', 'taxable'].includes(c.key)),
+      fields: EDITABLE_COLUMNS.filter(c =>
+        ['sale_price', 'hsn_code', 'gst_rate', 'taxable'].includes(c.key) ||
+        (c.key === 'purchase_price' && canViewPurchaseRate)),
     },
   ];
 

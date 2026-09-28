@@ -1,5 +1,6 @@
 import { Modal } from '../../../../components/ui/Modal';
 import { Button } from '../../../../components/ui/button';
+import { useCanViewField } from '@/rbac/hooks';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 
 interface BulkPriceDialogProps {
@@ -20,6 +21,7 @@ export function BulkPriceDialog({
   previewRows, parseErrors, applyErrors, inProgress,
   onPreview, onApply,
 }: BulkPriceDialogProps) {
+  const canViewPurchaseRate = useCanViewField('purchase.rate').data === true;
   return (
     <Modal
       isOpen={open}
@@ -76,8 +78,12 @@ export function BulkPriceDialog({
                     <th className="text-left px-3 py-1.5 font-semibold text-zinc-500">Item</th>
                     <th className="text-right px-3 py-1.5 font-semibold text-zinc-500">Current Sale</th>
                     <th className="text-right px-3 py-1.5 font-semibold text-zinc-500">New Sale</th>
-                    <th className="text-right px-3 py-1.5 font-semibold text-zinc-500">Current Purchase</th>
-                    <th className="text-right px-3 py-1.5 font-semibold text-zinc-500">New Purchase</th>
+                    {canViewPurchaseRate && (
+                      <>
+                        <th className="text-right px-3 py-1.5 font-semibold text-zinc-500">Current Purchase</th>
+                        <th className="text-right px-3 py-1.5 font-semibold text-zinc-500">New Purchase</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -86,8 +92,12 @@ export function BulkPriceDialog({
                       <td className="px-3 py-1.5 text-zinc-700">{row.identifier}</td>
                       <td className="px-3 py-1.5 text-right text-zinc-500">{row.item.sale_price ?? '-'}</td>
                       <td className="px-3 py-1.5 text-right font-medium text-indigo-700">{row.nextSale ?? '-'}</td>
-                      <td className="px-3 py-1.5 text-right text-zinc-500">{row.item.purchase_price ?? '-'}</td>
-                      <td className="px-3 py-1.5 text-right font-medium text-indigo-700">{row.nextPurchase ?? '-'}</td>
+                      {canViewPurchaseRate && (
+                        <>
+                          <td className="px-3 py-1.5 text-right text-zinc-500">{row.item.purchase_price ?? '-'}</td>
+                          <td className="px-3 py-1.5 text-right font-medium text-indigo-700">{row.nextPurchase ?? '-'}</td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>

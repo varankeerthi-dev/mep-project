@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '../../../../components/ui/button';
 import { Copy, Trash2, AlertCircle } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
+import { useCanViewField } from '@/rbac/hooks';
 
 const GST_RATES = [
   { value: 0, label: '0%' },
@@ -61,6 +62,7 @@ export function MultiItemDialog({
   categoryOptions, variantOptions, unitOptions,
 }: MultiItemDialogProps) {
   const [validationError, setValidationError] = useState('');
+  const canViewPurchaseRate = useCanViewField('purchase.rate').data === true;
 
   if (!open) return null;
 
@@ -149,7 +151,9 @@ export function MultiItemDialog({
                 <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[40px]">V?</th>
                 <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[120px]">Variant Type</th>
                 <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[90px]">Sale Rate</th>
+                {canViewPurchaseRate && (
                 <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[90px]">Pur. Rate</th>
+                )}
                 <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[60px]">GST %</th>
                 <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[100px]">HSN</th>
                 <th className="px-3 py-2 border border-zinc-200 text-xs font-semibold text-zinc-600 w-[80px]">Inventory</th>
@@ -232,6 +236,7 @@ export function MultiItemDialog({
                         placeholder="0.00"
                       />
                     </td>
+                    {canViewPurchaseRate && (
                     <td className="px-2 py-1 border border-zinc-200">
                       <input
                         type="number"
@@ -241,6 +246,7 @@ export function MultiItemDialog({
                         placeholder="0.00"
                       />
                     </td>
+                    )}
                     <td className="px-2 py-1 border border-zinc-200">
                       <select
                         className="w-full h-8 text-xs border-none focus:ring-0"

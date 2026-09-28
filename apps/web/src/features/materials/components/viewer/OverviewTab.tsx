@@ -1,11 +1,13 @@
 import { formatCurrency, formatDate } from '../../../../utils/formatters';
 import type { Material } from '../../model/entities';
+import { useCanViewField } from '@/rbac/hooks';
 
 interface OverviewTabProps {
   material: Material | null;
 }
 
 export function OverviewTab({ material }: OverviewTabProps) {
+  const canViewPurchaseRate = useCanViewField('purchase.rate').data === true;
   if (!material) return <div className="p-6 text-sm text-zinc-400">No material selected.</div>;
 
   const salePrice = material.sale_price || 0;
@@ -39,8 +41,12 @@ export function OverviewTab({ material }: OverviewTabProps) {
       {/* Key metrics grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <MetricCard label="Sale Price" value={salePrice > 0 ? formatCurrency(salePrice) : '—'} sub={`per ${material.unit}`} />
-        <MetricCard label="Purchase Price" value={purchasePrice > 0 ? formatCurrency(purchasePrice) : '—'} sub={`per ${material.unit}`} />
-        <MetricCard label="Margin" value={`${margin}%`} sub={Number(margin) > 0 ? 'Profit margin' : 'No margin'} />
+        {canViewPurchaseRate && (
+          <>
+            <MetricCard label="Purchase Price" value={purchasePrice > 0 ? formatCurrency(purchasePrice) : '—'} sub={`per ${material.unit}`} />
+            <MetricCard label="Margin" value={`${margin}%`} sub={Number(margin) > 0 ? 'Profit margin' : 'No margin'} />
+          </>
+        )}
         <MetricCard label="HSN / GST" value={material.hsn_code || '—'} sub={material.gst_rate != null ? `GST ${material.gst_rate}%` : 'No GST'} />
       </div>
 

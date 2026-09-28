@@ -4,6 +4,7 @@ import { Input } from '../../../../components/ui/input';
 import { EditorSection } from './EditorSection';
 import { inputField, selectField, fieldLabel } from './formStyles';
 import { GST_OPTIONS } from '../../constants';
+import { useCanViewField } from '@/rbac/hooks';
 
 interface CommercialSectionProps {
   formData: {
@@ -21,6 +22,7 @@ interface CommercialSectionProps {
 export function CommercialSection({ formData, onChange, usesVariant: propUsesVariant, hsnLabel = 'HSN/SAC Code' }: CommercialSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
   const usesVariant = propUsesVariant ?? formData.uses_variant ?? false;
+  const canViewPurchaseRate = useCanViewField('purchase.rate').data === true;
 
   return (
     <div>
@@ -64,6 +66,7 @@ export function CommercialSection({ formData, onChange, usesVariant: propUsesVar
               />
             </div>
           </div>
+          {canViewPurchaseRate && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className={fieldLabel}>Purchase Price</label>
@@ -96,6 +99,7 @@ export function CommercialSection({ formData, onChange, usesVariant: propUsesVar
               />
             </div>
           </div>
+          )}
           <div className="space-y-3">
             <label className={fieldLabel}>GST Rate (%)</label>
             <div className="relative">

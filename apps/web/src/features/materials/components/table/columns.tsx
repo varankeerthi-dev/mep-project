@@ -16,9 +16,11 @@ export function buildColumns(
   onView: (material: any) => void,
   onEdit: (material: any) => void,
   onDelete: (material: any) => void,
+  canViewPurchaseRate = true,
 ) {
   return ITEM_TABLE_COLUMNS
     .filter((col) => visibleColumns.includes(col.key))
+    .filter((col) => col.key !== 'purchase_price' || canViewPurchaseRate)
     .map((colDef) => {
       switch (colDef.key) {
         case 'name':

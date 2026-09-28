@@ -6,6 +6,7 @@ import { EditorSection } from './EditorSection';
 import { inputFieldSm, selectFieldSm, addLink } from './formStyles';
 import type { VariantPricingRow } from '../../model/aggregates';
 import { Button } from '@/components/ui/button';
+import { useCanViewField } from '@/rbac/hooks';
 
 interface VariantPricingSectionProps {
   number?: number;
@@ -31,6 +32,7 @@ export function VariantPricingSection({
   subtitle,
 }: VariantPricingSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const canViewPurchaseRate = useCanViewField('purchase.rate').data === true;
 
   return (
     <div>
@@ -91,6 +93,7 @@ export function VariantPricingSection({
                     className={inputFieldSm + ' !pl-7 text-[12px]'}
                   />
                 </div>
+                {canViewPurchaseRate && (
                 <div className="relative min-w-0 flex-1">
                   <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#6B7280]">₹</span>
                   <Input
@@ -102,6 +105,7 @@ export function VariantPricingSection({
                     className={inputFieldSm + ' !pl-7 text-[12px]'}
                   />
                 </div>
+                )}
                 <Button variant="default" size="default" onClick={() => onRemoveRow(row.id)}
                   className="ml-1 rounded-lg p-1.5 text-[#6B7280] transition-colors hover:bg-[#EF4444]/10 hover:text-[#EF4444]"
                 >

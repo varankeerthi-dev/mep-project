@@ -4,11 +4,13 @@ import { X } from 'lucide-react';
 import { supabase } from '../../../supabase';
 import { useMaterials } from '../../../hooks/useMaterials';
 import { Button } from '@/components/ui/button';
+import { useCanViewField } from '@/rbac/hooks';
 
 const UNIT_OPTIONS = ['Nos', 'Mtrs', 'Kgs', 'Sqft', 'Cum', 'Ltr', 'Pcs', 'Job', 'Hour', 'Day'];
 const GST_OPTIONS = [0, 5, 12, 18, 28];
 
 function ServiceItemsTab() {
+  const canViewPurchaseRate = useCanViewField('purchase.rate').data === true;
   const { data: allMaterials = [], isLoading: loading } = useMaterials();
   const services = useMemo(() => allMaterials.filter(m => m.item_type === 'service'), [allMaterials]);
   const [showForm, setShowForm] = useState(false);
@@ -174,10 +176,12 @@ function ServiceItemsTab() {
                     <label className="text-[12px] leading-[100%] text-[#0C0A09]">Sale Price</label>
                     <input type="number" value={formData.sale_price} onChange={e => setFormData({...formData, sale_price: e.target.value})} placeholder="0.00" step="0.01" className="h-8 w-full min-w-0 px-2.5 py-1 text-xs text-[#0C0A09] border border-[#E7E5E4] outline-none" style={{ borderWidth: '0.888889px' }} />
                   </div>
+                  {canViewPurchaseRate && (
                   <div className="flex flex-col gap-2">
                     <label className="text-[12px] leading-[100%] text-[#0C0A09]">Purchase Price</label>
                     <input type="number" value={formData.purchase_price} onChange={e => setFormData({...formData, purchase_price: e.target.value})} placeholder="0.00" step="0.01" className="h-8 w-full min-w-0 px-2.5 py-1 text-xs text-[#0C0A09] border border-[#E7E5E4] outline-none" style={{ borderWidth: '0.888889px' }} />
                   </div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[12px] leading-[100%] text-[#0C0A09]">Description</label>

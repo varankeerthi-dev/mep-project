@@ -15,6 +15,8 @@ import { ColumnSettingsDropdown } from '../components/toolbar/ColumnSettingsDrop
 import { ItemsTable } from '../components/table/ItemsTable';
 import { Pagination } from '../components/table/Pagination';
 import { buildColumns } from '../components/table/columns';
+import { useCanViewField } from '@/rbac/hooks';
+import { useCanViewField } from '@/rbac/hooks';
 import { ItemEditorDialog } from '../components/editor/ItemEditorDialog';
 import { ItemDetailsDialog } from '../components/viewer/ItemDetailsDialog';
 import { BulkPriceDialog } from '../components/dialogs/BulkPriceDialog';
@@ -174,20 +176,26 @@ export function ItemsTab() {
 
   // ─── CSV Export ─────────────────────────────────────────────
   const exportCsv = useCallback(() => {
-    const headers = ['Code', 'Name', 'Category', 'Unit', 'Sale Price', 'Purchase Price', 'HSN', 'GST %', 'Stock Qty', 'Reorder Level', 'Status'];
-    const rows = filteredMaterials.map((m: any) => [
-      m.item_code || '',
-      m.display_name || m.name || '',
-      m.main_category || '',
-      m.unit || '',
-      m.sale_price || 0,
-      m.purchase_price || 0,
-      m.hsn_code || '',
-      m.gst_rate ?? '',
-      stockData[m.id] || 0,
-      m.reorder_level || '',
-      m.is_active ? 'Active' : 'Inactive',
-    ]);
+    const headers = canViewPurchaseRate
+      ? ['Code', 'Name', 'Category', 'Unit', 'Sale Price', 'Purchase Price', 'HSN', 'GST %', 'Stock Qty', 'Reorder Level', 'Status']
+      : ['Code', 'Name', 'Category', 'Unit', 'Sale Price', 'HSN', 'GST %', 'Stock Qty', 'Reorder Level', 'Status'];
+    const rows = filteredMaterials.map((m: any) => {
+      const base = [
+        m.item_code || '',
+        m.display_name || m.name || '',
+        m.main_category || '',
+        m.unit || '',
+        m.sale_price || 0,
+      ];
+      const tail = [
+        m.hsn_code || '',
+        m.gst_rate ?? '',
+        stockData[m.id] || 0,
+        m.reorder_level || '',
+        m.is_active ? 'Active' : 'Inactive',
+      ];
+      return canViewPurchaseRate ? [...base, m.purchase_price || 0, ...tail] : [...base, ...tail];
+    });
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -205,6 +213,8 @@ export function ItemsTab() {
   }, [filteredMaterials, currentPage]);
   useEffect(() => { setCurrentPage(1); }, [searchTerm, categoryFilter, hideInactive]);
 
+  const canViewPurchaseRate = useCanViewField('purchase.rate').data === true;
+
   // ─── Table Columns ───────────────────────────────────────────
   const handleView = useCallback((material: any) => {
     setSelectedMaterialId(material.id);
@@ -213,12 +223,15 @@ export function ItemsTab() {
     transactions.loadItemTransactions(material.id);
   }, [transactions]);
 
+  const canViewPurchaseRate = useCanViewField('purchase.rate').data === true;
+
   const columns = useMemo(() => buildColumns(
     visibleColumns, stockData, discountCategoryMap,
     handleView,
     (material) => form.editMaterial(material, warehouses, stock),
     (material) => actions.deleteMaterial(material),
-  ), [visibleColumns, stockData, discountCategoryMap, handleView, form, warehouses, stock, actions]);
+    canViewPurchaseRate,
+  ), [visibleColumns, stockData, discountCategoryMap, handleView, form, warehouses, stock, actions, canViewPurchaseRate]);
 
   const table = useReactTable({ data: paginatedMaterials, columns, getCoreRowModel: getCoreRowModel() });
 
@@ -469,7 +482,9 @@ export function ItemsTab() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard icon={Package} label="SKUs Listed" value={String(kpiStats.totalSKUs)} sub={`${categoryOptions.length} categories`} tone="brand" />
+        {canViewPurchaseRate && (
         <KpiCard icon={IndianRupee} label="Catalogue Value" value={`₹${kpiStats.totalStockValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} sub="At purchase cost" tone="violet" />
+        )}
         <KpiCard icon={Tag} label="Avg Sale Rate" value={kpiStats.avgRate > 0 ? `₹${kpiStats.avgRate.toFixed(0)}/kg` : '—'} sub="Across kg-based items" tone="sky" />
         <KpiCard icon={Layers} label="Below Reorder" value={String(kpiStats.belowReorder)} sub={kpiStats.belowReorder > 0 ? 'Needs purchase order' : 'All stock healthy'} tone={kpiStats.belowReorder > 0 ? 'amber' : 'green'} />
       </div>

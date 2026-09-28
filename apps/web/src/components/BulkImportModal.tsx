@@ -19,6 +19,7 @@ import {
   ImportValidationResult,
 } from '../utils/bulkImport';
 import { cn } from '../lib/utils';
+import { useCanViewField } from '@/rbac/hooks';
 
 interface BulkImportModalProps {
   open: boolean;
@@ -37,6 +38,7 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
   const [result, setResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canViewPurchaseRate = useCanViewField('purchase.rate').data === true;
 
   if (!open) return null;
 
@@ -182,8 +184,10 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
 
   const handleApplyImport = async () => {
     if (!validationResult) return;
-    
-    const rowsToImport = validationResult.validRows.filter(r => selectedRows.has(r.rowNo));
+
+    const rowsToImport = validationResult.validRows
+      .filter(r => selectedRows.has(r.rowNo))
+      .map(r => canViewPurchaseRate ? r : { ...r, data: { ...r.data, purchase_price: undefined } });
     if (rowsToImport.length === 0) {
       alert('No rows selected for import');
       return;
@@ -377,7 +381,9 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
                       <th className="p-3 font-bold text-zinc-600">Name</th>
                       <th className="p-3 font-bold text-zinc-600">Category</th>
                       <th className="p-3 font-bold text-zinc-600">Sale Price</th>
+                      {canViewPurchaseRate && (
                       <th className="p-3 font-bold text-zinc-600">Purchase Price</th>
+                      )}
                       <th className="p-3 font-bold text-zinc-600">Stock</th>
                       <th className="p-3 font-bold text-zinc-600">Status</th>
                     </tr>
@@ -402,7 +408,9 @@ ITEM-002\tGI Pipe 2 inch\tPIPE\t450\t350\t18`}
                         <td className="p-3 font-medium text-zinc-900">{row.data.name || row.item?.name || row.item?.display_name || '-'}</td>
                         <td className="p-3 text-zinc-500">{row.data.main_category || row.item?.main_category || '-'}</td>
                         <td className="p-3 text-zinc-600">{row.data.sale_price ?? row.item?.sale_price ?? '-'}</td>
+                        {canViewPurchaseRate && (
                         <td className="p-3 text-zinc-600">{row.data.purchase_price ?? row.item?.purchase_price ?? '-'}</td>
+                        )}
                         <td className="p-3 text-zinc-600">{row.data.current_stock ?? '-'}</td>
                         <td className="p-3">
                           {row.warnings.length > 0 && (
