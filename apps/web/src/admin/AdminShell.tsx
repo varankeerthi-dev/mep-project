@@ -4,6 +4,7 @@ import AdminLayout from './layout/AdminLayout';
 import Overview from './pages/Overview';
 import Organizations from './pages/Organizations';
 import Plans from './pages/Plans';
+import Users from './pages/Users';
 import Placeholder from './pages/Placeholder';
 
 export default function AdminShell() {
@@ -20,7 +21,7 @@ export default function AdminShell() {
       page = <Organizations />;
       break;
     case '/admin/users':
-      page = <Placeholder title="Users" />;
+      page = <Users />;
       break;
     case '/admin/plans':
       page = <Plans />;

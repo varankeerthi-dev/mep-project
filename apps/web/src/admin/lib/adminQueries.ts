@@ -124,6 +124,62 @@ async function fetchAdminPlans(): Promise<{ plans: AdminPlan[]; modules: AdminMo
   return { plans, modules: (m.data || []) as AdminModule[], orgsByPlan };
 }
 
+export type AdminUserRow = {
+  id: number;
+  full_name: string;
+  email: string;
+  role: string;
+  status: string;
+  org_id: number | null;
+  org_name: string;
+  plan_name: string;
+  created_at: string | null;
+  last_active_at: string | null;
+  minutes_30d: number;
+  module_ids: number[];
+};
+
+export type AdminUsersResult = {
+  rows: AdminUserRow[];
+  modules: AdminModule[];
+};
+
+async function fetchAdminUsers(): Promise<AdminUsersResult> {
+  const [u, m] = await Promise.all([
+    supabase
+      .schema('admin')
+      .from('users')
+      .select('id, full_name, email, role, status, org_id, created_at, last_active_at, minutes_30d, module_ids, organizations(id, name, plan_id, plans(id, name))')
+      .order('created_at', { ascending: false })
+      .limit(1000),
+    supabase.schema('admin').from('modules').select('id, name'),
+  ]);
+  if (u.error) throw new Error(u.error.message);
+  const rows: AdminUserRow[] = ((u.data || []) as any[]).map((x) => ({
+    id: Number(x.id),
+    full_name: x.full_name || '—',
+    email: x.email || '—',
+    role: x.role || 'member',
+    status: x.status || 'onboarding',
+    org_id: x.org_id != null ? Number(x.org_id) : null,
+    org_name: x.organizations?.name || '—',
+    plan_name: x.organizations?.plans?.name || '—',
+    created_at: x.created_at || null,
+    last_active_at: x.last_active_at || null,
+    minutes_30d: Number(x.minutes_30d || 0),
+    module_ids: (x.module_ids || []).map(Number),
+  }));
+  return { rows, modules: ((m.data || []) as any[]) as AdminModule[] };
+}
+
+export function useAdminUsers() {
+  return useQuery({
+    queryKey: ['admin', 'users'],
+    queryFn: withSessionCheck(fetchAdminUsers),
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useAdminPlans() {
   return useQuery({
     queryKey: ['admin', 'plans'],
