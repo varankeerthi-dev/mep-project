@@ -1,25 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useAuth } from '../App';
+import { useAuth } from '@/contexts/AuthContext';
 import { FollowupTabs, FollowupTabsMobile } from '@/components/follow-up/followup-tabs';
 import { FollowupSearch } from '@/components/follow-up/followup-search';
 import { FollowupFilterBar } from '@/components/follow-up/followup-filter-bar';
-import {
-  QuotationFollowupRow,
-  quotationTableHeader,
-} from '@/components/follow-up/quotation-followup-row';
-import { PodcBacklogRow, podcTableHeader } from '@/components/follow-up/podc-backlog-row';
-import {
-  InvoiceEscalationCard,
-  invoiceTableHeader,
-} from '@/components/follow-up/invoice-escalation-card';
-import { ActivityLogItem, activityTableHeader } from '@/components/follow-up/activity-log-item';
-import {
-  PriorityQueueRow,
-  priorityQueueTableHeader,
-} from '@/components/follow-up/priority-queue-row';
-import {
-  PriorityQueueBoard,
-  type KanbanGroupBy,
+import type {
+  KanbanGroupBy,
 } from '@/components/follow-up/priority-queue-board';
 import {
   KanbanViewSwitcher,
@@ -29,16 +14,19 @@ import {
 import {
   EnterpriseTabNavigation,
   type TabItem,
-  type SubTabItem,
 } from '@/components/ui/EnterpriseTabNavigation';
-import {
-  ProcurementFollowupRow,
-  procurementTableHeader,
-} from '@/components/follow-up/procurement-followup-row';
-import { InvoiceDetailPanel } from '@/components/follow-up/reminder-action-sheet';
+import { ActivityTab } from '@/components/follow-up/tabs/ActivityTab';
+import { LeadTab } from '@/components/follow-up/tabs/LeadTab';
+import { QuotationTab } from '@/components/follow-up/tabs/QuotationTab';
+import { PodcTab } from '@/components/follow-up/tabs/PodcTab';
+import { ProcurementTab } from '@/components/follow-up/tabs/ProcurementTab';
+import { InvoiceTab } from '@/components/follow-up/tabs/InvoiceTab';
+import { QueueTab } from '@/components/follow-up/tabs/QueueTab';
 import { ItemHistoryDrawer } from '@/components/follow-up/item-history-drawer';
 import { useFollowupFilters } from '@/hooks/use-followup-filters';
 import { useFollowupSearch } from '@/hooks/use-followup-search';
+import { usePagination } from '@/hooks/use-followup-pagination';
+import { useQueueFocus, type QuickFilter } from '@/hooks/use-queue-focus';
 import { useWhatsappShare } from '@/hooks/use-whatsapp-share';
 import {
   useFollowupQuotations,
@@ -61,18 +49,13 @@ import {
   filterPodcBacklog,
   filterInvoices,
   filterActivityLogs,
-  computeQuotationMetrics,
-  computePodcMetrics,
-  computeInvoiceMetrics,
   filterProcurement,
-  computeProcurementMetrics,
 } from '@/lib/followup/followup-utils';
-import { formatCompactCurrency } from '@/lib/followup/currency-format';
 import {
   buildPriorityQueue,
   filterPriorityQueue,
-  computeQueueMetrics,
 } from '@/lib/followup/priority-queue';
+import { useFollowUpMetrics } from '@/hooks/use-followup-metrics';
 import {
   DEFAULT_FOLLOWUP_FILTERS,
 } from '@/types/followup';
@@ -94,24 +77,11 @@ import type {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFollowupAccess } from '@/hooks/use-followup-access';
 import { LeadCaptureModal } from '@/components/leads/lead-capture-modal';
-import { LeadRow, leadTableHeader } from '@/components/follow-up/lead-row';
 import { WinLossModal } from '@/components/leads/win-loss-modal';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { 
-  UserPlus, 
+import {
+  UserPlus,
   MessageSquare,
-  Calendar,
-  Clock,
-  User,
-  Hourglass,
-  UserMinus,
-  RotateCcw,
-  CheckSquare,
-  Square,
-  LayoutList,
-  Columns3,
-  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -150,17 +120,10 @@ export default function FollowUpCentre() {
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
 
   // Quick Filter selections
-  const [quickFilter, setQuickFilter] = useState<'all' | 'due_today' | 'overdue' | 'waiting' | 'upcoming' | 'unassigned'>('all');
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
   const [focusMode, setFocusMode] = useState<boolean>(false);
 
-  const [queuePage, setQueuePage] = useState(1);
-  const [quotationPage, setQuotationPage] = useState(1);
-  const [podcPage, setPodcPage] = useState(1);
-  const [invoicePage, setInvoicePage] = useState(1);
-  const [activityPage, setActivityPage] = useState(1);
-  const [leadPage, setLeadPage] = useState(1);
-  const [procurementPage, setProcurementPage] = useState(1);
-  const itemsPerPage = 20;
+  // Pagination state lives in usePagination per list (page size 20, unchanged).
 
   const [viewMode, setViewMode] = useState<'table' | 'board'>(() => {
     try {
@@ -313,103 +276,26 @@ export default function FollowUpCentre() {
     [priorityQueue, search, filters.status, filters.sort, filters.assignee, currentUserId]
   );
 
-  const queueWithFocus = useMemo(() => {
-    let items = filteredQueue;
-    
-    // Focus mode: show only essentials (critical and high bands)
-    if (focusMode) {
-      items = items.filter((i) => i.priority_band === 'critical' || i.priority_band === 'high');
-    }
-    
-    // Quick filter selection
-    if (quickFilter === 'due_today') {
-      items = items.filter((i) => i.urgency_label.toLowerCase().includes('today') || i.urgency_label.toLowerCase().includes('due tomorrow') || i.urgency_label.toLowerCase().includes('tomorrow'));
-    } else if (quickFilter === 'overdue') {
-      items = items.filter((i) => i.urgency_label.toLowerCase().includes('overdue') || i.urgency_label.toLowerCase().includes('delayed') || i.urgency_label.toLowerCase().includes('days'));
-    } else if (quickFilter === 'waiting') {
-      items = items.filter((i) => i.reason.toLowerCase().includes('negotiation') || i.reason.toLowerCase().includes('sent') || i.urgency_label.toLowerCase().includes('validity'));
-    } else if (quickFilter === 'upcoming') {
-      items = items.filter((i) => i.urgency_label.toLowerCase().includes('upcoming') || i.urgency_label.toLowerCase().includes('close') || i.urgency_label.toLowerCase().includes('due'));
-    } else if (quickFilter === 'unassigned') {
-      items = items.filter((i) => !i.assignee_user_id);
-    }
-    
-    return items;
-  }, [filteredQueue, focusMode, quickFilter]);
+  const { items: queueWithFocus, counts: quickFilterCounts } = useQueueFocus(
+    filteredQueue,
+    priorityQueue,
+    focusMode,
+    quickFilter
+  );
 
-  const quickFilterCounts = useMemo(() => {
-    const due_today = priorityQueue.filter((i) => i.urgency_label.toLowerCase().includes('today') || i.urgency_label.toLowerCase().includes('due tomorrow') || i.urgency_label.toLowerCase().includes('tomorrow')).length;
-    const overdue = priorityQueue.filter((i) => i.urgency_label.toLowerCase().includes('overdue') || i.urgency_label.toLowerCase().includes('delayed') || i.urgency_label.toLowerCase().includes('days')).length;
-    const waiting = priorityQueue.filter((i) => i.reason.toLowerCase().includes('negotiation') || i.reason.toLowerCase().includes('sent') || i.urgency_label.toLowerCase().includes('validity')).length;
-    const upcoming = priorityQueue.filter((i) => i.urgency_label.toLowerCase().includes('upcoming') || i.urgency_label.toLowerCase().includes('close') || i.urgency_label.toLowerCase().includes('due')).length;
-    const unassigned = priorityQueue.filter((i) => !i.assignee_user_id).length;
+  const queuePagination = usePagination(queueWithFocus, 20, [filters, search, quickFilter, focusMode]);
 
-    return { due_today, overdue, waiting, upcoming, unassigned };
-  }, [priorityQueue]);
+  const quotationPagination = usePagination(filteredQuotations, 20, [filters, search]);
 
-  const queuePagination = useMemo(() => {
-    const totalItems = queueWithFocus.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (queuePage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return { totalItems, totalPages, startIndex, endIndex, currentItems: queueWithFocus.slice(startIndex, endIndex), hasNextPage: queuePage < totalPages, hasPrevPage: queuePage > 1 };
-  }, [queueWithFocus, queuePage, itemsPerPage]);
+  const podcPagination = usePagination(filteredPodc, 20, [filters, search]);
 
-  const quotationPagination = useMemo(() => {
-    const totalItems = filteredQuotations.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (quotationPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredQuotations.slice(startIndex, endIndex), hasNextPage: quotationPage < totalPages, hasPrevPage: quotationPage > 1 };
-  }, [filteredQuotations, quotationPage, itemsPerPage]);
+  const invoicePagination = usePagination(filteredInvoices, 20, [filters, search]);
 
-  const podcPagination = useMemo(() => {
-    const totalItems = filteredPodc.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (podcPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredPodc.slice(startIndex, endIndex), hasNextPage: podcPage < totalPages, hasPrevPage: podcPage > 1 };
-  }, [filteredPodc, podcPage, itemsPerPage]);
+  const activityPagination = usePagination(filteredActivity, 20, [filters, search]);
 
-  const invoicePagination = useMemo(() => {
-    const totalItems = filteredInvoices.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (invoicePage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredInvoices.slice(startIndex, endIndex), hasNextPage: invoicePage < totalPages, hasPrevPage: invoicePage > 1 };
-  }, [filteredInvoices, invoicePage, itemsPerPage]);
+  const leadPagination = usePagination(filteredLeads, 20, [filters, search]);
 
-  const activityPagination = useMemo(() => {
-    const totalItems = filteredActivity.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (activityPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredActivity.slice(startIndex, endIndex), hasNextPage: activityPage < totalPages, hasPrevPage: activityPage > 1 };
-  }, [filteredActivity, activityPage, itemsPerPage]);
-
-  const leadPagination = useMemo(() => {
-    const totalItems = filteredLeads.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (leadPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredLeads.slice(startIndex, endIndex), hasNextPage: leadPage < totalPages, hasPrevPage: leadPage > 1 };
-  }, [filteredLeads, leadPage, itemsPerPage]);
-
-  const procurementPagination = useMemo(() => {
-    const totalItems = filteredProcurement.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (procurementPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return { totalItems, totalPages, startIndex, endIndex, currentItems: filteredProcurement.slice(startIndex, endIndex), hasNextPage: procurementPage < totalPages, hasPrevPage: procurementPage > 1 };
-  }, [filteredProcurement, procurementPage, itemsPerPage]);
-
-  useEffect(() => { setQueuePage(1); }, [filters, search, quickFilter, focusMode]);
-  useEffect(() => { setQuotationPage(1); }, [filters, search]);
-  useEffect(() => { setPodcPage(1); }, [filters, search]);
-  useEffect(() => { setInvoicePage(1); }, [filters, search]);
-  useEffect(() => { setActivityPage(1); }, [filters, search]);
-  useEffect(() => { setLeadPage(1); }, [filters, search]);
-  useEffect(() => { setProcurementPage(1); }, [filters, search]);
+  const procurementPagination = usePagination(filteredProcurement, 20, [filters, search]);
 
   // Reset stale status filter when switching to Leads tab so prior-tab
   // filters (e.g. 'sent', 'disputed') don't silently hide new leads.
@@ -432,169 +318,23 @@ export default function FollowUpCentre() {
     [canManage, assignFollowUp]
   );
 
-  const selectedInvoice = useMemo(
-    () => filteredInvoices.find((i) => i.id === selectedInvoiceId) ?? null,
-    [filteredInvoices, selectedInvoiceId]
-  );
-
-  const metrics = useMemo(() => {
-    switch (filters.tab) {
-      case 'queue': {
-        const m = computeQueueMetrics(priorityQueue);
-        return [
-          {
-            label: 'Queue items',
-            value: m.total,
-            sublabel: `${openLeadCount} lead${openLeadCount === 1 ? '' : 's'} · ${quotations.length} quote${quotations.length === 1 ? '' : 's'} · ${podc.length} PO/DC · ${invoices.length} invoice${invoices.length === 1 ? '' : 's'}`,
-          },
-          {
-            label: 'Critical',
-            value: m.critical,
-            variant: 'danger' as const,
-            sublabel: 'Score ≥ 85',
-          },
-          {
-            label: 'High priority',
-            value: m.high,
-            variant: 'warning' as const,
-            sublabel: 'Score 70–84',
-          },
-          {
-            label: 'Exposure',
-            value: formatCompactCurrency(m.totalExposure),
-            sublabel: `Top focus: ${m.topClient}`,
-          },
-        ];
-      }
-      case 'quotation': {
-        const m = computeQuotationMetrics(quotations);
-        return [
-          { label: 'Open quotes', value: m.openCount, sublabel: 'Active pipeline' },
-          {
-            label: 'Expiring ≤7d',
-            value: m.expiringCount,
-            variant: 'warning' as const,
-            sublabel: 'Needs follow-up',
-          },
-          {
-            label: 'Pipeline value',
-            value: formatCompactCurrency(m.totalPipeline),
-            sublabel: 'Outstanding quotes',
-          },
-          {
-            label: 'Won',
-            value: m.approvedCount,
-            variant: 'success' as const,
-            sublabel: 'Approved',
-          },
-          {
-            label: 'Lost value',
-            value: formatCompactCurrency(m.lostValue),
-            variant: 'danger' as const,
-            sublabel: `${m.lostCount} lost · ${m.expiredCount} expired`,
-          },
-          { label: 'Filtered', value: filteredQuotations.length, sublabel: 'Current view' },
-        ];
-      }
-      case 'podc': {
-        const m = computePodcMetrics(podc);
-        return [
-          { label: 'Backlog items', value: m.backlogCount, sublabel: 'PO pending' },
-          {
-            label: 'Disputed',
-            value: m.disputedCount,
-            variant: 'danger' as const,
-            sublabel: 'Open disputes',
-          },
-          {
-            label: 'Blocked value',
-            value: formatCompactCurrency(m.totalBlocked),
-            sublabel: 'Cannot invoice',
-          },
-          { label: 'Avg pending', value: `${m.avgDaysPending}d`, sublabel: 'Days without PO' },
-        ];
-      }
-      case 'invoice': {
-        const m = computeInvoiceMetrics(invoices);
-        return [
-          {
-            label: 'Overdue',
-            value: m.overdueCount,
-            variant: 'warning' as const,
-            sublabel: 'Past due date',
-          },
-          {
-            label: 'Critical (T3+)',
-            value: m.criticalCount,
-            variant: 'danger' as const,
-            sublabel: '15+ days overdue',
-          },
-          {
-            label: 'Overdue due',
-            value: formatCompactCurrency(m.totalOverdueDue),
-            sublabel: 'Collection exposure',
-          },
-          { label: 'Filtered', value: filteredInvoices.length, sublabel: 'Current view' },
-        ];
-      }
-      case 'activity':
-        return [
-          { label: 'Total events', value: activity.length, sublabel: 'All time' },
-          { label: 'Filtered', value: filteredActivity.length, sublabel: 'Current view' },
-          { label: 'Today', value: '—', sublabel: 'Grouped view' },
-          { label: 'Source', value: filters.status === 'all' ? 'All' : filters.status, sublabel: 'Tab filter' },
-        ];
-      case 'lead': {
-        const open = leads.filter((l) => l.status === 'New' || l.status === 'Qualified').length;
-        const closed = leads.filter((l) => l.status === 'Converted' || l.status === 'Disqualified').length;
-        const totalValue = leads.reduce((s, l) => s + (l.estimated_value || 0), 0);
-        const overdue = leads.filter((l) => l.next_action_at && new Date(l.next_action_at).getTime() < Date.now() && (l.status === 'New' || l.status === 'Qualified')).length;
-        return [
-          { label: 'Open leads', value: open, sublabel: 'New + qualified' },
-          { label: 'Pipeline value', value: formatCompactCurrency(totalValue), sublabel: 'All open + closed' },
-          { label: 'Overdue action', value: overdue, variant: overdue > 0 ? ('warning' as const) : ('default' as const), sublabel: 'Past next-action date' },
-          { label: 'Closed', value: closed, sublabel: 'Converted + disqualified' },
-          { label: 'Filtered', value: filteredLeads.length, sublabel: 'Current view' },
-        ];
-      }
-      case 'procurement': {
-        const m = computeProcurementMetrics(procurements);
-        return [
-          { label: 'Open POs', value: m.openCount, sublabel: 'Awaiting vendor delivery' },
-          {
-            label: 'Delayed POs',
-            value: m.delayedCount,
-            variant: 'danger' as const,
-            sublabel: 'Overdue delivery dates',
-          },
-          {
-            label: 'Open PO Value',
-            value: formatCompactCurrency(m.totalValue),
-            sublabel: 'Procurement commitment',
-          },
-          { label: 'Avg lead time', value: `${m.avgDaysPending}d`, sublabel: 'Days pending vendor' },
-          { label: 'Filtered', value: filteredProcurement.length, sublabel: 'Current view' },
-        ];
-      }
-      default:
-        return [];
-    }
-  }, [
-    filters.tab,
-    filters.status,
+  const metrics = useFollowUpMetrics({
+    tab: filters.tab,
+    statusFilter: filters.status,
     priorityQueue,
     quotations,
     podc,
     invoices,
     activity,
-    filteredQuotations.length,
-    filteredInvoices.length,
-    filteredActivity.length,
-    openLeadCount,
-    filteredLeads.length,
+    leads,
     procurements,
-    filteredProcurement.length,
-  ]);
+    filteredQuotationCount: filteredQuotations.length,
+    filteredInvoiceCount: filteredInvoices.length,
+    filteredActivityCount: filteredActivity.length,
+    filteredLeadCount: filteredLeads.length,
+    filteredProcurementCount: filteredProcurement.length,
+    openLeadCount,
+  });
 
   const tabCounts = useMemo(
     () => ({
@@ -648,15 +388,24 @@ export default function FollowUpCentre() {
     ]
   );
 
-  const resolveSourceRecords = useCallback(
-    (item: PriorityQueueItem) => {
-      const quote = quotations.find((q) => q.id === item.source_id);
-      const backlog = podc.find((p) => p.id === item.source_id);
-      const invoice = invoices.find((i) => i.id === item.source_id);
-      const po = procurements.find((pr) => pr.id === item.source_id);
-      return { quote, backlog, invoice, po };
-    },
+  const recordMaps = useMemo(
+    () => ({
+      quotation: new Map(quotations.map((q) => [q.id, q] as const)),
+      podc: new Map(podc.map((p) => [p.id, p] as const)),
+      invoice: new Map(invoices.map((i) => [i.id, i] as const)),
+      procurement: new Map(procurements.map((pr) => [pr.id, pr] as const)),
+    }),
     [quotations, podc, invoices, procurements]
+  );
+
+  const resolveSourceRecords = useCallback(
+    (item: PriorityQueueItem) => ({
+      quote: recordMaps.quotation.get(item.source_id),
+      backlog: recordMaps.podc.get(item.source_id),
+      invoice: recordMaps.invoice.get(item.source_id),
+      po: recordMaps.procurement.get(item.source_id),
+    }),
+    [recordMaps]
   );
 
   const handleQueueOpen = useCallback(
@@ -761,69 +510,6 @@ export default function FollowUpCentre() {
     (filters.tab === 'lead' && leads.length === 0 && loadingL) ||
     (filters.tab === 'procurement' && procurements.length === 0 && loadingPR);
 
-  const PaginationFooter = useCallback(
-    ({ page, setPage, pagination }: { page: number; setPage: (p: number) => void; pagination: { totalItems: number; totalPages: number; startIndex: number; endIndex: number; hasNextPage: boolean; hasPrevPage: boolean } }) => {
-      return (
-        <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-3 sticky bottom-0 z-20">
-          <div className="text-xs text-slate-600">
-            Showing <span className="font-semibold text-slate-900">{pagination.totalItems === 0 ? 0 : pagination.startIndex + 1}</span> to{' '}
-            <span className="font-semibold text-slate-900">{Math.min(pagination.endIndex, pagination.totalItems)}</span> of <span className="font-semibold text-slate-900">{pagination.totalItems}</span> items
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setPage(page - 1)}
-              disabled={!pagination.hasPrevPage}
-              className={`px-2.5 py-1 text-xs rounded border transition-colors ${
-                pagination.hasPrevPage
-                  ? 'border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50'
-                  : 'border-slate-300 bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
-              }`}
-            >
-              Previous
-            </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.max(1, Math.min(5, pagination.totalPages)) }, (_, i) => {
-                const pageNum =
-                  pagination.totalPages <= 5
-                    ? i + 1
-                    : page <= 3
-                      ? i + 1
-                      : page >= pagination.totalPages - 2
-                        ? pagination.totalPages - 4 + i
-                        : page - 2 + i;
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setPage(pageNum)}
-                    className={`px-2.5 py-1 text-xs rounded border transition-colors ${
-                      page === pageNum
-                        ? 'border-blue-600 bg-blue-600 text-white font-semibold shadow-sm'
-                        : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={() => setPage(page + 1)}
-              disabled={!pagination.hasNextPage}
-              className={`px-2.5 py-1 text-xs rounded border transition-colors ${
-                pagination.hasNextPage
-                  ? 'border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50'
-                  : 'border-slate-300 bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
-              }`}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      );
-    },
-    []
-  );
-
   const renderTabContent = (tab: FollowUpTab) => {
     if (isLoading) {
       return (
@@ -837,306 +523,106 @@ export default function FollowUpCentre() {
 
     switch (tab) {
       case 'queue': {
-        if (viewMode === 'board') {
-          return (
-            <div className="h-full min-h-0 flex-1 overflow-hidden pt-1">
-              <PriorityQueueBoard
-                items={queueWithFocus}
-                groupBy={kanbanGroupBy}
-                assignees={assignees}
-                onOpenSource={handleQueueOpen}
-                onQuickAction={handleQueueQuickAction}
-                disabled={isReadOnly}
-              />
-            </div>
-          );
-        }
-
-        const isAllSelected = queuePagination.currentItems.length > 0 && queuePagination.currentItems.every(i => selectedRowIds.has(i.id));
         return (
-          <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-slate-200 bg-[#f8fafc]">
-              <div className="flex h-[42px] items-center pl-1.5 pr-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider select-none">
-                <div className="w-7 shrink-0 flex items-center justify-center">
-                  <button 
-                    type="button" 
-                    onClick={() => handleSelectAll(queuePagination.currentItems)} 
-                    className="text-slate-400 hover:text-slate-600 transition-colors"
-                  >
-                    {isAllSelected ? (
-                      <CheckSquare className="h-4 w-4 text-blue-600 fill-blue-50/10" />
-                    ) : (
-                      <Square className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-                <span className="w-[80px] shrink-0 px-2 text-left">Priority</span>
-                <span className="w-[200px] shrink-0 px-2 text-left">Entity / Reference</span>
-                <span className="w-[190px] shrink-0 px-3 text-left">Party / Project</span>
-                <span className="w-[240px] shrink-0 px-2 text-left">Next Action & Status</span>
-                <span className="w-[140px] shrink-0 px-2 text-left">Amount / Value</span>
-                <span className="w-[110px] shrink-0 px-2 text-center">Timeline</span>
-                <span className="w-[135px] shrink-0 px-2 text-left">Owner</span>
-                <span className="w-[65px] shrink-0 text-center">Action</span>
-              </div>
-            </div>
-            <div className="flex-1 overflow-auto">
-              {queuePagination.currentItems.length === 0 ? (
-                <p className="px-4 py-12 text-center text-sm text-slate-500">
-                  No follow-up items in the queue. Check other tabs or relax filters.
-                </p>
-              ) : (
-                queuePagination.currentItems.map((item, index) => (
-                  <PriorityQueueRow
-                    key={item.id}
-                    item={item}
-                    rank={queuePagination.startIndex + index + 1}
-                    assignees={assignees}
-                    disabled={isReadOnly}
-                    onOpenSource={handleQueueOpen}
-                    onQuickAction={handleQueueQuickAction}
-                    selected={selectedRowIds.has(item.id)}
-                    onToggleSelect={handleToggleSelect}
-                  />
-                ))
-              )}
-            </div>
-            {/* Bottom Aggregate Metrics Row - only shown when one or more rows are selected */}
-            {selectedRowIds.size > 0 && (() => {
-              const selectedItems = queueWithFocus.filter((i) => selectedRowIds.has(i.id));
-              const selectedTotalValue = selectedItems.reduce((s, i) => s + (i.amount || 0), 0);
-              const overdueItems = selectedItems.filter(
-                (i) =>
-                  i.urgency_label.toLowerCase().includes('overdue') ||
-                  i.urgency_label.toLowerCase().includes('delayed')
-              );
-              return (
-                <div className="bg-slate-50 border-t border-slate-200 px-4 py-2 flex flex-wrap items-center justify-between text-[11px] leading-tight text-slate-600 select-none animate-in fade-in duration-150">
-                  <div className="flex items-center gap-4">
-                    <span className="font-medium text-slate-900">
-                      <span className="font-bold text-blue-600">{selectedItems.length}</span> {selectedItems.length === 1 ? 'record' : 'records'} selected
-                    </span>
-                    <span className="text-slate-300">·</span>
-                    <div className="flex items-center gap-1.5 text-slate-500">
-                      <span>+ Sum of Total Value:</span>
-                      <span className="font-semibold text-emerald-600 font-mono">
-                        {formatCompactCurrency(selectedTotalValue)}
-                      </span>
-                    </div>
-                    {overdueItems.length > 0 && (
-                      <>
-                        <span className="text-slate-300">·</span>
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                          <span>+ Overdue Action Items:</span>
-                          <span className="font-semibold text-rose-600 font-mono">
-                            {overdueItems.length} ({formatCompactCurrency(overdueItems.reduce((s, i) => s + (i.amount || 0), 0))})
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRowIds(new Set())}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium transition cursor-pointer"
-                    >
-                      Deselect all
-                    </button>
-                    <button
-                      type="button"
-                      className="text-xs text-slate-500 hover:text-slate-800 font-medium transition cursor-pointer"
-                    >
-                      + Add Calculation
-                    </button>
-                  </div>
-                </div>
-              );
-            })()}
-            <PaginationFooter page={queuePage} setPage={setQueuePage} pagination={queuePagination} />
-          </div>
+          <QueueTab
+            pagination={queuePagination}
+            focusedItems={queueWithFocus}
+            viewMode={viewMode}
+            kanbanGroupBy={kanbanGroupBy}
+            assignees={assignees}
+            disabled={isReadOnly}
+            selectedRowIds={selectedRowIds}
+            onToggleSelect={handleToggleSelect}
+            onSelectAll={handleSelectAll}
+            onClearSelection={() => setSelectedRowIds(new Set())}
+            onOpenSource={handleQueueOpen}
+            onQuickAction={handleQueueQuickAction}
+          />
         );
       }
       case 'quotation':
         return (
-          <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
-              {quotationTableHeader}
-            </div>
-            <div className="flex-1 overflow-auto">
-              {quotationPagination.currentItems.length === 0 ? (
-                <p className="px-4 py-12 text-center text-sm text-slate-500">No quotations match your filters.</p>
-              ) : (
-                quotationPagination.currentItems.map((item) => (
-                  <QuotationFollowupRow
-                    key={item.id}
-                    item={item}
-                    assignees={assignees}
-                    disabled={isReadOnly}
-                    onReminder={handleQuotationReminder}
-                    onSelect={() =>
-                      handleOpenHistory('quotation', item.id, item.quotation_no, item.client_name, item.status)
-                    }
-                    onAssigneeChange={(id, userId) => handleAssigneeChange('quotation', id, userId)}
-                    onLogResponse={(id, response) =>
-                      logResponse.mutate({ id, response, quotation_no: item.quotation_no, client_name: item.client_name, previousStatus: item.status })
-                    }
-                  />
-                ))
-              )}
-            </div>
-            <PaginationFooter page={quotationPage} setPage={setQuotationPage} pagination={quotationPagination} />
-          </div>
+          <QuotationTab
+            pagination={quotationPagination}
+            assignees={assignees}
+            disabled={isReadOnly}
+            onReminder={handleQuotationReminder}
+            onOpenHistory={(item) =>
+              handleOpenHistory('quotation', item.id, item.quotation_no, item.client_name, item.status)
+            }
+            onAssigneeChange={(id, userId) => handleAssigneeChange('quotation', id, userId)}
+            onLogResponse={(item, response) =>
+              logResponse.mutate({ id: item.id, response, quotation_no: item.quotation_no, client_name: item.client_name, previousStatus: item.status })
+            }
+          />
         );
       case 'podc':
         return (
-          <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
-              {podcTableHeader}
-            </div>
-            <div className="flex-1 overflow-auto">
-              {podcPagination.currentItems.length === 0 ? (
-                <p className="px-4 py-12 text-center text-sm text-slate-500">No PO/DC backlog items match your filters.</p>
-              ) : (
-                podcPagination.currentItems.map((item) => (
-                  <PodcBacklogRow
-                    key={item.id}
-                    item={item}
-                    assignees={assignees}
-                    disabled={isReadOnly}
-                    onSharePack={handlePodcShare}
-                    onSelect={() => handleOpenHistory('podc', item.id, item.dc_wo_number, item.client_name)}
-                    onAssigneeChange={(id, userId) => handleAssigneeChange('podc', id, userId)}
-                    onFlagIssue={(id, issue) => flagIssue.mutate({ id, issue, dc_wo_number: item.dc_wo_number })}
-                  />
-                ))
-              )}
-            </div>
-            <PaginationFooter page={podcPage} setPage={setPodcPage} pagination={podcPagination} />
-          </div>
+          <PodcTab
+            pagination={podcPagination}
+            assignees={assignees}
+            disabled={isReadOnly}
+            onSharePack={handlePodcShare}
+            onOpenHistory={(item) => handleOpenHistory('podc', item.id, item.dc_wo_number, item.client_name)}
+            onAssigneeChange={(id, userId) => handleAssigneeChange('podc', id, userId)}
+            onFlagIssue={(item, issue) => flagIssue.mutate({ id: item.id, issue, dc_wo_number: item.dc_wo_number })}
+          />
         );
       case 'invoice':
         return (
-          <div className="flex min-h-0 flex-1 gap-3">
-            <div className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white overflow-hidden flex flex-col">
-              <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50/95">
-                {invoiceTableHeader}
-              </div>
-              <div className="flex-1 overflow-auto">
-                {invoicePagination.currentItems.length === 0 ? (
-                  <p className="px-4 py-12 text-center text-sm text-slate-500">No invoices match your filters.</p>
-                ) : (
-                  invoicePagination.currentItems.map((inv) => (
-                    <InvoiceEscalationCard
-                      key={inv.id}
-                      invoice={inv}
-                      assignees={assignees}
-                      disabled={isReadOnly}
-                      selected={selectedInvoiceId === inv.id}
-                      onSelect={() => {
-                        setSelectedInvoiceId(inv.id);
-                        handleOpenHistory('invoice', inv.id, inv.invoice_no, inv.client_name, inv.collection_risk);
-                      }}
-                      onReminder={() => handleInvoiceReminder(inv)}
-                      onAssigneeChange={(id, userId) => handleAssigneeChange('invoice', id, userId)}
-                    />
-                  ))
-                )}
-              </div>
-              <PaginationFooter page={invoicePage} setPage={setInvoicePage} pagination={invoicePagination} />
-            </div>
-            <InvoiceDetailPanel
-              invoice={selectedInvoice}
-              canManage={canManage}
-              onClose={() => setSelectedInvoiceId(null)}
-              onSendReminder={() => selectedInvoice && handleInvoiceReminder(selectedInvoice)}
-            />
-          </div>
+          <InvoiceTab
+            pagination={invoicePagination}
+            invoices={filteredInvoices}
+            assignees={assignees}
+            disabled={isReadOnly}
+            canManage={canManage}
+            selectedInvoiceId={selectedInvoiceId}
+            onSelectInvoice={(inv) => {
+              setSelectedInvoiceId(inv.id);
+              handleOpenHistory('invoice', inv.id, inv.invoice_no, inv.client_name, inv.collection_risk);
+            }}
+            onReminder={handleInvoiceReminder}
+            onAssigneeChange={(id, userId) => handleAssigneeChange('invoice', id, userId)}
+            onClosePanel={() => setSelectedInvoiceId(null)}
+          />
         );
       case 'activity':
-        return (
-          <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
-              {activityTableHeader}
-            </div>
-            <div className="flex-1 overflow-auto">
-              {activityPagination.currentItems.length === 0 ? (
-                <p className="px-4 py-12 text-center text-sm text-slate-500">No activity logs match your filters.</p>
-              ) : (
-                activityPagination.currentItems.map((item) => (
-                  <ActivityLogItem key={item.id} log={item} />
-                ))
-              )}
-            </div>
-            <PaginationFooter page={activityPage} setPage={setActivityPage} pagination={activityPagination} />
-          </div>
-        );
+        return <ActivityTab pagination={activityPagination} />;
       case 'lead':
         return (
-          <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
-              {leadTableHeader}
-            </div>
-            <div className="flex-1 overflow-auto">
-              {leadPagination.currentItems.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
-                  <p className="text-sm font-medium text-slate-700">No leads match your filters.</p>
-                  <p className="mt-1 text-xs text-slate-500">Capture your first lead with the “New lead” button above.</p>
-                </div>
-              ) : (
-                leadPagination.currentItems.map((item) => (
-                  <LeadRow
-                    key={item.id}
-                    item={item}
-                    disabled={isReadOnly}
-                    onSelect={() => handleOpenHistory('lead', item.id, item.company_name || item.contact_name, item.client_name || item.contact_name)}
-                    onConvert={() => setWinLossTarget({ id: item.id, category: 'win' })}
-                    onDisqualify={() => setWinLossTarget({ id: item.id, category: 'disqualify' })}
-                    onSetNextAction={(id, at, label) =>
-                      updateLead.mutate({ id, patch: { next_action_at: at, next_action_label: label } })
-                    }
-                  />
-                ))
-              )}
-            </div>
-            <PaginationFooter page={leadPage} setPage={setLeadPage} pagination={leadPagination} />
-          </div>
+          <LeadTab
+            pagination={leadPagination}
+            disabled={isReadOnly}
+            onOpenHistory={(item) =>
+              handleOpenHistory('lead', item.id, item.company_name || item.contact_name, item.client_name || item.contact_name)
+            }
+            onConvert={(id) => setWinLossTarget({ id, category: 'win' })}
+            onDisqualify={(id) => setWinLossTarget({ id, category: 'disqualify' })}
+            onSetNextAction={(id, at, label) =>
+              updateLead.mutate({ id, patch: { next_action_at: at, next_action_label: label } })
+            }
+          />
         );
       case 'procurement':
         return (
-          <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white overflow-hidden">
-            <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
-              {procurementTableHeader}
-            </div>
-            <div className="flex-1 overflow-auto">
-              {procurementPagination.currentItems.length === 0 ? (
-                <p className="px-4 py-12 text-center text-sm text-slate-500">No procurement items match your filters.</p>
-              ) : (
-                procurementPagination.currentItems.map((item) => (
-                  <ProcurementFollowupRow
-                    key={item.id}
-                    item={item}
-                    assignees={assignees}
-                    disabled={isReadOnly}
-                    onReminder={(po) => {
-                      toast.success(`WhatsApp reminder prepared for ${po.vendor_name}`, {
-                        description: `Templated message for ${po.po_no} ready.`
-                      });
-                      recordReminder.mutate({
-                        type: 'procurement',
-                        id: po.id,
-                        label: po.po_no,
-                        client: po.vendor_name,
-                      });
-                    }}
-                    onSelect={() => handleOpenHistory('procurement', item.id, item.po_no, item.vendor_name, item.status)}
-                    onAssigneeChange={(id, userId) => handleAssigneeChange('procurement', id, userId)}
-                  />
-                ))
-              )}
-            </div>
-            <PaginationFooter page={procurementPage} setPage={setProcurementPage} pagination={procurementPagination} />
-          </div>
+          <ProcurementTab
+            pagination={procurementPagination}
+            assignees={assignees}
+            disabled={isReadOnly}
+            onReminder={(item) => {
+              toast.success(`WhatsApp reminder prepared for ${item.vendor_name}`, {
+                description: `Templated message for ${item.po_no} ready.`
+              });
+              recordReminder.mutate({
+                type: 'procurement',
+                id: item.id,
+                label: item.po_no,
+                client: item.vendor_name,
+              });
+            }}
+            onOpenHistory={(item) => handleOpenHistory('procurement', item.id, item.po_no, item.vendor_name, item.status)}
+            onAssigneeChange={(id, userId) => handleAssigneeChange('procurement', id, userId)}
+          />
         );
       default:
         return null;
