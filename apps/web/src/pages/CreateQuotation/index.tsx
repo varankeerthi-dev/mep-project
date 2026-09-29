@@ -1240,7 +1240,7 @@ export default function CreateQuotation() {
 
         const updatedItem = { ...item, ...updates };
 
-        if ('qty' in updates || 'rate' in updates || 'discount_percent' in updates || 'tax_percent' in updates || 'variant_id' in updates || 'make' in updates) {
+        if ('qty' in updates || 'rate' in updates || 'discount_percent' in updates || 'tax_percent' in updates || 'variant_id' in updates || 'make' in updates || 'base_rate_snapshot' in updates) {
           const qty = 'qty' in updates ? parseFloat(updates.qty) || 0 : parseFloat(item.qty) || 0;
           let rate = item.rate || 0;
 
@@ -1248,11 +1248,23 @@ export default function CreateQuotation() {
             rate = parseFloat(updates.rate) || 0;
             updatedItem.is_override = true;
           } else {
-            const variantId = 'variant_id' in updates ? updates.variant_id : item.variant_id;
-            const make = 'make' in updates ? updates.make : item.make;
-            const mat = materials.find(m => m.id === item.item_id);
-            const baseRate = getRateForMaterialVariant(mat, variantId, make);
-            updatedItem.base_rate_snapshot = baseRate;
+            // Base-rate source priority: manually edited MRP wins; catalog is
+            // refetched only when the pricing source itself changes
+            // (variant/make/item). Qty/discount/tax edits must never clobber
+            // a typed MRP back to the catalog rate.
+            const mat = materials.find(m => m.id === ('item_id' in updates ? updates.item_id : item.item_id));
+            let baseRate: number;
+            if ('base_rate_snapshot' in updates) {
+              baseRate = parseFloat(updates.base_rate_snapshot) || 0;
+              updatedItem.base_rate_snapshot = baseRate;
+            } else if ('variant_id' in updates || 'make' in updates || 'item_id' in updates) {
+              const variantId = 'variant_id' in updates ? updates.variant_id : item.variant_id;
+              const make = 'make' in updates ? updates.make : item.make;
+              baseRate = getRateForMaterialVariant(mat, variantId, make);
+              updatedItem.base_rate_snapshot = baseRate;
+            } else {
+              baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
+            }
 
             let headerDiscount = 0;
             const dcId = item.discount_category_id || mat?.discount_category_id;
@@ -1791,7 +1803,18 @@ export default function CreateQuotation() {
     }
   }, [formData, items, calculations, headerDiscounts, editId]);
 
+  // Idempotency key per form session: repeat submits (double-click, autosave
+  // race, retry-after-error, Save&New without reset) replay into the same
+  // quotation instead of creating duplicates. Regenerated whenever a new
+  // document begins (see saveAndNew branch below).
+  const newIdempotencyKey = () =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  const idempotencyKeyRef = useRef<string>(newIdempotencyKey());
+
   const handleSave = async (saveAndNew = false, isAutosave = false) => {
+    if (saving) return;
     if (saving) return;
     if (!organisation?.id) {
       setSaveStatus('error');
@@ -1908,6 +1931,14 @@ export default function CreateQuotation() {
         revision_history: formData.revision_history || [],
       };
 
+      // Variant discounts ride the RPC (server persists them atomically).
+      // The old direct table write is gone: it bypassed validation and hit RLS.
+      const variantDiscountsPayload: Record<string, number> = {};
+      Object.entries(headerDiscounts || {}).forEach(([variantId, discPercent]) => {
+        if (variantId === 'erection') return;
+        variantDiscountsPayload[variantId] = parseFloat(discPercent as any) || 0;
+      });
+
       if (editId) {
         const formattedItems = cleanItems.map((item) => ({
           item_id: item.item_id || null,
@@ -1937,6 +1968,7 @@ export default function CreateQuotation() {
           p_authorized_signatory_id: formData.authorized_signatory_id || null,
           p_revision_no: formData.revision_no || 1,
           p_revision_history: formData.revision_history || [],
+          p_variant_discounts: variantDiscountsPayload,
         });
 
         if (updateError) throw updateError;
@@ -1967,6 +1999,8 @@ export default function CreateQuotation() {
           p_state: formData.state || null,
           p_contact_no: formData.contact_no || null,
           p_reference: formData.reference || null,
+          p_variant_discounts: variantDiscountsPayload,
+          p_idempotency_key: idempotencyKeyRef.current,
         });
 
         if (rpcError) throw rpcError;
@@ -1983,14 +2017,15 @@ export default function CreateQuotation() {
             }).then().catch(err => console.error('Error saving terms:', err));
           }
 
-          // Increment series atomically with optimistic lock
-          if (defaultSeries) {
-            const nextNo = getQuoteSeriesNumber(defaultSeries) + 1;
-            const cfg = defaultSeries?.configs || {};
-            const quoteCfg = cfg.quote || {};
-            const updatedCfg = { ...cfg, quote: { ...quoteCfg, start_number: nextNo } };
-            await supabase.from('document_series').update({ current_number: nextNo, configs: updatedCfg }).eq('id', defaultSeries.id);
-          }
+        // Increment series atomically with optimistic lock (create path only)
+        const seriesRow = await fetchDefaultSeriesRow().catch(() => null);
+        if (seriesRow) {
+          const nextNo = getQuoteSeriesNumber(seriesRow) + 1;
+          const cfg = seriesRow?.configs || {};
+          const quoteCfg = cfg.quote || {};
+          const updatedCfg = { ...cfg, quote: { ...quoteCfg, start_number: nextNo } };
+          await supabase.from('document_series').update({ current_number: nextNo, configs: updatedCfg }).eq('id', seriesRow.id);
+        }
 
       }
 
@@ -2051,25 +2086,6 @@ export default function CreateQuotation() {
       });
       setItems(mappedSavedItems);
       setOriginalItems(JSON.parse(JSON.stringify(mappedSavedItems)));
-
-      // Save custom variant discounts
-      const varDiscounts = Object.entries(headerDiscounts)
-        .filter(([id]) => id !== 'erection')
-        .map(([variantId, discPercent]) => ({
-          quotation_id: quotationId,
-          variant_id: variantId,
-          discount_percent: parseFloat(discPercent as any) || 0
-        }));
-
-      try {
-        await supabase.from('quotation_variant_discounts').delete().eq('quotation_id', quotationId);
-        if (varDiscounts.length > 0) {
-          const { error: vdError } = await supabase.from('quotation_variant_discounts').insert(varDiscounts);
-          if (vdError) throw vdError;
-        }
-      } catch (vdErr: any) {
-        console.warn('Could not save variant discounts (table may not exist):', vdErr?.message || vdErr);
-      }
 
       if (isMultiDC && quotationId && dcAllocations.length > 0) {
         // Validate allocated amount matches quotation total (₹1 tolerance)
@@ -2153,6 +2169,9 @@ export default function CreateQuotation() {
 
       if (saveAndNew) {
         toast.success('Quotation saved as draft!');
+        // New document from here on: fresh idempotency key so the next
+        // save cannot replay into the quotation just created.
+        idempotencyKeyRef.current = newIdempotencyKey();
         ignoreDirtyRef.current = false;
         setSaving(false);
         return;

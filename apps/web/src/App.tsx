@@ -13,6 +13,7 @@ import { supabase, getUserOrganisations, createOrganization, signOut, sendVerifi
 import { queryClient, refreshSessionIfNeeded } from './queryClient';
 import { Toaster } from './lib/logger';
 import { AuthContext, useAuth, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
+import { useQuickShortcuts } from './hooks/useQuickShortcuts';
 import { DateFormatProvider } from './contexts/DateFormatContext';
 
 
@@ -314,6 +315,9 @@ export default function App() {
   const handleNewQuote = useCallback(() => {
     navigate('/quotation/create');
   }, [navigate]);
+
+  // Global shortcut: press `q` twice to open Create Quotation
+  useQuickShortcuts({ enabled: !!user, currentPath, onQuickQuote: handleNewQuote });
 
   const handleNewDC = useCallback(() => {
     navigate('/dc/create');

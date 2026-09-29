@@ -812,9 +812,16 @@ export function QuotationItemsTable({
                     {item.item_id ? (
                       <Popover open={activeStockPopoverId === item.id} onOpenChange={(next: boolean) => setActiveStockPopoverId(next ? item.id : null)}>
                         <PopoverTrigger asChild>
-                          <button
-                            type="button"
+                          <span
+                            role="button"
+                            tabIndex={0}
                             title="View warehouse-wise stock"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                (e.currentTarget as HTMLElement).click();
+                              }
+                            }}
                             style={{
                               display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px',
                               marginTop: '2px', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer',
@@ -825,7 +832,7 @@ export function QuotationItemsTable({
                           >
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{`${formatStockQty(stockTotal)}${stockUom ? ` ${stockUom}` : ''}`}</span>
                             <ChevronDown size={10} strokeWidth={2.5} />
-                          </button>
+                          </span>
                         </PopoverTrigger>
                         <PopoverContent align="end" side="bottom" className="w-60" style={{ padding: '10px 12px', borderRadius: '8px', border: `1px solid ${BORDER_SUBTLE}` }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>

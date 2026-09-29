@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -41,7 +41,6 @@ import {
   ArrowLeft,
   Edit,
   Trash2,
-  Check,
 } from 'lucide-react';
 import {
   format,
@@ -350,6 +349,19 @@ export function ClientCommunication() {
   const [selectedParty, setSelectedParty] = useState<{ type: string; id: string; name: string } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [editingCommunication, setEditingCommunication] = useState<any>(null);
+  // Log-Communication modal UI-only presentation state (not part of payload).
+  const [showMoreDetails, setShowMoreDetails] = useState(false);
+  const [showDateInput, setShowDateInput] = useState(false);
+  const partySelectRef = useRef<HTMLSelectElement | null>(null);
+  const toInputDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  useEffect(() => {
+    if (showCreateModal) {
+      setShowDateInput(false);
+      const t = window.setTimeout(() => partySelectRef.current?.focus(), 60);
+      return () => window.clearTimeout(t);
+    }
+    setShowMoreDetails(false);
+  }, [showCreateModal]);
   const [groupBy, setGroupBy] = useState<'none' | 'date' | 'party'>('none');
   const [sidebarFilter, setSidebarFilter] = useState<'my' | 'all'>('my');
   const [paramsProcessed, setParamsProcessed] = useState(false);
@@ -1136,6 +1148,9 @@ export function ClientCommunication() {
     (formData.party_type === 'vendor' && !!formData.vendor_id) ||
     (formData.party_type === 'lead' && !!formData.lead_id) ||
     (formData.party_type === 'subcontractor' && !!formData.subcontractor_id);
+
+  // Same enable/disable rule the submit button used inline (single source of truth).
+  const isCreateDisabled = createMutation.isPending || updateMutation.isPending || !hasPartySelected || !formData.call_brief;
 
   const handleExportCSV = () => {
     const rows = communications.map(comm => {
@@ -2431,17 +2446,21 @@ export function ClientCommunication() {
 
       {/* ════ CREATE MODAL ════ */}
       {showCreateModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, backdropFilter: 'blur(3px)' }}>
-          <div className="form-root" style={{ background: '#fff', borderRadius: '16px', width: '95%', maxWidth: '780px', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 25px 60px rgba(0,0,0,0.22)' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, backdropFilter: 'blur(3px)', padding: '12px' }}>
+          <div className="form-root" style={{ background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '32rem', maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 60px rgba(0,0,0,0.22)' }}>
             <style>{`
               .form-root input, .form-root select, .form-root textarea { border-radius: 5px !important; }
               .form-root label { margin-bottom: 8px !important; }
-              @keyframes partyTickZoom { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-              .party-tick-box { border-radius: 4px !important; }
+              .log-chip:focus-visible, .log-quick-pick:focus-visible, .log-more-toggle:focus-visible, .log-pill:focus-within { outline: 2px solid #4F46E5; outline-offset: 2px; }
+              .log-more-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+              @media (max-width: 480px) { .log-more-grid { grid-template-columns: 1fr; } }
+              @media (prefers-reduced-motion: reduce) {
+                .form-root *, .form-root *::before, .form-root *::after { animation: none !important; transition: none !important; }
+              }
             `}</style>
 
             {/* Modal Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid #F1F5F9', position: 'sticky', top: 0, background: '#fff', zIndex: 1, borderRadius: '16px 16px 0 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid #F1F5F9', background: '#fff', zIndex: 1, borderRadius: '16px 16px 0 0', flexShrink: 0 }}>
               <div>
                 <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
                   {editingCommunication ? 'Edit Communication' : 'Log Communication'}
@@ -2487,14 +2506,22 @@ export function ClientCommunication() {
                   createMutation.mutate({ ...formData, created_at: new Date().toISOString() });
                 }
               }}
-              style={{ padding: '24px' }}
+              onKeyDown={e => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !isCreateDisabled) {
+                  e.preventDefault();
+                  (e.currentTarget.querySelector('[data-log-submit]') as HTMLButtonElement | null)?.click();
+                }
+              }}
+              style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
             >
-              {/* Party Type */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ ...labelStyle, marginBottom: '10px' }}>Party Type *</label>
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {/* Scrollable body — footer below stays visible */}
+              <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, minHeight: 0, background: '#fff' }}>
+              {/* Party (required) — compact pill row directly above the search field */}
+              <div style={{ marginBottom: '12px' }}>
+                <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', marginBottom: '8px' }}>Party <span style={{ color: '#EF4444' }}>*</span></span>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }} role="radiogroup" aria-label="Party type">
                   {PARTY_CHIPS.map(t => (
-                    <label key={t.value} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', border: `2px solid ${formData.party_type === t.value ? t.color : '#E2E8F0'}`, borderRadius: '8px', background: formData.party_type === t.value ? t.bg : '#fff', cursor: 'pointer', transition: 'all 150ms' }}>
+                    <label key={t.value} className="log-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', border: `1px solid ${formData.party_type === t.value ? t.color : '#E2E8F0'}`, borderRadius: '9999px', background: formData.party_type === t.value ? t.bg : '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 500, color: formData.party_type === t.value ? t.color : '#334155' }}>
                       <input
                         type="checkbox"
                         name="party_type"
@@ -2503,24 +2530,18 @@ export function ClientCommunication() {
                         onChange={() => setFormData(f => ({ ...f, party_type: t.value, client_id: '', vendor_id: '', lead_id: '', subcontractor_id: '', linked_type: '', linked_id: '' }))}
                         style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
                       />
-                      <span className="party-tick-box" style={{ width: '18px', height: '18px', borderRadius: '4px', border: `2px solid ${formData.party_type === t.value ? t.color : '#CBD5E1'}`, background: formData.party_type === t.value ? t.color : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 150ms ease, border-color 150ms ease', flexShrink: 0 }}>
-                        {formData.party_type === t.value && (
-                          <Check size={13} color="#fff" style={{ animation: 'partyTickZoom 180ms ease-out' }} />
-                        )}
-                      </span>
-                      <span style={{ fontSize: '14px', fontWeight: 500, color: formData.party_type === t.value ? t.color : '#334155' }}>{t.label}</span>
+                      <span>{t.label}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
-              {/* Entity Select */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={labelStyle}>Select {formData.party_type.charAt(0).toUpperCase() + formData.party_type.slice(1)} *</label>
+              {/* Party select / search with add-new beside it */}
+              <div style={{ marginBottom: '12px' }}>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {formData.party_type === 'client' && (
                     <>
-                      <select value={formData.client_id} onChange={e => setFormData(f => ({ ...f, client_id: e.target.value, contacted_contact_id: '' }))} required style={{ flex: 1, padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
+                      <select ref={partySelectRef} autoFocus value={formData.client_id} onChange={e => setFormData(f => ({ ...f, client_id: e.target.value, contacted_contact_id: '' }))} required aria-label="Select client" style={{ flex: 1, padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
                         <option value="">Select a client...</option>
                         {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
                       </select>
@@ -2531,7 +2552,7 @@ export function ClientCommunication() {
                   )}
                   {formData.party_type === 'vendor' && (
                     <>
-                      <select value={formData.vendor_id} onChange={e => setFormData(f => ({ ...f, vendor_id: e.target.value, linked_type: '', linked_id: '' }))} required style={{ flex: 1, padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
+                      <select ref={partySelectRef} autoFocus value={formData.vendor_id} onChange={e => setFormData(f => ({ ...f, vendor_id: e.target.value, linked_type: '', linked_id: '' }))} required aria-label="Select vendor" style={{ flex: 1, padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
                         <option value="">Select a vendor...</option>
                         {vendors.map(v => <option key={v.id} value={v.id}>{v.company_name}</option>)}
                       </select>
@@ -2542,7 +2563,7 @@ export function ClientCommunication() {
                   )}
                   {formData.party_type === 'subcontractor' && (
                     <>
-                      <select value={formData.subcontractor_id} onChange={e => setFormData(f => ({ ...f, subcontractor_id: e.target.value }))} required style={{ flex: 1, padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
+                      <select ref={partySelectRef} autoFocus value={formData.subcontractor_id} onChange={e => setFormData(f => ({ ...f, subcontractor_id: e.target.value }))} required aria-label="Select subcontractor" style={{ flex: 1, padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
                         <option value="">Select a subcontractor...</option>
                         {subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}
                       </select>
@@ -2553,7 +2574,7 @@ export function ClientCommunication() {
                   )}
                   {formData.party_type === 'lead' && (
                     <>
-                      <select value={formData.lead_id} onChange={e => setFormData(f => ({ ...f, lead_id: e.target.value }))} required style={{ flex: 1, padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
+                      <select ref={partySelectRef} autoFocus value={formData.lead_id} onChange={e => setFormData(f => ({ ...f, lead_id: e.target.value }))} required aria-label="Select lead" style={{ flex: 1, padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
                         <option value="">Select a lead...</option>
                         {leads.map(l => <option key={l.id} value={l.id}>{l.company_name ? `${l.company_name} (${l.contact_name})` : l.contact_name}</option>)}
                       </select>
@@ -2563,13 +2584,40 @@ export function ClientCommunication() {
                     </>
                   )}
                 </div>
+                {(() => {
+                  const pid = formData.party_type === 'client' ? formData.client_id
+                    : formData.party_type === 'vendor' ? formData.vendor_id
+                      : formData.party_type === 'lead' ? formData.lead_id : formData.subcontractor_id;
+                  if (!pid) return null;
+                  const list: any[] = formData.party_type === 'client' ? (clients as any[])
+                    : formData.party_type === 'vendor' ? (vendors as any[])
+                      : formData.party_type === 'lead' ? (leads as any[]) : (subcontractors as any[]);
+                  const found: any = list.find((x: any) => x.id === pid);
+                  const label = found ? (found.client_name || found.company_name || found.contact_name || 'Selected') : 'Selected';
+                  const chip = PARTY_CHIPS.find(p => p.value === formData.party_type);
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', fontSize: '12px', color: '#475569' }}>
+                      <span style={{ padding: '2px 8px', borderRadius: '9999px', background: chip?.bg || '#F1F5F9', color: chip?.color || '#475569', fontSize: '11px', fontWeight: 600 }}>{chip?.label || formData.party_type}</span>
+                      <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(f => ({ ...f, client_id: '', vendor_id: '', lead_id: '', subcontractor_id: '', contacted_contact_id: '', linked_type: '', linked_id: '', parent_communication_id: '' }))}
+                        style={{ border: 'none', background: 'transparent', color: '#4F46E5', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                      >
+                        Change
+                      </button>
+                    </div>
+                  );
+                })()}
+
               </div>
 
-              {/* In Reply To */}
+              {/* In Reply To — slim inline notice, only when open threads exist */}
               {hasPartySelected && recentPartyComms.length > 0 && (
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={labelStyle}>In Reply To (optional)</label>
-                  <select value={formData.parent_communication_id} onChange={e => setFormData(f => ({ ...f, parent_communication_id: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
+                <div style={{ marginBottom: '12px', padding: '8px 12px', background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <MessageSquare size={14} color="#4F46E5" />
+                  <span style={{ fontSize: '12px', color: '#4338CA', fontWeight: 600, whiteSpace: 'nowrap' }}>{recentPartyComms.length} open thread{recentPartyComms.length > 1 ? 's' : ''}</span>
+                  <select value={formData.parent_communication_id} onChange={e => setFormData(f => ({ ...f, parent_communication_id: e.target.value }))} aria-label="In reply to" style={{ flex: 1, minWidth: 0, padding: '6px 8px', border: '1px solid #C7D2FE', borderRadius: '6px', fontSize: '12px', color: '#334155', background: '#fff' }}>
                     <option value="">New conversation thread</option>
                     {recentPartyComms.map(c => (
                       <option key={c.id} value={c.id}>
@@ -2580,30 +2628,82 @@ export function ClientCommunication() {
                 </div>
               )}
 
-              {/* Grid fields */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                {/* Subject */}
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={labelStyle}>Subject / Topic</label>
-                  <input
-                    type="text"
-                    value={formData.subject}
-                    onChange={e => setFormData(f => ({ ...f, subject: e.target.value }))}
-                    placeholder="e.g. Quotation Follow-up, Material Availability..."
-                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff', boxSizing: 'border-box', outline: 'none' }}
-                  />
+              {/* Call Brief (required) — large textarea directly after Party */}
+              <div style={{ marginBottom: '12px' }}>
+                <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', marginBottom: '8px' }}>Call brief <span style={{ color: '#EF4444' }}>*</span></span>
+                <textarea
+                  value={formData.call_brief}
+                  onChange={e => setFormData(f => ({ ...f, call_brief: e.target.value }))}
+                  required
+                  placeholder="Briefly describe what was discussed..."
+                  rows={4}
+                  style={{ width: '100%', minHeight: '96px', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', lineHeight: 1.5, resize: 'vertical', boxSizing: 'border-box', color: '#334155', outline: 'none', marginTop: '8px' }}
+                />
+              </div>
+
+              {/* Next Action — single-line input below Call Brief */}
+              <div style={{ marginBottom: '16px' }}>
+                <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', marginBottom: '8px' }}>Next action</span>
+                <input
+                  type="text"
+                  value={formData.next_action}
+                  onChange={e => setFormData(f => ({ ...f, next_action: e.target.value }))}
+                  placeholder="Any follow-up tasks required?"
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff', boxSizing: 'border-box', outline: 'none', marginTop: '8px' }}
+                />
+              </div>
+
+              {/* Communication Type — chips (same options, values, order, state) */}
+              <div style={{ marginBottom: '16px' }}>
+                <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', marginBottom: '8px' }}>Communication type</span>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }} role="radiogroup" aria-label="Communication type">
+                  {CALL_CATEGORIES.filter(c => c.value).map(c => {
+                    const catSelected = formData.call_category === c.value;
+                    return (
+                      <button
+                        key={c.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={catSelected}
+                        onClick={() => setFormData(f => ({ ...f, call_category: c.value }))}
+                        className="log-chip"
+                        style={{ padding: '6px 12px', borderRadius: '9999px', border: `1px solid ${catSelected ? '#4F46E5' : '#E2E8F0'}`, background: catSelected ? '#4F46E5' : '#fff', color: catSelected ? '#fff' : '#334155', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}
+                      >
+                        {c.label}
+                      </button>
+                    );
+                  })}
                 </div>
-                {/* Communication Type */}
-                <div>
-                  <label style={labelStyle}>Communication Type</label>
-                  <select value={formData.call_category} onChange={e => setFormData(f => ({ ...f, call_category: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
-                    {CALL_CATEGORIES.filter(c => c.value).map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                  </select>
+              </div>
+
+              {/* Priority — chips (all existing options, same values, same state; default Normal) */}
+              <div style={{ marginBottom: '16px' }}>
+                <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', marginBottom: '8px' }}>Priority</span>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }} role="radiogroup" aria-label="Priority">
+                  {PRIORITY_OPTIONS.map(p => {
+                    const priSelected = formData.priority === p.value;
+                    const selBg = p.value === 'high' ? '#D97706' : p.value === 'urgent' ? '#DC2626' : '#4F46E5';
+                    return (
+                      <button
+                        key={p.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={priSelected}
+                        onClick={() => setFormData(f => ({ ...f, priority: p.value }))}
+                        className="log-chip"
+                        style={{ padding: '6px 12px', borderRadius: '9999px', border: `1px solid ${priSelected ? selBg : '#E2E8F0'}`, background: priSelected ? selBg : '#fff', color: priSelected ? '#fff' : '#334155', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
                 </div>
-                {/* Purchase Order + Regarding in one row for vendor calls */}
-                {formData.party_type === 'vendor' && formData.vendor_id && (
-                  <div>
-                    <label style={labelStyle}>PO Number</label>
+              </div>
+
+              {/* Vendor PO link (conditional, unchanged behaviour) */}
+              {formData.party_type === 'vendor' && formData.vendor_id && (
+                <div style={{ marginBottom: '16px' }}>
+                    <label style={{ ...labelStyle, fontSize: '12px', color: '#64748B', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}>PO number</label>
                     <select
                       value={formData.linked_type === 'procurement' ? formData.linked_id : ''}
                       onChange={e => setFormData(f => ({
@@ -2626,78 +2726,101 @@ export function ClientCommunication() {
                         Saving with a Follow Up Date sets it as expected for all pending lines of this PO.
                       </p>
                     )}
-                  </div>
+                </div>
+              )}
+
+              {/* Follow-up date — quick picks set the same state the input uses */}
+              <div style={{ marginBottom: '16px' }}>
+                <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', marginBottom: '8px' }}>Follow-up date</span>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                  {[
+                    { label: 'Today', get: () => toInputDate(new Date()) },
+                    { label: 'Tomorrow', get: () => toInputDate(new Date(Date.now() + 86400000)) },
+                    { label: 'In 3 days', get: () => toInputDate(new Date(Date.now() + 3 * 86400000)) },
+                    { label: 'Next week', get: () => toInputDate(new Date(Date.now() + 7 * 86400000)) },
+                  ].map(q => (
+                    <button
+                      key={q.label}
+                      type="button"
+                      onClick={() => { setFormData(f => ({ ...f, follow_up_date: q.get() })); setShowDateInput(true); }}
+                      className="log-quick-pick"
+                      style={{ padding: '6px 12px', borderRadius: '9999px', border: `1px solid ${formData.follow_up_date === q.get() ? '#4F46E5' : '#E2E8F0'}`, background: formData.follow_up_date === q.get() ? '#EEF2FF' : '#fff', color: formData.follow_up_date === q.get() ? '#4F46E5' : '#334155', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                    >
+                      {q.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setShowDateInput(v => !v)}
+                    className="log-quick-pick"
+                    style={{ padding: '6px 12px', borderRadius: '9999px', border: '1px solid #E2E8F0', background: '#fff', color: '#334155', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}
+                  >
+                    Pick date
+                  </button>
+                </div>
+                {(showDateInput || formData.follow_up_date) && (
+                  <input type="date" value={formData.follow_up_date} onChange={e => setFormData(f => ({ ...f, follow_up_date: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff', boxSizing: 'border-box' }} />
                 )}
-                {/* Regarding */}
+              </div>
+
+              {/* More details — collapsed by default */}
+              <div style={{ marginBottom: '8px', border: '1px solid #F1F5F9', borderRadius: '8px' }}>
+                <button type="button" onClick={() => setShowMoreDetails(v => !v)} aria-expanded={showMoreDetails} className="log-more-toggle" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#475569' }}>
+                  <span>More details</span>
+                  {showMoreDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
+                {showMoreDetails && (
+                  <div className="log-more-grid" style={{ padding: '0 12px 12px' }}>
+                    <div>
+                      <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', marginBottom: '8px' }}>Subject</span>
+                      <input
+                        type="text"
+                        value={formData.subject}
+                        onChange={e => setFormData(f => ({ ...f, subject: e.target.value }))}
+                        placeholder="e.g. Quotation Follow-up, Material Availability..."
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff', boxSizing: 'border-box', outline: 'none', marginTop: '8px' }}
+                      />
+                    </div>
                 <div>
-                  <label style={labelStyle}>Regarding</label>
+                  <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', marginBottom: '8px' }}>Regarding</span>
                   <select value={formData.call_regarding} onChange={e => { setFormData(f => ({ ...f, call_regarding: e.target.value })); if (e.target.value !== 'issue') { setRequireSiteVisit(false); setIssueSiteVisitDate(''); } }} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
                     <option value="">General</option>
                     {CALL_REGARDING.filter(r => r.value).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                 </div>
-                {/* Priority */}
+                {/* Received by (existing select, unchanged) */}
                 <div>
-                  <label style={labelStyle}>Priority</label>
-                  <select value={formData.priority} onChange={e => setFormData(f => ({ ...f, priority: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
-                    {PRIORITY_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                  </select>
-                </div>
-                {/* Follow Up Date */}
-                <div>
-                  <label style={labelStyle}>Follow Up Date</label>
-                  <input type="date" value={formData.follow_up_date} onChange={e => setFormData(f => ({ ...f, follow_up_date: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff', boxSizing: 'border-box' }} />
-                </div>
-                {/* Received By */}
-                <div>
-                  <label style={labelStyle}>Received By</label>
+                  <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', marginBottom: '8px' }}>Received by</span>
                   <select value={formData.call_received_by} onChange={e => setFormData(f => ({ ...f, call_received_by: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
                     <option value="">Select user</option>
                     {users.map(u => <option key={u.id} value={getUserId(u)}>{u.full_name || u.email}{u.orgRole ? ` (${u.orgRole})` : ''}</option>)}
                   </select>
                 </div>
-                {/* Assignee */}
+                {/* Assignee (existing select, unchanged) */}
                 <div>
-                  <label style={labelStyle}>Assignee</label>
+                  <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', marginBottom: '8px' }}>Assignee</span>
                   <select value={formData.assigned_to} onChange={e => setFormData(f => ({ ...f, assigned_to: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', color: '#334155', background: '#fff' }}>
                     <option value="">Unassigned</option>
                     {users.map(u => <option key={u.id} value={getUserId(u)}>{u.full_name || u.email}{u.orgRole ? ` (${u.orgRole})` : ''}</option>)}
                   </select>
                 </div>
-                {/* Referred to Partner — not needed for vendor calls */}
+                {/* Referred to partner — existing PartnerSelect, unchanged */}
                 {formData.party_type !== 'vendor' && (
                 <PartnerSelect
                   value={formData.referred_to_partner_id}
                   onChange={partnerId => setFormData(f => ({ ...f, referred_to_partner_id: partnerId }))}
-                  label="Referred to Partner"
+                  label="Referred to partner"
                 />
+                )}
+                  </div>
                 )}
               </div>
 
-              {/* Call Brief */}
-              <div style={{ marginBottom: '14px' }}>
-                <label style={labelStyle}>Call Brief *</label>
-                <textarea
-                  value={formData.call_brief}
-                  onChange={e => setFormData(f => ({ ...f, call_brief: e.target.value }))}
-                  required
-                  placeholder="Briefly describe what was discussed..."
-                  rows={3}
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', lineHeight: 1.5, resize: 'vertical', boxSizing: 'border-box', color: '#334155', outline: 'none' }}
-                />
-              </div>
-
-              {/* Next Action */}
-              <div style={{ marginBottom: '24px' }}>
-                <label style={labelStyle}>Next Action</label>
-                <textarea
-                  value={formData.next_action}
-                  onChange={e => setFormData(f => ({ ...f, next_action: e.target.value }))}
-                  placeholder="Any follow-up tasks required?"
-                  rows={2}
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '14px', lineHeight: 1.5, resize: 'vertical', boxSizing: 'border-box', color: '#334155', outline: 'none' }}
-                />
-              </div>
+              {/* Attachments + issue + site-visit (existing blocks, unchanged) */}
+              {/* NOTE: the legacy bottom Call Brief / Next action textareas were removed during
+                  this presentation-only re-layout; the single re-ordered Call Brief textarea
+                  above (formData.call_brief) and single Next action input above
+                  (formData.next_action) are the only bound controls. No state changed. */}
 
               {/* Attachments */}
               <div style={{ marginBottom: '24px' }}>
@@ -2797,8 +2920,9 @@ export function ClientCommunication() {
                 </div>
               )}
 
-              {/* Buttons — sticky at modal bottom */}
-              <div style={{ display: 'flex', gap: '10px', paddingTop: '16px', paddingBottom: '4px', borderTop: '1px solid #F1F5F9', position: 'sticky', bottom: '-24px', background: '#fff', zIndex: 5 }}>
+              {/* Footer — sibling of the scrollable body so it never gets cut off */}
+              </div>
+              <div style={{ display: 'flex', gap: '10px', padding: '16px 24px', borderTop: '1px solid #F1F5F9', background: '#fff', zIndex: 5, flexShrink: 0, borderRadius: '0 0 16px 16px' }}>
                 <button 
                   type="button" 
                   onClick={() => { setShowCreateModal(false); setEditingCommunication(null); resetForm(); }} 
@@ -2808,17 +2932,18 @@ export function ClientCommunication() {
                 </button>
                 <button
                   type="submit"
-                  disabled={createMutation.isPending || updateMutation.isPending || !hasPartySelected || !formData.call_brief}
+                  data-log-submit
+                  disabled={isCreateDisabled}
                   style={{ 
                     flex: 2, 
                     padding: '11px', 
                     border: 'none', 
                     borderRadius: '8px', 
-                    background: (createMutation.isPending || updateMutation.isPending || !hasPartySelected || !formData.call_brief) ? '#C7D2FE' : '#4F46E5', 
+                    background: isCreateDisabled ? '#C7D2FE' : '#4F46E5', 
                     color: '#fff', 
                     fontSize: '14px', 
                     fontWeight: 600, 
-                    cursor: (createMutation.isPending || updateMutation.isPending || !hasPartySelected || !formData.call_brief) ? 'not-allowed' : 'pointer' 
+                    cursor: isCreateDisabled ? 'not-allowed' : 'pointer' 
                   }}
                 >
                   {editingCommunication 

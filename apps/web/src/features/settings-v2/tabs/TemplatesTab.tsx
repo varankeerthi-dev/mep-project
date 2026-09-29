@@ -1039,6 +1039,11 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
     }
   }, [selectedTemplate, orgId, originalFormData]);
 
+  const hasFormChanges = useMemo(() => {
+    if (!showForm || !originalFormData) return false;
+    return JSON.stringify(formData) !== JSON.stringify(originalFormData);
+  }, [formData, originalFormData, showForm]);
+
   // Discard unsaved changes and close the editor. Used by the "Cancel" sticky button.
   const handleCancel = useCallback(() => {
     if (hasFormChanges && !confirm('Discard unsaved changes?')) return;
@@ -1185,11 +1190,6 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
     };
     return icons[type] || '📄';
   };
-
-  const hasFormChanges = useMemo(() => {
-    if (!showForm || !originalFormData) return false;
-    return JSON.stringify(formData) !== JSON.stringify(originalFormData);
-  }, [formData, originalFormData, showForm]);
 
   useEffect(() => {
     onDirtyChange(showForm ? hasFormChanges : false);

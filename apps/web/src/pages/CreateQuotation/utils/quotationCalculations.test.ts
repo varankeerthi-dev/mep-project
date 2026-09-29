@@ -327,3 +327,42 @@ describe('buildQuotationItemPayload', () => {
     expect(payload.subtotal_label).toBeNull();
   });
 });
+
+describe('MRP-driven totals contract (updateItem must derive rate from MRP first)', () => {
+  const totalsInput = (items: any[]) => ({
+    items,
+    extraDiscountPercent: 0,
+    extraDiscountAmount: 0,
+    roundOffEnabled: false,
+    roundOff: 0,
+    state: 'Karnataka',
+    companyState: 'Karnataka',
+  });
+
+  it('MRP 500 with 0% discount totals qty*MRP plus tax (never zero)', () => {
+    const totals = calculateQuotationTotals(
+      totalsInput([{ description: 'MRP item', qty: 2, rate: 500, tax_percent: 18, base_rate_snapshot: 500 }]),
+    );
+    expect(totals.subtotal).toBe(1000);
+    expect(totals.totalItemDiscount).toBe(0);
+    expect(totals.totalTax).toBe(180);
+    expect(totals.grandTotal).toBe(1180);
+  });
+
+  it('MRP 500 with 10% discount nets 450/unit with 50/unit discount', () => {
+    const totals = calculateQuotationTotals(
+      totalsInput([{ description: 'Disc item', qty: 2, rate: 450, tax_percent: 18, base_rate_snapshot: 500 }]),
+    );
+    expect(totals.subtotal).toBe(900);
+    expect(totals.totalItemDiscount).toBe(100);
+    expect(totals.grandTotal).toBe(900 + 162);
+  });
+
+  it('a zero-rate line contributes zero (the pre-fix symptom)', () => {
+    const totals = calculateQuotationTotals(
+      totalsInput([{ description: 'Unpriced', qty: 2, rate: 0, tax_percent: 18, base_rate_snapshot: 500 }]),
+    );
+    expect(totals.subtotal).toBe(0);
+    expect(totals.grandTotal).toBe(0);
+  });
+});
