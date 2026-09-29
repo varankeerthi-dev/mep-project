@@ -202,6 +202,9 @@ const PaymentsHub = lazyAny(() => import('./modules/Purchase/components/Payments
 const PrintSettings = lazyAny(() => import('./pages/PrintSettings'));
 const DatabaseSetup = lazyAny(() => import('./pages/DatabaseSetup'));
 
+// SaaS Admin Console (/admin/*) — isolated shell, bypasses ERP org gates
+const AdminShell = lazyAny(() => import('./admin/AdminShell'));
+
 // GST pages
 const GSTDashboard = lazyAny(() => import('./pages/GSTDashboard'));
 const GSTReconciliation = lazyAny(() => import('./pages/GSTReconciliation'));
@@ -1087,6 +1090,20 @@ export default function App() {
 
     window.location.href = '/';
     return null;
+  }
+
+  // SaaS Admin Console: authenticated platform admins only.
+  // Bypasses ERP org gates (no organisation selection, no Sidebar).
+  if (location.pathname === '/admin' || location.pathname.startsWith('/admin/')) {
+    return (
+      <AuthContext.Provider value={authContextValue}>
+        <DateFormatProvider>
+          <Suspense fallback={<PageLoadingSpinner />}>
+            <AdminShell />
+          </Suspense>
+        </DateFormatProvider>
+      </AuthContext.Provider>
+    );
   }
 
   if (organisations.length === 0) {

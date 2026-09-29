@@ -178,6 +178,29 @@ export default function StockCheckPanel({
     }
   };
 
+  const handleAutoReserve = async () => {
+    try {
+      setSaving(true);
+      const { data, error } = await supabase.rpc('reserve_sales_order_lines_atomic', {
+        p_so_id: salesOrderId,
+      });
+      if (error) throw error;
+      const lines = ((data as any)?.lines || []) as any[];
+      const short = lines.filter((l) => Number(l.shortfall) > 0).length;
+      const allocated = lines.reduce((s, l) => s + (Number(l.allocated) || 0), 0);
+      toast.success(
+        short > 0
+          ? `Auto-reserved ${allocated} units with shortfall on ${short} line(s)`
+          : `Auto-reserved ${allocated} units`
+      );
+      fetchStockData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to auto-reserve');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleReleaseItem = async (check: ItemStockCheck) => {
     if (!check.currently_reserved || check.currently_reserved <= 0) return;
     if (!confirm(`Release ${check.currently_reserved} reserved units of ${check.name}? Stock becomes available to other orders.`)) return;
@@ -396,6 +419,18 @@ export default function StockCheckPanel({
             Close Stock Check
           </Button>
 
+          <Button
+            onClick={handleAutoReserve}
+            disabled={saving || loading}
+            variant="outline"
+          >
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-1.5" />
+            )}
+            Auto-Reserve
+          </Button>
           <Button
             onClick={handleSaveReservations}
             disabled={saving || loading}

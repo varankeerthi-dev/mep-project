@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Preview Verify - Standard (A4 + hidden columns)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/inter@5/index.css" />
+<style>
+  html, body { font-family: 'Inter', system-ui, sans-serif; background: #f3f4f6; padding: 32px; margin: 0; }
+  .stage { max-width: 760px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .stage h1 { font-size: 16px; margin: 0 0 4px 0; color: #0F172A; }
+  .stage p  { font-size: 11px; color: #6B7280; margin: 0 0 16px 0; }
+  /* A4 portrait: 210x297mm → aspect-ratio 1 / 1.414 */
+  .thumb-shell {
+    width: 320px;
+    aspect-ratio: 1 / 1.414;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    background: #fff;
+  }
+  /* Render the preview at 1/3.2 scale so the 320×452 thumb fits */
+  .thumb-shell > div { transform: scale(0.3125); transform-origin: top left; width: 320%; }
+  .panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .panel h2 { font-size: 13px; margin: 0 0 8px 0; color: #0F172A; }
+  .full { width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <h1>Standard Template — A4 + hidden columns</h1>
+  <p>Left: card thumbnail (A4 portrait, aspect-ratio 1/1.414). Right: full-size modal preview showing hidden columns struck-through in red.</p>
+  <div class="panel-grid">
+    <div class="panel">
+      <h2>Card thumbnail (A4)</h2>
+      <div class="thumb-shell" id="thumb"></div>
+    </div>
+    <div class="panel">
+      <h2>Full-size modal</h2>
+      <div class="full" id="full"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Simulate a saved template where the user has hidden Variant, Make, and Description
+  const opt = {
+    sno: true, item: true, qty: true, uom: true,
+    item_code: true, variant: false, description: false,
+    hsn_code: true, rate: true, base_amount: true,
+    discount_percent: false, rate_after_discount: true,
+    tax_percent: true, tax_amount: false, line_total: true,
+    category: false, make: false, custom1: false, custom2: false,
+    subtotal: true, total_tax: true, round_off: true, grand_total: true,
+  };
+  // Other config keys like po_no/po_date/etc. are disabled by default
+  opt.po_no = false; opt.po_date = false; opt.valid_till = true; opt.payment_terms = true;
+  opt.reference = false; opt.eway_bill = false; opt.bill_to = false; opt.ship_to = false;
+  opt.project_name = true; opt.prepared_by = false;
+  opt.client_part_no = false; opt.client_description = false; opt.vendor_no = false;
+
+  const hiddenCount = Object.entries(opt).filter(([k,v]) => v === false).length
+    + ['item_code','rate_after_discount','valid_till','payment_terms','project_name'].length - 5;
+  // ^ rough count; not used here
+
+  const DEMO_ORG = {
+    name: 'Your Company Name Pvt. Ltd.',
+    address: '123, Industrial Area, Phase-II, Chandigarh \u2013 160002',
+    phone: '+91 98765 43210',
+    email: 'info@yourcompany.com',
+    gstin: '04XXXXXX1234XXXX',
+  };
+  const DEMO_CLIENT = {
+    name: 'Client Company Name',
+    contact: 'Mr. Rajesh Kumar',
+    address: '456, Trade Centre, Sector 17, Chandigarh \u2013 160017',
+    gstin: '04YYYYYY1234YYYY',
+    phone: '+91 98765 11111',
+    shippingCompany: 'Client Company Name \u2013 Warehouse',
+    shippingAddress: 'Plot No. 78, Industrial Focal Point, Derabassi, Punjab \u2013 140507',
+    shippingPhone: '+91 98765 22222',
+  };
+  const DEMO_PROJECT = { name: 'Residential MEP Project', poNo: 'PO-2026-0042' };
+  const DEMO_ITEMS = [
+    { sno: 1, code: 'P-101', hsn: '8471', description: 'Desktop Computer \u2014 Intel Core i5, 8GB RAM', qty: 5, uom: 'Nos', rate: 42500, gst: 18, amount: 250750 },
+    { sno: 2, code: 'P-102', hsn: '8471', description: 'Online UPS 1KVA with Battery Backup', qty: 5, uom: 'Nos', rate: 14200, gst: 18, amount: 83780 },
+    { sno: 3, code: 'P-103', hsn: '8528', description: 'Network Switch 24 Port Gigabit', qty: 2, uom: 'Nos', rate: 18500, gst: 18, amount: 43660 },
+    { sno: 4, code: 'P-104', hsn: '8473', description: 'HP LaserJet Pro MFP Monochrome', qty: 2, uom: 'Nos', rate: 22000, gst: 18, amount: 51920 },
+  ];
+  const inr = n => `\u20b9${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const subtotal = DEMO_ITEMS.reduce((s, i) => s + i.qty * i.rate, 0);
+  const taxAmount = DEMO_ITEMS.reduce((s, i) => s + (i.qty * i.rate * i.gst) / 100, 0);
+  const grandTotal = subtotal + taxAmount;
+  const today = new Date().toLocaleDateString('en-IN');
+
+  // Render all OPTIONAL_COLUMNS rows; hidden ones struck-through with red badge
+  const ALL_COLS = [
+    { k: 'sno',             t: 'S.No.',          align: 'center', get: i => i.sno },
+    { k: 'item_code',       t: 'Tool Code',      align: 'left',   get: i => i.code },
+    { k: 'variant',         t: 'Variant',        align: 'left',   get: () => 'Standard' },
+    { k: 'description',     t: 'Description',    align: 'left',   get: i => i.description },
+    { k: 'client_part_no',  t: 'Client Part No', align: 'left',   get: i => `CP-${100+i.sno}` },
+    { k: 'client_description', t: 'Client Description', align: 'left', get: i => i.description },
+    { k: 'hsn_code',        t: 'HSN Code',       align: 'center', get: i => i.hsn },
+    { k: 'rate',            t: 'Rate',           align: 'right',  get: i => i.rate.toLocaleString('en-IN') },
+    { k: 'discount_percent',t: 'Disc %',         align: 'right',  get: () => '0%' },
+    { k: 'rate_after_discount', t: 'Rate After', align: 'right',  get: i => i.rate.toLocaleString('en-IN') },
+    { k: 'tax_percent',     t: 'GST %',          align: 'center', get: i => `${i.gst}%` },
+    { k: 'tax_amount',      t: 'Tax Amt',        align: 'right',  get: i => ((i.qty*i.rate*i.gst)/100).toFixed(0) },
+    { k: 'line_total',      t: 'Final Total',    align: 'right',  get: i => i.amount.toLocaleString('en-IN') },
+    { k: 'category',        t: 'Category',       align: 'left',   get: () => 'Electronics' },
+    { k: 'make',            t: 'Make',           align: 'left',   get: () => 'HP / Cisco' },
+    { k: 'qty',             t: 'Qty',            align: 'right',  get: i => i.qty },
+    { k: 'uom',             t: 'Unit',           align: 'center', get: i => i.uom },
+    { k: 'po_no',           t: 'PO No',          align: 'left',   get: () => DEMO_PROJECT.poNo },
+    { k: 'valid_till',      t: 'Valid Till',     align: 'left',   get: () => new Date(Date.now()+7*86400000).toLocaleDateString('en-IN') },
+    { k: 'project_name',    t: 'Project',        align: 'left',   get: () => DEMO_PROJECT.name },
+  ];
+
+  const hiddenCount2 = ALL_COLS.filter(c => opt[c.k] === false).length;
+
+  const thCell = c => {
+    const off = opt[c.k] === false;
+    const base = `padding:5px 6px;text-align:${c.align};font-weight:600;font-size:8px;`;
+    const offStyle = off ? `color:#DC2626;text-decoration:line-through;background:#FEF2F2;` : '';
+    const tag = off ? ' <span style="font-size:6px;font-weight:700;color:#fff;background:#DC2626;padding:1px 2px;border-radius:2px;margin-left:2px;text-decoration:none;">HIDDEN</span>' : '';
+    return `<th style="${base}${offStyle}">${c.t}${tag}</th>`;
+  };
+  const tdCell = (c, item) => {
+    const off = opt[c.k] === false;
+    const offStyle = off ? `color:#DC2626;text-decoration:line-through;background:#FEF2F2;` : '';
+    return `<td style="padding:5px 6px;text-align:${c.align};font-size:8px;${offStyle}">${c.get(item)}</td>`;
+  };
+
+  const html = `
+    <div style="font-family:'Inter',sans-serif;color:#1f2937;padding:14px;background:#fff;min-height:520px;">
+      <div style="border-bottom:3px solid #185FA5;padding-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div>
+          <div style="font-size:16px;font-weight:800;color:#0F172A;">${DEMO_ORG.name}</div>
+          <div style="font-size:8px;color:#64748B;margin-top:2px;line-height:1.3;">${DEMO_ORG.address}<br>Ph: ${DEMO_ORG.phone} &middot; GSTIN: ${DEMO_ORG.gstin}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:14px;font-weight:700;color:#185FA5;letter-spacing:1.5px;">QUOTATION</div>
+          <div style="font-size:8px;color:#64748B;margin-top:2px;">No: QT-2026-0042 &middot; ${today}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;font-size:8px;">
+        <div style="background:#F8FAFC;padding:8px;border-radius:6px;">
+          <div style="font-size:7px;color:#185FA5;font-weight:700;text-transform:uppercase;margin-bottom:3px;">Bill To</div>
+          <div style="font-weight:600;">${DEMO_CLIENT.name}</div>
+          <div style="color:#475569;">${DEMO_CLIENT.contact}</div>
+          <div style="color:#475569;">${DEMO_CLIENT.address}</div>
+        </div>
+        <div style="background:#F8FAFC;padding:8px;border-radius:6px;text-align:right;">
+          <div style="font-size:7px;color:#185FA5;font-weight:700;text-transform:uppercase;margin-bottom:3px;">Ship To</div>
+          <div style="font-weight:600;">${DEMO_CLIENT.shippingCompany}</div>
+          <div style="color:#475569;">${DEMO_CLIENT.shippingAddress}</div>
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:8px;">
+        <thead style="background:#185FA5;color:#fff;">
+          <tr>${ALL_COLS.map(thCell).join('')}</tr>
+        </thead>
+        <tbody>
+          ${DEMO_ITEMS.map(item => `<tr style="border-bottom:1px solid #E5E7EB;">${ALL_COLS.map(c => tdCell(c, item)).join('')}</tr>`).join('')}
+        </tbody>
+      </table>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+        <div style="width:170px;font-size:9px;background:#F8FAFC;padding:8px;border-radius:6px;">
+          <div style="display:flex;justify-content:space-between;padding:2px 0;color:#475569;"><span>Subtotal</span><span>${inr(subtotal)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding:2px 0;color:#475569;"><span>Tax (GST 18%)</span><span>${inr(taxAmount)}</span></div>
+          <div style="display:flex;justify-content:space-between;padding-top:6px;border-top:2px solid #185FA5;font-weight:700;color:#0F172A;"><span>Grand Total</span><span>${inr(grandTotal)}</span></div>
+        </div>
+      </div>
+      <div style="margin-top:8px;padding-top:6px;border-top:1px dashed #E5E7EB;font-size:7px;color:#64748B;">
+        <strong>Terms &amp; Conditions:</strong> 50% advance, balance within 30 days.
+      </div>
+      <div style="position:absolute;bottom:8px;left:8px;background:rgba(220,38,38,0.95);color:#fff;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:700;">${hiddenCount2} HIDDEN</div>
+      <div style="position:absolute;bottom:8px;right:8px;background:rgba(15,23,42,0.85);color:#fff;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:600;">A4 PORTRAIT</div>
+    </div>`;
+  document.getElementById('thumb').innerHTML = html;
+  document.getElementById('full').innerHTML = html;
+</script>
+</body>
+</html>

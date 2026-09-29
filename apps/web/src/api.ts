@@ -659,41 +659,102 @@ export async function fetchQuotationById(id: string): Promise<QuotationHeader> {
   return data as QuotationHeader;
 }
 
-export async function createQuotation(quotation: Partial<QuotationHeader> & { items?: any[] }): Promise<any> {
+export async function createQuotation(quotation: Partial<QuotationHeader> & { 
+  items?: any[];
+  status?: string;
+  negotiation_mode?: boolean;
+  extra_discount_percent?: number;
+  extra_discount_amount?: number;
+  round_off?: number;
+  round_off_enabled?: boolean;
+  include_erection_charges?: boolean;
+  variant_discounts?: Record<string, number>;
+  terms_conditions?: any;
+  quotation_no?: string;
+  series_config?: any;
+}): Promise<any> {
+  const { 
+    items, status, negotiation_mode, extra_discount_percent, extra_discount_amount,
+    round_off, round_off_enabled, include_erection_charges, variant_discounts,
+    terms_conditions, quotation_no, series_config,
+    ...rest 
+  } = quotation;
   const { data, error } = await supabase.rpc('record_quotation', {
-    p_organisation_id: quotation.organisation_id,
-    p_client_id: quotation.client_id,
-    p_project_id: quotation.project_id || null,
-    p_items: quotation.items || [],
-    p_remarks: quotation.remarks || null,
-    p_payment_terms: quotation.payment_terms || null,
-    p_valid_till: quotation.valid_till || null,
-    p_billing_address: quotation.billing_address || null,
-    p_gstin: quotation.gstin || null,
-    p_state: quotation.state || null,
-    p_contact_no: quotation.contact_no || null,
-    p_reference: quotation.reference || null,
+    p_organisation_id: rest.organisation_id,
+    p_client_id: rest.client_id,
+    p_project_id: rest.project_id || null,
+    p_items: items || [],
+    p_remarks: rest.remarks || null,
+    p_payment_terms: rest.payment_terms || null,
+    p_valid_till: rest.valid_till || null,
+    p_billing_address: rest.billing_address || null,
+    p_gstin: rest.gstin || null,
+    p_state: rest.state || null,
+    p_contact_no: rest.contact_no || null,
+    p_reference: rest.reference || null,
+    p_authorized_signatory_id: rest.authorized_signatory_id || null,
+    p_revision_no: rest.revision_no || 1,
+    p_revision_history: rest.revision_history || [],
+    p_status: status || 'Draft',
+    p_negotiation_mode: !!negotiation_mode,
+    p_extra_discount_percent: extra_discount_percent || 0,
+    p_extra_discount_amount: extra_discount_amount || 0,
+    p_round_off: round_off || 0,
+    p_round_off_enabled: round_off_enabled ?? true,
+    p_include_erection_charges: !!include_erection_charges,
+    p_variant_discounts: variant_discounts || {},
+    p_terms_conditions: terms_conditions || null,
+    p_quotation_no: quotation_no || null,
+    p_series_config: series_config || null,
   });
 
   if (error) throw error;
   return data;
 }
 
-export async function updateQuotation(id: string, updates: Partial<QuotationHeader> & { items?: any[] }): Promise<any> {
+export async function updateQuotation(id: string, updates: Partial<QuotationHeader> & { 
+  items?: any[];
+  status?: string;
+  negotiation_mode?: boolean;
+  extra_discount_percent?: number;
+  extra_discount_amount?: number;
+  round_off?: number;
+  round_off_enabled?: boolean;
+  include_erection_charges?: boolean;
+  variant_discounts?: Record<string, number>;
+  terms_conditions?: any;
+}): Promise<any> {
+  const { 
+    items, status, negotiation_mode, extra_discount_percent, extra_discount_amount,
+    round_off, round_off_enabled, include_erection_charges, variant_discounts, terms_conditions,
+    ...rest 
+  } = updates;
   const { data, error } = await supabase.rpc('update_quotation', {
     p_quotation_id: id,
-    p_organisation_id: updates.organisation_id,
-    p_client_id: updates.client_id || null,
-    p_project_id: updates.project_id || null,
-    p_items: updates.items || [],
-    p_remarks: updates.remarks || null,
-    p_payment_terms: updates.payment_terms || null,
-    p_valid_till: updates.valid_till || null,
-    p_billing_address: updates.billing_address || null,
-    p_gstin: updates.gstin || null,
-    p_state: updates.state || null,
-    p_contact_no: updates.contact_no || null,
-    p_reference: updates.reference || null,
+    p_organisation_id: rest.organisation_id,
+    p_client_id: rest.client_id || null,
+    p_project_id: rest.project_id || null,
+    p_items: items || [],
+    p_remarks: rest.remarks || null,
+    p_payment_terms: rest.payment_terms || null,
+    p_valid_till: rest.valid_till || null,
+    p_billing_address: rest.billing_address || null,
+    p_gstin: rest.gstin || null,
+    p_state: rest.state || null,
+    p_contact_no: rest.contact_no || null,
+    p_reference: rest.reference || null,
+    p_authorized_signatory_id: rest.authorized_signatory_id || null,
+    p_revision_no: rest.revision_no || 1,
+    p_revision_history: rest.revision_history || [],
+    p_status: status || 'Draft',
+    p_negotiation_mode: !!negotiation_mode,
+    p_extra_discount_percent: extra_discount_percent || 0,
+    p_extra_discount_amount: extra_discount_amount || 0,
+    p_round_off: round_off || 0,
+    p_round_off_enabled: round_off_enabled ?? true,
+    p_include_erection_charges: !!include_erection_charges,
+    p_variant_discounts: variant_discounts || {},
+    p_terms_conditions: terms_conditions || null,
   });
 
   if (error) throw error;

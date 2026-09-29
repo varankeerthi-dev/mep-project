@@ -952,13 +952,15 @@ export async function advanceTransferStatus(
 export async function executeTransfer(
   transferId: string,
   operatorId: string,
-  device?: string
+  device?: string,
+  idempotencyKey?: string
 ): Promise<{ ok: boolean; error?: string }> {
   const { data, error } = await supabase.rpc('execute_warehouse_transfer', {
     p_transfer_id: transferId,
     p_operator_id: operatorId,
     p_device: device ?? null,
     p_remarks: null,
+    p_idempotency_key: idempotencyKey ?? null,
   });
   if (error) throw error;
   const res = (data ?? {}) as { ok?: boolean; error?: string };
@@ -1048,6 +1050,8 @@ export async function executeReplenishment(args: {
   itemId: string;
   quantity: number;
   operatorId: string;
+  idempotencyKey?: string | null;
+  companyVariantId?: string | null;
 }): Promise<{ ok: boolean; error?: string }> {
   const { data, error } = await supabase.rpc('replenish_bin', {
     p_organisation_id: args.organisationId,
@@ -1057,6 +1061,8 @@ export async function executeReplenishment(args: {
     p_quantity: args.quantity,
     p_operator_id: args.operatorId,
     p_device: 'web',
+    p_idempotency_key: args.idempotencyKey ?? null,
+    p_company_variant_id: args.companyVariantId ?? null,
   });
   if (error) throw error;
   const res = (data ?? {}) as { ok?: boolean; error?: string };
@@ -1071,6 +1077,8 @@ export async function receiveStock(args: {
   quantity: number;
   operatorId: string;
   remarks?: string | null;
+  idempotencyKey?: string | null;
+  companyVariantId?: string | null;
 }): Promise<{ ok: boolean; error?: string }> {
   const { data, error } = await supabase.rpc('receive_warehouse_stock', {
     p_organisation_id: args.organisationId,
@@ -1080,6 +1088,8 @@ export async function receiveStock(args: {
     p_operator_id: args.operatorId,
     p_device: 'web',
     p_remarks: args.remarks ?? null,
+    p_idempotency_key: args.idempotencyKey ?? null,
+    p_company_variant_id: args.companyVariantId ?? null,
   });
   if (error) throw error;
   const res = (data ?? {}) as { ok?: boolean; error?: string };
@@ -1305,12 +1315,14 @@ export async function executeDispatch(args: {
   operatorId: string;
   vehicleNo?: string | null;
   driverName?: string | null;
+  idempotencyKey?: string | null;
 }): Promise<{ ok: boolean; error?: string }> {
   const { data, error } = await supabase.rpc('execute_warehouse_dispatch', {
     p_dispatch_id: args.dispatchId,
     p_vehicle_no: args.vehicleNo ?? null,
     p_driver_name: args.driverName ?? null,
     p_operator_id: args.operatorId,
+    p_idempotency_key: args.idempotencyKey ?? null,
   });
   if (error) throw error;
   const res = (data ?? {}) as { ok?: boolean; error?: string };
@@ -1828,11 +1840,13 @@ export async function fetchPickLists(organisationId: string): Promise<PickListVi
 /** Complete a pick list via the RPC — Movement Engine executes each line. */
 export async function completePickList(
   pickListId: string,
-  userId: string
+  userId: string,
+  idempotencyKey?: string | null
 ): Promise<{ ok: boolean; error?: string; picked?: number; skipped?: number }> {
   const { data, error } = await supabase.rpc('complete_pick_list', {
     p_pick_list_id: pickListId,
     p_operator_id: userId,
+    p_idempotency_key: idempotencyKey ?? null,
   });
   if (error) throw error;
   const res = (data ?? {}) as { ok?: boolean; error?: string; picked?: number; skipped?: number };

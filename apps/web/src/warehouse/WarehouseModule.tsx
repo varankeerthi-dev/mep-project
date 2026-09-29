@@ -17,6 +17,9 @@ import WarehouseViewerPage from './pages/WarehouseViewerPage';
 import InventoryPage from './pages/InventoryPage';
 import OperationsPage from './pages/OperationsPage';
 import WarehouseReportsPage from './pages/WarehouseReportsPage';
+import StockRequestListPage from './stock-requests/StockRequestListPage';
+import StockRequestDetailPage from './stock-requests/StockRequestDetailPage';
+import FulfillmentQueuePage from './stock-requests/FulfillmentQueuePage';
 
 type Tab = {
   id: string;
@@ -27,6 +30,8 @@ type Tab = {
 
 const TABS: Tab[] = [
   { id: 'dashboard', label: 'Dashboard', path: '/warehouse/dashboard', matchPrefix: '/warehouse/dashboard' },
+  { id: 'stock-requests', label: 'Stock Requests', path: '/warehouse/stock-requests', matchPrefix: '/warehouse/stock-requests' },
+  { id: 'fulfillment', label: 'Fulfillment', path: '/warehouse/fulfillment', matchPrefix: '/warehouse/fulfillment' },
   { id: 'designer', label: 'Designer', path: '/warehouse/designer', matchPrefix: '/warehouse/designer' },
   { id: 'viewer', label: 'Viewer', path: '/warehouse/viewer', matchPrefix: '/warehouse/viewer' },
   { id: 'inventory', label: 'Inventory', path: '/warehouse/inventory', matchPrefix: '/warehouse/inventory' },
@@ -38,6 +43,15 @@ const TABS: Tab[] = [
 export default function WarehouseModule() {
   const location = useLocation();
   const pathKey = location.pathname;
+
+  const isStockRequestDetail =
+    pathKey.startsWith('/warehouse/stock-requests/') &&
+    pathKey !== '/warehouse/stock-requests' &&
+    pathKey !== '/warehouse/stock-requests/';
+
+  const stockRequestId = isStockRequestDetail
+    ? pathKey.split('/warehouse/stock-requests/')[1]?.split('/')[0]
+    : undefined;
 
   const activeTab = useMemo(() => {
     const exact = TABS.find(t => pathKey === t.path);
@@ -54,27 +68,40 @@ export default function WarehouseModule() {
           <GlobalSearchBar />
         </div>
         <SubTabsNav tabs={TABS} activeTabId={activeTab.id} />
-        <div style={{ display: activeTab.id === 'dashboard' ? undefined : 'none' }}>
-          <WarehouseDashboardPage />
-        </div>
-        <div style={{ display: activeTab.id === 'designer' ? undefined : 'none' }}>
-          <WarehouseDesignerPage />
-        </div>
-        <div style={{ display: activeTab.id === 'viewer' ? undefined : 'none' }}>
-          <WarehouseViewerPage />
-        </div>
-        <div style={{ display: activeTab.id === 'inventory' ? undefined : 'none' }}>
-          <InventoryPage />
-        </div>
-        <div style={{ display: activeTab.id === 'operations' ? undefined : 'none' }}>
-          <OperationsPage />
-        </div>
-        <div style={{ display: activeTab.id === 'reports' ? undefined : 'none' }}>
-          <WarehouseReportsPage />
-        </div>
-        <div style={{ display: activeTab.id === 'warehouses' ? undefined : 'none' }}>
-          <WarehouseListPage />
-        </div>
+
+        {isStockRequestDetail ? (
+          <StockRequestDetailPage requestId={stockRequestId} />
+        ) : (
+          <>
+            <div style={{ display: activeTab.id === 'dashboard' ? undefined : 'none' }}>
+              <WarehouseDashboardPage />
+            </div>
+            <div style={{ display: activeTab.id === 'stock-requests' ? undefined : 'none' }}>
+              <StockRequestListPage />
+            </div>
+            <div style={{ display: activeTab.id === 'fulfillment' ? undefined : 'none' }}>
+              <FulfillmentQueuePage />
+            </div>
+            <div style={{ display: activeTab.id === 'designer' ? undefined : 'none' }}>
+              <WarehouseDesignerPage />
+            </div>
+            <div style={{ display: activeTab.id === 'viewer' ? undefined : 'none' }}>
+              <WarehouseViewerPage />
+            </div>
+            <div style={{ display: activeTab.id === 'inventory' ? undefined : 'none' }}>
+              <InventoryPage />
+            </div>
+            <div style={{ display: activeTab.id === 'operations' ? undefined : 'none' }}>
+              <OperationsPage />
+            </div>
+            <div style={{ display: activeTab.id === 'reports' ? undefined : 'none' }}>
+              <WarehouseReportsPage />
+            </div>
+            <div style={{ display: activeTab.id === 'warehouses' ? undefined : 'none' }}>
+              <WarehouseListPage />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

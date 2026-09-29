@@ -549,17 +549,27 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
     // configured (visible OR hidden) appears in the preview. Hidden columns are
     // rendered struck-through with a red "Hidden" badge so the user can audit
     // their toggle choices at a glance.
+    //
+    // "Hidden" = explicitly set to false in the template's optional config.
+    // Missing keys (undefined) are treated as "not configured" → not hidden.
+    // This keeps built-in templates (which only specify a subset) clean.
     type ColDef = {
       key: string;
       th: string;
       align: 'left' | 'right' | 'center';
       enabled: boolean;
+      hidden: boolean;
       isMandatory: boolean;
       td: (item: typeof DEMO_ITEMS[number]) => string;
     };
 
     const colDefs: ColDef[] = OPTIONAL_COLUMNS.map((c) => {
-      const isOn = c.isMandatory || (opt as Record<string, boolean | undefined>)[c.key] === true;
+      const optValue = (opt as Record<string, boolean | undefined>)[c.key];
+      const isExplicitlyOff = optValue === false;
+      const isExplicitlyOn = optValue === true;
+      const isMandatory = !!c.isMandatory;
+      const enabled = isMandatory || isExplicitlyOn || (!isExplicitlyOff && optValue === undefined);
+      const hidden = isExplicitlyOff;
       let td: (item: typeof DEMO_ITEMS[number]) => string = () => '';
       switch (c.key) {
         case 'sno':              td = (i) => String(i.sno); break;
@@ -604,33 +614,34 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
         key: c.key,
         th: c.label,
         align: c.align || 'left',
-        enabled: isOn,
-        isMandatory: !!c.isMandatory,
+        enabled,
+        hidden,
+        isMandatory,
         td,
       };
     });
 
     const thCell = (c: ColDef) => {
-      const hidden = !c.enabled;
       const base = `padding:6px 8px;text-align:${c.align};font-weight:600;`;
-      const hiddenStyle = hidden
+      const hiddenStyle = c.hidden
         ? `color:#DC2626;text-decoration:line-through;background:#FEF2F2;`
         : '';
-      const tag = hidden ? ' <span style="font-size:7px;font-weight:700;color:#fff;background:#DC2626;padding:1px 3px;border-radius:2px;margin-left:2px;text-decoration:none;">Hidden</span>' : '';
-      const mandatoryTag = c.isMandatory && !hidden ? ' <span style="color:#DC2626;font-size:8px;">*</span>' : '';
+      const tag = c.hidden ? ' <span style="font-size:7px;font-weight:700;color:#fff;background:#DC2626;padding:1px 3px;border-radius:2px;margin-left:2px;text-decoration:none;">Hidden</span>' : '';
+      const mandatoryTag = c.isMandatory && !c.hidden ? ' <span style="color:#DC2626;font-size:8px;">*</span>' : '';
       return `<th style="${base}${hiddenStyle}">${c.th}${mandatoryTag}${tag}</th>`;
     };
     const tdCell = (c: ColDef, item: typeof DEMO_ITEMS[number]) => {
       if (['subtotal', 'total_tax', 'round_off', 'grand_total'].includes(c.key)) {
         // totals block handles these — leave cells empty so layout still reflects width
-        return `<td style="padding:6px 8px;text-align:${c.align};background:${c.enabled ? 'transparent' : '#FEF2F2'};${c.enabled ? '' : 'color:#DC2626;text-decoration:line-through;'}"></td>`;
+        const hiddenStyle = c.hidden ? `background:#FEF2F2;color:#DC2626;text-decoration:line-through;` : '';
+        return `<td style="padding:6px 8px;text-align:${c.align};${hiddenStyle}"></td>`;
       }
-      const hidden = !c.enabled;
-      const hiddenStyle = hidden ? `color:#DC2626;text-decoration:line-through;background:#FEF2F2;` : '';
+      const hiddenStyle = c.hidden ? `color:#DC2626;text-decoration:line-through;background:#FEF2F2;` : '';
       return `<td style="padding:6px 8px;text-align:${c.align};${hiddenStyle}">${c.td(item)}</td>`;
     };
     const thead = `<tr>${colDefs.map(thCell).join('')}</tr>`;
     const rows = DEMO_ITEMS.map((item) => `<tr>${colDefs.map((c) => tdCell(c, item)).join('')}</tr>`).join('');
+    const hiddenCount = colDefs.filter((c) => c.hidden).length;
 
     const totalsBlock = (theme: 'standard' | 'card' | 'dark' | 'minimal' | 'bordered') => {
       if (!opt.subtotal && !opt.grand_total && !opt.total_tax) return '';
@@ -982,6 +993,74 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
     }
   }, [originalFormData]);
 
+  // Re-fetch the selected template from the database and replace formData with
+  // the latest server-side state. Used by the "Reload" sticky button.
+  const handleReload = useCallback(async () => {
+    if (!selectedTemplate?.id || !orgId) {
+      // For unsaved new templates, just clear back to the seeded defaults.
+      if (originalFormData) setFormData(originalFormData);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('document_templates')
+        .select('*')
+        .eq('id', selectedTemplate.id)
+        .eq('organisation_id', orgId)
+        .maybeSingle();
+      if (error) throw error;
+      if (data) {
+        const reloaded: any = {
+          template_name: data.template_name,
+          template_code: data.template_code || '',
+          document_type: data.document_type,
+          is_default: data.is_default,
+          page_size: data.page_size || 'A4',
+          orientation: data.orientation || 'Portrait',
+          show_logo: data.show_logo !== false,
+          show_bank_details: data.show_bank_details !== false,
+          show_terms: data.show_terms !== false,
+          show_signature: data.show_signature !== false,
+          show_msme: data.show_msme || false,
+          column_settings: {
+            mandatory: [],
+            optional: data.column_settings?.optional || { ...EMPTY_FORM.column_settings.optional },
+            labels: data.column_settings?.labels || { ...EMPTY_FORM.column_settings.labels },
+            print: data.column_settings?.print || { ...EMPTY_FORM.column_settings.print },
+          },
+        };
+        setFormData(reloaded);
+        setOriginalFormData(reloaded);
+        toast.success('Template reloaded from server');
+      }
+    } catch (err: any) {
+      console.error('Reload failed:', err);
+      toast.error('Reload failed: ' + (err?.message || err));
+    }
+  }, [selectedTemplate, orgId, originalFormData]);
+
+  // Discard unsaved changes and close the editor. Used by the "Cancel" sticky button.
+  const handleCancel = useCallback(() => {
+    if (hasFormChanges && !confirm('Discard unsaved changes?')) return;
+    closeForm();
+  }, [hasFormChanges]);
+
+  // Build a template-like object from the live form state so the same renderer
+  // used by the card thumbnails drives the in-editor preview.
+  const formPreviewTemplate = useMemo(() => ({
+    template_name: formData.template_name,
+    template_code: formData.template_code,
+    document_type: formData.document_type,
+    page_size: formData.page_size,
+    orientation: formData.orientation,
+    show_logo: formData.show_logo,
+    show_bank_details: formData.show_bank_details,
+    show_terms: formData.show_terms,
+    show_signature: formData.show_signature,
+    show_msme: formData.show_msme,
+    column_settings: formData.column_settings,
+  }), [formData]);
+
   const handleDelete = async (templateId: string) => {
     if (!confirm('Are you sure you want to delete this template?')) return;
     try {
@@ -1138,65 +1217,130 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
   }
 
   if (showForm) {
+    const editorLivePreview = DOMPurify.sanitize(renderCardPreviewHTML(formPreviewTemplate));
     return (
-      <SettingSection title={selectedTemplate ? 'Edit Template' : 'Create Template'} description="">
-        {successMessage && (
-          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900">{successMessage}</div>
-        )}
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <SettingRow label="Template Name" description="">
-              <SettingInput value={formData.template_name} onChange={(val) => setFormData(prev => ({ ...prev, template_name: val }))} placeholder="e.g., My Company Quotation" />
-            </SettingRow>
-            <SettingRow label="Template Code" description="">
-              <SettingInput value={formData.template_code} onChange={(val) => setFormData(prev => ({ ...prev, template_code: val.toUpperCase().replace(/[^A-Z0-9_]/g, '') }))} placeholder="e.g., INV_DEFAULT" />
-            </SettingRow>
-            <SettingRow label="Document Type" description="">
-              <SettingSelect options={DOCUMENT_TYPES} value={formData.document_type} onChange={(val) => setFormData(prev => ({ ...prev, document_type: val }))} disabled={!!selectedTemplate} />
-            </SettingRow>
-            <SettingRow label="Page Size" description="">
-              <SettingSelect options={PAGE_SIZES} value={formData.page_size} onChange={(val) => setFormData(prev => ({ ...prev, page_size: val }))} />
-            </SettingRow>
-            <SettingRow label="Orientation" description="">
-              <SettingSelect options={ORIENTATIONS} value={formData.orientation} onChange={(val) => setFormData(prev => ({ ...prev, orientation: val }))} />
-            </SettingRow>
-            <SettingRow label="Set as Default" description={`Default for ${formData.document_type}`}>
-              <SettingToggle checked={formData.is_default} onChange={(checked) => setFormData(prev => ({ ...prev, is_default: checked }))} />
-            </SettingRow>
+      <div className="flex h-[calc(100vh-160px)] min-h-[640px] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 shadow-sm">
+        {/* Top header bar */}
+        <div className="flex items-center justify-between border-b border-zinc-200 bg-white px-5 py-3">
+          <div>
+            <h2 className="text-base font-bold text-zinc-900">
+              {selectedTemplate ? 'Edit Template' : 'Create Template'}
+            </h2>
+            <p className="text-[11px] text-zinc-500">
+              {formData.template_name || 'Untitled template'}
+              {formData.template_code && <span style={{ fontFamily: "'Inter', sans-serif" }} className="ml-2 rounded border border-zinc-200 bg-zinc-100 px-1.5 py-0.5">{formData.template_code}</span>}
+              <span className="ml-2 text-zinc-400">· {formData.document_type} · {formData.page_size} {formData.orientation}</span>
+              {hasFormChanges && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">UNSAVED</span>}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">SPLIT EDITOR</span>
+            <Button variant="ghost" size="icon" onClick={handleCancel} aria-label="Close editor">✕</Button>
+          </div>
+        </div>
+
+        {/* Main split: preview (70%) | settings (30%) */}
+        <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
+          {/* Live preview — left/center, 70% on lg+ */}
+          <div className="flex flex-1 flex-col overflow-hidden border-b border-zinc-200 bg-zinc-100 lg:w-[70%] lg:border-b-0 lg:border-r">
+            <div className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-2">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-600">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+                Live Preview · A4 {formData.orientation}
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+                <span style={{ fontFamily: "'Inter', sans-serif" }}>Inter</span>
+                <span>·</span>
+                <span>real-time</span>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              {successMessage && (
+                <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">{successMessage}</div>
+              )}
+              <div className="mx-auto max-w-[760px] rounded-lg border border-zinc-200 bg-white shadow-md">
+                <div className="p-4" dangerouslySetInnerHTML={{ __html: editorLivePreview }} />
+              </div>
+              <p className="mx-auto mt-4 max-w-[760px] text-center text-[10px] text-zinc-500">
+                Preview reflects your current form choices. Save to persist changes to the database.
+              </p>
+            </div>
           </div>
 
-          <SettingSection title="Print Settings" description="">
-            <div className="flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 text-xs text-zinc-700">
-                <input type="checkbox" checked={formData.show_logo} onChange={(e) => setFormData(prev => ({ ...prev, show_logo: e.target.checked }))} /> Show Company Logo
-              </label>
-              <label className="flex items-center gap-2 text-xs text-zinc-700">
-                <input type="checkbox" checked={formData.show_bank_details} onChange={(e) => setFormData(prev => ({ ...prev, show_bank_details: e.target.checked }))} /> Show Bank Details
-              </label>
-              <label className="flex items-center gap-2 text-xs text-zinc-700">
-                <input type="checkbox" checked={formData.show_terms} onChange={(e) => setFormData(prev => ({ ...prev, show_terms: e.target.checked }))} /> Show Terms & Conditions
-              </label>
-              <label className="flex items-center gap-2 text-xs text-zinc-700">
-                <input type="checkbox" checked={formData.show_signature} onChange={(e) => setFormData(prev => ({ ...prev, show_signature: e.target.checked }))} /> Show Signature
-              </label>
-              <label className="flex items-center gap-2 text-xs text-zinc-700">
-                <input type="checkbox" checked={formData.show_msme} onChange={(e) => setFormData(prev => ({ ...prev, show_msme: e.target.checked }))} /> Show MSME Details
-              </label>
+          {/* Settings — right, 30% on lg+ */}
+          <div className="flex flex-col overflow-hidden bg-white lg:w-[30%]">
+            <div className="border-b border-zinc-200 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-600">
+              Template Settings
             </div>
-          </SettingSection>
+            <div className="flex-1 space-y-4 overflow-y-auto p-4">
+              <div className="space-y-3">
+                <SettingRow label="Template Name" description="">
+                  <SettingInput value={formData.template_name} onChange={(val) => setFormData(prev => ({ ...prev, template_name: val }))} placeholder="e.g., My Company Quotation" />
+                </SettingRow>
+                <SettingRow label="Template Code" description="">
+                  <SettingInput value={formData.template_code} onChange={(val) => setFormData(prev => ({ ...prev, template_code: val.toUpperCase().replace(/[^A-Z0-9_]/g, '') }))} placeholder="e.g., INV_DEFAULT" />
+                </SettingRow>
+                <SettingRow label="Document Type" description="">
+                  <SettingSelect options={DOCUMENT_TYPES} value={formData.document_type} onChange={(val) => setFormData(prev => ({ ...prev, document_type: val }))} disabled={!!selectedTemplate} />
+                </SettingRow>
+                <SettingRow label="Page Size" description="">
+                  <SettingSelect options={PAGE_SIZES} value={formData.page_size} onChange={(val) => setFormData(prev => ({ ...prev, page_size: val }))} />
+                </SettingRow>
+                <SettingRow label="Orientation" description="">
+                  <SettingSelect options={ORIENTATIONS} value={formData.orientation} onChange={(val) => setFormData(prev => ({ ...prev, orientation: val }))} />
+                </SettingRow>
+                <SettingRow label="Set as Default" description={`Default for ${formData.document_type}`}>
+                  <SettingToggle checked={formData.is_default} onChange={(checked) => setFormData(prev => ({ ...prev, is_default: checked }))} />
+                </SettingRow>
+              </div>
 
-          <SettingSection title="Column & Field Settings" description="">
-            <div className="space-y-4">
-              <div>
-                <div className="text-xs font-semibold text-zinc-600 mb-2">Edit Document Header Labels</div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-md border border-zinc-200 bg-zinc-50/50 p-4">
+              <div className="border-t border-zinc-200 pt-3">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-600">Print Settings</div>
+                <div className="space-y-1.5 text-xs text-zinc-700">
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={formData.show_logo} onChange={(e) => setFormData(prev => ({ ...prev, show_logo: e.target.checked }))} /> Show Company Logo</label>
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={formData.show_bank_details} onChange={(e) => setFormData(prev => ({ ...prev, show_bank_details: e.target.checked }))} /> Show Bank Details</label>
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={formData.show_terms} onChange={(e) => setFormData(prev => ({ ...prev, show_terms: e.target.checked }))} /> Show Terms &amp; Conditions</label>
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={formData.show_signature} onChange={(e) => setFormData(prev => ({ ...prev, show_signature: e.target.checked }))} /> Show Signature</label>
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={formData.show_msme} onChange={(e) => setFormData(prev => ({ ...prev, show_msme: e.target.checked }))} /> Show MSME Details</label>
+                </div>
+              </div>
+
+              <div className="border-t border-zinc-200 pt-3">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-600">PDF Template Style</div>
+                <SettingSelect
+                  options={['default', 'grid_minimal', 'saas', 'vertical', 'sakthi']}
+                  value={formData.column_settings?.print?.style || 'default'}
+                  onChange={(val) => handlePrintStyleChange(val)}
+                />
+                {formData.column_settings?.print?.style === 'grid_minimal' && (
+                  <div className="mt-2 space-y-2">
+                    <SettingRow label="Title Override" description="">
+                      <SettingInput value={formData.column_settings?.print?.gridMinimal?.titleOverride || ''} onChange={(val) => handleGridMinimalTitleOverride(val)} placeholder="e.g. TAX INVOICE" />
+                    </SettingRow>
+                    <div>
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Grid Columns</div>
+                      <div className="flex flex-wrap gap-3 text-xs">
+                        {['hsn', 'make', 'unit', 'discPct', 'gst'].map((col) => (
+                          <label key={col} className="flex items-center gap-1">
+                            <input type="checkbox" checked={formData.column_settings?.print?.gridMinimal?.columns?.[col] !== false} onChange={(e) => handleGridMinimalColumnToggle(col, e.target.checked)} /> {col.toUpperCase()}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-zinc-200 pt-3">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-600">Header Labels</div>
+                <div className="space-y-2">
                   {[
-                    { key: 'document_no', label: 'Document No Label' },
-                    { key: 'document_date', label: 'Date Label' },
-                    { key: 'po_no', label: 'PO No / Ref No Label' },
-                    { key: 'po_date', label: 'PO Date / Ref Date Label' },
-                    { key: 'remarks', label: 'Remarks Label' },
-                    { key: 'eway_bill', label: 'E-Way Bill Label' }
+                    { key: 'document_no', label: 'Document No' },
+                    { key: 'document_date', label: 'Date' },
+                    { key: 'po_no', label: 'PO No / Ref No' },
+                    { key: 'po_date', label: 'PO Date / Ref Date' },
+                    { key: 'remarks', label: 'Remarks' },
+                    { key: 'eway_bill', label: 'E-Way Bill' },
                   ].map(field => (
                     <SettingRow key={field.key} label={field.label} description="">
                       <SettingInput value={formData.column_settings?.header_labels?.[field.key] || ''} onChange={(val) => handleHeaderLabelChange(field.key, val)} placeholder="Leave blank for default" />
@@ -1205,85 +1349,45 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
                 </div>
               </div>
 
-              <div>
-                <div className="text-xs font-semibold text-zinc-600 mb-2">PDF Template Style</div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-md border border-zinc-200 bg-zinc-50/50 p-4">
-                  <SettingRow label="Style" description="">
-                    <SettingSelect
-                      options={['default', 'grid_minimal', 'saas', 'vertical', 'sakthi']}
-                      value={formData.column_settings?.print?.style || 'default'}
-                      onChange={(val) => handlePrintStyleChange(val)}
-                    />
-                  </SettingRow>
-                  {formData.column_settings?.print?.style === 'grid_minimal' && (
-                    <>
-                      <SettingRow label="Title Override" description="">
-                        <SettingInput value={formData.column_settings?.print?.gridMinimal?.titleOverride || ''} onChange={(val) => handleGridMinimalTitleOverride(val)} placeholder="e.g. TAX INVOICE" />
-                      </SettingRow>
-                      <SettingRow label="Grid Columns" description="">
-                        <div className="flex flex-wrap gap-3 text-xs">
-                          {['hsn', 'make', 'unit', 'discPct', 'gst'].map((col) => (
-                            <label key={col} className="flex items-center gap-1">
-                              <input type="checkbox" checked={formData.column_settings?.print?.gridMinimal?.columns?.[col] !== false} onChange={(e) => handleGridMinimalColumnToggle(col, e.target.checked)} /> {col.toUpperCase()}
-                            </label>
-                          ))}
-                        </div>
-                      </SettingRow>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs font-semibold text-zinc-600 mb-2">Select fields to show on document</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              <div className="border-t border-zinc-200 pt-3">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-600">Visible Columns</div>
+                <div className="grid grid-cols-1 gap-1.5">
                   {OPTIONAL_COLUMNS.map(col => {
                     const checked = col.isMandatory || formData.column_settings?.optional?.[col.key] || false;
                     return (
-                      <div key={col.key} className={`flex flex-col gap-2 rounded-md border p-2 ${checked ? 'border-[#185FA5] bg-blue-50' : 'border-zinc-200 bg-white'}`}>
-                        <div className="flex items-center justify-between">
-                          <span className={`text-xs ${col.isMandatory ? 'font-bold text-zinc-900' : 'font-medium text-zinc-700'}`}>
-                            {col.label} {col.isMandatory && <span className="text-red-500 text-[10px]">*</span>}
-                          </span>
-                          <SettingToggle
-                            checked={checked}
-                            onChange={(newChecked) => !col.isMandatory && handleColumnToggle(col.key, newChecked)}
-                            disabled={col.isMandatory}
-                          />
-                        </div>
-                        {(col.key === 'item' || col.key === 'custom1' || col.key === 'custom2' || col.key === 'rate_after_discount') && (
-                          <SettingInput value={formData.column_settings?.labels?.[col.key] || ''} onChange={(val) => handleLabelChange(col.key, val)} placeholder="Rename column..." />
-                        )}
+                      <div key={col.key} className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 ${checked ? 'border-[#185FA5] bg-blue-50' : 'border-zinc-200 bg-white'}`}>
+                        <span className={`text-[11px] ${col.isMandatory ? 'font-bold text-zinc-900' : 'text-zinc-700'}`}>
+                          {col.label} {col.isMandatory && <span className="text-red-500 text-[9px]">*</span>}
+                        </span>
+                        <SettingToggle
+                          checked={checked}
+                          onChange={(newChecked) => !col.isMandatory && handleColumnToggle(col.key, newChecked)}
+                          disabled={col.isMandatory}
+                        />
                       </div>
                     );
                   })}
                 </div>
+                <p className="mt-2 text-[10px] text-zinc-500">
+                  Hidden columns appear struck-through with a red badge in the live preview.
+                </p>
               </div>
             </div>
-          </SettingSection>
 
-          <div className="flex items-center justify-end gap-2">
-            <Button variant="secondary" onClick={closeForm}>Cancel</Button>
-            <Button variant="secondary" onClick={() => setShowPreview(true)}>Preview Format</Button>
-            <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Template'}</Button>
+            {/* Sticky bottom action bar */}
+            <div className="sticky bottom-0 z-10 flex items-center justify-between gap-2 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur">
+              <div className="flex items-center gap-2">
+                {hasFormChanges && <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">● Unsaved</span>}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" onClick={handleCancel}>Cancel</Button>
+                <Button variant="secondary" onClick={handleReload} disabled={!selectedTemplate?.id}>Reload</Button>
+                <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save Template'}</Button>
+              </div>
+            </div>
           </div>
-
-          {showPreview && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowPreview(false)}>
-              <div className="w-[95%] max-w-[900px] max-h-[90vh] overflow-y-auto rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
-                  <h3 className="text-sm font-semibold text-zinc-900">Template Preview</h3>
-                  <Button variant="ghost" size="icon" onClick={() => setShowPreview(false)}>✕</Button>
-                </div>
-                <div className="p-6" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(generatePreviewHTML()) }} />
-                <div className="border-t border-zinc-200 px-4 py-3 flex justify-end">
-                  <Button onClick={() => setShowPreview(false)}>Close Preview</Button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
-      </SettingSection>
+      </div>
     );
   }
 
@@ -1369,7 +1473,7 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
                     const style = (template.column_settings?.print?.style || 'default').toLowerCase();
                     const isLandscape = (template.orientation || 'Portrait').toLowerCase() === 'landscape';
                     const optFlags = (template.column_settings?.optional || {}) as Record<string, boolean | undefined>;
-                    const cardHiddenCount = OPTIONAL_COLUMNS.filter((c) => !c.isMandatory && !optFlags[c.key]).length;
+                    const cardHiddenCount = OPTIONAL_COLUMNS.filter((c) => !c.isMandatory && optFlags[c.key] === false).length;
                     return (
                       <div
                         key={template.id || template.template_code}
@@ -1474,7 +1578,7 @@ export const TemplatesTab: React.FC<TemplatesTabProps> = ({
       {/* Card-click preview modal (in-tab, not new browser) */}
       {showPreview && previewTemplate && (() => {
         const optFlags = (previewTemplate.column_settings?.optional || {}) as Record<string, boolean | undefined>;
-        const hiddenKeys = OPTIONAL_COLUMNS.filter((c) => !c.isMandatory && !optFlags[c.key]).map((c) => c.label);
+        const hiddenKeys = OPTIONAL_COLUMNS.filter((c) => !c.isMandatory && optFlags[c.key] === false).map((c) => c.label);
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeTemplatePreview}>
             <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>

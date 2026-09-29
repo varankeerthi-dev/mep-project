@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { FieldArrayWithId, UseFieldArrayAppend, UseFieldArrayRemove, UseFormRegister, UseFormSetValue } from 'react-hook-form';
-import { Plus, X, GripVertical, Copy } from 'lucide-react';
+import { Plus, X, GripVertical, Copy, ArrowUpDown } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import type { UseFieldArrayInsert } from 'react-hook-form';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -48,7 +48,7 @@ type InvoiceItemsEditorProps = {
   hideHeader?: boolean;
 };
 
-function SortableRow({ children, id, index }: { children: React.ReactNode; id: string; index: number }) {
+function SortableRow({ children, id, index, onFocus }: { children: React.ReactNode; id: string; index: number; onFocus?: (e: React.FocusEvent) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
   const style = {
@@ -58,7 +58,7 @@ function SortableRow({ children, id, index }: { children: React.ReactNode; id: s
   };
 
   return (
-    <tr ref={setNodeRef} style={{ ...style, borderBottom: '1px solid #f0f0f0' }}>
+    <tr ref={setNodeRef} onFocus={onFocus} style={{ ...style, borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
       {children}
     </tr>
   );
@@ -113,6 +113,15 @@ const toolbarBtnStyle: React.CSSProperties = {
   color: '#525252',
   cursor: 'pointer',
 };
+
+// ── Shared Stitch tokens (mirrors QuotationItemsTable; see
+// document-editor/LINE_ITEMS_BEHAVIOR.md §2) ──
+const INTER = "'Inter', system-ui, -apple-system, sans-serif";
+const SURFACE_LOWEST = '#ffffff';
+const SURFACE_LOW = '#EFF4FF';
+const BORDER_SUBTLE = '#E2E8F0';
+const BORDER_STRONG = '#CBD5E1';
+const INK = '#0B1C30';
 
 export function InvoiceItemsEditor({
   fields,
@@ -283,6 +292,61 @@ export function InvoiceItemsEditor({
       setValue(`items.${idx}.amount`, round2(qty * roundedRate), { shouldDirty: true });
     });
     setBulkDiscount('');
+  };
+
+  // ── Qty draft pattern (spec §2.2): string draft, commits on blur/Enter,
+  // Escape reverts. Amounts never recalculate mid-keystroke. ──
+  const [qtyDrafts, setQtyDrafts] = useState<Record<number, string>>({});
+
+  const commitQtyInput = (index: number) => {
+    const raw = (qtyDrafts[index] ?? '').trim();
+    if (!(index in qtyDrafts)) return;
+    const parsed = raw === '' ? 0 : Math.max(0, parseFloat(raw) || 0);
+    if (setValue) {
+      setValue(`items.${index}.qty`, parsed, { shouldDirty: true });
+      const rate = Number(items[index]?.rate || 0);
+      const disc = Number(items[index]?.discount_percent || 0);
+      const rad = rate - (rate * disc / 100);
+      setValue(`items.${index}.amount`, round2(parsed * rad), { shouldDirty: true });
+    }
+    setQtyDrafts((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+  };
+
+  const resetQtyInput = (index: number) => {
+    setQtyDrafts((prev) => {
+      if (!(index in prev)) return prev;
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+  };
+
+  // ── Move To S.No popover (spec §2.4) ──
+  const [moveToDialog, setMoveToDialog] = useState<{ fieldId: string; value: string; error: string } | null>(null);
+
+  const confirmMoveTo = () => {
+    if (!moveToDialog) return;
+    const targetSNo = parseInt(moveToDialog.value, 10);
+    if (isNaN(targetSNo) || targetSNo <= 0) {
+      setMoveToDialog((prev) => (prev ? { ...prev, error: 'Enter a valid serial number' } : null));
+      return;
+    }
+    if (targetSNo > fields.length) {
+      setMoveToDialog((prev) => (prev ? { ...prev, error: `S.No cannot exceed ${fields.length}` } : null));
+      return;
+    }
+    const fromIndex = fields.findIndex((f) => f.id === moveToDialog.fieldId);
+    if (fromIndex === -1) {
+      setMoveToDialog(null);
+      return;
+    }
+    move(fromIndex, targetSNo - 1);
+    setSelectedIds({});
+    setMoveToDialog(null);
   };
 
   const handleSearchChange = useCallback((index: number, value: string) => {
@@ -749,17 +813,17 @@ export function InvoiceItemsEditor({
   }, [openDropdowns, makeDropdowns, variantDropdowns]);
 
   return (
-    <div style={{ border: '1px solid #d4d4d4', borderRadius: '4px', overflow: 'hidden' }}>
+    <div style={{ border: `1px solid ${BORDER_SUBTLE}`, borderRadius: '8px', overflow: 'hidden', background: SURFACE_LOWEST, boxShadow: '0 1px 2px 0 rgba(15, 23, 42, 0.05)' }}>
       {!hideHeader && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '8px 12px',
-          background: '#f5f5f5',
-          borderBottom: '1px solid #d4d4d4'
+          background: SURFACE_LOWEST,
+          borderBottom: `1px solid ${BORDER_SUBTLE}`
         }}>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: '#171717' }}>
+          <span style={{ fontFamily: INTER, fontSize: '13px', fontWeight: 700, color: INK }}>
             Line Items{selectedCount > 0 ? ` (${selectedCount} selected)` : ''}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -870,17 +934,18 @@ export function InvoiceItemsEditor({
       {/* DndContext renders a div (accessibility HiddenText) — must live OUTSIDE the <table> to keep valid HTML nesting */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontFamily: INTER }}>
           <thead>
-            <tr style={{ background: '#fafafa', borderBottom: '2px solid #e5e5e5' }}>
+              <tr style={{ height: '40px', background: SURFACE_LOW, borderBottom: `1px solid ${BORDER_STRONG}` }}>
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'center', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '44px'
               }}>
                 <input
@@ -894,11 +959,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'center', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '40px'
               }}>
                 #
@@ -907,11 +973,12 @@ export function InvoiceItemsEditor({
                 <th style={{ 
                   padding: '6px 4px', 
                   textAlign: 'left', 
-                  fontSize: '10px', 
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.03em',
-                  color: '#737373',
+                   fontFamily: INTER,
+                   fontSize: '11px',
+                   fontWeight: 600,
+                   textTransform: 'uppercase',
+                   letterSpacing: '0.06em',
+                   color: '#334155',
                   minWidth: '150px'
                 }}>
                   MATERIAL
@@ -921,11 +988,12 @@ export function InvoiceItemsEditor({
                 <th style={{ 
                   padding: '6px 4px', 
                   textAlign: 'left', 
-                  fontSize: '10px', 
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.03em',
-                  color: '#737373',
+                   fontFamily: INTER,
+                   fontSize: '11px',
+                   fontWeight: 600,
+                   textTransform: 'uppercase',
+                   letterSpacing: '0.06em',
+                   color: '#334155',
                   minWidth: '150px'
                 }}>
                   MATERIAL
@@ -935,11 +1003,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'left', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '60px'
               }}>
                 HSN
@@ -948,11 +1017,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'left', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 minWidth: '180px'
               }}>
                 ITEM
@@ -961,11 +1031,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'left', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '80px'
               }}>
                 MAKE
@@ -975,11 +1046,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'left', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '80px'
               }}>
                 VARIANT
@@ -989,11 +1061,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'left', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '120px'
               }}>
                 WAREHOUSE
@@ -1003,11 +1076,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'right', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '80px'
               }}>
                 STOCK
@@ -1016,11 +1090,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'right', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '60px'
               }}>
                 QTY
@@ -1028,11 +1103,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'center', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '60px'
               }}>
                 UNIT
@@ -1040,11 +1116,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'right', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '80px'
               }}>
                 RATE
@@ -1052,11 +1129,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'right', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '60px'
               }}>
                 DISC %
@@ -1064,11 +1142,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'right', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '80px'
               }}>
                 RATE AFTER DISC
@@ -1078,11 +1157,12 @@ export function InvoiceItemsEditor({
                 <th style={{ 
                   padding: '6px 4px', 
                   textAlign: 'center', 
-                  fontSize: '10px', 
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.03em',
-                  color: '#737373',
+                   fontFamily: INTER,
+                   fontSize: '11px',
+                   fontWeight: 600,
+                   textTransform: 'uppercase',
+                   letterSpacing: '0.06em',
+                   color: '#334155',
                   width: '32px'
                 }}>
                   ARC
@@ -1091,11 +1171,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'right', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '60px'
               }}>
                 GST %
@@ -1104,11 +1185,12 @@ export function InvoiceItemsEditor({
                 <th style={{ 
                   padding: '6px 4px', 
                   textAlign: 'left', 
-                  fontSize: '10px', 
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.03em',
-                  color: '#737373',
+                   fontFamily: INTER,
+                   fontSize: '11px',
+                   fontWeight: 600,
+                   textTransform: 'uppercase',
+                   letterSpacing: '0.06em',
+                   color: '#334155',
                   width: '80px'
                 }}>
                   {extraColumnLabel}
@@ -1118,11 +1200,12 @@ export function InvoiceItemsEditor({
                 <th style={{ 
                   padding: '6px 4px', 
                   textAlign: 'left', 
-                  fontSize: '10px', 
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.03em',
-                  color: '#737373',
+                   fontFamily: INTER,
+                   fontSize: '11px',
+                   fontWeight: 600,
+                   textTransform: 'uppercase',
+                   letterSpacing: '0.06em',
+                   color: '#334155',
                   width: '80px'
                 }}>
                   CUSTOM 1
@@ -1132,11 +1215,12 @@ export function InvoiceItemsEditor({
                 <th style={{ 
                   padding: '6px 4px', 
                   textAlign: 'left', 
-                  fontSize: '10px', 
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.03em',
-                  color: '#737373',
+                   fontFamily: INTER,
+                   fontSize: '11px',
+                   fontWeight: 600,
+                   textTransform: 'uppercase',
+                   letterSpacing: '0.06em',
+                   color: '#334155',
                   width: '80px'
                 }}>
                   CUSTOM 2
@@ -1145,11 +1229,12 @@ export function InvoiceItemsEditor({
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'right', 
-                fontSize: '10px', 
+                fontFamily: INTER,
+                fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
+                letterSpacing: '0.06em',
+                color: '#334155',
                 width: '90px'
               }}>
                 AMOUNT
@@ -1173,7 +1258,7 @@ export function InvoiceItemsEditor({
                   // ── Section header / subtotal rows: full-width structural row ──
                   if (isHeaderRow || isSubtotalRow) {
                     return (
-                      <SortableRow key={field.id} id={field.id} index={index}>
+                    <SortableRow key={field.id} id={field.id} index={index}>
                         <td style={{ padding: '4px', textAlign: 'center' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
                             <input
@@ -1267,7 +1352,17 @@ export function InvoiceItemsEditor({
                   }
 
                   return (
-                    <SortableRow key={field.id} id={field.id} index={index}>
+                    <SortableRow
+                      key={field.id}
+                      id={field.id}
+                      index={index}
+                      onFocus={() => {
+                        if (mode === 'lot') return;
+                        if (index === fields.length - 1) {
+                          insertRowBelow(index);
+                        }
+                      }}
+                    >
                       <td style={{ padding: '4px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
                           <input
@@ -1740,9 +1835,16 @@ export function InvoiceItemsEditor({
                   </td>
                   <td style={{ padding: '4px' }}>
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
                       {...register(`items.${index}.qty`, { valueAsNumber: true })}
+                      value={index in qtyDrafts ? qtyDrafts[index] : (items[index]?.qty ?? '')}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (/^\d*\.?\d*$/.test(raw)) {
+                          setQtyDrafts((prev) => ({ ...prev, [index]: raw }));
+                        }
+                      }}
                       style={{
                         width: '100%',
                         padding: '4px 6px',
@@ -1753,7 +1855,11 @@ export function InvoiceItemsEditor({
                         background: 'transparent'
                       }}
                       onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
-                      onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; commitQtyInput(index); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitQtyInput(index);
+                        if (e.key === 'Escape') resetQtyInput(index);
+                      }}
                     />
                   </td>
                   <td style={{ padding: '4px' }}>
@@ -1832,7 +1938,7 @@ export function InvoiceItemsEditor({
                       onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
                   </td>
-                  <td style={{ padding: '4px' }}>
+                  <td style={{ padding: '4px', position: 'relative' }}>
                     <input
                       type="number"
                       step="0.01"
@@ -1861,6 +1967,20 @@ export function InvoiceItemsEditor({
                       onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
                       onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
+                    {Number(item.discount_percent) > 0 && (
+                      <span
+                        title="Discount applied"
+                        style={{
+                          position: 'absolute',
+                          top: '6px',
+                          right: '6px',
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          background: '#facc15',
+                        }}
+                      />
+                    )}
                   </td>
                   <td style={{ padding: '4px' }}>
                     <input
@@ -2038,6 +2158,30 @@ export function InvoiceItemsEditor({
                         <Copy size={14} />
                       </button>
                     )}
+                    <span style={{ position: 'relative', display: 'inline-flex' }}>
+                      <button type="button" title="Move to S.No" onClick={() => setMoveToDialog({ fieldId: field.id, value: '', error: '' })} style={miniActionStyle}>
+                        <ArrowUpDown size={14} />
+                      </button>
+                      {moveToDialog?.fieldId === field.id && (
+                        <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '4px', background: '#fff', border: '1px solid #d4d4d4', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', padding: '8px', zIndex: 60, width: '150px' }}>
+                          <div style={{ fontSize: '10px', fontWeight: 600, color: '#525252', marginBottom: '4px' }}>Move above S.No:</div>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <input
+                              type="number"
+                              value={moveToDialog.value}
+                              onChange={(e) => setMoveToDialog({ ...moveToDialog, value: e.target.value, error: '' })}
+                              onKeyDown={(e) => { if (e.key === 'Enter') confirmMoveTo(); if (e.key === 'Escape') setMoveToDialog(null); }}
+                              style={{ width: '100%', padding: '4px 6px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '11px' }}
+                              autoFocus
+                            />
+                            <button type="button" onClick={confirmMoveTo} style={toolbarBtnStyle}>Go</button>
+                          </div>
+                          {moveToDialog.error && (
+                            <div style={{ fontSize: '10px', color: '#dc2626', marginTop: '4px' }}>{moveToDialog.error}</div>
+                          )}
+                        </div>
+                      )}
+                    </span>
                     {mode !== 'lot' && fields.length > 1 ? (
                       <Button variant="default" size="default" type="button" onClick={() => { remove(index); setSelectedIds({}); }}
                         style={{
