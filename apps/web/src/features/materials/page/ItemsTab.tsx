@@ -223,8 +223,6 @@ export function ItemsTab() {
     transactions.loadItemTransactions(material.id);
   }, [transactions]);
 
-  const canViewPurchaseRate = useCanViewField('purchase.rate').data === true;
-
   const columns = useMemo(() => buildColumns(
     visibleColumns, stockData, discountCategoryMap,
     handleView,
