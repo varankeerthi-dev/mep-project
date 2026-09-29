@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useItemHistory } from '../../hooks/use-item-history';
 import type { LinkedItemType, UnifiedTimelineEntry } from '../../types/followup';
@@ -9,15 +9,14 @@ import {
   Loader2,
   MessageSquare,
   AlertCircle,
-  Clock,
   ArrowLeft,
   Calendar,
   Mail,
   Smartphone,
   Users,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 
 type ItemHistoryDrawerProps = {
   open: boolean;
@@ -38,23 +37,11 @@ const CATEGORIES = [
   { value: 'meeting', label: 'Meeting', icon: '👥' },
 ];
 
-function SourceBadge({ entry }: { entry: UnifiedTimelineEntry }) {
-  if (entry.source === 'follow_up') {
-    return (
-      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-        <Clock className="w-3 h-3" /> Follow-Up
-      </span>
-    );
-  }
-  const callType = entry.metadata?.call_type || 'Communication';
-  return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
-      <MessageSquare className="w-3 h-3" /> {callType}
-    </span>
-  );
-}
-
 function formatEntryDate(dateStr: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
   const d = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
@@ -65,12 +52,47 @@ function formatEntryDate(dateStr: string) {
     d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function EmptyState() {
+function EmptyState({ title, hint }: { title: string; hint: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
+    <div className="flex flex-col items-center justify-center py-12 text-center font-inter">
       <AlertCircle className="w-8 h-8 text-slate-300 mb-2" />
-      <p className="text-sm text-slate-500">No activity yet</p>
-      <p className="text-xs text-slate-400 mt-1">Follow-up actions and client communications will appear here</p>
+      <p className="text-sm text-slate-500">{title}</p>
+      <p className="text-xs text-slate-400 mt-1">{hint}</p>
+    </div>
+  );
+}
+
+type DrawerTab = 'updates' | 'history';
+
+function TimelineEntry({
+  entry,
+  emphasized,
+  isLast,
+}: {
+  entry: UnifiedTimelineEntry;
+  emphasized?: boolean;
+  isLast: boolean;
+}) {
+  return (
+    <div className="relative pl-5">
+      {!isLast && (
+        <div className="absolute left-[7px] top-5 bottom-0 w-px bg-slate-200" />
+      )}
+      <div className="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-slate-200 bg-white" />
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[10px] text-slate-400">{formatEntryDate(entry.created_at)}</span>
+      </div>
+      <p className={emphasized ? 'text-[15px] font-semibold text-slate-900' : 'text-sm font-medium text-slate-800'}>{entry.title}</p>
+      {entry.description && (
+        <p className={emphasized ? 'text-[13px] text-slate-600 mt-0.5 leading-relaxed' : 'text-xs text-slate-500 mt-0.5 leading-relaxed'}>{entry.description}</p>
+      )}
+      {entry.metadata?.next_action && (
+        <div className="mt-1.5 px-2 py-1 rounded bg-amber-50 border border-amber-100">
+          <span className="text-[10px] font-semibold text-amber-700">Next: </span>
+          <span className="text-[10px] text-amber-800">{entry.metadata.next_action}</span>
+        </div>
+      )}
+      <p className="text-[10px] text-slate-400 mt-0.5">by {entry.actor_name}</p>
     </div>
   );
 }
@@ -89,6 +111,15 @@ export function ItemHistoryDrawer({
   const queryClient = useQueryClient();
   const { data: entries, isLoading } = useItemHistory(organisationId, linkedType, linkedId);
 
+  const updateEntries = useMemo(
+    () => (entries || []).filter((e) => e.source === 'client_communication'),
+    [entries]
+  );
+  const historyEntries = useMemo(
+    () => (entries || []).filter((e) => e.source === 'follow_up'),
+    [entries]
+  );
+
   // local states for inline log form
   const [isLogging, setIsLogging] = useState(false);
   const [callCategory, setCallCategory] = useState('outgoing');
@@ -98,6 +129,7 @@ export function ItemHistoryDrawer({
   const [followUpDate, setFollowUpDate] = useState('');
   const [priority, setPriority] = useState('normal');
   const [status, setStatus] = useState('open');
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>('updates');
 
   const sectionHeaderStyle = {
     fontWeight: 600,
@@ -169,6 +201,7 @@ export function ItemHistoryDrawer({
     setFollowUpDate('');
     setPriority('normal');
     setStatus('open');
+    setDrawerTab('updates');
   }, [linkedId, open]);
 
   // prefill subject on log trigger
@@ -212,6 +245,8 @@ export function ItemHistoryDrawer({
         party_type: isLead ? 'lead' : 'client',
         client_id: resolvedClientId,
         lead_id: resolvedLeadId,
+        linked_type: linkedType || null,
+        linked_id: linkedId || null,
         call_category: callCategory,
         call_type:
           callCategory === 'incoming' ? 'Incoming'
@@ -276,14 +311,14 @@ export function ItemHistoryDrawer({
   if (!open) return null;
 
   return (
-    <aside className="fixed right-0 top-0 z-50 h-full w-96 border-l border-slate-200 bg-white shadow-[0_20px_25px_-5px_rgba(15,23,42,0.10),0_8px_10px_-6px_rgba(15,23,42,0.05)] flex flex-col animate-in slide-in-from-right duration-200" aria-label={`History for ${itemLabel}`}>
+    <aside className="fixed right-0 top-[35px] bottom-0 z-50 w-96 border-l border-slate-200 bg-white font-inter shadow-[0_20px_25px_-5px_rgba(15,23,42,0.10),0_8px_10px_-6px_rgba(15,23,42,0.05)] flex flex-col animate-in slide-in-from-right duration-200" aria-label={`History for ${itemLabel}`}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0 bg-white">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-900 truncate">{itemLabel}</p>
           <p className="text-xs text-slate-500 truncate">{clientName}</p>
         </div>
-        <Button variant="secondary" size="icon-xs" onClick={onClose} >
+        <Button variant="ghost" size="icon-xs" onClick={onClose} aria-label="Close history">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M4 4l8 8M12 4l-8 8" />
           </svg>
@@ -300,8 +335,8 @@ export function ItemHistoryDrawer({
           className="flex-1 flex flex-col min-h-0 bg-white"
         >
           <div className="flex-1 overflow-auto px-4 py-4 space-y-4">
-            <Button variant="default" size="sm" type="button" onClick={() => setIsLogging(false)}
-              className="inline-flex items-center gap-1 rounded-lg border border-[#cbd5e1] bg-white text-slate-700 hover:border-[#94a3b8] hover:bg-slate-50 hover:text-slate-700 transition-colors duration-150 px-3.5 py-1.5 text-xs font-semibold cursor-pointer mb-1"
+            <Button variant="outline" size="sm" type="button" onClick={() => setIsLogging(false)}
+              className="mb-1"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Back to History
             </Button>
@@ -314,18 +349,12 @@ export function ItemHistoryDrawer({
                 <div className="grid grid-cols-2 gap-1.5">
                   {CATEGORIES.map((c) => (
                     <Button
-                      variant="default"
-                      size="sm"
+                      variant={callCategory === c.value ? 'default' : 'outline'}
+                      size="xs"
                       key={c.value}
                       type="button"
                       onClick={() => setCallCategory(c.value)}
-                      className={cn(
-                        'flex items-center gap-1.5 rounded-md border text-[11px] transition-colors duration-150',
-                        callCategory === c.value
-                          ? 'border-[#2563eb] bg-[#eff6ff] text-[#1e40af]'
-                          : 'border-[#cbd5e1] bg-white text-slate-700 hover:border-slate-400',
-                        'w-full justify-start px-2 py-1.5 cursor-pointer'
-                      )}
+                      className="w-full justify-start"
                     >
                       <span className="text-sm shrink-0">{c.icon}</span>
                       <span className="truncate">{c.label}</span>
@@ -416,11 +445,11 @@ export function ItemHistoryDrawer({
           {/* Footer Submit */}
           <div className="px-4 py-3 border-t border-slate-100 bg-[#f8fafc] flex gap-2 shrink-0">
             <Button
-              variant="default"
+              variant="outline"
               size="sm"
               type="button"
               onClick={() => setIsLogging(false)}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#cbd5e1] bg-white text-slate-700 hover:border-[#94a3b8] hover:bg-slate-50 hover:text-slate-700 transition-colors duration-150 px-3.5 py-1.5 text-xs font-semibold cursor-pointer"
+              className="flex-1"
             >
               Cancel
             </Button>
@@ -428,24 +457,17 @@ export function ItemHistoryDrawer({
               variant="default"
               size="sm"
               type="submit"
-              disabled={createMutation.isPending || !callBrief.trim()}
-              className={cn(
-                'flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg text-white font-semibold text-xs transition-colors duration-150 px-3.5 py-1.5 cursor-pointer',
-                createMutation.isPending || !callBrief.trim()
-                  ? 'bg-[#2563eb] border-[#2563eb] opacity-60 cursor-not-allowed'
-                  : 'bg-[#2563eb] border-[#2563eb] hover:bg-[#1d4ed8] hover:border-[#1d4ed8]'
-              )}
+              className="flex-1"
+              loading={createMutation.isPending}
+              loadingText="Saving..."
+              disabled={!callBrief.trim()}
             >
-              {createMutation.isPending ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
-                </>
-              ) : 'Save Log'}
+              Save Log
             </Button>
           </div>
         </form>
       ) : (
-        /* History Timeline View */
+        /* Tabbed Timeline View */
         <>
           {followUpStatus && (
             <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 shrink-0">
@@ -456,55 +478,84 @@ export function ItemHistoryDrawer({
             </div>
           )}
 
-          <div className="flex-1 overflow-auto px-4 py-3">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+          {isLoading ? (
+            <div className="flex flex-1 items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+            </div>
+          ) : (
+            <Tabs
+              value={drawerTab}
+              onValueChange={(v) => setDrawerTab(v as DrawerTab)}
+              className="flex min-h-0 flex-1 flex-col"
+            >
+              <div className="px-4 pt-3 shrink-0">
+                <TabsList style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                  <TabsTrigger value="updates" style={{ fontSize: '12px' }}>
+                    Updates ({updateEntries.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="history" style={{ fontSize: '12px' }}>
+                    History ({historyEntries.length})
+                  </TabsTrigger>
+                </TabsList>
               </div>
-            ) : !entries || entries.length === 0 ? (
-              <EmptyState />
-            ) : (
-              <div className="space-y-4">
-                {entries.map((entry, i) => (
-                  <div key={entry.id} className="relative pl-5">
-                    {i < entries.length - 1 && (
-                      <div className="absolute left-[7px] top-5 bottom-0 w-px bg-slate-200" />
-                    )}
-                    <div className="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-slate-200 bg-white" />
-                    <div className="flex items-center gap-2 mb-1">
-                      <SourceBadge entry={entry} />
-                      <span className="text-[10px] text-slate-400">{formatEntryDate(entry.created_at)}</span>
-                    </div>
-                    <p className="text-sm font-medium text-slate-800">{entry.title}</p>
-                    {entry.description && (
-                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{entry.description}</p>
-                    )}
-                    {entry.metadata?.next_action && (
-                      <div className="mt-1.5 px-2 py-1 rounded bg-amber-50 border border-amber-100">
-                        <span className="text-[10px] font-semibold text-amber-700">Next: </span>
-                        <span className="text-[10px] text-amber-800">{entry.metadata.next_action}</span>
-                      </div>
-                    )}
-                    <p className="text-[10px] text-slate-400 mt-0.5">by {entry.actor_name}</p>
+
+              <TabsContent value="updates" className="flex-1 overflow-auto px-4 py-3" style={{ marginTop: 0 }}>
+                {updateEntries.length === 0 ? (
+                  <EmptyState
+                    title="No communications yet"
+                    hint="Calls, WhatsApp messages and emails on this document will appear here"
+                  />
+                ) : (
+                  <div className="space-y-4">
+                    {updateEntries.map((entry, i) => (
+                      <TimelineEntry
+                        key={entry.id}
+                        entry={entry}
+                        emphasized={i === 0}
+                        isLast={i === updateEntries.length - 1}
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="history" className="flex-1 overflow-auto px-4 py-3" style={{ marginTop: 0 }}>
+                {historyEntries.length === 0 ? (
+                  <EmptyState
+                    title="No lifecycle events yet"
+                    hint="Reminders, status changes and approvals on this document will appear here"
+                  />
+                ) : (
+                  <div className="space-y-4">
+                    {historyEntries.map((entry, i) => (
+                      <TimelineEntry
+                        key={entry.id}
+                        entry={entry}
+                        emphasized={i === 0}
+                        isLast={i === historyEntries.length - 1}
+                      />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          )}
 
           <div className="px-4 py-3 border-t border-slate-100 bg-[#f8fafc] shrink-0 flex gap-2">
-            <Button variant="outline" size="sm" onClick={onClose} className="hover:bg-slate-100">
+            <Button variant="outline" size="sm" onClick={onClose}>
               Close
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setIsLogging(true)}
-              className="flex-1 rounded-lg bg-[#2563eb] hover:bg-[#1d4ed8] border border-[#2563eb] hover:border-[#1d4ed8] text-white font-semibold text-xs px-4 py-2 transition-colors duration-150"
-            >
-              <MessageSquare className="h-3.5 w-3.5" />
-              Log Communication
-            </Button>
+            {drawerTab === 'updates' && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setIsLogging(true)}
+                className="flex-1"
+                leftIcon={<MessageSquare className="h-3.5 w-3.5" />}
+              >
+                Log Communication
+              </Button>
+            )}
           </div>
         </>
       )}

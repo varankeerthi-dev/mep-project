@@ -94,10 +94,10 @@ export default function QuickAccessBar({
     <header className={`quick-access-bar${sidebarCollapsed ? ' sidebar-collapsed' : ''}`} data-tour-anchor="quick-access-bar">
       {/* LEFT: Menu + Quick Create + Approvals */}
       <div className="quick-access-left">
-        <button className="quick-tool-btn menu-btn" onClick={onMenuToggle} title="Toggle Menu" onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)'; }}
+        <button className="quick-tool-btn menu-btn" onClick={onMenuToggle} title="Toggle Menu" onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(55, 53, 47, 0.08)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" style={{ color: '#ffffff' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" style={{ color: '#37352f' }}>
             <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
@@ -115,13 +115,13 @@ export default function QuickAccessBar({
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
               padding: '2px 8px', height: '24px',
-              background: showCreateMenu ? 'rgba(255, 255, 255, 0.22)' : 'transparent',
+              background: showCreateMenu ? 'rgba(55, 53, 47, 0.09)' : 'transparent',
               border: 'none', borderRadius: '4px', cursor: 'pointer',
               fontFamily: 'inherit', fontSize: '11px', fontWeight: 500,
-              color: '#ffffff', transition: 'background 0.15s',
+              color: '#37352f', transition: 'background 0.15s',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = showCreateMenu ? 'rgba(255, 255, 255, 0.22)' : 'transparent'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(55, 53, 47, 0.08)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = showCreateMenu ? 'rgba(55, 53, 47, 0.09)' : 'transparent'; }}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -135,7 +135,7 @@ export default function QuickAccessBar({
           {showCreateMenu && (
             <div style={{
               position: 'absolute', top: '100%', left: 0, marginTop: '4px',
-              background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px',
+              background: '#fff', border: '1px solid #e9e9e7', borderRadius: '8px',
               boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
               padding: '4px', minWidth: '200px', zIndex: 100,
               animation: 'dropdownFadeIn 0.15s ease',
@@ -147,10 +147,10 @@ export default function QuickAccessBar({
                     display: 'flex', alignItems: 'center', gap: '8px',
                     width: '100%', padding: '6px 10px', border: 'none',
                     background: 'transparent', borderRadius: '6px', cursor: 'pointer',
-                    fontFamily: 'inherit', fontSize: '12px', color: '#374151',
+                    fontFamily: 'inherit', fontSize: '12px', color: '#37352f',
                     textAlign: 'left', transition: 'background 0.1s',
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = '#f9fafb'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(55, 53, 47, 0.06)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                 >
                   <span style={{
@@ -167,10 +167,10 @@ export default function QuickAccessBar({
         {/* New Material */}
         <button className="quick-tool-btn" onClick={() => navigate('/store/materials/items/new')}
           title="New Material"
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(55, 53, 47, 0.08)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" style={{ color: '#ffffff' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" style={{ color: '#37352f' }}>
             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" />
           </svg>
           New Material
@@ -179,10 +179,10 @@ export default function QuickAccessBar({
         {/* Manufacturing */}
         <button className="quick-tool-btn" onClick={() => navigate('/manufacturing')}
           title="Manufacturing"
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(55, 53, 47, 0.08)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" style={{ color: '#ffffff' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" style={{ color: '#37352f' }}>
             <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
           </svg>
           Manufacturing
@@ -193,11 +193,11 @@ export default function QuickAccessBar({
         {/* Approvals */}
         <button className="quick-tool-btn" onClick={() => navigate('/approvals')}
           title="Approvals"
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(55, 53, 47, 0.08)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
           style={{ position: 'relative' }}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" style={{ color: '#ffffff' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" style={{ color: '#37352f' }}>
             <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
           </svg>
           Approvals
@@ -208,7 +208,7 @@ export default function QuickAccessBar({
               borderRadius: '7px', background: '#ef4444', color: '#fff',
               fontSize: '9px', fontWeight: 600, lineHeight: '14px',
               textAlign: 'center', pointerEvents: 'none',
-              border: '1.5px solid #3980ea',
+              border: '1.5px solid #ffffff',
             }}>
               {pendingCount > 99 ? '99+' : pendingCount}
             </span>
@@ -224,12 +224,12 @@ export default function QuickAccessBar({
         <div style={{
           display: 'flex', alignItems: 'center', gap: '6px',
           padding: '0 10px', height: '24px', borderRadius: '6px',
-          background: searchFocused ? '#ffffff' : 'rgba(255, 255, 255, 0.2)',
-          border: `1px solid ${searchFocused ? '#ffffff' : 'rgba(255, 255, 255, 0.35)'}`,
-          boxShadow: searchFocused ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
+          background: searchFocused ? '#ffffff' : '#f1f1ef',
+          border: '1px solid #e9e9e7',
+          boxShadow: searchFocused ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
           transition: 'all 0.2s',
         }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12" style={{ color: searchFocused ? '#6b7280' : 'rgba(255, 255, 255, 0.9)', flexShrink: 0 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12" style={{ color: '#787774', flexShrink: 0 }}>
             <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
@@ -243,7 +243,7 @@ export default function QuickAccessBar({
             className="quick-search-input"
             style={{
               border: 'none', background: 'transparent', outline: 'none',
-              fontSize: '11.5px', color: searchFocused ? '#111827' : '#ffffff', width: '100%',
+              fontSize: '11.5px', color: '#37352f', width: '100%',
               fontFamily: 'inherit', fontWeight: 400,
             }}
           />
@@ -251,7 +251,7 @@ export default function QuickAccessBar({
             <button onClick={() => { setSearchQuery(''); }}
               style={{
                 background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', color: searchFocused ? '#6b7280' : 'rgba(255, 255, 255, 0.85)',
+                display: 'flex', alignItems: 'center', color: '#787774',
               }}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="10" height="10">
@@ -263,34 +263,13 @@ export default function QuickAccessBar({
       </div>
 
 
-      {/* RIGHT: Org + Help + User */}
+      {/* RIGHT: Help + User */}
       <div className="quick-access-right">
-        {/* Org name */}
-        {organisation?.name && (
-          <span style={{
-            fontSize: '11px', fontWeight: 500, color: 'rgba(255, 255, 255, 0.95)',
-            maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap', padding: '2px 6px',
-          }}>
-            {organisation.name}
-          </span>
-        )}
-
-        <button className="quick-tool-btn" onClick={() => navigate('/settings')}
-          title="Settings"
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" style={{ color: '#ffffff' }}>
-            <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </button>
-
         <button className="quick-tool-btn" onClick={onHelp} title="Help"
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(55, 53, 47, 0.08)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" style={{ color: '#ffffff' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" style={{ color: '#37352f' }}>
             <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
         </button>
@@ -306,21 +285,21 @@ export default function QuickAccessBar({
               border: 'none', borderRadius: '4px', cursor: 'pointer',
               fontFamily: 'inherit', transition: 'all 0.15s',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(55, 53, 47, 0.08)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
           >
             <div style={{
               width: '18px', height: '18px', borderRadius: '50%',
-              background: '#ffffff', color: '#3980ea',
+              background: '#e9e9e7', color: '#37352f',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '9px', fontWeight: 700,
             }}>
               {initials}
             </div>
-            <span style={{ fontSize: '11px', color: '#ffffff', fontWeight: 500 }}>
+            <span style={{ fontSize: '11px', color: '#37352f', fontWeight: 500 }}>
               {displayName}
             </span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="10" height="10" style={{ color: 'rgba(255, 255, 255, 0.85)' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="10" height="10" style={{ color: '#787774' }}>
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </button>
@@ -328,26 +307,26 @@ export default function QuickAccessBar({
           {showUserMenu && (
             <div style={{
               position: 'absolute', top: '100%', right: 0, marginTop: '4px',
-              background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px',
+              background: '#fff', border: '1px solid #e9e9e7', borderRadius: '8px',
               boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
               padding: '4px', minWidth: '200px', zIndex: 100,
               animation: 'dropdownFadeIn 0.15s ease',
             }}>
               <div style={{
-                padding: '8px 10px', borderBottom: '1px solid #f3f4f6',
+                padding: '8px 10px', borderBottom: '1px solid #e9e9e7',
               }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#111827' }}>{displayName}</div>
-                <div style={{ fontSize: '10.5px', color: '#6b7280', marginTop: '1px' }}>{userEmail}</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#37352f' }}>{displayName}</div>
+                <div style={{ fontSize: '10.5px', color: '#787774', marginTop: '1px' }}>{userEmail}</div>
               </div>
               <button onClick={() => { setShowUserMenu(false); navigate('/settings'); }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px',
                   width: '100%', padding: '6px 10px', border: 'none',
                   background: 'transparent', borderRadius: '6px', cursor: 'pointer',
-                  fontFamily: 'inherit', fontSize: '12px', color: '#374151',
+                  fontFamily: 'inherit', fontSize: '12px', color: '#37352f',
                   textAlign: 'left', transition: 'background 0.1s',
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#f9fafb'; }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(55, 53, 47, 0.06)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">

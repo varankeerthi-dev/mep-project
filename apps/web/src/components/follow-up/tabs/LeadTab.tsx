@@ -5,6 +5,7 @@ import type { Lead } from '@/types/leads';
 
 interface LeadTabProps {
   pagination: PaginationResult<Lead>;
+  totalCount?: number;
   disabled: boolean;
   onOpenHistory: (item: Lead) => void;
   onConvert: (id: string) => void;
@@ -18,6 +19,7 @@ interface LeadTabProps {
  */
 export function LeadTab({
   pagination,
+  totalCount,
   disabled,
   onOpenHistory,
   onConvert,
@@ -49,7 +51,7 @@ export function LeadTab({
           ))
         )}
       </div>
-      <PaginationFooter page={pagination.page} setPage={pagination.setPage} pagination={pagination} />
+      <PaginationFooter page={pagination.page} setPage={pagination.setPage} pagination={pagination} totalCount={totalCount} />
     </div>
   );
 }

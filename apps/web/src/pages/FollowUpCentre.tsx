@@ -33,6 +33,7 @@ import {
   useFollowupPodc,
   useFollowupInvoices,
   useFollowupActivity,
+  useFollowupLeadsCount,
   useLogQuotationResponse,
   useFlagPodcIssue,
   useRecordReminder,
@@ -55,7 +56,6 @@ import {
   buildPriorityQueue,
   filterPriorityQueue,
 } from '@/lib/followup/priority-queue';
-import { useFollowUpMetrics } from '@/hooks/use-followup-metrics';
 import {
   DEFAULT_FOLLOWUP_FILTERS,
 } from '@/types/followup';
@@ -91,12 +91,23 @@ export default function FollowUpCentre() {
   const { filters, setFilters, setTab } = useFollowupFilters();
   const { search, setSearch } = useFollowupSearch(filters.q, (q) => setFilters({ q }));
 
-  const { data: quotations = [], isLoading: loadingQ } = useFollowupQuotations();
-  const { data: podc = [], isLoading: loadingP } = useFollowupPodc();
-  const { data: invoices = [], isLoading: loadingI } = useFollowupInvoices();
-  const { data: activity = [], isLoading: loadingA } = useFollowupActivity();
+  const { data: quotationData, isLoading: loadingQ } = useFollowupQuotations();
+  const quotations = quotationData?.items ?? [];
+  const quotationTotal = quotationData?.total ?? 0;
+  const { data: podcData, isLoading: loadingP } = useFollowupPodc();
+  const podc = podcData?.items ?? [];
+  const podcTotal = podcData?.total ?? 0;
+  const { data: invoiceData, isLoading: loadingI } = useFollowupInvoices();
+  const invoices = invoiceData?.items ?? [];
+  const invoiceTotal = invoiceData?.total ?? 0;
+  const { data: activityData, isLoading: loadingA } = useFollowupActivity();
+  const activity = activityData?.items ?? [];
+  const activityTotal = activityData?.total ?? 0;
   const { data: leads = [], isLoading: loadingL } = useLeads();
-  const { data: procurements = [], isLoading: loadingPR } = useFollowupProcurement();
+  const { data: leadsTotal = 0 } = useFollowupLeadsCount();
+  const { data: procurementData, isLoading: loadingPR } = useFollowupProcurement();
+  const procurements = procurementData?.items ?? [];
+  const procurementTotal = procurementData?.total ?? 0;
 
   const logResponse = useLogQuotationResponse();
   const flagIssue = useFlagPodcIssue();
@@ -258,11 +269,6 @@ export default function FollowUpCentre() {
     [quotations, podc, invoices, leads, procurements]
   );
 
-  const openLeadCount = useMemo(
-    () => leads.filter((l) => l.status === 'New' || l.status === 'Qualified').length,
-    [leads]
-  );
-
   const filteredQueue = useMemo(
     () =>
       filterPriorityQueue(
@@ -318,23 +324,15 @@ export default function FollowUpCentre() {
     [canManage, assignFollowUp]
   );
 
-  const metrics = useFollowUpMetrics({
-    tab: filters.tab,
-    statusFilter: filters.status,
-    priorityQueue,
-    quotations,
-    podc,
-    invoices,
-    activity,
-    leads,
-    procurements,
-    filteredQuotationCount: filteredQuotations.length,
-    filteredInvoiceCount: filteredInvoices.length,
-    filteredActivityCount: filteredActivity.length,
-    filteredLeadCount: filteredLeads.length,
-    filteredProcurementCount: filteredProcurement.length,
-    openLeadCount,
-  });
+  // Whether any queue input list was server-capped: the queue is then built
+  // from a prefix of the dataset, and the footer says so instead of
+  // implying completeness.
+  const queueSourcesCapped =
+    quotationTotal > quotations.length ||
+    podcTotal > podc.length ||
+    invoiceTotal > invoices.length ||
+    leadsTotal > leads.length ||
+    procurementTotal > procurements.length;
 
   const tabCounts = useMemo(
     () => ({
@@ -527,6 +525,7 @@ export default function FollowUpCentre() {
           <QueueTab
             pagination={queuePagination}
             focusedItems={queueWithFocus}
+            sourcesCapped={queueSourcesCapped}
             viewMode={viewMode}
             kanbanGroupBy={kanbanGroupBy}
             assignees={assignees}
@@ -537,6 +536,9 @@ export default function FollowUpCentre() {
             onClearSelection={() => setSelectedRowIds(new Set())}
             onOpenSource={handleQueueOpen}
             onQuickAction={handleQueueQuickAction}
+            onOpenHistory={(item) =>
+              handleOpenHistory(item.source_tab, item.source_id, item.reference_label, item.client_name)
+            }
           />
         );
       }
@@ -544,6 +546,7 @@ export default function FollowUpCentre() {
         return (
           <QuotationTab
             pagination={quotationPagination}
+            totalCount={quotationTotal}
             assignees={assignees}
             disabled={isReadOnly}
             onReminder={handleQuotationReminder}
@@ -560,6 +563,7 @@ export default function FollowUpCentre() {
         return (
           <PodcTab
             pagination={podcPagination}
+            totalCount={podcTotal}
             assignees={assignees}
             disabled={isReadOnly}
             onSharePack={handlePodcShare}
@@ -572,6 +576,7 @@ export default function FollowUpCentre() {
         return (
           <InvoiceTab
             pagination={invoicePagination}
+            totalCount={invoiceTotal}
             invoices={filteredInvoices}
             assignees={assignees}
             disabled={isReadOnly}
@@ -587,11 +592,12 @@ export default function FollowUpCentre() {
           />
         );
       case 'activity':
-        return <ActivityTab pagination={activityPagination} />;
+        return <ActivityTab pagination={activityPagination} totalCount={activityTotal} />;
       case 'lead':
         return (
           <LeadTab
             pagination={leadPagination}
+            totalCount={leadsTotal}
             disabled={isReadOnly}
             onOpenHistory={(item) =>
               handleOpenHistory('lead', item.id, item.company_name || item.contact_name, item.client_name || item.contact_name)
@@ -607,6 +613,7 @@ export default function FollowUpCentre() {
         return (
           <ProcurementTab
             pagination={procurementPagination}
+            totalCount={procurementTotal}
             assignees={assignees}
             disabled={isReadOnly}
             onReminder={(item) => {
@@ -631,7 +638,7 @@ export default function FollowUpCentre() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-white">
-      <header className="shrink-0 border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-30 px-6 py-4">
+      <header className="shrink-0 border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-30 px-6 pt-3 pb-2">
         <div className="max-w-[1680px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
@@ -646,8 +653,8 @@ export default function FollowUpCentre() {
               </svg>
             </button>
             <div className="flex items-baseline gap-3">
-              <h1 className="text-xl font-bold tracking-tight text-slate-900">Follow-Up Centre</h1>
-              <p className="text-xs text-slate-500 hidden sm:inline">
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 font-inter">Follow-Up Centre</h1>
+              <p className="text-xs text-slate-500 hidden sm:inline font-inter">
                 Operational follow-up for quotations, PO/DC gaps, and invoice collections
                 {organisation?.name ? ` · ${organisation.name}` : ''}
                 {role ? ` · ${role}` : ''}

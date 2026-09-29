@@ -21,13 +21,8 @@ export function FollowupSearch({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-[30px] w-full rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 transition shadow-2xs"
+          className="h-[30px] w-full rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500/60 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition shadow-2xs"
       />
-      {!value && (
-        <kbd className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-[9px] text-slate-400 font-mono border border-slate-200 px-1 py-0.5 rounded bg-slate-50">
-          ⌘K
-        </kbd>
-      )}
       {value && (
         <button
           type="button"

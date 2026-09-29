@@ -9,6 +9,7 @@ import type { ProcurementFollowUp } from '@/types/followup';
 
 interface ProcurementTabProps {
   pagination: PaginationResult<ProcurementFollowUp>;
+  totalCount?: number;
   assignees: FollowUpAssigneeOption[];
   disabled: boolean;
   onReminder: (item: ProcurementFollowUp) => void;
@@ -23,6 +24,7 @@ interface ProcurementTabProps {
  */
 export function ProcurementTab({
   pagination,
+  totalCount,
   assignees,
   disabled,
   onReminder,
@@ -51,7 +53,7 @@ export function ProcurementTab({
           ))
         )}
       </div>
-      <PaginationFooter page={pagination.page} setPage={pagination.setPage} pagination={pagination} />
+      <PaginationFooter page={pagination.page} setPage={pagination.setPage} pagination={pagination} totalCount={totalCount} />
     </div>
   );
 }

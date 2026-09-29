@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard,
   FileText,
@@ -151,24 +152,20 @@ export function FollowupTabsMobile({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
+    <div className="fixed inset-x-0 top-[35px] bottom-0 z-50 lg:hidden" role="dialog" aria-modal="true">
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
-      <aside className="fixed right-0 top-0 bottom-0 w-64 bg-white border-l border-slate-200 shadow-xl animate-in slide-in-from-right duration-200 z-10 flex flex-col">
+      <aside className="absolute right-0 top-0 bottom-0 w-64 bg-white font-inter border-l border-slate-200 shadow-xl animate-in slide-in-from-right duration-200 z-10 flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
           <h2 className="text-sm font-semibold text-slate-900">Follow-Up Sections</h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-            aria-label="Close tabs"
-          >
+          <Button variant="ghost" size="icon-xs" onClick={onClose} aria-label="Close tabs">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M5 5l10 10M15 5l-10 10" />
             </svg>
-          </button>
+          </Button>
         </div>
         <div className="p-3 space-y-1 overflow-y-auto flex-1">
           {FOLLOWUP_TAB_DEFINITIONS.map((def) => {

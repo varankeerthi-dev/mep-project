@@ -16,6 +16,9 @@ interface QueueTabProps {
   pagination: PaginationResult<PriorityQueueItem>;
   /** Full focus-filtered list (for selection aggregates), not just the page. */
   focusedItems: PriorityQueueItem[];
+  /** True when any queue source list was server-capped: the queue is then
+      built from a prefix of the dataset, and the footer says so. */
+  sourcesCapped: boolean;
   viewMode: 'table' | 'board';
   kanbanGroupBy: KanbanGroupBy;
   assignees: FollowUpAssigneeOption[];
@@ -26,6 +29,7 @@ interface QueueTabProps {
   onClearSelection: () => void;
   onOpenSource: (item: PriorityQueueItem) => void;
   onQuickAction: (item: PriorityQueueItem) => void;
+  onOpenHistory: (item: PriorityQueueItem) => void;
 }
 
 /**
@@ -36,6 +40,7 @@ interface QueueTabProps {
 export function QueueTab({
   pagination,
   focusedItems,
+  sourcesCapped,
   viewMode,
   kanbanGroupBy,
   assignees,
@@ -46,6 +51,7 @@ export function QueueTab({
   onClearSelection,
   onOpenSource,
   onQuickAction,
+  onOpenHistory,
 }: QueueTabProps) {
   if (viewMode === 'board') {
     return (
@@ -107,6 +113,7 @@ export function QueueTab({
               onQuickAction={onQuickAction}
               selected={selectedRowIds.has(item.id)}
               onToggleSelect={onToggleSelect}
+              onSelect={onOpenHistory}
             />
           ))
         )}
@@ -163,7 +170,13 @@ export function QueueTab({
           </div>
         );
       })()}
-      <PaginationFooter page={pagination.page} setPage={pagination.setPage} pagination={pagination} />
+      <PaginationFooter
+        page={pagination.page}
+        setPage={pagination.setPage}
+        pagination={pagination}
+        totalCount={pagination.totalItems}
+        note={sourcesCapped ? 'some sources capped' : undefined}
+      />
     </div>
   );
 }

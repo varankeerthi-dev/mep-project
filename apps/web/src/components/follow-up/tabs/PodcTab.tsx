@@ -6,6 +6,7 @@ import type { PodcBacklogItem, PodcIssueFlag } from '@/types/followup';
 
 interface PodcTabProps {
   pagination: PaginationResult<PodcBacklogItem>;
+  totalCount?: number;
   assignees: FollowUpAssigneeOption[];
   disabled: boolean;
   onSharePack: (item: PodcBacklogItem) => void;
@@ -21,6 +22,7 @@ interface PodcTabProps {
  */
 export function PodcTab({
   pagination,
+  totalCount,
   assignees,
   disabled,
   onSharePack,
@@ -51,7 +53,7 @@ export function PodcTab({
           ))
         )}
       </div>
-      <PaginationFooter page={pagination.page} setPage={pagination.setPage} pagination={pagination} />
+      <PaginationFooter page={pagination.page} setPage={pagination.setPage} pagination={pagination} totalCount={totalCount} />
     </div>
   );
 }

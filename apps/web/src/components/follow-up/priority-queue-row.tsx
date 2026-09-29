@@ -40,6 +40,7 @@ type PriorityQueueRowProps = {
   onQuickAction?: (item: PriorityQueueItem) => void;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
+  onSelect?: (item: PriorityQueueItem) => void;
 };
 
 export const PriorityQueueRow = memo(function PriorityQueueRow({
@@ -51,6 +52,7 @@ export const PriorityQueueRow = memo(function PriorityQueueRow({
   onQuickAction,
   selected = false,
   onToggleSelect,
+  onSelect,
 }: PriorityQueueRowProps) {
   const assigneeLabel = resolveAssigneeLabel(
     assignees,
@@ -130,7 +132,7 @@ export const PriorityQueueRow = memo(function PriorityQueueRow({
             ? 'bg-rose-50/30 hover:bg-rose-50/50'
             : 'hover:bg-slate-50'
       )}
-      onClick={() => onToggleSelect?.(item.id)}
+      onClick={() => onSelect?.(item)}
     >
       <div 
         className="w-7 shrink-0 flex items-center justify-center" 

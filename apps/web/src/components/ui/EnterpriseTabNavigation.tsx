@@ -73,9 +73,9 @@ export const EnterpriseTabNavigation: React.FC<EnterpriseTabNavigationProps> = (
   };
 
   return (
-    <div className={`w-full bg-white font-sans ${className}`}>
+    <div className={`w-full bg-white font-inter ${className}`}>
       {/* Tier 1: Connected Folder Tabs */}
-      <header className="border-b border-slate-300 bg-white px-6 pt-3 select-none">
+      <header className="border-b border-slate-300 bg-white px-6 pt-2 select-none">
         <nav
           className="flex overflow-x-auto no-scrollbar -mb-px items-end space-x-0.5"
           role="tablist"

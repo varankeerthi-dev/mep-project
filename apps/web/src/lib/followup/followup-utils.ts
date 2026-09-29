@@ -73,7 +73,10 @@ export function sortQuotations(items: QuotationFollowUp[], sort: string): Quotat
     case 'submitted_desc':
       return copy.sort((a, b) => b.submitted_date.localeCompare(a.submitted_date));
     default:
-      return copy;
+      // Default view is newest-submitted first. Stated explicitly (rather
+      // than relying on fetch order) so the server can order rows for
+      // cap-correctness without changing what the tab displays.
+      return copy.sort((a, b) => b.submitted_date.localeCompare(a.submitted_date));
   }
 }
 

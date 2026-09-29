@@ -11,6 +11,7 @@ import type { InvoiceFollowUp } from '@/types/followup';
 
 interface InvoiceTabProps {
   pagination: PaginationResult<InvoiceFollowUp>;
+  totalCount?: number;
   invoices: InvoiceFollowUp[];
   assignees: FollowUpAssigneeOption[];
   disabled: boolean;
@@ -29,6 +30,7 @@ interface InvoiceTabProps {
  */
 export function InvoiceTab({
   pagination,
+  totalCount,
   invoices,
   assignees,
   disabled,
@@ -68,7 +70,7 @@ export function InvoiceTab({
             ))
           )}
         </div>
-        <PaginationFooter page={pagination.page} setPage={pagination.setPage} pagination={pagination} />
+        <PaginationFooter page={pagination.page} setPage={pagination.setPage} pagination={pagination} totalCount={totalCount} />
       </div>
       <InvoiceDetailPanel
         invoice={selectedInvoice}

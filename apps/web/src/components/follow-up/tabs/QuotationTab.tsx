@@ -9,6 +9,7 @@ import type { QuotationFollowUp, QuotationResponseOption } from '@/types/followu
 
 interface QuotationTabProps {
   pagination: PaginationResult<QuotationFollowUp>;
+  totalCount?: number;
   assignees: FollowUpAssigneeOption[];
   disabled: boolean;
   onReminder: (item: QuotationFollowUp) => void;
@@ -23,6 +24,7 @@ interface QuotationTabProps {
  */
 export function QuotationTab({
   pagination,
+  totalCount,
   assignees,
   disabled,
   onReminder,
@@ -53,7 +55,7 @@ export function QuotationTab({
           ))
         )}
       </div>
-      <PaginationFooter page={pagination.page} setPage={pagination.setPage} pagination={pagination} />
+      <PaginationFooter page={pagination.page} setPage={pagination.setPage} pagination={pagination} totalCount={totalCount} />
     </div>
   );
 }

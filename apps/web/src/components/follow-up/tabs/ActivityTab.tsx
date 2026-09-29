@@ -5,12 +5,13 @@ import type { FollowUpActivityLog } from '@/types/followup';
 
 interface ActivityTabProps {
   pagination: PaginationResult<FollowUpActivityLog>;
+  totalCount?: number;
 }
 
 /**
  * Activity log tab. Extracted verbatim from FollowUpCentre's renderTabContent.
  */
-export function ActivityTab({ pagination }: ActivityTabProps) {
+export function ActivityTab({ pagination, totalCount }: ActivityTabProps) {
   return (
     <div className="flex h-full flex-col rounded-lg border border-slate-200 bg-white overflow-hidden">
       <div className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50">
@@ -25,7 +26,7 @@ export function ActivityTab({ pagination }: ActivityTabProps) {
           ))
         )}
       </div>
-      <PaginationFooter page={pagination.page} setPage={pagination.setPage} pagination={pagination} />
+      <PaginationFooter page={pagination.page} setPage={pagination.setPage} pagination={pagination} totalCount={totalCount} />
     </div>
   );
 }

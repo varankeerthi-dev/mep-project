@@ -23,6 +23,16 @@ import type {
   ProcurementFollowUp,
 } from '../types/followup';
 
+/**
+ * Bounded list plus the server-side total. `total` is the full matching
+ * count (ignoring the row cap); `items.length <= total`. Callers must
+ * treat items as a prefix of the dataset and communicate the bound.
+ */
+export interface FollowUpListResult<T> {
+  items: T[];
+  total: number;
+}
+
 const QUOTATION_FOLLOW_UP_STATUSES = [
   'Sent',
   'Under Negotiation',
@@ -83,8 +93,8 @@ export function isFollowUpSchemaError(error: { code?: string; message?: string }
 
 export async function fetchFollowUpQuotations(
   organisationId: string
-): Promise<QuotationFollowUp[]> {
-  const { data: quotes, error } = await supabase
+): Promise<FollowUpListResult<QuotationFollowUp>> {
+  const { data: quotes, error, count } = await supabase
     .from('quotation_header')
     .select(
       `
@@ -104,16 +114,17 @@ export async function fetchFollowUpQuotations(
         contact_phone,
         assignee_user_id
       )
-    `
+    `,
+      { count: 'exact' }
     )
     .eq('organisation_id', organisationId)
     .in('status', QUOTATION_FOLLOW_UP_STATUSES)
-    .order('date', { ascending: false })
-    .limit(500);
+    .order('valid_till', { ascending: true, nullsFirst: false })
+    .limit(5000);
 
   if (error) throw error;
 
-  return (quotes || []).map((q: Record<string, unknown>) => {
+  const items = (quotes || []).map((q: Record<string, unknown>) => {
     const tracking = Array.isArray(q.tracking) ? q.tracking[0] : q.tracking;
     const client = q.client as Record<string, unknown> | null;
     const project = q.project as Record<string, unknown> | null;
@@ -147,20 +158,22 @@ export async function fetchFollowUpQuotations(
       assignee_name: null,
     };
   });
+
+  return { items, total: count ?? items.length };
 }
 
-export async function fetchFollowUpPodc(organisationId: string): Promise<PodcBacklogItem[]> {
-  const { data, error } = await supabase
+export async function fetchFollowUpPodc(organisationId: string): Promise<FollowUpListResult<PodcBacklogItem>> {
+  const { data, error, count } = await supabase
     .from('follow_up_podc_backlog')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('organisation_id', organisationId)
     .eq('is_active', true)
     .order('days_pending_po', { ascending: false })
-    .limit(500);
+    .limit(5000);
 
   if (error) throw error;
 
-  return (data || []).map((row: Record<string, unknown>) => ({
+  const items = (data || []).map((row: Record<string, unknown>) => ({
     id: String(row.id),
     dc_wo_number: String(row.dc_wo_number),
     client_name: String(row.client_name),
@@ -179,10 +192,12 @@ export async function fetchFollowUpPodc(organisationId: string): Promise<PodcBac
     assignee_user_id: (row.assignee_user_id as string) || null,
     assignee_name: null,
   }));
+
+  return { items, total: count ?? items.length };
 }
 
-export async function fetchFollowUpInvoices(organisationId: string): Promise<InvoiceFollowUp[]> {
-  const { data, error } = await supabase
+export async function fetchFollowUpInvoices(organisationId: string): Promise<FollowUpListResult<InvoiceFollowUp>> {
+  const { data, error, count } = await supabase
     .from('invoices')
     .select(
       `
@@ -201,18 +216,19 @@ export async function fetchFollowUpInvoices(organisationId: string): Promise<Inv
         contact_phone,
         assignee_user_id
       )
-    `
+    `,
+      { count: 'exact' }
     )
     .eq('organisation_id', organisationId)
     .eq('status', 'final')
     .order('due_date', { ascending: true })
-    .limit(500);
+    .limit(5000);
 
   if (error) throw error;
 
   const today = new Date();
 
-  return (data || [])
+  const items = (data || [])
     .map((inv: Record<string, unknown>) => {
       const total = Number(inv.total || 0);
       const paid = Number(inv.paid_amount || 0);
@@ -254,22 +270,24 @@ export async function fetchFollowUpInvoices(organisationId: string): Promise<Inv
       } satisfies InvoiceFollowUp;
     })
     .filter(Boolean) as InvoiceFollowUp[];
+
+  return { items, total: count ?? items.length };
 }
 
 export async function fetchFollowUpActivity(
   organisationId: string,
-  limit = 200
-): Promise<FollowUpActivityLog[]> {
-  const { data, error } = await supabase
+  limit = 1000
+): Promise<FollowUpListResult<FollowUpActivityLog>> {
+  const { data, error, count } = await supabase
     .from('follow_up_activity_log')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('organisation_id', organisationId)
     .order('created_at', { ascending: false })
     .limit(limit);
 
   if (error) throw error;
 
-  return (data || []).map((row: Record<string, unknown>) => ({
+  const items = (data || []).map((row: Record<string, unknown>) => ({
     id: String(row.id),
     event_type: row.event_type as ActivityEventType,
     tab_source: row.tab_source as FollowUpTab,
@@ -281,6 +299,8 @@ export async function fetchFollowUpActivity(
     created_at: String(row.created_at),
     metadata: (row.metadata as Record<string, string>) || undefined,
   }));
+
+  return { items, total: count ?? items.length };
 }
 
 export async function logActivity(
@@ -519,6 +539,20 @@ export async function recordProcurementReminder(
   });
 }
 
+/**
+ * Head-only total for the leads list. The leads rows themselves come from
+ * the shared useLeads hook (whose return shape must not change), so the
+ * count travels separately.
+ */
+export async function fetchLeadsCount(organisationId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('leads')
+    .select('id', { count: 'exact', head: true })
+    .eq('organisation_id', organisationId);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function assignFollowUpOwner(
   organisationId: string,
   source: 'quotation' | 'podc' | 'invoice' | 'procurement' | 'lead',
@@ -639,8 +673,8 @@ export async function updateFollowUpPriority(
 
 export async function fetchFollowUpProcurement(
   organisationId: string
-): Promise<ProcurementFollowUp[]> {
-  const { data, error } = await supabase
+): Promise<FollowUpListResult<ProcurementFollowUp>> {
+  const { data, error, count } = await supabase
     .from('purchase_orders')
     .select(`
       id,
@@ -656,10 +690,12 @@ export async function fetchFollowUpProcurement(
         contact_phone,
         assignee_user_id
       )
-    `)
+    `,
+      { count: 'exact' }
+    )
     .eq('organisation_id', organisationId)
-    .order('po_date', { ascending: false })
-    .limit(500);
+    .order('po_date', { ascending: true })
+    .limit(5000);
 
   if (error) throw error;
 
@@ -699,7 +735,7 @@ export async function fetchFollowUpProcurement(
     }
   }
 
-  return (data || []).map((row: any) => {
+  const items = (data || []).map((row: any) => {
     const tracking = Array.isArray(row.tracking) ? row.tracking[0] : row.tracking;
     const vendor = row.vendor as any;
     const project = row.project as any;
@@ -741,4 +777,6 @@ export async function fetchFollowUpProcurement(
       open_lines: openByPo.get(String(row.id)) || 0,
     };
   });
+
+  return { items, total: count ?? items.length };
 }
