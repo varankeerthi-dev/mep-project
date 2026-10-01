@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { X, Mic } from 'lucide-react';
 import { getChecklistQuestions } from './types';
 
@@ -101,7 +101,7 @@ export const SiteVisitCheckoutModal: React.FC<SiteVisitCheckoutModalProps> = ({
             <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Visit Checklist</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {getChecklistQuestions(visit?.visit_type || '').map((q: any) => (
-                <div key={q.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                <div key={q.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                   <span style={{ fontSize: '0.875rem', color: '#334155' }}>{q.text}</span>
                   <select
                     className="pl-input"
@@ -345,11 +345,11 @@ export const SiteVisitCheckoutModal: React.FC<SiteVisitCheckoutModalProps> = ({
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', marginBottom: '0.5rem' }}
             >
               <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{observationOpen ? '▼' : '▶'}</span>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{observationOpen ? 'â–¼' : 'â–¶'}</span>
                 Log Site Observation (Optional)
               </h4>
               {!observationOpen && (observationTitle || observationCategory) && (
-                <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 500 }}>Added ✓</span>
+                <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 500 }}>Added âœ“</span>
               )}
             </div>
 
@@ -398,7 +398,7 @@ export const SiteVisitCheckoutModal: React.FC<SiteVisitCheckoutModalProps> = ({
                         alignItems: 'center',
                         justifyContent: 'center',
                         padding: '0.375rem',
-                        borderRadius: '4px',
+                        borderRadius: '8px',
                         border: '1px solid #cbd5e1',
                         background: isListening ? '#fee2e2' : '#f8fafc',
                         color: isListening ? '#ef4444' : '#475569',
@@ -529,3 +529,4 @@ export const SiteVisitCheckoutModal: React.FC<SiteVisitCheckoutModalProps> = ({
     </div>
   );
 };
+

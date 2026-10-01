@@ -106,11 +106,12 @@ export const EnterpriseTabNavigation: React.FC<EnterpriseTabNavigationProps> = (
                       {tab.count}
                     </span>
                   )}
-                  {/* Bottom mask to seamlessly bridge into page body without any horizontal line */}
+                  {/* Bottom mask / underline:
                   <span
                     className="absolute -bottom-px left-0 right-0 h-[2px] bg-white pointer-events-none"
                     aria-hidden="true"
                   />
+                  */}
                 </button>
               );
             }

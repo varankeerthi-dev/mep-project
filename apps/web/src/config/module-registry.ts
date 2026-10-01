@@ -190,7 +190,7 @@ export const MODULE_REGISTRY: ModuleDefinition[] = [
     description: 'BOQ creation, line-item management, and cost tracking.',
     icon: 'TableProperties',
     category: 'projects',
-    route: '/boq',
+    route: '/estimation/boq',
   },
   {
     id: 'reports',

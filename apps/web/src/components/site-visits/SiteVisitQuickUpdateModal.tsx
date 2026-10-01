@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { format, parseISO } from 'date-fns';
 import { X } from 'lucide-react';
 import { CustomSelect } from './CustomSelect';
@@ -102,7 +102,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                     const visit = visits?.find((v: any) => v.id === e.target.value);
                     if (visit) onSelectVisit(visit);
                   }}
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px', background: '#fff' }}
                 >
                   <option value="">-- Choose existing visit --</option>
                   {visits?.slice(0, 20).map((v: any) => (
@@ -129,7 +129,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                 <select
                   value={formData.project_id}
                   onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', color: '#171717', background: '#fff' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px', color: '#171717', background: '#fff' }}
                 >
                   {(!formData.client_id || filteredProjects.length === 0) ? (
                     <option value="" disabled>No active projects for this client</option>
@@ -153,7 +153,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                     type="time"
                     value={formData.visit_time}
                     onChange={(e) => setFormData({ ...formData, visit_time: e.target.value })}
-                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px' }}
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -162,7 +162,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                     type="time"
                     value={formData.out_time}
                     onChange={(e) => setFormData({ ...formData, out_time: e.target.value })}
-                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px' }}
                   />
                 </div>
               </div>
@@ -174,7 +174,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                   value={formData.visited_by}
                   onChange={(e) => setFormData({ ...formData, visited_by: e.target.value })}
                   placeholder="Person who visited"
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px' }}
                 />
               </div>
 
@@ -184,7 +184,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                   value={formData.site_address}
                   onChange={(e) => setFormData({ ...formData, site_address: e.target.value })}
                   placeholder="Physical site location..."
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '80px' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px', minHeight: '80px' }}
                 />
               </div>
 
@@ -194,7 +194,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                   value={formData.discussion_points}
                   onChange={(e) => setFormData({ ...formData, discussion_points: e.target.value })}
                   placeholder="Summary of site meeting/observations..."
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '100px' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px', minHeight: '100px' }}
                 />
               </div>
 
@@ -204,7 +204,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                   value={formData.equipment_used}
                   onChange={(e) => setFormData({ ...formData, equipment_used: e.target.value })}
                   placeholder="Tools and equipment..."
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '60px' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px', minHeight: '60px' }}
                 />
               </div>
 
@@ -214,7 +214,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                   value={formData.safety_hazards}
                   onChange={(e) => setFormData({ ...formData, safety_hazards: e.target.value })}
                   placeholder="List safety concerns..."
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '60px' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px', minHeight: '60px' }}
                 />
               </div>
 
@@ -224,7 +224,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                   value={formData.recommendations}
                   onChange={(e) => setFormData({ ...formData, recommendations: e.target.value })}
                   placeholder="Actionable site recommendations..."
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '60px' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px', minHeight: '60px' }}
                 />
               </div>
             </div>
@@ -239,7 +239,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                   value={formData.visit_date}
                   onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
                   required
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px' }}
                 />
               </div>
 
@@ -250,7 +250,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                   value={formData.engineer}
                   onChange={(e) => setFormData({ ...formData, engineer: e.target.value })}
                   placeholder="Engineer name"
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px' }}
                 />
               </div>
 
@@ -262,7 +262,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                 <select
                   value={formData.purpose_of_visit}
                   onChange={(e) => setFormData({ ...formData, purpose_of_visit: e.target.value })}
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px', background: '#fff' }}
                 >
                   <option value="">Select purpose</option>
                   {purposes?.map((p: any) => (
@@ -278,7 +278,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                     type="date"
                     value={formData.follow_up_date}
                     onChange={(e) => setFormData({ ...formData, follow_up_date: e.target.value })}
-                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px' }}
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -288,7 +288,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                     value={formData.location_url}
                     onChange={(e) => setFormData({ ...formData, location_url: e.target.value })}
                     placeholder="Google Maps link"
-                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px' }}
                   />
                 </div>
               </div>
@@ -298,7 +298,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                 <select
                   value={formData.next_step}
                   onChange={(e) => setFormData({ ...formData, next_step: e.target.value })}
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px', background: '#fff' }}
                 >
                   <option value="">Select next action</option>
                   <option value="Quote to be Sent">Quote to be Sent</option>
@@ -314,7 +314,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                   value={formData.measurements}
                   onChange={(e) => setFormData({ ...formData, measurements: e.target.value })}
                   placeholder="Technical measurements or dimensions..."
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '80px' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px', minHeight: '80px' }}
                 />
               </div>
 
@@ -325,7 +325,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                   value={formData.weather_conditions}
                   onChange={(e) => setFormData({ ...formData, weather_conditions: e.target.value })}
                   placeholder="e.g. Sunny, Rainy"
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px' }}
                 />
               </div>
 
@@ -337,7 +337,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                     value={formData.travel_time_minutes || ''}
                     onChange={(e) => setFormData({ ...formData, travel_time_minutes: e.target.value ? parseInt(e.target.value) : null })}
                     placeholder="Minutes"
-                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px' }}
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -348,7 +348,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                     value={formData.total_man_hours || ''}
                     onChange={(e) => setFormData({ ...formData, total_man_hours: e.target.value ? parseFloat(e.target.value) : null })}
                     placeholder="Man hours"
-                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px' }}
                   />
                 </div>
               </div>
@@ -364,8 +364,8 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                       step="0.01"
                       value={formData.travel_expense || ''}
                       onChange={(e) => setFormData({ ...formData, travel_expense: e.target.value ? parseFloat(e.target.value) : null })}
-                      placeholder="₹ 0.00"
-                      style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '13px' }}
+                      placeholder="â‚¹ 0.00"
+                      style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '13px' }}
                     />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -375,8 +375,8 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                       step="0.01"
                       value={formData.accommodation_expense || ''}
                       onChange={(e) => setFormData({ ...formData, accommodation_expense: e.target.value ? parseFloat(e.target.value) : null })}
-                      placeholder="₹ 0.00"
-                      style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '13px' }}
+                      placeholder="â‚¹ 0.00"
+                      style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '13px' }}
                     />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -386,8 +386,8 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                       step="0.01"
                       value={formData.misc_expense || ''}
                       onChange={(e) => setFormData({ ...formData, misc_expense: e.target.value ? parseFloat(e.target.value) : null })}
-                      placeholder="₹ 0.00"
-                      style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '13px' }}
+                      placeholder="â‚¹ 0.00"
+                      style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '13px' }}
                     />
                   </div>
                 </div>
@@ -398,7 +398,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                  style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px', background: '#fff' }}
                 >
                   <option value="pending">Pending</option>
                   <option value="scheduled">Scheduled</option>
@@ -415,7 +415,7 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
                     value={formData.postponed_reason}
                     onChange={(e) => setFormData({ ...formData, postponed_reason: e.target.value })}
                     placeholder="Why was this visit delayed?"
-                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '60px' }}
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '8px', fontSize: '14px', minHeight: '60px' }}
                   />
                 </div>
               )}
@@ -470,3 +470,4 @@ export const SiteVisitQuickUpdateModal: React.FC<SiteVisitQuickUpdateModalProps>
     </div>
   );
 };
+

@@ -70,11 +70,12 @@ export const FolderTabs = memo(function FolderTabs({
                 )}
                 {tab.meta}
 
-                {/* Bottom seamless bridge mask */}
+                {/* Bottom seamless bridge mask:
                 <span
                   className="absolute -bottom-px left-0 right-0 h-[2px] bg-white pointer-events-none"
                   aria-hidden="true"
                 />
+                */}
               </button>
             );
           }

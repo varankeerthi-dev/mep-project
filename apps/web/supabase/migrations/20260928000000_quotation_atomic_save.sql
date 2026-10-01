@@ -58,7 +58,7 @@ DECLARE
   v_subtotal NUMERIC(15,2) := 0;
   v_total_tax NUMERIC(15,2) := 0;
   v_grand_total NUMERIC(15,2) := 0;
-  v_discount JSONB;
+  v_discount RECORD;
   v_new_item_id UUID;
   v_inserted_items JSONB := '[]'::jsonb;
 BEGIN
@@ -164,7 +164,7 @@ BEGIN
   WHERE id = p_quotation_id;
 
   DELETE FROM public.quotation_variant_discounts WHERE quotation_id = p_quotation_id;
-  IF jsonb_object_length(p_variant_discounts) > 0 THEN
+  IF (SELECT count(*) FROM jsonb_each_text(COALESCE(p_variant_discounts, '{}'::jsonb))) > 0 THEN
     FOR v_discount IN SELECT * FROM jsonb_each_text(p_variant_discounts) LOOP
       INSERT INTO public.quotation_variant_discounts (quotation_id, variant_id, discount_percent, organisation_id)
       VALUES (p_quotation_id, v_discount.key::UUID, COALESCE((v_discount.value)::NUMERIC, 0), p_organisation_id);
@@ -257,7 +257,7 @@ DECLARE
   v_quotation_no TEXT;
   v_existing_id UUID;
   v_creator_id UUID;
-  v_discount JSONB;
+  v_discount RECORD;
   v_new_item_id UUID;
   v_inserted_items JSONB := '[]'::jsonb;
   v_settings RECORD;
@@ -364,7 +364,7 @@ BEGIN
   UPDATE public.quotation_header SET subtotal = v_subtotal, total_tax = v_total_tax, grand_total = v_grand_total WHERE id = v_quotation_id;
 
   DELETE FROM public.quotation_variant_discounts WHERE quotation_id = v_quotation_id;
-  IF jsonb_object_length(p_variant_discounts) > 0 THEN
+  IF (SELECT count(*) FROM jsonb_each_text(COALESCE(p_variant_discounts, '{}'::jsonb))) > 0 THEN
     FOR v_discount IN SELECT * FROM jsonb_each_text(p_variant_discounts) LOOP
       INSERT INTO public.quotation_variant_discounts (quotation_id, variant_id, discount_percent, organisation_id)
       VALUES (v_quotation_id, v_discount.key::UUID, COALESCE((v_discount.value)::NUMERIC, 0), p_organisation_id);

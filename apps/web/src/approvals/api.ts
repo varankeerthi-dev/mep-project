@@ -1,10 +1,12 @@
 import { supabase, currentOrgId } from '../lib/supabase';
 import { ApprovalNotificationService } from './notifications';
 import { approvalTransition } from './rpc';
+import { evaluateApprovalGate } from './approvalGateEngine';
 import {
   Approval,
   ApprovalRequest,
   ApprovalActionRequest,
+  ApprovalActionPayload,
   ApprovalFilters,
   ApprovalStats,
   ApiResponse,
@@ -314,29 +316,44 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'REVIEW_PENDING', message: 'This document is pending review and cannot be approved yet.' } };
       }
 
-      const { error: actionError } = await supabase
-        .from('approval_actions')
-        .insert({
-          approval_id: approvalId,
-          action: action.action,
-          approver_id: user.id,
-          comments: action.comments,
-          organisation_id: approval.organisation_id
-        });
-
-      if (actionError) {
-        return { success: false, error: { code: 'DB_ERROR', message: actionError.message } };
-      }
-
       let newStatus = approval.status;
-      let newLevel = approval.current_level;
+      let newLevel = approval.current_level || 1;
+      let isBypass = false;
+      let bypassedLevels: number[] = [];
 
       if (action.action === 'APPROVED') {
-        if (approval.current_level >= approval.max_levels) {
+        const gate = await evaluateApprovalGate(approval, user.id);
+        if (!gate.isAuthorizedToApprove) {
+          return {
+            success: false,
+            error: {
+              code: 'TRANSITION_BLOCKED',
+              message: gate.blockingReason || 'Approval Gate blocked: You lack authorization to approve this stage.',
+            },
+          };
+        }
+
+        if (gate.actionType === 'SINGLE' || gate.actionType === 'ANY_APPROVER') {
           newStatus = 'APPROVED';
+        } else if (gate.actionType === 'BYPASS' && gate.authorizedLevel) {
+          isBypass = true;
+          for (let l = approval.current_level || 1; l < gate.authorizedLevel; l++) {
+            bypassedLevels.push(l);
+          }
+          if (gate.authorizedLevel >= approval.max_levels) {
+            newStatus = 'APPROVED';
+          } else {
+            newLevel = gate.authorizedLevel + 1;
+            await this.sendApprovalNotifications(approvalId, newLevel);
+          }
         } else {
-          newLevel = approval.current_level + 1;
-          await this.sendApprovalNotifications(approvalId, newLevel);
+          // Normal sequential approval
+          if (approval.current_level >= approval.max_levels) {
+            newStatus = 'APPROVED';
+          } else {
+            newLevel = approval.current_level + 1;
+            await this.sendApprovalNotifications(approvalId, newLevel);
+          }
         }
       } else if (action.action === 'REJECTED') {
         newStatus = 'REJECTED';
@@ -346,6 +363,33 @@ export class ApprovalAPI {
         newStatus = 'RETURNED';
       } else if (action.action === 'FORWARDED') {
         newStatus = 'FORWARDED';
+      }
+
+      let auditComments = action.comments;
+      if (isBypass && bypassedLevels.length > 0) {
+        const bypassNote = `[Bypass Authorization: skipped level(s) ${bypassedLevels.join(', ')}]`;
+        auditComments = auditComments ? `${auditComments} ${bypassNote}` : bypassNote;
+      }
+
+      const { error: actionError } = await supabase
+        .from('approval_actions')
+        .insert({
+          approval_id: approvalId,
+          action: action.action,
+          approver_id: user.id,
+          comments: auditComments,
+          organisation_id: approval.organisation_id,
+          metadata: {
+            is_bypass: isBypass,
+            bypassed_levels: bypassedLevels,
+            acting_user_id: user.id,
+            previous_level: approval.current_level,
+            ...(action.metadata || {})
+          }
+        });
+
+      if (actionError) {
+        return { success: false, error: { code: 'DB_ERROR', message: actionError.message } };
       }
 
       const updateData: any = {

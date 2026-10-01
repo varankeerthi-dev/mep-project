@@ -10,6 +10,7 @@ import {
   PRO_GRID_HEAD_FILL,
   PRO_GRID_LINE,
   renderProOrgBanner,
+  renderProWatermark,
 } from './proGridLayout';
 
 type Org = Record<string, unknown>;
@@ -231,6 +232,13 @@ export function generateProGridQuotationPdf(data: Record<string, unknown>, organ
   }
 
   appendProFooterNote(doc, 'Computer-generated document. Valid subject to terms printed overleaf where applicable.');
+
+  const statusStr = String(data.status || data.approval_status || '').trim().toLowerCase();
+  const isPendingApproval = statusStr.includes('pending') || statusStr === 'draft';
+  if (isPendingApproval) {
+    renderProWatermark(doc, 'PENDING APPROVAL');
+  }
+
   return doc;
 }
 

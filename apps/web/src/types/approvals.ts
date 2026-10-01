@@ -81,6 +81,8 @@ export interface ApprovalWorkflow {
   approver_role: string;
   approver_id?: string;
   approver_name?: string | null;
+  approver_designation?: string | null;
+  can_bypass_prior_levels?: boolean;
   is_active: boolean;
   organisation_id: string;
   created_at: string;
@@ -99,6 +101,7 @@ export interface ApprovalActionLog {
   user_agent?: string;
   organisation_id: string;
   created_at: string;
+  metadata?: Record<string, any>;
 }
 
 export interface ApprovalNotification {
@@ -133,6 +136,42 @@ export interface ApprovalActionRequest {
   action: ApprovalAction;
   comments?: string;
   forward_to?: string;
+}
+
+export interface ApprovalActionPayload {
+  action: ApprovalAction;
+  comments?: string;
+  amount_approved?: number;
+  is_bypass?: boolean;
+  bypassed_levels?: number[];
+  metadata?: Record<string, any>;
+}
+
+export type ApprovalTierMode = 'SINGLE' | 'MULTI';
+export type ApprovalExecutionMode = 'SEQUENTIAL' | 'ANY_APPROVER';
+
+export interface ApprovalGateEvaluation {
+  requiresApproval: boolean;
+  isAuthorizedToApprove: boolean;
+  isReviewerPending: boolean;
+  actionType: 'NORMAL' | 'BYPASS' | 'ANY_APPROVER' | 'SINGLE' | 'NONE';
+  currentLevel: number;
+  maxLevels: number;
+  authorizedLevel?: number;
+  canBypassCurrent: boolean;
+  blockingReason?: string;
+  executionMode: ApprovalExecutionMode;
+  tierMode: ApprovalTierMode;
+  levelsSummary: {
+    level: number;
+    approverId: string;
+    approverName: string;
+    minAmount: number;
+    maxAmount: number | null;
+    canBypass: boolean;
+    isCurrent: boolean;
+    isCompleted: boolean;
+  }[];
 }
 
 export interface ApprovalFilters {

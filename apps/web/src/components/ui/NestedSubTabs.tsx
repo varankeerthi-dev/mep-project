@@ -156,10 +156,11 @@ export const NestedSubTabs: React.FC<NestedSubTabsProps> = ({
           </span>
         )}
 
-        {/* Active bottom emerald indicator */}
+        {/* Active bottom emerald indicator:
         {isActive && (
           <span className="absolute -bottom-[1px] left-[6px] right-[6px] h-[2px] rounded-[2px] bg-[#008744]" />
         )}
+        */}
       </button>
     );
   };

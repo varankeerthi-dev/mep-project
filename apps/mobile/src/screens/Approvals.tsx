@@ -15,6 +15,9 @@ interface ApprovalItem {
   project_name?: string;
   created_at: string;
   reference_id?: string;
+  reference_type?: string;
+  current_level?: number;
+  max_levels?: number;
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -39,6 +42,8 @@ export const Approvals: React.FC<{ isDemo?: boolean }> = ({ isDemo = false }) =>
   const [orgId, setOrgId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
+  const [workflows, setWorkflows] = useState<any[]>([]);
+  const [settingsMap, setSettingsMap] = useState<Record<string, string>>({});
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedApproval, setSelectedApproval] = useState<ApprovalItem | null>(null);
@@ -206,10 +211,29 @@ export const Approvals: React.FC<{ isDemo?: boolean }> = ({ isDemo = false }) =>
         query = query.in('status', ['APPROVED', 'REJECTED']);
       }
 
-      const { data, error: fetchErr } = await query;
-      if (fetchErr) throw fetchErr;
+      const [dataRes, wfRes, settRes] = await Promise.all([
+        query,
+        supabase
+          .from('approval_workflows')
+          .select('*')
+          .eq('organisation_id', userOrgId)
+          .eq('is_active', true)
+          .order('level', { ascending: true }),
+        supabase
+          .from('approval_settings')
+          .select('setting_key, setting_value')
+          .eq('organisation_id', userOrgId),
+      ]);
 
-      setApprovals(data || []);
+      if (dataRes.error) throw dataRes.error;
+      setApprovals(dataRes.data || []);
+      setWorkflows(wfRes.data || []);
+
+      const sm: Record<string, string> = {};
+      (settRes.data || []).forEach((row: any) => {
+        sm[row.setting_key] = row.setting_value;
+      });
+      setSettingsMap(sm);
     } catch (err: any) {
       console.error('Error fetching approvals:', err);
       setError(err?.message || 'Failed to load approvals');
@@ -218,18 +242,68 @@ export const Approvals: React.FC<{ isDemo?: boolean }> = ({ isDemo = false }) =>
     }
   };
 
+  const getApprovalEvaluation = (item: ApprovalItem) => {
+    const approvalType = item.approval_type;
+    const tierMode = settingsMap[`${approvalType}_WORKFLOW_MODE`] || 'MULTI';
+    const executionMode = settingsMap[`${approvalType}_EXECUTION_MODE`] || 'SEQUENTIAL';
+    const singleApproverId = settingsMap[`${approvalType}_SINGLE_APPROVER_ID`];
+
+    const currentLevel = item.current_level || 1;
+    const maxLevels = item.max_levels || 1;
+    const amount = Number(item.amount || 0);
+
+    const typeWfs = workflows
+      .filter((w) => w.approval_type === approvalType)
+      .sort((a, b) => a.level - b.level);
+
+    const applicableWfs = typeWfs.filter((w) => {
+      const min = Number(w.min_amount || 0);
+      const max = w.max_amount != null ? Number(w.max_amount) : null;
+      return amount >= min && (max == null || amount <= max);
+    });
+
+    const isCurrentLevelUser = applicableWfs.some(
+      (w) => w.level === currentLevel && w.approver_id === userId
+    );
+    const higherLevelBypassUser = applicableWfs.find(
+      (w) => w.level > currentLevel && w.approver_id === userId && w.can_bypass_prior_levels
+    );
+    const isSingleUser =
+      tierMode === 'SINGLE' &&
+      (singleApproverId === userId ||
+        (applicableWfs.length > 0 && applicableWfs[0].approver_id === userId));
+    const isAnyApproverUser =
+      executionMode === 'ANY_APPROVER' && applicableWfs.some((w) => w.approver_id === userId);
+
+    const isAuthorized =
+      isCurrentLevelUser || Boolean(higherLevelBypassUser) || isSingleUser || isAnyApproverUser;
+    const isBypass = Boolean(higherLevelBypassUser);
+
+    const currentWf = applicableWfs.find((w) => w.level === currentLevel);
+    const currentLevelName =
+      currentWf?.approver_name || currentWf?.approver_role || `Level ${currentLevel}`;
+
+    return {
+      isAuthorized,
+      isBypass,
+      currentLevel,
+      maxLevels,
+      currentLevelName,
+      tierMode,
+      executionMode,
+      targetLevel: higherLevelBypassUser ? higherLevelBypassUser.level : currentLevel,
+    };
+  };
+
   const handleAction = async (id: string, action: 'APPROVED' | 'REJECTED') => {
     setProcessingId(id);
     setError(null);
 
     if (isDemo) {
-      // Simulate network request delay
       setTimeout(() => {
-        // Update mock database state locally
-        setDemoApprovals(prev =>
-          prev.map(item => (item.id === id ? { ...item, status: action } : item))
+        setDemoApprovals((prev) =>
+          prev.map((item) => (item.id === id ? { ...item, status: action } : item))
         );
-        // Remove from list locally for smooth micro-animations
         setApprovals((prev) => prev.filter((item) => item.id !== id));
         setProcessingId(null);
       }, 500);
@@ -237,30 +311,101 @@ export const Approvals: React.FC<{ isDemo?: boolean }> = ({ isDemo = false }) =>
     }
 
     if (!orgId || !userId) return;
+
+    const item = approvals.find((a) => a.id === id);
+    if (!item) return;
+
+    const evaluation = getApprovalEvaluation(item);
+    if (action === 'APPROVED' && !evaluation.isAuthorized) {
+      setError(
+        `Cannot approve: Pending Level ${evaluation.currentLevel} (${evaluation.currentLevelName}). Out-of-order approval without bypass is blocked by the approval gate.`
+      );
+      setProcessingId(null);
+      return;
+    }
+
     try {
-      // 1. Insert into approval_actions
-      const { error: actionErr } = await supabase.from('approval_actions').insert({
-        approval_id: id,
-        action: action,
-        approver_id: userId,
-        comments: `Actioned via Mobile App`,
-        organisation_id: orgId,
-      });
+      if (action === 'APPROVED') {
+        const nextLevel = evaluation.isBypass ? evaluation.targetLevel + 1 : evaluation.currentLevel + 1;
+        const isFinal =
+          evaluation.tierMode === 'SINGLE' ||
+          evaluation.executionMode === 'ANY_APPROVER' ||
+          nextLevel > evaluation.maxLevels;
 
-      if (actionErr) throw actionErr;
+        // 1. Insert into approval_actions with audit metadata
+        const { error: actionErr } = await supabase.from('approval_actions').insert({
+          approval_id: id,
+          action: 'APPROVED',
+          approver_id: userId,
+          comments: evaluation.isBypass
+            ? 'Approved out-of-order via Mobile App (Bypass)'
+            : 'Approved via Mobile App',
+          organisation_id: orgId,
+          metadata: {
+            source: 'mobile',
+            is_bypass: evaluation.isBypass,
+            bypassed_from: evaluation.currentLevel,
+            target_level: evaluation.targetLevel,
+          },
+        });
 
-      // 2. Update approvals status
-      const { error: updateErr } = await supabase
-        .from('approvals')
-        .update({
-          status: action,
+        if (actionErr) throw actionErr;
+
+        // 2. Update approvals table
+        const updatePayload: Record<string, any> = {
           updated_at: new Date().toISOString(),
-        })
-        .eq('id', id);
+        };
+        if (isFinal) {
+          updatePayload.status = 'APPROVED';
+        } else {
+          updatePayload.current_level = nextLevel;
+        }
 
-      if (updateErr) throw updateErr;
+        const { error: updateErr } = await supabase
+          .from('approvals')
+          .update(updatePayload)
+          .eq('id', id);
 
-      // Remove from list locally for smooth micro-animations
+        if (updateErr) throw updateErr;
+
+        // 3. Update source document on final approval
+        if (isFinal && item.reference_id && item.reference_type) {
+          const table = item.reference_type;
+          const statusCol =
+            table === 'purchase_orders' ? 'status' : table === 'quotations' ? 'status' : 'approval_status';
+          await supabase.from(table).update({ [statusCol]: 'Approved' }).eq('id', item.reference_id);
+        }
+      } else {
+        // REJECTED
+        const { error: actionErr } = await supabase.from('approval_actions').insert({
+          approval_id: id,
+          action: 'REJECTED',
+          approver_id: userId,
+          comments: 'Rejected via Mobile App',
+          organisation_id: orgId,
+          metadata: { source: 'mobile' },
+        });
+
+        if (actionErr) throw actionErr;
+
+        const { error: updateErr } = await supabase
+          .from('approvals')
+          .update({
+            status: 'REJECTED',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', id);
+
+        if (updateErr) throw updateErr;
+
+        if (item.reference_id && item.reference_type) {
+          const table = item.reference_type;
+          const statusCol =
+            table === 'purchase_orders' ? 'status' : table === 'quotations' ? 'status' : 'approval_status';
+          await supabase.from(table).update({ [statusCol]: 'Rejected' }).eq('id', item.reference_id);
+        }
+      }
+
       setApprovals((prev) => prev.filter((item) => item.id !== id));
       if (selectedApproval?.id === id) {
         setSelectedApproval(null);
@@ -357,86 +502,127 @@ export const Approvals: React.FC<{ isDemo?: boolean }> = ({ isDemo = false }) =>
         ) : (
           <div className="space-y-3">
             <AnimatePresence initial={false}>
-              {approvals.map((item) => (
-                <motion.div
-                  key={item.id}
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -100 }}
-                  className="glass-card rounded-2xl p-4 border border-border/50 relative overflow-hidden flex flex-col gap-3"
-                >
-                  {/* Top line with Requester and Type */}
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full uppercase">
-                        {TYPE_LABELS[item.approval_type] || item.approval_type}
-                      </span>
-                      {item.priority && (
-                        <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full ml-1.5 uppercase ${PRIORITY_COLORS[item.priority] || ''}`}>
-                          {item.priority}
+              {approvals.map((item) => {
+                const evaluation = getApprovalEvaluation(item);
+                return (
+                  <motion.div
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: -100 }}
+                    className="glass-card rounded-2xl p-4 border border-border/50 relative overflow-hidden flex flex-col gap-3"
+                  >
+                    {/* Top line with Requester and Type */}
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full uppercase">
+                          {TYPE_LABELS[item.approval_type] || item.approval_type}
                         </span>
-                      )}
+                        {item.priority && (
+                          <span
+                            className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase ${PRIORITY_COLORS[item.priority] || ''}`}
+                          >
+                            {item.priority}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-medium text-muted-foreground">
+                        {formatDate(item.created_at)}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-medium text-muted-foreground">
-                      {formatDate(item.created_at)}
-                    </span>
-                  </div>
 
-                  {/* Title and Amount */}
-                  <div className="flex justify-between items-end">
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold text-foreground line-clamp-1">{item.title}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Requested by: <span className="font-semibold">{item.requester_name || 'N/A'}</span>
-                      </p>
-                      {item.project_name && (
+                    {/* Title and Details */}
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="space-y-1 flex-1">
+                        <p className="text-sm font-bold text-foreground line-clamp-1">{item.title}</p>
                         <p className="text-[11px] text-muted-foreground">
-                          Project: <span className="font-semibold">{item.project_name}</span>
+                          Requested by: <span className="font-semibold">{item.requester_name || 'N/A'}</span>
                         </p>
-                      )}
-                    </div>
-                    <div className="text-right flex flex-col items-end gap-1.5">
-                      <p className="text-base font-extrabold text-foreground font-currency tabular-nums">
-                        {formatAmount(item.amount)}
-                      </p>
+                        {item.project_name && (
+                          <p className="text-[11px] text-muted-foreground">
+                            Project: <span className="font-semibold">{item.project_name}</span>
+                          </p>
+                        )}
+                        {/* Table Alignment Rule: Left-aligned Amount */}
+                        <div className="pt-1.5 text-left">
+                          <span className="text-[10px] font-medium text-muted-foreground block text-left">
+                            Amount
+                          </span>
+                          <p className="text-base font-extrabold text-foreground font-currency tabular-nums text-left">
+                            {formatAmount(item.amount)}
+                          </p>
+                        </div>
+                      </div>
+
                       {item.approval_type === 'QUOTATION' && item.reference_id && (
                         <button
                           onClick={() => handleViewQuotation(item.reference_id!)}
-                          className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-950/20 dark:text-sky-400 font-semibold text-[10px] flex items-center gap-1 active:scale-[0.98] transition-all cursor-pointer border-none"
+                          className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-950/20 dark:text-sky-400 font-semibold text-[10px] flex items-center gap-1 active:scale-[0.98] transition-all cursor-pointer border-none shrink-0"
                         >
                           <Eye className="h-3 w-3" />
                           View Quote
                         </button>
                       )}
                     </div>
-                  </div>
 
-                  {/* One-Tap actions (only if pending) */}
-                  {activeTab === 'pending' && (
-                    <div className="flex gap-2 pt-2 border-t border-border/50">
-                      <button
-                        onClick={() => handleAction(item.id, 'REJECTED')}
-                        disabled={processingId !== null}
-                        className="flex-1 h-9 rounded-xl border border-destructive/20 bg-destructive/5 text-destructive font-semibold text-xs active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                      >
-                        <XCircle className="h-3.5 w-3.5" />
-                        Reject
-                      </button>
-                      <button
-                        onClick={() => handleAction(item.id, 'APPROVED')}
-                        disabled={processingId !== null}
-                        className="flex-1 h-9 rounded-xl bg-primary text-primary-foreground font-semibold text-xs active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                      >
-                        {processingId === item.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                        )}
-                        Approve
-                      </button>
+                    {/* Approval Gate Hierarchy Status */}
+                    <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-border/40 text-[11px]">
+                      {evaluation.maxLevels > 1 ? (
+                        <span className="text-[10px] font-medium bg-secondary text-foreground px-2 py-0.5 rounded-md">
+                          Level {evaluation.currentLevel} of {evaluation.maxLevels}: {evaluation.currentLevelName}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-medium bg-secondary text-foreground px-2 py-0.5 rounded-md">
+                          Single Approver Gate
+                        </span>
+                      )}
+                      {evaluation.isBypass && (
+                        <span className="text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-md">
+                          Bypass Available
+                        </span>
+                      )}
+                      {!evaluation.isAuthorized && activeTab === 'pending' && (
+                        <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                          Waiting for Level {evaluation.currentLevel}
+                        </span>
+                      )}
                     </div>
-                  )}
+
+                    {/* One-Tap actions (only if pending) */}
+                    {activeTab === 'pending' && (
+                      <div className="flex gap-2 pt-2 border-t border-border/50">
+                        <button
+                          onClick={() => handleAction(item.id, 'REJECTED')}
+                          disabled={processingId !== null}
+                          className="flex-1 h-9 rounded-xl border border-destructive/20 bg-destructive/5 text-destructive font-semibold text-xs active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => handleAction(item.id, 'APPROVED')}
+                          disabled={processingId !== null || !evaluation.isAuthorized}
+                          className={`flex-1 h-9 rounded-xl font-semibold text-xs active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+                            evaluation.isBypass
+                              ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                              : 'bg-primary text-primary-foreground'
+                          }`}
+                          title={
+                            !evaluation.isAuthorized
+                              ? `Document pending Level ${evaluation.currentLevel}`
+                              : undefined
+                          }
+                        >
+                          {processingId === item.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          )}
+                          {evaluation.isBypass ? 'Bypass & Approve' : 'Approve'}
+                        </button>
+                      </div>
+                    )}
 
                   {/* History Status display */}
                   {activeTab === 'history' && (
@@ -454,8 +640,9 @@ export const Approvals: React.FC<{ isDemo?: boolean }> = ({ isDemo = false }) =>
                     </div>
                   )}
                 </motion.div>
-              ))}
-            </AnimatePresence>
+              );
+            })}
+          </AnimatePresence>
           </div>
         )}
       </main>

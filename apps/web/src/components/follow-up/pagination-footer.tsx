@@ -32,12 +32,13 @@ export function PaginationFooter<T>({ page, setPage, pagination, totalCount, not
       </div>
       <div className="flex items-center gap-1.5">
         <button
+          type="button"
           onClick={() => setPage(page - 1)}
           disabled={!pagination.hasPrevPage}
-          className={`px-2.5 py-1 text-xs rounded border transition-colors ${
+          className={`min-h-10 min-w-10 rounded px-2.5 py-1 text-xs transition-[transform,color,background-color] duration-150 active:scale-[0.96] ${
             pagination.hasPrevPage
-              ? 'border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50'
-              : 'border-slate-300 bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
+              ? 'border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50'
+              : 'cursor-not-allowed border border-slate-300 bg-slate-100 text-slate-400 opacity-60'
           }`}
         >
           Previous
@@ -52,14 +53,18 @@ export function PaginationFooter<T>({ page, setPage, pagination, totalCount, not
                   : page >= pagination.totalPages - 2
                     ? pagination.totalPages - 4 + i
                     : page - 2 + i;
+            const isCurrent = page === pageNum;
             return (
               <button
                 key={pageNum}
+                type="button"
                 onClick={() => setPage(pageNum)}
-                className={`px-2.5 py-1 text-xs rounded border transition-colors ${
-                  page === pageNum
-                    ? 'border-blue-600 bg-blue-600 text-white font-semibold shadow-sm'
-                    : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'
+                // The active page is a visual state only without this.
+                aria-current={isCurrent ? 'page' : undefined}
+                className={`min-h-10 min-w-10 rounded px-2.5 py-1 text-xs transition-[transform,color,background-color] duration-150 active:scale-[0.96] ${
+                  isCurrent
+                    ? 'border border-blue-600 bg-blue-600 font-semibold text-white shadow-sm'
+                    : 'border border-slate-300 bg-white text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 {pageNum}
@@ -68,12 +73,13 @@ export function PaginationFooter<T>({ page, setPage, pagination, totalCount, not
           })}
         </div>
         <button
+          type="button"
           onClick={() => setPage(page + 1)}
           disabled={!pagination.hasNextPage}
-          className={`px-2.5 py-1 text-xs rounded border transition-colors ${
+          className={`min-h-10 min-w-10 rounded px-2.5 py-1 text-xs transition-[transform,color,background-color] duration-150 active:scale-[0.96] ${
             pagination.hasNextPage
-              ? 'border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50'
-              : 'border-slate-300 bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
+              ? 'border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50'
+              : 'cursor-not-allowed border border-slate-300 bg-slate-100 text-slate-400 opacity-60'
           }`}
         >
           Next

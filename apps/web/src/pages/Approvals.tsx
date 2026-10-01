@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrgApprovalSettings, useOrgApprovalWorkflows, useApprovalsForUser } from '@/hooks/useApprovals';
 import { usePaymentsForApproval, useApprovePayment } from '../modules/Purchase/hooks/usePurchaseQueries';
 import { ApprovalAPI, ApprovalExtensions } from '@/approvals/api';
+import { evaluateApprovalGateRow } from '@/approvals/approvalGateEngine';
 import { toast } from '@/lib/logger';
 import { APPROVAL_TYPES } from '@/types/approvals';
 import { useQueryClient } from '@tanstack/react-query';
@@ -362,7 +363,12 @@ const Approvals: React.FC = () => {
           if (row.reviewerId === user?.id) awaiting.push(row);
           else others.push(row);
         } else {
-          awaiting.push(row);
+          const gateEval = evaluateApprovalGateRow(row, user?.id, workflows, settings as any);
+          if (gateEval.isAuthorizedToApprove) {
+            awaiting.push(row);
+          } else {
+            others.push(row);
+          }
         }
       }
       else if (s === 'FORWARDED') others.push(row);
@@ -373,7 +379,7 @@ const Approvals: React.FC = () => {
       }
     }
     return { awaiting, others, returned, approved, released };
-  }, [payApprovals]);
+  }, [payApprovals, user?.id, workflows, settings]);
 
   const awaitingActions = sectionMap.awaiting;
   const approvedActions = sectionMap.approved;
@@ -1646,6 +1652,14 @@ const ApprovalTable = ({
                                 <span className={isCurrent ? 'font-semibold text-zinc-900' : 'text-zinc-500'}>
                                   {name}
                                 </span>
+                                {w.can_bypass_prior_levels && (
+                                  <span
+                                    className="text-[9px] px-1 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200/60 leading-none"
+                                    title="Can approve without previous approval pending"
+                                  >
+                                    Bypass
+                                  </span>
+                                )}
                                 {isCurrent && (row.status === 'PENDING' || row.status === 'HOLD') && (
                                   <span className={`text-[9px] px-1 py-0.5 rounded font-medium leading-none ${row.status === 'HOLD' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'}`}>
                                     {row.status === 'HOLD' ? 'On Hold' : 'Now'}

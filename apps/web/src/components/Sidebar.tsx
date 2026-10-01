@@ -244,9 +244,7 @@ const menuData: MenuSection[] = [
         label: 'Quotation',
         submenu: [
           { id: 'quotation-list', label: 'Quotation list', path: '/quotation' },
-          { id: 'quotation-create', label: 'Create quotation', path: '/quotation/create' },
-          { id: 'boq-list', label: 'BOQ list', path: '/boq' },
-          { id: 'boq-create', label: 'Create BOQ', path: '/boq/create' }
+          { id: 'quotation-create', label: 'Create quotation', path: '/quotation/create' }
         ]
       },
       {

@@ -59,13 +59,13 @@ export const SiteVisitCalendar: React.FC<SiteVisitCalendarProps> = ({ visits, on
           {format(currentMonth, 'MMMM yyyy')}
         </h2>
         <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="p-2 hover:bg-zinc-100 rounded-lg">
+          <button onClick={prevMonth} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors active:scale-[0.96]" aria-label="Previous month">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <button onClick={() => setCurrentMonth(new Date())} className="px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 rounded-lg">
+          <button onClick={() => setCurrentMonth(new Date())} className="px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors active:scale-[0.96]">
             Today
           </button>
-          <button onClick={nextMonth} className="p-2 hover:bg-zinc-100 rounded-lg">
+          <button onClick={nextMonth} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors active:scale-[0.96]" aria-label="Next month">
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>

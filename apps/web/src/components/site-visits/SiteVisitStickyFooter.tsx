@@ -77,7 +77,7 @@ export const SiteVisitStickyFooter: React.FC<SiteVisitStickyFooterProps> = ({
             aria-label={SITE_VISIT_LABELS.actions.previous}
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
-            className={`inline-flex h-6 w-6 items-center justify-center rounded border border-slate-200 transition-colors ${
+            className={`inline-flex h-7 w-7 items-center justify-center rounded border border-slate-200 transition-colors active:scale-[0.96] ${
               page <= 1 ? 'cursor-not-allowed text-slate-300' : 'text-slate-600 hover:bg-slate-50'
             }`}
           >
@@ -91,7 +91,7 @@ export const SiteVisitStickyFooter: React.FC<SiteVisitStickyFooterProps> = ({
             aria-label={SITE_VISIT_LABELS.actions.next}
             disabled={page >= totalPages}
             onClick={() => onPageChange(page + 1)}
-            className={`inline-flex h-6 w-6 items-center justify-center rounded border border-slate-200 transition-colors ${
+            className={`inline-flex h-7 w-7 items-center justify-center rounded border border-slate-200 transition-colors active:scale-[0.96] ${
               page >= totalPages ? 'cursor-not-allowed text-slate-300' : 'text-slate-600 hover:bg-slate-50'
             }`}
           >

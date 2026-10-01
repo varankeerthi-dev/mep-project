@@ -25,7 +25,6 @@ import { QuickAddClientModal } from '../components/QuickAddClientModal';
 import {
   SiteVisitRow,
   siteVisitColumns,
-  STATUS_FILTER_OPTIONS,
   initialSiteVisitFormData,
   SiteVisitFormData,
   getChecklistQuestions,
@@ -838,7 +837,6 @@ export function SiteVisits() {
     <div className="flex flex-col h-full bg-white min-h-screen">
       {/* Metrics Header */}
       <SiteVisitMetrics
-        stats={stats}
         onOpenActivityLog={() => {
           setIsGlobalActivityOpen(true);
           fetchGlobalActivity();
@@ -886,12 +884,6 @@ export function SiteVisits() {
               onPageChange={setCurrentPage}
               onPageSizeChange={() => {}}
               onSearch={(val) => setSearchQuery(val)}
-              filterOptions={STATUS_FILTER_OPTIONS}
-              selectedFilterId={statusFilter}
-              onFilterSelect={(id) => {
-                setStatusFilter(id);
-                setCurrentPage(1);
-              }}
               selectedRowIds={new Set(selectedVisits)}
               onRowSelectChange={(row, checked) => {
                 if (checked) setSelectedVisits((prev) => [...prev, row.id]);

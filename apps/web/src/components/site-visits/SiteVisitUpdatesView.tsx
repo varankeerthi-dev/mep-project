@@ -85,29 +85,33 @@ export const SiteVisitUpdatesView: React.FC<SiteVisitUpdatesViewProps> = ({
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => onView?.(v)}
-                      className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
+                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-md transition-colors active:scale-[0.96]"
                       title="View"
+                      aria-label="View visit"
                     >
                       <Eye size={16} />
                     </button>
                     <button 
                       onClick={() => onEdit(v)}
-                      className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
+                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-md transition-colors active:scale-[0.96]"
                       title="Edit"
+                      aria-label="Edit visit"
                     >
                       <Edit2 size={16} />
                     </button>
                     <button 
                       onClick={() => onPrint ? onPrint(v) : window.print()} 
-                      className="p-1.5 text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
+                      className="p-2 text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors active:scale-[0.96]"
                       title="Print PDF"
+                      aria-label="Print PDF"
                     >
                       <FileText size={16} />
                     </button>
                     <button 
                       onClick={() => onDelete(v)}
-                      className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-md transition-colors"
+                      className="p-2 text-rose-600 hover:bg-rose-100 rounded-md transition-colors active:scale-[0.96]"
                       title="Delete"
+                      aria-label="Delete visit"
                     >
                       <Trash2 size={16} />
                     </button>

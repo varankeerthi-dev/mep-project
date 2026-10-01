@@ -156,3 +156,32 @@ export function appendProFooterNote(doc: jsPDF, line: string): void {
   doc.setTextColor(100, 116, 139);
   doc.text(line, pageWidth / 2, pageHeight - 8, { align: 'center' });
 }
+
+export function renderProWatermark(doc: jsPDF, watermarkText: string = 'PENDING APPROVAL'): void {
+  const pageCount = (doc.internal as any).getNumberOfPages
+    ? (doc.internal as any).getNumberOfPages()
+    : doc.internal.pages.length - 1;
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    const width = doc.internal.pageSize.getWidth();
+    const height = doc.internal.pageSize.getHeight();
+    doc.saveGraphicsState();
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(42);
+    doc.setTextColor(239, 68, 68);
+    try {
+      if ((doc as any).GState) {
+        doc.setGState(new (doc as any).GState({ opacity: 0.16 }));
+      }
+    } catch {
+      doc.setTextColor(254, 202, 202);
+    }
+    doc.text(watermarkText, width / 2, height / 2, {
+      align: 'center',
+      baseline: 'middle',
+      angle: 45,
+    });
+    doc.restoreGraphicsState();
+  }
+}
+

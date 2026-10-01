@@ -174,8 +174,6 @@ const CreditNoteViewPage = lazyAny(() => import('./credit-notes/pages/CreditNote
 const CreditNoteEditorPage = lazyAny(() => import('./credit-notes/pages/CreditNoteEditorPage').then(m => ({ default: m.CreditNoteEditorPage })));
 const CreditNoteEditorPageV2 = lazyAny(() => import('./credit-notes/pages/CreditNoteEditorPageV2').then(m => ({ default: m.CreditNoteEditorPageV2 })));
 const InvoiceEditorPageV2 = lazyAny(() => import('./invoices/pages/InvoiceEditorPageV2'));
-const BOQ = lazyAny(() => import('./pages/BOQ'));
-const BOQList = lazyAny(() => import('./pages/BOQList'));
 const TableDemo = lazyAny(() => import('./pages/TableDemo'));
 const CustomTableDemo = lazyAny(() => import('./pages/CustomTableDemo'));
 
@@ -509,8 +507,8 @@ export default function App() {
       case '/invoices/edit-v2': return <InvoiceEditorPageV2 />;
       case '/ledger': return <LedgerDashboard onNavigate={navigate} />;
       case '/follow-up': return <FollowUpCentre />;
-      case '/boq': return <BOQList />;
-      case '/boq/create': return <BOQ onSuccess={() => navigate('/boq')} onCancel={() => navigate('/boq')} />;
+      case '/boq': return <Navigate to="/estimation/boq" replace />;
+      case '/boq/create': return <Navigate to="/estimation/boq/new" replace />;
       // Estimation module
       case '/estimation/boq': return <PermissionGuard permission="estimation.boq.read" fallback={<div className="p-6">Access Denied</div>}><BOQListPage /></PermissionGuard>;
       case '/estimation/boq/new': return <PermissionGuard permission="estimation.boq.create" fallback={<div className="p-6">Access Denied</div>}><BOQFormPage /></PermissionGuard>;

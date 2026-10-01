@@ -58,7 +58,8 @@ export const SiteVisitFormModal: React.FC<SiteVisitFormModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors active:scale-[0.96]"
+            aria-label="Close"
           >
             <X size={18} />
           </button>
@@ -310,19 +311,19 @@ export const SiteVisitFormModal: React.FC<SiteVisitFormModalProps> = ({
 
           {/* Action Buttons */}
           <div className="flex gap-3 mt-6 pt-4 border-t border-border">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={onClose}
-            >
-              Cancel
-            </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 active:scale-[0.96]"
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
             {!selectedVisit && onSaveDraft && (
               <Button
                 type="button"
                 variant="secondary"
-                className="flex-1"
+                className="flex-1 active:scale-[0.96]"
                 onClick={onSaveDraft}
                 disabled={isSaving}
               >
@@ -331,7 +332,7 @@ export const SiteVisitFormModal: React.FC<SiteVisitFormModalProps> = ({
             )}
             <Button
               type="submit"
-              className="flex-1"
+              className="flex-1 active:scale-[0.96]"
               disabled={isSaving}
             >
               {isSaving
