@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowRight,
@@ -40,7 +41,7 @@ import { toast } from '@/lib/logger';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import { useOrgApprovalSettings } from '@/hooks/useApprovals';
-import { usePayments, useVendors, useVendorOpenBills, useCreatePayment, useCreatePaymentWithApproval, useCreatePaymentRequest, usePaymentRequests, useDeletePaymentRequest, useResendPaymentRequest, useUpdatePaymentRequest, useVendorHolds } from '../hooks/usePurchaseQueries';
+import { usePayments, useVendors, useVendorOpenBills, useCreatePayment, useCreatePaymentRequest, usePaymentRequests, useDeletePaymentRequest, useResendPaymentRequest, useUpdatePaymentRequest, useVendorHolds } from '../hooks/usePurchaseQueries';
 
 const PAYMENT_MODES = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'NEFT', 'RTGS'];
 
@@ -64,6 +65,7 @@ export const Payments: React.FC = () => {
   const [vendorProformaDate, setVendorProformaDate] = useState('');
   const [vendorProformaAmount, setVendorProformaAmount] = useState('');
   const [requestVendorId, setRequestVendorId] = useState('');
+  const [requestSourceBillId, setRequestSourceBillId] = useState('');
   const [requestAmount, setRequestAmount] = useState('');
   const [requestPriority, setRequestPriority] = useState('Normal');
   const [requestDueDate, setRequestDueDate] = useState('');
@@ -91,7 +93,6 @@ export const Payments: React.FC = () => {
   const { data: vendorBills = [] } = useVendorOpenBills(organisation?.id, vendorId || undefined, openDialog && !isAdvance);
   const { settings: approvalSettings } = useOrgApprovalSettings(organisation?.id);
   const createPayment = useCreatePayment();
-  const createPaymentWithApproval = useCreatePaymentWithApproval();
   const [editRequest, setEditRequest] = useState<any | null>(null);
   const editIdRef = useRef<string | null>(null);
   const createPaymentRequest = useCreatePaymentRequest();
@@ -103,6 +104,29 @@ export const Payments: React.FC = () => {
   const paymentApprovalEnabled = approvalSettings?.PURCHASE_PAYMENT ?? false;
   const { data: recordHolds = [] } = useVendorHolds(organisation?.id, openDialog ? vendorId : undefined);
   const { data: requestHolds = [] } = useVendorHolds(organisation?.id, openRequestDialog ? requestVendorId : undefined);
+  // Source bills for the Payment Request form. payment_request_create requires a
+  // real source bill (source_bill_id), so the form must offer one.
+  const { data: requestVendorBills = [] } = useVendorOpenBills(
+    organisation?.id,
+    openRequestDialog ? requestVendorId : undefined,
+    openRequestDialog && !!requestVendorId && !editRequest,
+  );
+
+  // Open the payment dialog straight away when arriving from PaymentQueue's
+  // "Pay" action, with the vendor and bill already chosen.
+  useEffect(() => {
+    if (!prefilledVendor) return;
+    setVendorId(prefilledVendor);
+    if (prefilledBill) setSelectedBillIds([prefilledBill]);
+    setActiveStep(prefilledBill ? 2 : 0);
+    setOpenDialog(true);
+  }, [prefilledVendor, prefilledBill]);
+
+  // Phase 2: PaymentQueue's "Pay" button routes here with ?vendor=&bill= so the
+  // payment form opens on the right vendor with the right bill selected.
+  const [locationParams] = useSearchParams();
+  const prefilledVendor = locationParams.get('vendor');
+  const prefilledBill = locationParams.get('bill');
 
   const handleAddPayment = () => {
     setOpenDialog(true);
@@ -127,6 +151,7 @@ export const Payments: React.FC = () => {
       editIdRef.current = request?.id || request?.request_id || null;
       setEditRequest(request);
       setRequestVendorId(request.vendor_id || '');
+      setRequestSourceBillId(request.source_bill_id || '');
       setRequestAmount(String(request.amount_requested || ''));
       setRequestPriority(request.priority || 'Normal');
       setRequestDueDate(request.due_date || '');
@@ -141,6 +166,7 @@ export const Payments: React.FC = () => {
     editIdRef.current = null;
     setEditRequest(null);
     setRequestVendorId('');
+    setRequestSourceBillId('');
     setRequestAmount('');
     setRequestPriority('Normal');
     setRequestDueDate('');
@@ -232,13 +258,19 @@ export const Payments: React.FC = () => {
     }
 
     try {
+      // Phase 2: the direct-payment path always records via record_vendor_payment.
+      // The previous branch called useCreatePaymentWithApproval when
+      // PURCHASE_PAYMENT approval was enabled, but that hook is a throw-stub â€”
+      // enabling the setting made every payment from this screen fail. There is
+      // no supported "create pending vendor payment" RPC yet.
+      // Phase 3 obligation: build it, so the approval setting has an effect.
+      // Until then, an org that wants approval before payment should use the
+      // Payment Request flow (below), which IS supported end to end.
       if (paymentApprovalEnabled) {
-        await createPaymentWithApproval.mutateAsync({ paymentData, billAllocations, createdBy: user?.id ?? null });
-        toast.success('Payment submitted for approval.');
-      } else {
-        await createPayment.mutateAsync({ paymentData, billAllocations });
-        toast.success('Payment saved successfully.');
+        toast.info('Purchase payment approval is not yet enforceable here. Recording the payment directly. Use a Payment Request if this payment needs approval.');
       }
+      await createPayment.mutateAsync({ paymentData, billAllocations });
+      toast.success('Payment saved successfully.');
       setOpenDialog(false);
     } catch (error: any) {
       toast.error(error?.message ?? 'Failed to save payment.');
@@ -263,7 +295,7 @@ export const Payments: React.FC = () => {
       header: 'Amount',
       cell: ({ row }: any) => (
         <div className="font-medium text-left text-emerald-600 text-[10px]">
-          ₹{Number(row.original.amount_requested).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          â‚¹{Number(row.original.amount_requested).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
         </div>
       ),
     },
@@ -451,7 +483,7 @@ export const Payments: React.FC = () => {
       header: 'Amount',
       cell: ({ row }: any) => (
         <div className="font-medium text-right text-emerald-600">
-          ₹{Number(row.original.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          â‚¹{Number(row.original.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
         </div>
       ),
     },
@@ -756,7 +788,7 @@ export const Payments: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-zinc-800">Select Bills to Settle</h3>
                     <div className="text-xs text-zinc-500 bg-zinc-100 px-3 py-1 rounded-full font-semibold">
-                      Payment Amount: <span className="text-emerald-600">₹{Number(amount).toLocaleString()}</span>
+                      Payment Amount: <span className="text-emerald-600">â‚¹{Number(amount).toLocaleString()}</span>
                     </div>
                   </div>
                   
@@ -785,8 +817,8 @@ export const Payments: React.FC = () => {
                             </TableCell>
                             <TableCell className="font-semibold text-zinc-700">{bill.bill_number}</TableCell>
                             <TableCell className="text-xs text-zinc-500 font-medium">{formatDate(bill.bill_date)}</TableCell>
-                            <TableCell className="text-right font-medium">₹{Number(bill.total_amount).toLocaleString()}</TableCell>
-                            <TableCell className="text-right font-bold text-rose-600 italic">₹{Number(bill.balance_amount || bill.total_amount).toLocaleString()}</TableCell>
+                            <TableCell className="text-right font-medium">â‚¹{Number(bill.total_amount).toLocaleString()}</TableCell>
+                            <TableCell className="text-right font-bold text-rose-600 italic">â‚¹{Number(bill.balance_amount || bill.total_amount).toLocaleString()}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -868,6 +900,13 @@ export const Payments: React.FC = () => {
                 return;
               }
 
+              // payment_request_create requires a real source bill. Without one
+              // the RPC rejects the whole request, so the form must carry it.
+              if (!editIdRef.current && !requestSourceBillId) {
+                toast.error('Please select the vendor bill this request is for.');
+                return;
+              }
+
               try {
                 if (editIdRef.current) {
                   await updatePaymentRequest.mutateAsync({
@@ -886,6 +925,7 @@ export const Payments: React.FC = () => {
                   await createPaymentRequest.mutateAsync({
                     organisation_id: organisation.id || null,
                     vendor_id: requestVendorId || null,
+                    source_bill_id: requestSourceBillId,
                     amount_requested: Number(requestAmount),
                     priority: requestPriority,
                     due_date: requestDueDate,
@@ -907,7 +947,14 @@ export const Payments: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
                 <Label className="text-xs font-bold uppercase text-zinc-500">Vendor</Label>
-                <Select value={requestVendorId} onValueChange={(value) => setRequestVendorId(value)}>
+                <Select
+                  value={requestVendorId}
+                  onValueChange={(value) => {
+                    setRequestVendorId(value);
+                    setRequestSourceBillId('');
+                  }}
+                  disabled={!!editRequest}
+                >
                   <SelectTrigger className="h-12 border-zinc-200">
                     <SelectValue placeholder="Select a vendor" />
                   </SelectTrigger>
@@ -943,6 +990,51 @@ export const Payments: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <Label className="text-xs font-bold uppercase text-zinc-500">
+                  Source Bill <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={requestSourceBillId}
+                  onValueChange={(value) => {
+                    setRequestSourceBillId(value);
+                    const bill = requestVendorBills.find((b: any) => String(b.id) === value);
+                    if (bill) {
+                      const outstanding = Number(bill.balance_amount ?? bill.total_amount ?? 0);
+                      if (outstanding > 0) setRequestAmount(String(outstanding));
+                    }
+                  }}
+                  disabled={!!editRequest || !requestVendorId}
+                >
+                  <SelectTrigger className="h-12 border-zinc-200">
+                    <SelectValue placeholder={
+                      !requestVendorId
+                        ? 'Select a vendor first'
+                        : requestVendorBills.length === 0
+                          ? 'No open bills for this vendor'
+                          : 'Select the bill being paid'
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {requestVendorBills.map((bill: any) => (
+                      <SelectItem key={bill.id} value={String(bill.id)}>
+                        {bill.bill_number || bill.vendor_invoice_no || String(bill.id).slice(0, 8)}
+                        {bill.due_date ? ` Â· due ${bill.due_date}` : ''}
+                        {` Â· â‚¹${Number(bill.balance_amount ?? bill.total_amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-zinc-500">
+                  {editRequest
+                    ? 'The source bill cannot be changed after the request is created.'
+                    : 'A payment request must reference the vendor bill it is paying. Amount defaults to the outstanding balance.'}
+                </p>
+              </div>
+              <div className="space-y-3" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

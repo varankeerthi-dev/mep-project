@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Plus, 
   Search, 
@@ -28,6 +28,7 @@ export const PaymentQueue: React.FC = () => {
   const { organisation } = useAuth();
   const { formatDate } = useAppDateFormat();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(() => {
     const t = parseInt(searchParams.get('tab') || '0', 10);
     return (t >= 0 && t <= 3) ? t : 0;
@@ -130,7 +131,7 @@ export const PaymentQueue: React.FC = () => {
       id: 'total_amount',
       header: 'Total',
       cell: ({ row }: any) => (
-        <div className="text-right">₹{Number(row.original.total_amount).toLocaleString()}</div>
+        <div className="text-right">â‚¹{Number(row.original.total_amount).toLocaleString()}</div>
       ),
     },
     {
@@ -138,7 +139,7 @@ export const PaymentQueue: React.FC = () => {
       header: 'Balance',
       cell: ({ row }: any) => (
         <div className="font-bold text-right text-rose-600 italic">
-          ₹{Number(row.original.balance_amount).toLocaleString()}
+          â‚¹{Number(row.original.balance_amount).toLocaleString()}
         </div>
       ),
     },
@@ -177,10 +178,20 @@ export const PaymentQueue: React.FC = () => {
     {
       id: 'actions',
       header: 'Action',
-      cell: () => (
-        <ShadcnButton 
-          size="sm" 
+      // Phase 2: this button previously had no onClick. It now routes to the
+      // Payments screen, which is the only place a vendor payment can actually
+      // be recorded (via record_vendor_payment). The bill and vendor are carried
+      // in the URL so the payment form opens pre-filled.
+      cell: ({ row }: any) => (
+        <ShadcnButton
+          size="sm"
           className="h-8 bg-emerald-600 hover:bg-emerald-700 font-bold gap-1.5"
+          onClick={() => {
+            const params = new URLSearchParams();
+            if (row.original.vendor_id) params.set('vendor', String(row.original.vendor_id));
+            if (row.original.id) params.set('bill', String(row.original.id));
+            navigate(`/purchase/payments?${params.toString()}`);
+          }}
         >
           <CreditCard className="h-3.5 w-3.5" />
           Pay
@@ -196,8 +207,8 @@ export const PaymentQueue: React.FC = () => {
   const criticalCount = filteredBills.filter((b: any) => calculateDaysOverdue(b.due_date) > 0 || (new Date(b.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24) <= 7).length;
 
   const summaryCards = [
-    { label: 'Total Payable', value: `₹${totalPayable.toLocaleString()}`, icon: Wallet, color: 'text-rose-600', bg: 'bg-rose-50' },
-    { label: 'Overdue Amount', value: `₹${overdueAmount.toLocaleString()}`, icon: BadgeAlert, color: 'text-rose-700', bg: 'bg-rose-100' },
+    { label: 'Total Payable', value: `â‚¹${totalPayable.toLocaleString()}`, icon: Wallet, color: 'text-rose-600', bg: 'bg-rose-50' },
+    { label: 'Overdue Amount', value: `â‚¹${overdueAmount.toLocaleString()}`, icon: BadgeAlert, color: 'text-rose-700', bg: 'bg-rose-100' },
     { label: 'Critical Bills', value: `${criticalCount} Bills`, icon: Timer, color: 'text-amber-600', bg: 'bg-amber-50' },
     { label: 'Pending Requests', value: requests.filter((r: any) => r.status === 'Pending').length, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
   ];
@@ -267,7 +278,7 @@ export const PaymentQueue: React.FC = () => {
                 </div>
                 <div>
                   <h5 className="text-sm font-bold text-rose-900 leading-none">Critical Payment Alert</h5>
-                  <p className="text-xs text-rose-700 font-medium mt-1">₹{overdueAmount.toLocaleString()} in vendor debts has exceeded due dates.</p>
+                  <p className="text-xs text-rose-700 font-medium mt-1">â‚¹{overdueAmount.toLocaleString()} in vendor debts has exceeded due dates.</p>
                 </div>
               </div>
             )}

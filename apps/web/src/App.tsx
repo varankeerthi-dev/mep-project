@@ -165,6 +165,7 @@ const LeadsModule = lazyAny(() => import('./modules/Leads/LeadsModule'));
 const PurchaseModule = lazyAny(() => import('./modules/Purchase/PurchaseModule'));
 const DebitNoteViewV2 = lazyAny(() => import('./modules/Purchase/components/DebitNoteViewV2'));
 const PurchaseOrdersV2 = lazyAny(() => import('./modules/Purchase/components/PurchaseOrdersV2'));
+const PurchaseOrdersListV2 = lazyAny(() => import('./modules/Purchase/components/PurchaseOrdersListV2'));
 const PurchaseReturnList = lazyAny(() => import('./features/purchase-returns/components/PurchaseReturnList').then(m => ({ default: m.PurchaseReturnList })));
 const PurchaseReturnCreate = lazyAny(() => import('./features/purchase-returns/components/PurchaseReturnCreate').then(m => ({ default: m.PurchaseReturnCreate })));
 const AdvanceExpenseModule = lazyAny(() => import('./modules/AdvanceExpense/AdvanceExpenseModule'));
@@ -584,6 +585,9 @@ export default function App() {
       case '/purchase/debit-notes-v2':
         return <DebitNoteViewV2 />;
       case '/purchase/orders-v2':
+        return <PurchaseOrdersListV2 />;
+      case '/purchase/orders-v2/new':
+      case '/purchase/orders-v2/edit':
         return <PurchaseOrdersV2 />;
       case '/purchase/requisitions':
       case '/purchase/inquiries':

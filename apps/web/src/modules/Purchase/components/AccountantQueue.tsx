@@ -1,13 +1,9 @@
 import React, { useMemo } from 'react';
-import { CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { RefreshCw, XCircle } from 'lucide-react';
 import { AppTable } from '@/components/ui/AppTable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppDateFormat } from '@/contexts/DateFormatContext';
-import { useApprovedPaymentsForAccountant, useReleasePayment } from '../hooks/usePurchaseQueries';
-import { toast } from '@/lib/logger';
-import type { ApprovalWorkflow } from '@/types/approvals';
-import { useOrgApprovalWorkflows } from '@/hooks/useApprovals';
+import { useApprovedPaymentsForAccountant } from '../hooks/usePurchaseQueries';
 
 type Row = {
   id: string;
@@ -33,8 +29,6 @@ export const AccountantQueue: React.FC = () => {
   const { formatDate } = useAppDateFormat();
   const orgId = organisation?.id as string | undefined;
   const { data: approvedPayments = [], isLoading } = useApprovedPaymentsForAccountant(orgId);
-  const releasePayment = useReleasePayment();
-  const { data: workflows = [] } = useOrgApprovalWorkflows(orgId);
 
   const role = (organisation?.user?.role as string | undefined) ?? '';
   const canRelease = ACCOUNTANT_ROLES.has(role);
@@ -47,16 +41,6 @@ export const AccountantQueue: React.FC = () => {
       .map((p) => p[0]?.toUpperCase() + p.slice(1))
       .join(' ');
   }, [role]);
-
-  const handleRelease = (paymentId: string) => {
-    releasePayment.mutate(
-      { paymentId, releasedBy: organisation?.user?.id as string | undefined },
-      {
-        onSuccess: () => toast.success('Payment released'),
-        onError: (err: any) => toast.error(err?.message ?? 'Failed to release payment'),
-      }
-    );
-  };
 
   const rows: Row[] = approvedPayments.map((payment: any) => ({
     id: payment.id,
@@ -93,7 +77,7 @@ export const AccountantQueue: React.FC = () => {
       header: 'Amount',
       cell: ({ row }: { row: Row }) => (
         <div className="font-medium text-right">
-          ₹{row.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          â‚¹{row.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
         </div>
       ),
     },
@@ -115,22 +99,13 @@ export const AccountantQueue: React.FC = () => {
     {
       id: 'actions',
       header: 'Actions',
-      cell: ({ row }: { row: Row }) =>
-        canRelease ? (
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            onClick={() => handleRelease(row.id)}
-            disabled={releasePayment.isPending}
-            className="h-8 px-3"
-          >
-            <CheckCircle2 className="w-4 h-4 mr-1" />
-            Mark Released
-          </Button>
-        ) : (
-          <span className="text-[11px] text-zinc-500">Not authorised</span>
-        ),
+      // Phase 2: withdrawn. useReleasePayment is a throw-stub and no server
+      // function moves a purchase_payment to released. Phase 3 obligation:
+      // release_vendor_payment, or a recorded decision to withdraw this screen.
+      // Approved Payment Requests are still payable via Payments Hub.
+      cell: () => (
+        <span className="text-[11px] text-zinc-500">Release unavailable</span>
+      ),
     },
   ];
 
@@ -140,7 +115,7 @@ export const AccountantQueue: React.FC = () => {
         <div>
           <h1 className="text-base font-medium text-zinc-900">Purchase Payment Accountant</h1>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Payments already reviewed and approved. Release funds from here.
+            Payments already reviewed and approved. Read-only â€” release is currently unavailable.
           </p>
         </div>
         {!canRelease && (
@@ -151,20 +126,19 @@ export const AccountantQueue: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-auto">
-        {!canRelease ? (
+        <AppTable
+          data={rows}
+          columns={columns as any}
+          loading={isLoading}
+        />
+        {rows.length === 0 && !isLoading && (
           <div className="p-10 text-center">
             <XCircle className="w-10 h-10 mx-auto text-zinc-300 mb-2" />
-            <h3 className="text-sm font-medium text-zinc-700">Restricted access</h3>
+            <h3 className="text-sm font-medium text-zinc-700">Nothing pending release</h3>
             <p className="text-xs text-zinc-500 mt-1">
-              Only accountant roles can release payments from this queue.
+              Approved vendor payments will appear here. To pay an approved Payment Request, use Payments Hub.
             </p>
           </div>
-        ) : (
-          <AppTable
-            data={rows}
-            columns={columns as any}
-            loading={isLoading}
-          />
         )}
       </div>
     </div>

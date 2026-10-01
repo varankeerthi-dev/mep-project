@@ -10,14 +10,6 @@ import { ApprovalIntegration } from '../../../approvals/integration';
 import { ApprovalAPI } from '../../../approvals/api';
 import { paymentRequestRpc } from '../../../payment-requests';
 
-const createPaymentVoucherNo = () => {
-  const now = new Date();
-  const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-  const timePart = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}${String(now.getMilliseconds()).padStart(3, '0')}`;
-  const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `PAY-${datePart}-${timePart}-${randomPart}`;
-};
-
 // ============== REQUISITION QUERIES ==============
 
 export const usePurchaseRequisitions = (organisationId: string | undefined, projectId?: string | null) => {
@@ -462,8 +454,8 @@ export const useCreatePurchaseOrder = () => {
         const { logProcurementActivity } = await import('../../../follow-up/api');
         await logProcurementActivity(po.organisation_id, {
           event_type: 'po_created',
-          title: `PO created — ${po.po_number}`,
-          description: `${(items || []).length} line(s)${po.total_amount ? ` · ${po.total_amount}` : ''}`,
+          title: `PO created â€” ${po.po_number}`,
+          description: `${(items || []).length} line(s)${po.total_amount ? ` Â· ${po.total_amount}` : ''}`,
           reference_id: po.id,
           reference_label: po.po_number,
           metadata: { po_number: po.po_number },
@@ -1174,61 +1166,6 @@ export const useDeleteDebitNote = () => {
   });
 };
 
-// ============== HELPER FUNCTIONS ==============
-
-const updateVendorBalance = async (vendorId: string, organisationId: string) => {
-  const { error } = await supabase.rpc('recalc_vendor_balance', {
-    p_vendor_id: vendorId,
-    p_organisation_id: organisationId,
-  });
-  if (error) {
-    console.error('Error updating vendor balance:', error);
-    throw error;
-  }
-};
-
-const updateBillPaymentStatus = async (billId: string) => {
-  try {
-    // Get bill details
-    const { data: bill } = await supabase
-      .from('purchase_bills')
-      .select('total_amount, tds_amount')
-      .eq('id', billId)
-      .single();
-    
-    if (!bill) return;
-    
-    const netAmount = bill.total_amount - (bill.tds_amount || 0);
-    
-    // Get total payments against this bill
-    const { data: payments } = await supabase
-      .from('purchase_payment_bills')
-      .select('adjusted_amount')
-      .eq('bill_id', billId);
-    
-    const totalPaid = payments?.reduce((sum: number, p: any) => sum + (p.adjusted_amount || 0), 0) || 0;
-    
-    let status = 'Unpaid';
-    if (totalPaid >= netAmount) {
-      status = 'Paid';
-    } else if (totalPaid > 0) {
-      status = 'Partially Paid';
-    }
-    
-    await supabase
-      .from('purchase_bills')
-      .update({
-        payment_status: status,
-        paid_amount: totalPaid,
-        balance_amount: netAmount - totalPaid,
-      })
-      .eq('id', billId);
-    
-  } catch (error) {
-    console.error('Error updating bill payment status:', error);
-  }
-};
-
 // ============== CALCULATION HELPERS ==============
 
 export const calculateGST = (
@@ -1473,19 +1410,10 @@ export const useReleasedSubcontractorPayments = (organisationId: string | undefi
   });
 };
 
-export const useCreatePaymentWithApproval = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: withSessionCheck(async () => {
-      throw new Error('Direct browser payment creation is disabled. Use the source-specific payment posting RPC after Payment Request approval.');
-    }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-payments', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
-    },
-  });
-};
+// Phase 2: useCreatePaymentWithApproval was removed. It was an unconditional
+// throw-stub; Payments.tsx called it whenever PURCHASE_PAYMENT approval was
+// enabled, which made every payment from that screen fail. Phase 3 obligation:
+// reintroduce it against a real "create pending vendor payment" RPC.
 
 export const useApprovePayment = () => {
   const queryClient = useQueryClient();
@@ -1512,23 +1440,12 @@ export const useApprovePayment = () => {
   });
 };
 
-export const useReleasePayment = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: withSessionCheck(async () => {
-      throw new Error('Direct browser payment release is disabled. Use the source-specific payment posting RPC after Payment Request approval.');
-    }),
-    onSuccess: (data) => {
-      if (!data) return;
-      queryClient.invalidateQueries({ queryKey: ['purchase-payments', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-vendors', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['purchase-vendor-ledger', data.organisation_id] });
-      queryClient.invalidateQueries({ queryKey: ['approvals'] });
-    },
-  });
-};
+// Phase 2: useReleasePayment was removed. It was an unconditional throw-stub,
+// and it was the primary action on AccountantQueue plus a column action in
+// PaymentsHub â€” both of which have been withdrawn. No server function exists
+// that moves a purchase_payment from pending_approval to released.
+// Phase 3 obligation: build release_vendor_payment (with maker-checker), or
+// record a product decision to withdraw vendor-payment release entirely.
 
 // ============== SUBCONTRACTOR PAYMENT RELEASED HOOK ==============
 
@@ -1720,67 +1637,13 @@ export const useReleaseSubcontractorPayment = () => {
   });
 };
 
-// ============== BULK ACTIONS (Payments Hub) ==============
-
-export type BulkMarkPaidItem = {
-  id: string;
-  type: 'vendor' | 'subcontractor';
-  isRequest?: boolean;
-  paymentDate: string;
-};
-
-export const useBulkMarkPaid = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: withSessionCheck(async () => {
-      throw new Error('Bulk payment posting is disabled. Use the source-specific idempotent payment posting RPC.');
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['subcontractor-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['payment-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['approvals'] });
-    },
-  });
-};
-
-export type BulkSoftDeleteItem = {
-  id: string;
-  type: 'vendor' | 'subcontractor';
-  isRequest?: boolean;
-};
-
-export const useBulkSoftDelete = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: withSessionCheck(async () => {
-      throw new Error('Bulk financial-record deletion is disabled. Use an audited, server-authorized archival RPC.');
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['subcontractor-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['payment-requests'] });
-    },
-  });
-};
-
-export const useBulkResendReapproval = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: withSessionCheck(async () => {
-      throw new Error('Bulk reapproval is disabled. Use the audited approval-transition RPC.');
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['subcontractor-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['payment-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['approvals'] });
-    },
-  });
-};
+// Phase 2: useBulkMarkPaid, useBulkSoftDelete and useBulkResendReapproval were
+// removed, along with the BulkMarkPaidItem / BulkSoftDeleteItem types. All three
+// were unconditional throw-stubs wired to bulk buttons in PaymentsHub; the
+// buttons are now withdrawn.
+// Phase 3 obligation: reintroduce against audited, server-authorised RPCs.
+// Reapproval has an existing primitive to build on â€” approval_transition with
+// action='resubmit'. Bulk posting and bulk deletion have none.
 
 // ============== MATERIALS & VARIANTS (for DebitNotes) ==============
 
