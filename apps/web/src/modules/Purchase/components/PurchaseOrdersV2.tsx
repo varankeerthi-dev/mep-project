@@ -47,6 +47,8 @@ import {
 
 import { supabase } from '../../../supabase';
 import { useAuth } from '../../../contexts/AuthContext';
+import { ChecklistConfirmationDialog } from '../../../features/document-checklists/ChecklistConfirmationDialog';
+import { useDocumentChecklistGate } from '../../../features/document-checklists/useDocumentChecklistGate';
 import { toast } from '@/lib/logger';
 import { formatCurrency } from '../../../utils/formatters';
 import { withSessionCheck } from '../../../queryClient';
@@ -127,6 +129,7 @@ export default function PurchaseOrdersV2() {
   const navigate = useNavigate();
   const { organisation, user } = useAuth();
   const orgId = organisation?.id;
+  const checklistGate = useDocumentChecklistGate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
@@ -1113,10 +1116,27 @@ export default function PurchaseOrdersV2() {
 
   const handleSave = async () => {
     if (!validate()) return;
+    const previousSaveStatus = saveStatus;
     setSaving(true);
     setSaveStatus('saving');
     try {
-      const result = await saveMutation.mutateAsync(savedPoId ? 'update' : 'create');
+      if (!orgId) throw new Error('Organisation ID is required to save a purchase order.');
+      const gateResult = await checklistGate.run({
+        organisationId: orgId,
+        documentType: 'purchase_order',
+        action: () => saveMutation.mutateAsync(savedPoId ? 'update' : 'create'),
+      });
+      if (gateResult.kind === 'failed') throw new Error(gateResult.error);
+      if (gateResult.kind === 'cancelled' || gateResult.kind === 'busy') {
+        setSaveStatus(previousSaveStatus);
+        return;
+      }
+      if (gateResult.kind === 'incomplete') {
+        setSaveStatus(previousSaveStatus);
+        toast.error('Complete every required checklist item before continuing.');
+        return;
+      }
+      const result = gateResult.value;
       setSaveStatus('saved');
       toast.success(result?.idempotent_replayed
         ? `Purchase Order ${result.po_number} was already saved.`
@@ -1131,13 +1151,32 @@ export default function PurchaseOrdersV2() {
 
   const handleSubmit = async () => {
     if (!validate()) return;
+    const previousSaveStatus = saveStatus;
     setSubmitting(true);
     setSaveStatus('saving');
     try {
-      let poId = savedPoId;
-      if (!poId) poId = (await saveMutation.mutateAsync('create'))?.po_id;
-      if (!poId) throw new Error('Purchase order could not be saved.');
-      const result = await submitMutation.mutateAsync(poId);
+      if (!orgId) throw new Error('Organisation ID is required to submit a purchase order.');
+      const gateResult = await checklistGate.run({
+        organisationId: orgId,
+        documentType: 'purchase_order',
+        action: async () => {
+          let poId = savedPoId;
+          if (!poId) poId = (await saveMutation.mutateAsync('create'))?.po_id;
+          if (!poId) throw new Error('Purchase order could not be saved.');
+          return submitMutation.mutateAsync(poId);
+        },
+      });
+      if (gateResult.kind === 'failed') throw new Error(gateResult.error);
+      if (gateResult.kind === 'cancelled' || gateResult.kind === 'busy') {
+        setSaveStatus(previousSaveStatus);
+        return;
+      }
+      if (gateResult.kind === 'incomplete') {
+        setSaveStatus(previousSaveStatus);
+        toast.error('Complete every required checklist item before continuing.');
+        return;
+      }
+      const result = gateResult.value;
       setSaveStatus('saved');
       toast.success(result?.already_submitted
         ? `Purchase Order ${result.po_number} was already submitted.`
@@ -1151,7 +1190,7 @@ export default function PurchaseOrdersV2() {
     }
   };
 
-  const busy = saving || submitting;
+  const busy = saving || submitting || checklistGate.isBusy;
   const maySave = !busy;
   const taxGroupRows = Object.keys(totals.taxGroups).map(Number).sort((a, b) => a - b);
   const billableCount = rows.filter(r => !r.is_header && !r.is_subtotal).length;
@@ -1234,6 +1273,12 @@ export default function PurchaseOrdersV2() {
         />
       }
     >
+      <ChecklistConfirmationDialog
+        policy={checklistGate.policy}
+        policyChanged={checklistGate.policyChanged}
+        onContinue={checklistGate.continueWith}
+        onCancel={checklistGate.cancel}
+      />
       <HeaderFormGrid columns={3}>
 
         <HeaderCard icon={<User size={14} style={{ color: '#2563eb' }} />} title="Vendor">

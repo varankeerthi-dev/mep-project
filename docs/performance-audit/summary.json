@@ -1,0 +1,71 @@
+{
+  "schema": "mep-performance-checkpoint-summary/v1",
+  "checkpoint_date": "2026-10-02",
+  "status": "paused",
+  "base_commit": "1533b47dfb12e858b1b33fc6fffe41da77c12b1c",
+  "source_inventory": {
+    "route_tab_states": 157,
+    "authenticated_sidebar_module_families": 38,
+    "quick_lookup_route_family": 1,
+    "deployed_states_matched": 156,
+    "source_only_settings_checklist_tab_deployed": false
+  },
+  "baseline": {
+    "environment": "deployed app",
+    "direct_route_entries": 314,
+    "runs_per_state": 2,
+    "blocked_local_tab_click_attempts": 105,
+    "blocked_get_or_create_company_channel_posts": 7,
+    "repeatable_route_lcp_over_2500_ms": 0,
+    "individual_samples_lcp_over_2500_ms": 2
+  },
+  "post_change_subset": {
+    "environment": "local production preview against same app/backend",
+    "route_states": 13,
+    "samples_per_state": 2,
+    "route_entries": 26,
+    "host_or_cdn_matches_deployed_baseline": false,
+    "route_ready_p50_ms": 473.95,
+    "samples_lcp_over_2500_ms": 0,
+    "samples_cls_over_0_1": 0,
+    "console_error_events": 57,
+    "page_errors": 0,
+    "write_attempts": 0,
+    "full_157_state_post_change_verification": false,
+    "inp_measured": false
+  },
+  "cls_samples": [
+    {"route": "/issue", "baseline": [0.2603, 0.2693], "post_change": [0.0179, 0.0179]},
+    {"route": "/settings?tab=modules", "baseline": [0.146, 0.1507], "post_change": [0.0021, 0.0021]},
+    {"route": "/subcontractors-v2/invoices", "baseline": [0.1186, 0.1186], "post_change": [0.0028, 0.0029]},
+    {"route": "/subcontractors-v2/payments", "baseline": [0.2752, 0.2752], "post_change": [0.0028, 0.0028]}
+  ],
+  "warehouse_sample": {
+    "sample_count": 1,
+    "table_requests": 102,
+    "pending_or_incomplete_table_requests": 33,
+    "table_request_p95_ms_approx": 691,
+    "root_cause_confirmed": false
+  },
+  "field_cwv": {
+    "crux_or_rum_p75_collected": false,
+    "inp_field_p75_available": false,
+    "reference_thresholds": {"lcp_ms_max": 2500, "inp_ms_max": 200, "cls_max": 0.1}
+  },
+  "verification": {
+    "saved_post_change_test_files_passed": 15,
+    "saved_post_change_tests_passed": 282,
+    "saved_production_build_passed": true,
+    "saved_production_build_seconds": 43.8,
+    "vite_large_chunk_warning_over_kb": 600,
+    "saved_full_typecheck_exit_code": 2,
+    "saved_full_typecheck_diagnostics": 807,
+    "saved_final_and_preceding_typecheck_logs_identical": true
+  },
+  "release_state": {
+    "deployed": false,
+    "checklist_migrations_applied": false,
+    "business_data_changed": false
+  },
+  "raw_snapshots_or_logs_included": false
+}

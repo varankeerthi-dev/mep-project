@@ -13,6 +13,7 @@ import {
   type InvoiceEditorFormValues,
 } from '../../ui-utils';
 import { extractInvoicePoItems, updatePoLineItemBilling } from '../../../lib/poBillingUtils';
+import { runInvoiceV2ChecklistAction, type InvoiceV2ChecklistRunner } from '../invoiceV2ChecklistAction';
 
 export type InvoiceSave = ReturnType<typeof useSaveInvoice>;
 
@@ -50,6 +51,7 @@ export function useSaveInvoice(params: {
   isEditMode: boolean;
   organisationId?: string;
   organisationName?: string;
+  runChecklist: InvoiceV2ChecklistRunner;
   totals: { subtotal: number; cgst: number; sgst: number; igst: number; total: number };
   watchedItems: any[];
   poValidation: { isValid: boolean; message: string };
@@ -68,6 +70,7 @@ export function useSaveInvoice(params: {
     isEditMode,
     organisationId,
     organisationName,
+    runChecklist,
     totals,
     watchedItems,
     poValidation,
@@ -173,9 +176,6 @@ export function useSaveInvoice(params: {
 
   // ── Final save ──
   const onSubmit = form.handleSubmit(async (values) => {
-    let invoiceNo = values.invoice_no;
-    let seriesId: string | null = null;
-
     form.clearErrors('root');
 
     if (!poValidation.isValid) {
@@ -202,15 +202,9 @@ export function useSaveInvoice(params: {
       return;
     }
 
-    if (!isEditMode && !invoiceNo && organisationId) {
-      const result = await generateInvoiceNumber(organisationId);
-      invoiceNo = result.invoiceNo;
-      seriesId = result.seriesId;
-    }
-
     const payload = composeInvoiceInput({
       ...values,
-      invoice_no: invoiceNo || null,
+      invoice_no: values.invoice_no || null,
       status: 'final',
     }, totals);
 
@@ -222,122 +216,147 @@ export function useSaveInvoice(params: {
       return;
     }
 
-    try {
-      let newInvoiceId: string | null = null;
-      if (isEditMode && invoiceId) {
-        // Log the edit if it's already final
-        if (existingInvoice?.status === 'final') {
-          try {
-            await supabase.from('follow_up_activity_log').insert({
-              organisation_id: organisationId,
-              event_type: 'invoice_edited',
-              tab_source: 'invoice',
-              title: 'Finalized Invoice Edited',
-              description: `Invoice ${existingInvoice.invoice_no} was updated after finalization. Total changed from ${formatCurrency(existingInvoice.total)} to ${formatCurrency(payload.total)}.`,
-              actor_name: organisationName || 'Authorized User',
-              reference_id: invoiceId,
-              reference_label: existingInvoice.invoice_no,
-              metadata: {
-                action: 'EDIT_FINALIZED',
-                old_total: existingInvoice.total,
-                new_total: payload.total,
-                edit_timestamp: new Date().toISOString()
-              }
-            });
-          } catch (logError) {
-            console.warn('Failed to log invoice edit:', logError);
-          }
+    const checklistResult = await runInvoiceV2ChecklistAction({
+      organisationId,
+      runChecklist,
+      action: async () => {
+        let invoiceNo = values.invoice_no;
+        let seriesId: string | null = null;
+        if (!isEditMode && !invoiceNo && organisationId) {
+          const result = await generateInvoiceNumber(organisationId);
+          invoiceNo = result.invoiceNo;
+          seriesId = result.seriesId;
         }
-        await updateInvoice.mutateAsync(payload);
-      } else {
-        const result: any = await createInvoice.mutateAsync(payload);
-        newInvoiceId = result?.id ?? null;
-        if (seriesId && organisationId) {
-          incrementInvoiceNumber(seriesId, organisationId).then();
-        }
-      }
 
-      if (conversionInfoRef.current && newInvoiceId) {
-        const { type, sourceId } = conversionInfoRef.current;
-        const { status } = useConversionStatus(type);
-        const tableName = getSourceTableName(type);
+        const finalPayload = composeInvoiceInput({
+          ...values,
+          invoice_no: invoiceNo || null,
+          status: 'final',
+        }, totals);
 
-        await supabase
-          .from(tableName)
-          .update({
-            status,
-            converted_to_id: newInvoiceId,
-            converted_to_type: 'invoice',
-          })
-          .eq('id', sourceId);
-      }
-
-      if (selectedSourceType === 'quotation' && selectedSourceId && newInvoiceId) {
-        const allQuotationItems = quotationItems || [];
-        const billedItems = values.items.filter(item => item.meta_json?.quotation_item_id);
-
-        const newStatus = billedItems.length === allQuotationItems.length ? 'converted' : 'partially converted';
-
-        await supabase
-          .from('quotation_header')
-          .update({
-            conversion_status: newStatus,
-            status: newStatus === 'converted' ? 'Converted' : 'Partially Converted'
-          })
-          .eq('id', selectedSourceId);
-
-        await supabase
-          .from('invoices')
-          .update({ quotation_id: selectedSourceId })
-          .eq('id', newInvoiceId);
-      }
-
-      if ((selectedSourceType as string) === 'proforma' && selectedSourceId && newInvoiceId) {
-        const allProformaItems = proformaItems || [];
-        const billedItems = values.items.filter(item => item.meta_json?.proforma_item_id);
-
-        const newStatus = billedItems.length === allProformaItems.length ? 'fully billed' : 'partially billed';
-
-        await supabase
-          .from('proforma_invoices')
-          .update({
-            billing_status: newStatus
-          })
-          .eq('id', selectedSourceId);
-
-        await supabase
-          .from('invoices')
-          .update({ proforma_id: selectedSourceId })
-          .eq('id', newInvoiceId);
-      }
-
-      // Update PO line item billing after successful save (first creation only)
-      if (newInvoiceId) {
         try {
-          const poItems = extractInvoicePoItems(values.items);
-          if (poItems.length > 0) {
-            await updatePoLineItemBilling({
-              organisationId: organisationId!,
-              sourceType: 'invoice',
-              sourceId: newInvoiceId,
-              items: poItems,
-            });
+          let newInvoiceId: string | null = null;
+          if (isEditMode && invoiceId) {
+            // Log the edit if it's already final.
+            if (existingInvoice?.status === 'final') {
+              try {
+                await supabase.from('follow_up_activity_log').insert({
+                  organisation_id: organisationId,
+                  event_type: 'invoice_edited',
+                  tab_source: 'invoice',
+                  title: 'Finalized Invoice Edited',
+                  description: `Invoice ${existingInvoice.invoice_no} was updated after finalization. Total changed from ${formatCurrency(existingInvoice.total)} to ${formatCurrency(finalPayload.total)}.`,
+                  actor_name: organisationName || 'Authorized User',
+                  reference_id: invoiceId,
+                  reference_label: existingInvoice.invoice_no,
+                  metadata: {
+                    action: 'EDIT_FINALIZED',
+                    old_total: existingInvoice.total,
+                    new_total: finalPayload.total,
+                    edit_timestamp: new Date().toISOString()
+                  }
+                });
+              } catch (logError) {
+                console.warn('Failed to log invoice edit:', logError);
+              }
+            }
+            await updateInvoice.mutateAsync(finalPayload);
+          } else {
+            const result: any = await createInvoice.mutateAsync(finalPayload);
+            newInvoiceId = result?.id ?? null;
+            if (seriesId && organisationId) {
+              incrementInvoiceNumber(seriesId, organisationId).then();
+            }
           }
-        } catch (billingError) {
-          console.error('Failed to update PO billing:', billingError);
+
+          if (conversionInfoRef.current && newInvoiceId) {
+            const { type, sourceId } = conversionInfoRef.current;
+            const { status } = useConversionStatus(type);
+            const tableName = getSourceTableName(type);
+
+            await supabase
+              .from(tableName)
+              .update({
+                status,
+                converted_to_id: newInvoiceId,
+                converted_to_type: 'invoice',
+              })
+              .eq('id', sourceId);
+          }
+
+          if (selectedSourceType === 'quotation' && selectedSourceId && newInvoiceId) {
+            const allQuotationItems = quotationItems || [];
+            const billedItems = values.items.filter(item => item.meta_json?.quotation_item_id);
+
+            const newStatus = billedItems.length === allQuotationItems.length ? 'converted' : 'partially converted';
+
+            await supabase
+              .from('quotation_header')
+              .update({
+                conversion_status: newStatus,
+                status: newStatus === 'converted' ? 'Converted' : 'Partially Converted'
+              })
+              .eq('id', selectedSourceId);
+
+            await supabase
+              .from('invoices')
+              .update({ quotation_id: selectedSourceId })
+              .eq('id', newInvoiceId);
+          }
+
+          if ((selectedSourceType as string) === 'proforma' && selectedSourceId && newInvoiceId) {
+            const allProformaItems = proformaItems || [];
+            const billedItems = values.items.filter(item => item.meta_json?.proforma_item_id);
+
+            const newStatus = billedItems.length === allProformaItems.length ? 'fully billed' : 'partially billed';
+
+            await supabase
+              .from('proforma_invoices')
+              .update({
+                billing_status: newStatus
+              })
+              .eq('id', selectedSourceId);
+
+            await supabase
+              .from('invoices')
+              .update({ proforma_id: selectedSourceId })
+              .eq('id', newInvoiceId);
+          }
+
+          // Update PO line item billing after successful save (first creation only).
+          if (newInvoiceId) {
+            try {
+              const poItems = extractInvoicePoItems(values.items);
+              if (poItems.length > 0) {
+                await updatePoLineItemBilling({
+                  organisationId: organisationId!,
+                  sourceType: 'invoice',
+                  sourceId: newInvoiceId,
+                  items: poItems,
+                });
+              }
+            } catch (billingError) {
+              console.error('Failed to update PO billing:', billingError);
+            }
+          }
+
+          if (isEditMode && invoiceId) {
+            await syncInvoiceTerms(invoiceId, values);
+          } else if (newInvoiceId) {
+            await syncInvoiceTerms(newInvoiceId, values);
+          }
+
+          navigate('/invoices');
+        } catch (error) {
+          console.error('Failed to save invoice:', error);
+          toast.error('Failed to save invoice: ' + (error as Error).message);
         }
-      }
-
-      if (isEditMode && invoiceId) {
-        await syncInvoiceTerms(invoiceId, values);
-      } else if (newInvoiceId) {
-        await syncInvoiceTerms(newInvoiceId, values);
-      }
-
-      navigate('/invoices');
-    } catch (error) {
-      console.error('Failed to save invoice:', error);
-      toast.error('Failed to save invoice: ' + (error as Error).message);
+      },
+    });
+    if (checklistResult.kind === 'failed') {
+      toast.error('Checklist verification failed. Nothing was saved.', { description: checklistResult.error });
+    } else if (checklistResult.kind === 'incomplete') {
+      toast.error('Complete every required checklist item before continuing.');
     }
   }, (errors) => {
     const messages: string[] = [];

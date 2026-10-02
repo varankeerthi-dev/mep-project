@@ -4,6 +4,8 @@ import { supabase } from '../../../supabase';
 import { toast } from '../../../lib/logger';
 import { X as XIcon, Upload as UploadIcon, Loader2 } from 'lucide-react';
 import { useCreateSalesOrder } from '../hooks';
+import { ChecklistConfirmationDialog } from '../../../features/document-checklists/ChecklistConfirmationDialog';
+import { useDocumentChecklistGate } from '../../../features/document-checklists/useDocumentChecklistGate';
 
 interface ImportRow {
   line: number;
@@ -48,11 +50,63 @@ function parseCsv(text: string): string[][] {
 
 const EXPECTED = 'client_name,item_code,qty,rate (optional: uom, delivery_date YYYY-MM-DD, remarks)';
 
+interface SalesOrderImportBatchResult {
+  importedCount: number;
+  failed: string[];
+  cancelledCount: number;
+}
+
+export async function runSalesOrderImportBatch<TPayload, TResult>(
+  orgId: string,
+  groups: Array<[string, ImportRow[]]>,
+  runChecklist: ReturnType<typeof useDocumentChecklistGate>['run'],
+  preparePayload: (clientName: string, lines: ImportRow[]) => Promise<TPayload>,
+  createMutation: { mutateAsync: (payload: TPayload) => Promise<TResult> },
+): Promise<SalesOrderImportBatchResult> {
+  let importedCount = 0;
+  const failed: string[] = [];
+  let cancelledCount = 0;
+
+  for (let index = 0; index < groups.length; index++) {
+    const [clientName, lines] = groups[index];
+    try {
+      const payload = await preparePayload(clientName, lines);
+      const result = await runChecklist({
+        organisationId: orgId,
+        documentType: 'sales_order',
+        action: () => createMutation.mutateAsync(payload),
+      });
+      if (result.kind === 'cancelled') {
+        cancelledCount = groups.length - index;
+        break;
+      }
+      if (result.kind === 'completed') importedCount++;
+      else if (result.kind === 'failed') failed.push(`${clientName}: ${result.error}`);
+      else if (result.kind === 'incomplete') failed.push(`${clientName}: Checklist was incomplete`);
+      else if (result.kind === 'busy') failed.push(`${clientName}: Another checklist confirmation is already in progress`);
+    } catch (e: any) {
+      failed.push(`${clientName}: ${e.message || e}`);
+    }
+  }
+
+  return { importedCount, failed, cancelledCount };
+}
+
+export function requestSalesOrderImportClose(
+  onClose: () => void,
+  importing: boolean,
+  checklistBusy: boolean,
+): void {
+  if (!importing && !checklistBusy) onClose();
+}
+
 export function SalesOrderImportModal({ open, onClose, orgId }: { open: boolean; onClose: () => void; orgId: string }) {
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const createMutation = useCreateSalesOrder();
+  const checklistGate = useDocumentChecklistGate();
+  const handleClose = () => requestSalesOrderImportClose(onClose, importing, checklistGate.isBusy);
 
   const { data: clients = [] } = useQuery({
     queryKey: ['so-import-clients', orgId],
@@ -118,10 +172,11 @@ export function SalesOrderImportModal({ open, onClose, orgId }: { open: boolean;
   const handleImport = async () => {
     if (groups.length === 0 || importing) return;
     setImporting(true);
-    let ok = 0;
-    const failed: string[] = [];
-    for (const [clientName, lines] of groups) {
-      try {
+    const { importedCount: ok, failed, cancelledCount } = await runSalesOrderImportBatch(
+      orgId,
+      groups,
+      checklistGate.run,
+      async (clientName, lines) => {
         const client = (clients || []).find((c: any) => c.client_name.toLowerCase() === clientName.toLowerCase());
         const { data: soNo } = await supabase.rpc('generate_sales_order_no', { p_org_id: orgId });
         const items = lines.map((l) => {
@@ -142,7 +197,7 @@ export function SalesOrderImportModal({ open, onClose, orgId }: { open: boolean;
         });
         const subtotal = items.reduce((s, it) => s + it.qty * it.rate, 0);
         const tax = subtotal * 0.18;
-        await createMutation.mutateAsync({
+        return {
           orgId,
           userId: null,
           header: {
@@ -157,29 +212,30 @@ export function SalesOrderImportModal({ open, onClose, orgId }: { open: boolean;
             organisation_id: orgId,
           },
           items,
-        });
-        ok++;
-      } catch (e: any) {
-        failed.push(`${clientName}: ${e.message || e}`);
-      }
-    }
+        };
+      },
+      createMutation,
+    );
     setImporting(false);
     if (failed.length > 0) toast.error(`Imported ${ok}, failed ${failed.length}: ${failed.slice(0, 3).join('; ')}`);
-    else toast.success(`Imported ${ok} sales order(s)`);
+    if (cancelledCount > 0) {
+      toast.info(`Imported ${ok} sales order(s) before cancellation; ${cancelledCount} remaining order(s) were cancelled.`);
+    } else if (failed.length === 0) toast.success(`Imported ${ok} sales order(s)`);
     if (ok > 0) { setRows([]); setFileName(''); onClose(); }
   };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onClick={handleClose}>
       <div className="w-full max-w-[720px] max-h-[85vh] flex flex-col rounded-xl bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[#E2E8F0] flex items-center justify-between">
           <div>
             <h3 className="text-[15px] font-bold text-[#0B1C30]">Import Sales Orders</h3>
             <p className="text-xs text-[#475569] mt-0.5">CSV columns: {EXPECTED}. One order per client.</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 text-[#475569] hover:text-[#0B1C30] rounded-md">
+          <button type="button" onClick={handleClose} disabled={importing || checklistGate.isBusy} aria-label="Close" className="p-1.5 text-[#475569] hover:text-[#0B1C30] rounded-md disabled:cursor-not-allowed disabled:opacity-50">
             <XIcon className="w-4 h-4" />
           </button>
         </div>
@@ -225,7 +281,7 @@ export function SalesOrderImportModal({ open, onClose, orgId }: { open: boolean;
           )}
         </div>
         <div className="px-5 py-4 border-t border-[#E2E8F0] flex gap-2 justify-end">
-          <button type="button" onClick={onClose} className="h-9 px-4 text-[13px] font-semibold text-[#0B1C30] bg-white border border-[#CBD5E1] rounded-lg hover:bg-zinc-50">
+          <button type="button" onClick={handleClose} disabled={importing || checklistGate.isBusy} className="h-9 px-4 text-[13px] font-semibold text-[#0B1C30] bg-white border border-[#CBD5E1] rounded-lg hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50">
             Cancel
           </button>
           <button
@@ -240,5 +296,12 @@ export function SalesOrderImportModal({ open, onClose, orgId }: { open: boolean;
         </div>
       </div>
     </div>
+    <ChecklistConfirmationDialog
+      policy={checklistGate.policy}
+      policyChanged={checklistGate.policyChanged}
+      onContinue={checklistGate.continueWith}
+      onCancel={checklistGate.cancel}
+    />
+    </>
   );
 }

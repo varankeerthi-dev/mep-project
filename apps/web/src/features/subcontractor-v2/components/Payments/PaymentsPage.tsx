@@ -3,6 +3,7 @@ import { supabase } from '../../../../supabase';
 import { useAuth } from '../../../../App';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/logger';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   usePaymentRequests, 
   useCreatePaymentRequest, 
@@ -573,14 +574,6 @@ export function PaymentsPage({ onNavigate }: PaymentsPageProps) {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        <div style={{ fontFamily: "'Inter', sans-serif" }}>Loading payments...</div>
-      </div>
-    );
-  }
-
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: "'Inter', sans-serif" }}>
       {/* Header */}
@@ -595,7 +588,11 @@ export function PaymentsPage({ onNavigate }: PaymentsPageProps) {
                 Manage subcontractor payments, invoices, and track TDS
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <fieldset
+              disabled={isLoading}
+              aria-label="Payment actions"
+              style={{ display: 'flex', gap: '12px', border: 0, padding: 0, margin: 0, minWidth: 0 }}
+            >
               {activeTab === 'payments' && (
                 <>
                   <button
@@ -732,7 +729,7 @@ export function PaymentsPage({ onNavigate }: PaymentsPageProps) {
                   </button>
                 </>
               )}
-            </div>
+            </fieldset>
           </div>
 
           {onNavigate && <SubcontractorModuleNav onNavigate={onNavigate} />}
@@ -952,7 +949,31 @@ export function PaymentsPage({ onNavigate }: PaymentsPageProps) {
             overflow: 'hidden',
             marginBottom: '40px'
           }}>
-            {activeTab === 'payments' ? (
+            {isLoading ? (
+              <div role="status" aria-label="Loading payment records" aria-busy="true" style={{ padding: '8px 16px' }}>
+                {Array.from({ length: 5 }, (_, rowIndex) => (
+                  <div
+                    key={rowIndex}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
+                      gap: '16px',
+                      padding: '16px 0',
+                      borderBottom: '1px solid #f1f5f9',
+                    }}
+                  >
+                    {Array.from({ length: 10 }, (_, columnIndex) => (
+                      <Skeleton
+                        key={columnIndex}
+                        aria-hidden="true"
+                        className="h-4 rounded-md"
+                        style={{ width: columnIndex === 0 ? '68%' : '86%' }}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : activeTab === 'payments' ? (
               <>
                 {filteredPayments.length === 0 ? (
                   <div style={{ padding: '64px 24px', textAlign: 'center' }}>

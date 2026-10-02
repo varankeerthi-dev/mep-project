@@ -62,14 +62,6 @@ export function InvoicesPage({ onNavigate }: InvoicesPageProps) {
     loadData();
   }, [organisation?.id]);
 
-  if (isLoading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        <div style={{ fontFamily: "'Inter', sans-serif" }}>Loading invoices...</div>
-      </div>
-    );
-  }
-
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: "'Inter', sans-serif" }}>
       <div style={{ padding: '24px 24px 0', background: '#f8fafc' }}>
@@ -87,7 +79,7 @@ export function InvoicesPage({ onNavigate }: InvoicesPageProps) {
 
           {onNavigate && <SubcontractorModuleNav onNavigate={onNavigate} />}
 
-          <InvoicesTab invoices={invoices} />
+          <InvoicesTab invoices={invoices} loading={isLoading} />
         </div>
       </div>
     </div>

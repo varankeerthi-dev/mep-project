@@ -2,9 +2,10 @@ import { AppTable } from '../../../../components/ui/AppTable';
 
 interface InvoicesTabProps {
   invoices: any[];
+  loading?: boolean;
 }
 
-export function InvoicesTab({ invoices }: InvoicesTabProps) {
+export function InvoicesTab({ invoices, loading = false }: InvoicesTabProps) {
   return (
     <div style={{
       background: '#fff',
@@ -14,6 +15,7 @@ export function InvoicesTab({ invoices }: InvoicesTabProps) {
     }}>
       <AppTable
         data={invoices}
+        loading={loading}
         columns={[
           { header: 'Invoice Date', accessorKey: 'invoice_date', cell: (i: any) => <span className="font-black text-zinc-900">{i.getValue()}</span> },
           { header: 'Subcontractor', accessorKey: 'subcontractors.company_name', cell: (i: any) => <span className="font-bold text-zinc-700">{i.getValue() || '—'}</span> },

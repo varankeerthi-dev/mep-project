@@ -31,6 +31,8 @@ import { QuotationRevisionCompareModal } from '../components/QuotationRevisionCo
 import { FloatingQuoteChat } from '../projects/features/collaboration/components/FloatingQuoteChat';
 import { DocumentTimeline } from '../components/document/DocumentTimeline';
 import { DocumentActions } from '../components/document/DocumentActions';
+import { ChecklistConfirmationDialog } from '../features/document-checklists/ChecklistConfirmationDialog';
+import { useDocumentChecklistGate } from '../features/document-checklists/useDocumentChecklistGate';
 
 const getStatusBadge = (status) => {
   const colors = {
@@ -99,6 +101,7 @@ export default function QuotationView() {
   const [searchParams] = useSearchParams();
   const quotationId = searchParams.get('id');
   const { organisation, user } = useAuth();
+  const checklistGate = useDocumentChecklistGate();
   
   const isEmbed = searchParams.get('embed') === 'true';
   const [embedPdfUrl, setEmbedPdfUrl] = useState<string | null>(null);
@@ -729,9 +732,8 @@ export default function QuotationView() {
     }
   };
 
-  const handleSubmitForApproval = async () => {
+  const performSubmitForApproval = async () => {
     if (!quotationId || !organisation?.id || !quotation) return;
-    if (!window.confirm(`Submit ${quotation.quotation_no} for MD / manager approval?`)) return;
     try {
       const res = await ApprovalIntegration.createQuotationApproval(
         quotationId,
@@ -754,6 +756,21 @@ export default function QuotationView() {
     } catch (err: any) {
       console.error('Error submitting for approval:', err);
       alert('Error submitting for approval: ' + (err?.message || err));
+    }
+  };
+
+  const handleSubmitForApproval = async () => {
+    if (!quotationId || !organisation?.id || !quotation) return;
+    if (!window.confirm(`Submit ${quotation.quotation_no} for MD / manager approval?`)) return;
+    const result = await checklistGate.run({
+      organisationId: organisation.id,
+      documentType: 'quotation',
+      action: performSubmitForApproval,
+    });
+    if (result.kind === 'failed') {
+      alert(`Checklist verification failed. Nothing was submitted. ${result.error}`);
+    } else if (result.kind === 'incomplete') {
+      alert('Complete every required checklist item before continuing.');
     }
   };
 
@@ -2179,6 +2196,12 @@ export default function QuotationView() {
 
   return (
     <>
+    <ChecklistConfirmationDialog
+      policy={checklistGate.policy}
+      policyChanged={checklistGate.policyChanged}
+      onContinue={checklistGate.continueWith}
+      onCancel={checklistGate.cancel}
+    />
     <ResizablePanelGroup direction="horizontal" autoSaveId="quotation-split" className="flex h-[calc(100vh-48px)] bg-zinc-100 overflow-hidden">
       {/* Sidebar List (300px) */}
       <ResizablePanel defaultSize={32} minSize={26} maxSize={42} className="flex flex-col bg-white border-r border-[#EEF0F3]">
@@ -2299,7 +2322,7 @@ export default function QuotationView() {
             <DocumentActions
               submitForApproval={
                 ['Draft', 'Sent', 'Rejected', 'Under Negotiation'].includes(quotation?.status)
-                  ? { visible: true, onClick: handleSubmitForApproval }
+                  ? { visible: true, onClick: handleSubmitForApproval, loading: checklistGate.isBusy }
                   : undefined
               }
               review={
@@ -3268,4 +3291,3 @@ export default function QuotationView() {
     </>
   );
 }
-

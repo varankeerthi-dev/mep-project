@@ -5,6 +5,8 @@ import { Download, Eye, FileText, Loader2, Mail, Plus, Printer, Save } from 'luc
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { ChecklistConfirmationDialog } from '../../features/document-checklists/ChecklistConfirmationDialog';
+import { useDocumentChecklistGate } from '../../features/document-checklists/useDocumentChecklistGate';
 import { Button } from '@/components/ui/button';
 import { AiDocumentParserModal } from '@/components/AiDocumentParserModal';
 import { TermsConditionsDrawer } from '@/components/TermsConditionsDrawer';
@@ -44,6 +46,7 @@ import { useInvoiceEditorData } from '../editor/hooks/useInvoiceEditorData';
 import { useInvoiceSource } from '../editor/hooks/useInvoiceSource';
 import { useInvoiceFormSync } from '../editor/hooks/useInvoiceFormSync';
 import { useSaveInvoice } from '../editor/hooks/useSaveInvoice';
+import { runInvoiceV2ChecklistAction } from '../editor/invoiceV2ChecklistAction';
 import { InvoiceHeaderCards, fieldErrorMessage } from '../editor/components/InvoiceHeaderCards';
 import { InvoiceImportBanner } from '../editor/components/InvoiceImportBanner';
 
@@ -55,6 +58,7 @@ import { InvoiceImportBanner } from '../editor/components/InvoiceImportBanner';
  */
 export default function InvoiceEditorPageV2() {
   const { user, organisation } = useAuth();
+  const checklistGate = useDocumentChecklistGate();
   const location = useLocation();
   const navigate = useNavigate();
   const invoiceId = new URLSearchParams(location.search).get('id') ?? undefined;
@@ -213,6 +217,7 @@ export default function InvoiceEditorPageV2() {
     isEditMode,
     organisationId: organisation?.id,
     organisationName: organisation?.name,
+    runChecklist: checklistGate.run,
     totals,
     watchedItems,
     poValidation: source.poValidation,
@@ -232,6 +237,20 @@ export default function InvoiceEditorPageV2() {
       setInvoiceRevisionReason,
     },
   });
+
+  const runChecklistAction = async <T,>(action: () => T | Promise<T>) => {
+    const result = await runInvoiceV2ChecklistAction({
+      organisationId: organisation?.id,
+      runChecklist: checklistGate.run,
+      action,
+    });
+    if (result.kind === 'failed') {
+      toast.error('Checklist verification failed. Nothing was saved.', { description: result.error });
+    } else if (result.kind === 'incomplete') {
+      toast.error('Complete every required checklist item before continuing.');
+    }
+    return result;
+  };
 
   const formSync = useInvoiceFormSync({
     form,
@@ -497,7 +516,7 @@ export default function InvoiceEditorPageV2() {
       return;
     }
 
-    await save.executeInvoiceDraftSave(values);
+    await runChecklistAction(() => save.executeInvoiceDraftSave(values));
   });
 
   // ── PDF actions ──
@@ -619,11 +638,11 @@ export default function InvoiceEditorPageV2() {
               <Button variant="outline" size="sm" type="button" onClick={() => navigate('/invoices')} disabled={save.isSaving}>
                 Cancel
               </Button>
-              <Button variant="secondary" size="sm" type="button" onClick={handleSaveAsDraft} disabled={save.isSaving}>
+              <Button variant="secondary" size="sm" type="button" onClick={handleSaveAsDraft} disabled={save.isSaving || checklistGate.isBusy}>
                 {save.isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 Save as Draft
               </Button>
-              <Button size="sm" type="button" onClick={() => (document.getElementById('invoice-form') as HTMLFormElement | null)?.requestSubmit()} disabled={save.isSaving}>
+              <Button size="sm" type="button" onClick={() => (document.getElementById('invoice-form') as HTMLFormElement | null)?.requestSubmit()} disabled={save.isSaving || checklistGate.isBusy}>
                 {save.isSaving ? <Loader2 size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
                 {isEditMode ? 'Update Invoice' : 'Create Invoice'}
               </Button>
@@ -632,6 +651,12 @@ export default function InvoiceEditorPageV2() {
         />
       }
     >
+      <ChecklistConfirmationDialog
+        policy={checklistGate.policy}
+        policyChanged={checklistGate.policyChanged}
+        onContinue={checklistGate.continueWith}
+        onCancel={checklistGate.cancel}
+      />
       <form id="invoice-form" onSubmit={save.onSubmit}>
         <InvoiceImportBanner
           visible={Boolean(aiImport.activeImportSessionId)}
@@ -1021,13 +1046,15 @@ export default function InvoiceEditorPageV2() {
           setPendingInvoiceSave(false);
         }}
         onConfirm={async (reason) => {
-          setInvoiceRevisionReason(reason);
           setInvoiceReasonDialogOpen(false);
-          await save.saveInvoiceCurrentRevision(reason);
-          setPendingInvoiceSave(false);
-          // Re-trigger the save after revision snapshot
-          const values = getValues();
-          save.executeInvoiceDraftSave(values);
+          const result = await runChecklistAction(async () => {
+            setInvoiceRevisionReason(reason);
+            await save.saveInvoiceCurrentRevision(reason);
+            setPendingInvoiceSave(false);
+            // Re-trigger the save after revision snapshot.
+            await save.executeInvoiceDraftSave(getValues());
+          });
+          if (result.kind !== 'completed') setPendingInvoiceSave(false);
         }}
         currentRevisionNo={invoiceRevisionNo}
         documentNumber={getValues('invoice_no') || 'INV-0001'}

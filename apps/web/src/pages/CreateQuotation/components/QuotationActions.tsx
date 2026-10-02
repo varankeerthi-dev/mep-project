@@ -2,15 +2,16 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info, FileText, RotateCcw } from 'lucide-react';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
+import { applySaveCurrentRevisionResult, type SaveCurrentRevisionResult } from '../revisionSave';
 
 interface QuotationActionsProps {
   editId: string | null;
   formData: any;
   setFormData: React.Dispatch<React.SetStateAction<any>>;
   saving: boolean;
-  handleSave: (saveAndNew: boolean) => Promise<boolean>;
+  handleSave: (saveAndNew: boolean) => Promise<void>;
   submitRevisionForApproval: () => Promise<void>;
-  saveCurrentRevision: () => Promise<{ newRevisionNo: number; newHistory: any[] } | null>;
+  saveCurrentRevision: () => Promise<SaveCurrentRevisionResult>;
   setConfirmDialog: (dlg: any) => void;
   setRevisionDialogOpen: (open: boolean) => void;
   setIsParserOpen: (open: boolean) => void;
@@ -110,18 +111,19 @@ export function QuotationActions({
                         onConfirm: async () => {
                           setConfirmDialog(null);
                           const result = await saveCurrentRevision();
-                          if (!result) {
-                            toast.error('Failed to save revision. Please try again.');
-                            return;
-                          }
-                          setFormData((prev: any) => ({ 
-                            ...prev, 
-                            revision_no: result.newRevisionNo,
-                            revision_history: result.newHistory,
-                            negotiation_mode: true,
-                            status_before_negotiation: prev.status,
-                            status: 'Under Negotiation'
-                          }));
+                          applySaveCurrentRevisionResult(result, {
+                            onSaved: ({ newRevisionNo, newHistory }) => {
+                              setFormData((prev: any) => ({
+                                ...prev,
+                                revision_no: newRevisionNo,
+                                revision_history: newHistory,
+                                negotiation_mode: true,
+                                status_before_negotiation: prev.status,
+                                status: 'Under Negotiation',
+                              }));
+                            },
+                            onFailure: (error) => toast.error('Failed to save revision. Please try again.', { description: error }),
+                          });
                         }
                       });
                       return;

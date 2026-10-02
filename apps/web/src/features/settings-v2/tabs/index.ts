@@ -6,4 +6,4 @@ export * from './PlaceholderTab';
 export * from './TemplatesTab';
 export * from './ToolsTab';
 export * from './SalesOrdersTab';
-
+export * from './ChecklistGroupsTab';

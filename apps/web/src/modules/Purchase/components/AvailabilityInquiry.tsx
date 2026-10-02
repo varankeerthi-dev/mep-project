@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { toast } from 'sonner';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAppDateFormat } from '@/contexts/DateFormatContext';
 import {
@@ -22,6 +23,8 @@ import {
 } from 'lucide-react';
 import type { VendorResponseInfo } from '../../../purchase-inquiries/api';
 import { useQueryClient } from '@tanstack/react-query';
+import { ChecklistConfirmationDialog } from '../../../features/document-checklists/ChecklistConfirmationDialog';
+import { useDocumentChecklistGate } from '../../../features/document-checklists/useDocumentChecklistGate';
 
 const PRIORITY_COLORS: Record<string, string> = {
   Low: '#6b7280',
@@ -689,6 +692,7 @@ function VendorInquirySection({ organisationId, userId }: { organisationId?: str
 
 function VendorInquiryLine({ line }: { line: any }) {
   const { organisation, user } = useAuth();
+  const checklistGate = useDocumentChecklistGate();
   const { data: vendors = [] } = useVendors(organisation?.id);
   const saveResponse = useUpsertAvailabilityResponse();
   const convertToPO = useConvertAvailabilityResponseToPO();
@@ -711,10 +715,20 @@ function VendorInquiryLine({ line }: { line: any }) {
 
   const handleConvert = async (response: any) => {
     if (!organisation?.id) return;
-    const result = await convertToPO.mutateAsync({
-      organisation_id: organisation.id, response_id: response.id,
-      vendor_id: response.vendor_id, created_by: user?.id || null,
+    const gateResult = await checklistGate.run({
+      organisationId: organisation.id,
+      documentType: 'purchase_order',
+      action: () => convertToPO.mutateAsync({
+        organisation_id: organisation.id, response_id: response.id,
+        vendor_id: response.vendor_id, created_by: user?.id || null,
+      }),
     });
+    if (gateResult.kind === 'failed') {
+      toast.error('Checklist verification failed. Nothing was saved.', { description: gateResult.error });
+      return;
+    }
+    if (gateResult.kind !== 'completed') return;
+    const result = gateResult.value;
     setLinkedPoItems(prev => ({ ...prev, [response.id]: { po_id: result.po.id, po_item_id: result.poItem.id } }));
   };
 
@@ -736,8 +750,8 @@ function VendorInquiryLine({ line }: { line: any }) {
               </div>
               <div className="flex items-center gap-2">
                 {!linkedPoItems[r.id] ? (
-                  <Button className="h-7 text-[10px] font-bold uppercase tracking-tight px-3" onClick={() => handleConvert(r)} disabled={convertToPO.isPending}>
-                    {convertToPO.isPending ? '...' : 'Convert to PO'}
+                  <Button className="h-7 text-[10px] font-bold uppercase tracking-tight px-3" onClick={() => handleConvert(r)} disabled={convertToPO.isPending || checklistGate.isBusy}>
+                    {convertToPO.isPending || checklistGate.isBusy ? '...' : 'Convert to PO'}
                   </Button>
                   ) : (
                   <GRReceiver link={linkedPoItems[r.id]} responseId={r.id} />
@@ -774,6 +788,12 @@ function VendorInquiryLine({ line }: { line: any }) {
           {saveResponse.isPending ? 'Saving...' : 'Save Response'}
         </Button>
       </div>
+      <ChecklistConfirmationDialog
+        policy={checklistGate.policy}
+        policyChanged={checklistGate.policyChanged}
+        onContinue={checklistGate.continueWith}
+        onCancel={checklistGate.cancel}
+      />
     </div>
   );
 }

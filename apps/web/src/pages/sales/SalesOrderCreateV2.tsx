@@ -16,6 +16,8 @@ import { SearchableItemSelect } from '../../components/SearchableItemSelect';
 import { AddShippingAddressModal } from '../CreateQuotation/components/AddShippingAddressModal';
 import { TermsConditionsDrawer } from '../../components/TermsConditionsDrawer';
 import { numberToInrWords } from '../../pdf/numberToWords';
+import { ChecklistConfirmationDialog } from '../../features/document-checklists/ChecklistConfirmationDialog';
+import { useDocumentChecklistGate } from '../../features/document-checklists/useDocumentChecklistGate';
 
 const SO_INTER = "'Inter', system-ui, sans-serif";
 const SO_INK = '#0B1C30';
@@ -194,6 +196,7 @@ interface LineItem {
 export default function SalesOrderCreateV2({ editMode = false }: { editMode?: boolean }) {
   const navigate = useNavigate();
   const { organisation, user } = useAuth();
+  const checklistGate = useDocumentChecklistGate();
   const orgId = organisation?.id;
   const preparedBy = (user as any)?.user_metadata?.full_name || (user as any)?.email?.split('@')[0] || '';
   const [searchParams] = useSearchParams();
@@ -631,7 +634,7 @@ export default function SalesOrderCreateV2({ editMode = false }: { editMode?: bo
   const createMutation = useCreateSalesOrder();
   const updateMutation = useUpdateSalesOrder();
 
-  const handleSave = async () => {
+  const persistSalesOrder = async () => {
     if (!orgId) return;
     if (!clientId) { toast.error('Please select a client'); return; }
     if (items.length === 0) { toast.error('Please add at least one line item'); return; }
@@ -681,18 +684,41 @@ export default function SalesOrderCreateV2({ editMode = false }: { editMode?: bo
     } catch (err: any) { toast.error(err.message || 'Failed to save Sales Order'); } finally { setSaving(false); }
   };
 
+  const handleSave = async () => {
+    if (!orgId) {
+      await persistSalesOrder();
+      return;
+    }
+    const result = await checklistGate.run({
+      organisationId: orgId,
+      documentType: 'sales_order',
+      action: persistSalesOrder,
+    });
+    if (result.kind === 'failed') {
+      toast.error('Checklist verification failed. Nothing was saved.', { description: result.error });
+    } else if (result.kind === 'incomplete') {
+      toast.error('Complete every required checklist item before continuing.');
+    }
+  };
+
   const selectedClient = clients.find((c: any) => c.id === clientId);
   const filteredClients = clients.filter((c: any) => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase()));
 
   return (
     <div className="quotation-root" style={{ background: '#f8fafc', minHeight: '100%', margin: 0, padding: '0 0 24px 0' }}>
+      <ChecklistConfirmationDialog
+        policy={checklistGate.policy}
+        policyChanged={checklistGate.policyChanged}
+        onContinue={checklistGate.continueWith}
+        onCancel={checklistGate.cancel}
+      />
       <div className="flex items-center justify-between sticky top-0 z-40 border-b border-zinc-200 bg-white" style={{ top: 0, margin: 0, padding: '14px 24px', backgroundColor: '#ffffff', boxShadow: '0 1px 3px 0 rgba(0,0,0,0.05)' }}>
         <div className="flex items-center gap-3">
           <h1 className="text-base font-bold text-zinc-900 tracking-tight">{editMode ? 'Edit Sales Order' : 'Create Sales Order'}</h1>
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => navigate('/sales-orders')} disabled={saving} className="h-9 px-10 min-w-[100px] rounded text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-colors">Cancel</button>
-          <button type="button" onClick={handleSave} disabled={saving} style={{ height: '36px', padding: '0 40px', minWidth: '100px', background: '#185FA5', border: '1px solid #185FA5', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 500 }} onMouseEnter={(e) => (e.currentTarget.style.background = '#0C447C')} onMouseLeave={(e) => (e.currentTarget.style.background = '#185FA5')}>{saving ? 'Saving...' : 'Confirm & Save'}</button>
+          <button type="button" onClick={handleSave} disabled={saving || checklistGate.isBusy} style={{ height: '36px', padding: '0 40px', minWidth: '100px', background: '#185FA5', border: '1px solid #185FA5', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 500 }} onMouseEnter={(e) => (e.currentTarget.style.background = '#0C447C')} onMouseLeave={(e) => (e.currentTarget.style.background = '#185FA5')}>{saving ? 'Saving...' : checklistGate.isBusy ? 'Checking checklist...' : 'Confirm & Save'}</button>
         </div>
       </div>
 

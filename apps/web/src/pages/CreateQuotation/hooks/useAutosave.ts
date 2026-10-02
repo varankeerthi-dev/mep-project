@@ -6,6 +6,7 @@ interface UseAutosaveProps {
   items: any[];
   formData: any;
   handleSave: (saveAndNew?: boolean, isAutosave?: boolean) => Promise<void>;
+  paused?: boolean;
   debounceMs?: number;
 }
 
@@ -15,10 +16,11 @@ export function useAutosave({
   items,
   formData,
   handleSave,
+  paused = false,
   debounceMs = 15000
 }: UseAutosaveProps) {
   useEffect(() => {
-    if (!isDirty || saving) return;
+    if (!isDirty || saving || paused) return;
     if (!formData.client_id) return;
 
     const timer = setTimeout(() => {
@@ -26,5 +28,5 @@ export function useAutosave({
     }, debounceMs);
 
     return () => clearTimeout(timer);
-  }, [items, formData, isDirty, saving, handleSave, debounceMs]);
+  }, [items, formData, isDirty, saving, paused, handleSave, debounceMs]);
 }

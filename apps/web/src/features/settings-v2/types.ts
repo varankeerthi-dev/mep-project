@@ -86,6 +86,7 @@ import {
   Layers,
   Warehouse,
   FileCode,
+  ClipboardCheck,
   Wrench,
   ShoppingCart,
 } from 'lucide-react';
@@ -144,6 +145,14 @@ export const SETTINGS_TABS: SettingsTabDefinition[] = [
     icon: FileText,
     description: 'Custom PDF templates, layout columns, and labels',
     searchIndex: ['document templates', 'templates', 'pdf template', 'columns', 'labels', 'custom template'],
+  },
+  {
+    id: 'checklist-groups',
+    label: 'Checklist Groups',
+    category: 'Documents',
+    icon: ClipboardCheck,
+    description: 'Required pre-save checklist groups and document assignments',
+    searchIndex: ['checklists', 'checklist groups', 'required items', 'quotation checklist', 'sales order checklist', 'purchase order checklist', 'invoice v2 checklist', 'invoice checklist'],
   },
   {
     id: 'print-layouts',

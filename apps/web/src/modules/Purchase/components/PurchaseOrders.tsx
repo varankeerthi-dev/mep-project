@@ -75,6 +75,8 @@ import {
   validateQuantity 
 } from '../utils/validation';
 import { supabase } from '../../../supabase';
+import { ChecklistConfirmationDialog } from '../../../features/document-checklists/ChecklistConfirmationDialog';
+import { useDocumentChecklistGate } from '../../../features/document-checklists/useDocumentChecklistGate';
 
 const APPROVAL_STEPS = ['Draft', 'Pending Approval', 'Approved', 'Sent', 'Acknowledged', 'Partially Received', 'Completed'];
 
@@ -194,6 +196,7 @@ function DragHandle() {
 
 export const PurchaseOrders: React.FC = () => {
   const { organisation, user } = useAuth();
+  const checklistGate = useDocumentChecklistGate();
   const { formatDate } = useAppDateFormat();
   const [searchParams, setSearchParams] = useSearchParams();
   const [openDialog, setOpenDialog] = useState(false);
@@ -310,11 +313,45 @@ export const PurchaseOrders: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
+  async function runGatedSave(status: string): Promise<boolean> {
+    if (!organisation?.id) {
+      await handleSave(status);
+      return true;
+    }
+
+    let actionFailed = false;
+    let actionError: unknown;
+    const result = await checklistGate.run({
+      organisationId: organisation.id,
+      documentType: 'purchase_order',
+      action: async () => {
+        try {
+          await handleSave(status);
+          return true;
+        } catch (error) {
+          actionFailed = true;
+          actionError = error;
+          throw error;
+        }
+      },
+    });
+    if (result.kind === 'failed') {
+      if (actionFailed) throw actionError;
+      toast.error('Checklist verification failed. Nothing was saved.', { description: result.error });
+      return false;
+    }
+    if (result.kind === 'incomplete') {
+      toast.error('Complete every required checklist item before continuing.');
+      return false;
+    }
+    return result.kind === 'completed' && result.value;
+  }
+
   const handleSaveDraft = async () => {
     if (!validateForm()) return;
     setIsSubmitting(true);
     try {
-      await handleSave('Draft');
+      if (!(await runGatedSave('Draft'))) return;
       setIsDirty(false);
       isDirtyRef.current = false;
       cancelForm();
@@ -327,7 +364,7 @@ export const PurchaseOrders: React.FC = () => {
     if (!validateForm()) return;
     setIsSubmitting(true);
     try {
-      await handleSave('Pending Approval');
+      if (!(await runGatedSave('Pending Approval'))) return;
       setIsDirty(false);
       isDirtyRef.current = false;
       cancelForm();
@@ -2316,6 +2353,12 @@ export const PurchaseOrders: React.FC = () => {
           </div>
         </div>
       )}
+      <ChecklistConfirmationDialog
+        policy={checklistGate.policy}
+        policyChanged={checklistGate.policyChanged}
+        onContinue={checklistGate.continueWith}
+        onCancel={checklistGate.cancel}
+      />
     </div>
   );
 };

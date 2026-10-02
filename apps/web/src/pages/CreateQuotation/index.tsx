@@ -29,6 +29,7 @@ import { loadQuickQuoteConfig, normalizeQuickQuoteConfig } from '../../quotation
 import type { QuickQuoteConfig } from '../../quotation/quick-quote/types';
 import { useQuotationCalculations } from './hooks/useQuotationCalculations';
 import { QuotationActions } from './components/QuotationActions';
+import type { SaveCurrentRevisionResult } from './revisionSave';
 import { QuotationHeaderForm } from './components/QuotationHeaderForm';
 import { QuotationItemsTable } from './components/QuotationItemsTable';
 import { ErectionItemsSection } from './components/ErectionItemsSection';
@@ -38,6 +39,8 @@ import { usePresence } from './hooks/usePresence';
 import { DocumentConversionChain } from '../../components/DocumentConversionChain';
 import { PresenceBanner } from './components/PresenceBanner';
 import { autoCreateOrUpdateErection } from '../../utils/erectionUtils';
+import { ChecklistConfirmationDialog } from '../../features/document-checklists/ChecklistConfirmationDialog';
+import { useDocumentChecklistGate } from '../../features/document-checklists/useDocumentChecklistGate';
 
 const DEFAULT_PAYMENT_TERMS = 'Net 30 Days';
 
@@ -75,6 +78,7 @@ export default function CreateQuotation() {
   const itemsTableRef = useRef<HTMLDivElement>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [lastLoadedUpdatedAt, setLastLoadedUpdatedAt] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'conflict' | 'error'>('saved');
 
@@ -99,6 +103,7 @@ export default function CreateQuotation() {
 
   const { organisation } = useAuth();
   const { user } = useAuth();
+  const checklistGate = useDocumentChecklistGate();
 
   useEffect(() => {
     if (!user?.id) return;
@@ -1762,8 +1767,9 @@ export default function CreateQuotation() {
     }
   }, [items.filter(item => !item.is_header && item.section !== 'erection').map(item => `${item.id}-${item.qty}-${item.description}`).join(',')]);
 
-  const saveCurrentRevision = useCallback(async () => {
-    if (!formData.id || !editId) return null;
+  const saveCurrentRevision = useCallback(async (): Promise<SaveCurrentRevisionResult> => {
+    if (!formData.id || !editId) return { kind: 'failed', error: 'An existing quotation is required to save a revision.' };
+    if (!organisation?.id) return { kind: 'failed', error: 'Organisation is unavailable.' };
     const currentRevisionNo = formData.revision_no || 1;
     const newRevisionNo = currentRevisionNo + 1;
     const revisionSnapshot = {
@@ -1787,21 +1793,32 @@ export default function CreateQuotation() {
       header_discounts: { ...headerDiscounts }
     };
     const newHistory = [...(formData.revision_history || []), revisionSnapshot];
-    try {
-      const { error } = await supabase
-        .from('quotation_header')
-        .update({
-          revision_no: newRevisionNo,
-          revision_history: newHistory
-        })
-        .eq('id', formData.id);
-      if (error) throw error;
-      return { newRevisionNo, newHistory };
-    } catch (err) {
-      console.error('Error saving revision:', err);
-      return null;
+    const result = await checklistGate.run({
+      organisationId: organisation.id,
+      documentType: 'quotation',
+      action: async () => {
+        const { error } = await supabase
+          .from('quotation_header')
+          .update({
+            revision_no: newRevisionNo,
+            revision_history: newHistory,
+          })
+          .eq('id', formData.id);
+        if (error) throw error;
+        return { newRevisionNo, newHistory };
+      },
+    });
+
+    if (result.kind === 'completed') {
+      return { kind: 'saved', revision: result.value };
     }
-  }, [formData, items, calculations, headerDiscounts, editId]);
+    if (result.kind === 'cancelled') return result;
+    if (result.kind === 'failed') return { kind: 'failed', error: result.error };
+    if (result.kind === 'incomplete') {
+      return { kind: 'failed', error: 'Complete every required checklist item before continuing.' };
+    }
+    return { kind: 'failed', error: 'Another checklist confirmation is already in progress.' };
+  }, [formData, items, calculations, headerDiscounts, editId, organisation?.id, checklistGate.run]);
 
   // Idempotency key per form session: repeat submits (double-click, autosave
   // race, retry-after-error, Save&New without reset) replay into the same
@@ -1813,9 +1830,9 @@ export default function CreateQuotation() {
       : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   const idempotencyKeyRef = useRef<string>(newIdempotencyKey());
 
-  const handleSave = async (saveAndNew = false, isAutosave = false) => {
-    if (saving) return;
-    if (saving) return;
+  const persistQuotation = async (saveAndNew = false, isAutosave = false) => {
+    if (saving || savingRef.current) return;
+    if (isAutosave && checklistGate.isBusyNow()) return;
     if (!organisation?.id) {
       setSaveStatus('error');
       if (!isAutosave) {
@@ -1869,6 +1886,7 @@ export default function CreateQuotation() {
       return;
     }
 
+    savingRef.current = true;
     setSaving(true);
     setSaveStatus('saving');
     ignoreDirtyRef.current = true;
@@ -2201,7 +2219,33 @@ export default function CreateQuotation() {
       }
     } finally {
       ignoreDirtyRef.current = false;
+      savingRef.current = false;
       setSaving(false);
+    }
+  };
+
+  const handleSave = async (saveAndNew = false, isAutosave = false) => {
+    if (isAutosave) {
+      if (checklistGate.isBusyNow()) return;
+      await persistQuotation(saveAndNew, true);
+      return;
+    }
+    if (saving || savingRef.current) return;
+    if (!organisation?.id) {
+      await persistQuotation(saveAndNew, false);
+      return;
+    }
+
+    const result = await checklistGate.run({
+      organisationId: organisation.id,
+      documentType: 'quotation',
+      action: () => persistQuotation(saveAndNew, false),
+    });
+    if (result.kind === 'failed') {
+      setSaveStatus('error');
+      toast.error('Checklist verification failed. Nothing was saved or submitted.', { description: result.error });
+    } else if (result.kind === 'incomplete') {
+      toast.error('Complete every required checklist item before continuing.');
     }
   };
 
@@ -2211,6 +2255,7 @@ export default function CreateQuotation() {
     items,
     formData,
     handleSave,
+    paused: checklistGate.isBusy,
   });
 
   const updateTemplateSettingsInDb = async (newSettings: any) => {
@@ -2285,7 +2330,7 @@ export default function CreateQuotation() {
         editId={editId}
         formData={formData}
         setFormData={setFormData}
-        saving={saving}
+        saving={saving || checklistGate.isBusy}
         handleSave={handleSave}
         saveCurrentRevision={saveCurrentRevision}
         setConfirmDialog={setConfirmDialog}
@@ -2295,6 +2340,12 @@ export default function CreateQuotation() {
         handleUndoImport={handleUndoImport}
         toast={toast}
         saveStatus={saveStatus}
+      />
+      <ChecklistConfirmationDialog
+        policy={checklistGate.policy}
+        policyChanged={checklistGate.policyChanged}
+        onContinue={checklistGate.continueWith}
+        onCancel={checklistGate.cancel}
       />
 
       <div style={{ background: '#f8fafc', padding: '56px 16px 16px 16px', minHeight: 'calc(100vh - 64px)' }}>

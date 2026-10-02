@@ -1,0 +1,1390 @@
+{
+  "schema": "mep-perf-manifest/v1",
+  "target": "https://mep-project-drab.vercel.app",
+  "inventorySource": "Sidebar.tsx menuData plus route-backed module tab registries",
+  "readOnlyPolicy": "Navigation and visible subtab clicks only; forms/details excluded; REST mutations and unknown RPCs blocked.",
+  "routeCount": 157,
+  "routes": [
+    {
+      "label": "Advances & Expenses",
+      "group": "Finance",
+      "module": "Advances & Expenses",
+      "route": "/advances-expenses",
+      "source": "sidebar"
+    },
+    {
+      "label": "Approvals",
+      "group": "Work",
+      "module": "Approvals",
+      "route": "/approvals",
+      "source": "sidebar"
+    },
+    {
+      "label": "CEO Dashboard",
+      "group": "Workspace",
+      "module": "CEO Dashboard",
+      "route": "/projects-overview",
+      "source": "sidebar"
+    },
+    {
+      "label": "Chart of accounts",
+      "group": "Finance",
+      "module": "Chart of accounts",
+      "route": "/accounting/chart-of-accounts",
+      "source": "sidebar"
+    },
+    {
+      "label": "Purchase orders",
+      "group": "Client and field / Clients",
+      "module": "Clients",
+      "route": "/client-po",
+      "source": "sidebar"
+    },
+    {
+      "label": "Client list",
+      "group": "Client and field / Clients",
+      "module": "Clients",
+      "route": "/clients",
+      "source": "sidebar"
+    },
+    {
+      "label": "Ledger",
+      "group": "Client and field / Clients",
+      "module": "Clients",
+      "route": "/ledger",
+      "source": "sidebar"
+    },
+    {
+      "label": "Meetings",
+      "group": "Client and field / Clients",
+      "module": "Clients",
+      "route": "/meetings",
+      "source": "sidebar"
+    },
+    {
+      "label": "Collaboration",
+      "group": "Work",
+      "module": "Collaboration",
+      "route": "/collaboration",
+      "source": "sidebar"
+    },
+    {
+      "label": "Communication log",
+      "group": "CRM",
+      "module": "Communication log",
+      "route": "/client-communication",
+      "source": "sidebar"
+    },
+    {
+      "label": "Dashboard",
+      "group": "Workspace",
+      "module": "Dashboard",
+      "route": "/",
+      "source": "sidebar"
+    },
+    {
+      "label": "Day book",
+      "group": "Finance",
+      "module": "Day book",
+      "route": "/accounting/day-book",
+      "source": "sidebar"
+    },
+    {
+      "label": "Consolidation",
+      "group": "Sales / Delivery challan",
+      "module": "Delivery challan",
+      "route": "/dc/consolidation",
+      "source": "sidebar"
+    },
+    {
+      "label": "DC list",
+      "group": "Sales / Delivery challan",
+      "module": "Delivery challan",
+      "route": "/dc/list",
+      "source": "sidebar"
+    },
+    {
+      "label": "Material returns",
+      "group": "Sales / Delivery challan",
+      "module": "Delivery challan",
+      "route": "/returns",
+      "source": "sidebar"
+    },
+    {
+      "label": "BOQ list",
+      "group": "Estimation / Estimation",
+      "module": "Estimation",
+      "route": "/estimation/boq",
+      "source": "sidebar"
+    },
+    {
+      "label": "Resource catalog",
+      "group": "Estimation / Estimation",
+      "module": "Estimation",
+      "route": "/estimation/resources",
+      "source": "sidebar"
+    },
+    {
+      "label": "Tenders",
+      "group": "Estimation / Estimation",
+      "module": "Estimation",
+      "route": "/estimation/tenders",
+      "source": "sidebar"
+    },
+    {
+      "label": "Follow-up",
+      "group": "CRM",
+      "module": "Follow-up",
+      "route": "/follow-up",
+      "source": "sidebar"
+    },
+    {
+      "label": "GST",
+      "group": "GST",
+      "module": "GST",
+      "route": "/gst/dashboard",
+      "source": "sidebar"
+    },
+    {
+      "label": "GSTR-1",
+      "group": "GST / GST",
+      "module": "GST",
+      "route": "/gst/gstr1",
+      "source": "sidebar"
+    },
+    {
+      "label": "GSTR-2B",
+      "group": "GST / GST",
+      "module": "GST",
+      "route": "/gst/gstr2b",
+      "source": "sidebar"
+    },
+    {
+      "label": "GSTR-3B",
+      "group": "GST / GST",
+      "module": "GST",
+      "route": "/gst/gstr3b",
+      "source": "sidebar"
+    },
+    {
+      "label": "ITC Management",
+      "group": "GST / GST",
+      "module": "GST",
+      "route": "/gst/itc",
+      "source": "sidebar"
+    },
+    {
+      "label": "RCM",
+      "group": "GST / GST",
+      "module": "GST",
+      "route": "/gst/rcm",
+      "source": "sidebar"
+    },
+    {
+      "label": "GST Reconciliation",
+      "group": "GST / GST",
+      "module": "GST",
+      "route": "/gst/reconciliation",
+      "source": "sidebar"
+    },
+    {
+      "label": "GST Reports",
+      "group": "GST / GST",
+      "module": "GST",
+      "route": "/gst/reports",
+      "source": "sidebar"
+    },
+    {
+      "label": "Employees",
+      "group": "Human Resources / HR & Attendance",
+      "module": "HR & Attendance",
+      "route": "/hr/employees",
+      "source": "sidebar"
+    },
+    {
+      "label": "Attendance Entry",
+      "group": "Human Resources / HR & Attendance",
+      "module": "HR & Attendance",
+      "route": "/hr/entry",
+      "source": "sidebar"
+    },
+    {
+      "label": "Attendance Planning",
+      "group": "Human Resources / HR & Attendance",
+      "module": "HR & Attendance",
+      "route": "/hr/planning",
+      "source": "sidebar"
+    },
+    {
+      "label": "Salary Slip",
+      "group": "Human Resources / HR & Attendance",
+      "module": "HR & Attendance",
+      "route": "/hr/salary-slip",
+      "source": "sidebar"
+    },
+    {
+      "label": "Credit notes",
+      "group": "Sales / Invoices",
+      "module": "Invoices",
+      "route": "/credit-notes",
+      "source": "sidebar"
+    },
+    {
+      "label": "Invoice list",
+      "group": "Sales / Invoices",
+      "module": "Invoices",
+      "route": "/invoices",
+      "source": "sidebar"
+    },
+    {
+      "label": "Proforma invoice",
+      "group": "Sales / Invoices",
+      "module": "Invoices",
+      "route": "/proforma-invoices",
+      "source": "sidebar"
+    },
+    {
+      "label": "Dashboard",
+      "group": "Projects / Issues",
+      "module": "Issues",
+      "route": "/issue",
+      "source": "sidebar"
+    },
+    {
+      "label": "All issues",
+      "group": "Projects / Issues",
+      "module": "Issues",
+      "route": "/issues",
+      "source": "sidebar"
+    },
+    {
+      "label": "List view",
+      "group": "CRM / Leads",
+      "module": "Leads",
+      "route": "/leads",
+      "source": "sidebar"
+    },
+    {
+      "label": "Kanban",
+      "group": "CRM / Leads",
+      "module": "Leads",
+      "route": "/leads/kanban",
+      "source": "sidebar"
+    },
+    {
+      "label": "Manager alerts",
+      "group": "Work",
+      "module": "Manager alerts",
+      "route": "/manager-alerts",
+      "source": "sidebar"
+    },
+    {
+      "label": "Dashboard",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "Activity Log",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing/activity-log",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "BOMs",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing/boms",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "Settings",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing/custom-units",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "Dispatch",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing/dispatch",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "Inventory",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing/inventory",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "Job Cards",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing/job-cards",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "Machine Board",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing/machines",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "Moulds",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing/moulds",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "Planning (MRP)",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing/plans",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "Production",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing/production",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "QC Inspections",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing/qc",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "Schedules",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing/schedules",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "Stores Console",
+      "group": "Supply chain / Manufacturing",
+      "module": "Manufacturing",
+      "route": "/manufacturing/stores",
+      "source": "manufacturing-tabs"
+    },
+    {
+      "label": "Items/materials",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "source": "sidebar"
+    },
+    {
+      "label": "Category",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "tab": "category",
+      "source": "materials-tabs"
+    },
+    {
+      "label": "Discount Categories",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "tab": "discount-categories",
+      "source": "materials-tabs"
+    },
+    {
+      "label": "Material Inward",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "tab": "inward",
+      "source": "materials-tabs"
+    },
+    {
+      "label": "Items",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "tab": "items",
+      "source": "materials-tabs"
+    },
+    {
+      "label": "Material Outward",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "tab": "outward",
+      "source": "materials-tabs"
+    },
+    {
+      "label": "Service Rates",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "tab": "service-rates",
+      "source": "materials-tabs"
+    },
+    {
+      "label": "Stock Adjustment",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "tab": "stock-adjust",
+      "source": "materials-tabs"
+    },
+    {
+      "label": "Stock Balance",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "tab": "stock-balance",
+      "source": "materials-tabs"
+    },
+    {
+      "label": "Stock Check",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "tab": "stock-check",
+      "source": "materials-tabs"
+    },
+    {
+      "label": "Stock Transfer",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "tab": "stock-transfer",
+      "source": "materials-tabs"
+    },
+    {
+      "label": "Unit",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "tab": "unit",
+      "source": "materials-tabs"
+    },
+    {
+      "label": "Variants",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "tab": "variants",
+      "source": "materials-tabs"
+    },
+    {
+      "label": "Warehouses",
+      "group": "Supply chain / Materials",
+      "module": "Materials",
+      "route": "/store/materials",
+      "tab": "warehouses",
+      "source": "materials-tabs"
+    },
+    {
+      "label": "Operations",
+      "group": "Workspace",
+      "module": "Operations",
+      "route": "/operations",
+      "source": "sidebar"
+    },
+    {
+      "label": "Allocations",
+      "group": "Sales / Partner Allocation",
+      "module": "Partner Allocation",
+      "route": "/partner-allocation/allocations",
+      "source": "sidebar"
+    },
+    {
+      "label": "Partner Inbox",
+      "group": "Sales / Partner Allocation",
+      "module": "Partner Allocation",
+      "route": "/partner-allocation/inbox",
+      "source": "sidebar"
+    },
+    {
+      "label": "Partners",
+      "group": "Sales / Partner Allocation",
+      "module": "Partner Allocation",
+      "route": "/partner-allocation/partners",
+      "source": "sidebar"
+    },
+    {
+      "label": "Payments hub",
+      "group": "Finance",
+      "module": "Payments hub",
+      "route": "/finance/payments",
+      "source": "sidebar"
+    },
+    {
+      "label": "Procurement",
+      "group": "Supply chain",
+      "module": "Procurement",
+      "route": "/procurement",
+      "source": "sidebar"
+    },
+    {
+      "label": "Projects",
+      "group": "Projects",
+      "module": "Projects",
+      "route": "/projects",
+      "source": "sidebar"
+    },
+    {
+      "label": "Collaboration",
+      "group": "Projects",
+      "module": "Projects",
+      "route": "/projects",
+      "tab": "collaboration",
+      "source": "projects-query-tabs"
+    },
+    {
+      "label": "Projects",
+      "group": "Projects",
+      "module": "Projects",
+      "route": "/projects",
+      "tab": "list",
+      "source": "projects-query-tabs"
+    },
+    {
+      "label": "Material",
+      "group": "Projects",
+      "module": "Projects",
+      "route": "/projects",
+      "tab": "material-management",
+      "source": "projects-query-tabs"
+    },
+    {
+      "label": "All Intents",
+      "group": "Projects",
+      "module": "Projects",
+      "route": "/projects",
+      "tab": "material-management",
+      "subtab": "all-intents",
+      "source": "projects-material-subtabs"
+    },
+    {
+      "label": "Select Project",
+      "group": "Projects",
+      "module": "Projects",
+      "route": "/projects",
+      "tab": "material-management",
+      "subtab": "select-project",
+      "source": "projects-material-subtabs"
+    },
+    {
+      "label": "Tasks",
+      "group": "Projects",
+      "module": "Projects",
+      "route": "/projects",
+      "tab": "tasks",
+      "source": "projects-query-tabs"
+    },
+    {
+      "label": "Timeline",
+      "group": "Projects",
+      "module": "Projects",
+      "route": "/projects",
+      "tab": "timeline",
+      "source": "projects-query-tabs"
+    },
+    {
+      "label": "Bills",
+      "group": "Supply chain / Purchase",
+      "module": "Purchase",
+      "route": "/purchase/bills",
+      "source": "sidebar"
+    },
+    {
+      "label": "Debit notes",
+      "group": "Supply chain / Purchase",
+      "module": "Purchase",
+      "route": "/purchase/debit-notes",
+      "source": "sidebar"
+    },
+    {
+      "label": "Availability inquiry",
+      "group": "Supply chain / Purchase",
+      "module": "Purchase",
+      "route": "/purchase/inquiries",
+      "source": "sidebar"
+    },
+    {
+      "label": "Invoice verification",
+      "group": "Supply chain / Purchase",
+      "module": "Purchase",
+      "route": "/purchase/invoice-verification",
+      "source": "sidebar"
+    },
+    {
+      "label": "Purchase orders",
+      "group": "Supply chain / Purchase",
+      "module": "Purchase",
+      "route": "/purchase/orders",
+      "source": "sidebar"
+    },
+    {
+      "label": "Bills due",
+      "group": "Supply chain / Purchase",
+      "module": "Purchase",
+      "route": "/purchase/payment-queue",
+      "source": "sidebar"
+    },
+    {
+      "label": "Payments",
+      "group": "Supply chain / Purchase",
+      "module": "Purchase",
+      "route": "/purchase/payments",
+      "source": "sidebar"
+    },
+    {
+      "label": "Purchase Returns",
+      "group": "Supply chain / Purchase",
+      "module": "Purchase",
+      "route": "/purchase/purchase-returns",
+      "source": "sidebar"
+    },
+    {
+      "label": "Requisitions",
+      "group": "Supply chain / Purchase",
+      "module": "Purchase",
+      "route": "/purchase/requisitions",
+      "source": "sidebar"
+    },
+    {
+      "label": "Vendors",
+      "group": "Supply chain / Purchase",
+      "module": "Purchase",
+      "route": "/purchase/vendors",
+      "source": "sidebar"
+    },
+    {
+      "label": "Quick Lookup",
+      "group": "Workspace",
+      "module": "Quick Lookup",
+      "route": "/client-lookup",
+      "source": "sidebar"
+    },
+    {
+      "label": "Quotation list",
+      "group": "Sales / Quotation",
+      "module": "Quotation",
+      "route": "/quotation",
+      "source": "sidebar"
+    },
+    {
+      "label": "Dashboard",
+      "group": "Reports / Reports",
+      "module": "Reports",
+      "route": "/reports",
+      "source": "sidebar"
+    },
+    {
+      "label": "Compliance",
+      "group": "Reports / Reports",
+      "module": "Reports",
+      "route": "/reports/compliance",
+      "source": "sidebar"
+    },
+    {
+      "label": "Financial",
+      "group": "Reports / Reports",
+      "module": "Reports",
+      "route": "/reports/financial",
+      "source": "sidebar"
+    },
+    {
+      "label": "Inventory",
+      "group": "Reports / Reports",
+      "module": "Reports",
+      "route": "/reports/inventory",
+      "source": "sidebar"
+    },
+    {
+      "label": "Invoices",
+      "group": "Reports / Reports",
+      "module": "Reports",
+      "route": "/reports/invoices",
+      "source": "sidebar"
+    },
+    {
+      "label": "Profit",
+      "group": "Reports / Reports",
+      "module": "Reports",
+      "route": "/reports/profit",
+      "source": "sidebar"
+    },
+    {
+      "label": "Projects",
+      "group": "Reports / Reports",
+      "module": "Reports",
+      "route": "/reports/projects",
+      "source": "sidebar"
+    },
+    {
+      "label": "Purchase",
+      "group": "Reports / Reports",
+      "module": "Reports",
+      "route": "/reports/purchase",
+      "source": "sidebar"
+    },
+    {
+      "label": "Sales",
+      "group": "Reports / Reports",
+      "module": "Reports",
+      "route": "/reports/sales",
+      "source": "sidebar"
+    },
+    {
+      "label": "Stock",
+      "group": "Reports / Reports",
+      "module": "Reports",
+      "route": "/reports/stock",
+      "source": "sidebar"
+    },
+    {
+      "label": "Sales Orders list",
+      "group": "Sales / Sales Orders",
+      "module": "Sales Orders",
+      "route": "/sales-orders",
+      "source": "sidebar"
+    },
+    {
+      "label": "Settings",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "source": "sidebar"
+    },
+    {
+      "label": "Approval Workflows",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "approvals",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Item Categories",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "categories",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Checklist Groups",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "checklist-groups",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Discount Settings",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "discounts",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Document Templates",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "document-templates",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "General & Config",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "general",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Module Management",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "modules",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Numbering Series",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "numbering-series",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Organisation Info",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "organisation",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Print Layouts",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "print-layouts",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Quick Quote",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "quick-quote",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Sales Orders",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "sales-orders",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Team Members",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "team-members",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Terms & Conditions",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "terms-conditions",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Tools & Equipment",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "tools",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Units of Measure",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "units",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Variants & Discount Categories",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "variants",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Warehouses & Locations",
+      "group": "Settings",
+      "module": "Settings",
+      "route": "/settings",
+      "tab": "warehouses",
+      "source": "settings-tabs"
+    },
+    {
+      "label": "Approval settings",
+      "group": "Settings / Settings",
+      "module": "Settings",
+      "route": "/approval-settings",
+      "source": "sidebar"
+    },
+    {
+      "label": "Documents",
+      "group": "Settings / Settings",
+      "module": "Settings",
+      "route": "/documents",
+      "source": "sidebar"
+    },
+    {
+      "label": "Access control",
+      "group": "Settings / Settings",
+      "module": "Settings",
+      "route": "/settings/access-control",
+      "source": "sidebar"
+    },
+    {
+      "label": "Discount settings",
+      "group": "Settings / Settings",
+      "module": "Settings",
+      "route": "/settings/discounts",
+      "source": "sidebar"
+    },
+    {
+      "label": "Document series",
+      "group": "Settings / Settings",
+      "module": "Settings",
+      "route": "/settings/document-series",
+      "source": "sidebar"
+    },
+    {
+      "label": "Organisation",
+      "group": "Settings / Settings",
+      "module": "Settings",
+      "route": "/settings/organisation",
+      "source": "sidebar"
+    },
+    {
+      "label": "Print settings",
+      "group": "Settings / Settings",
+      "module": "Settings",
+      "route": "/settings/print",
+      "source": "sidebar"
+    },
+    {
+      "label": "Template settings",
+      "group": "Settings / Settings",
+      "module": "Settings",
+      "route": "/settings/template",
+      "source": "sidebar"
+    },
+    {
+      "label": "Terms and conditions",
+      "group": "Settings / Settings",
+      "module": "Settings",
+      "route": "/settings/terms-conditions",
+      "source": "sidebar"
+    },
+    {
+      "label": "Site expenses",
+      "group": "Projects",
+      "module": "Site expenses",
+      "route": "/site-expenses",
+      "source": "sidebar"
+    },
+    {
+      "label": "Handover planner",
+      "group": "Projects / Site report",
+      "module": "Site report",
+      "route": "/handover",
+      "source": "sidebar"
+    },
+    {
+      "label": "Reports",
+      "group": "Projects / Site report",
+      "module": "Site report",
+      "route": "/site-reports",
+      "source": "sidebar"
+    },
+    {
+      "label": "Site visit",
+      "group": "Projects",
+      "module": "Site visit",
+      "route": "/site-visits",
+      "source": "sidebar"
+    },
+    {
+      "label": "Dashboard",
+      "group": "Client and field / Sub-contractor",
+      "module": "Sub-contractor",
+      "route": "/subcontractors-v2",
+      "source": "subcontractor-tabs"
+    },
+    {
+      "label": "Attendance",
+      "group": "Client and field / Sub-contractor",
+      "module": "Sub-contractor",
+      "route": "/subcontractors-v2/attendance",
+      "source": "subcontractor-tabs"
+    },
+    {
+      "label": "Documents",
+      "group": "Client and field / Sub-contractor",
+      "module": "Sub-contractor",
+      "route": "/subcontractors-v2/documents",
+      "source": "subcontractor-tabs"
+    },
+    {
+      "label": "Invoices",
+      "group": "Client and field / Sub-contractor",
+      "module": "Sub-contractor",
+      "route": "/subcontractors-v2/invoices",
+      "source": "subcontractor-tabs"
+    },
+    {
+      "label": "Payments",
+      "group": "Client and field / Sub-contractor",
+      "module": "Sub-contractor",
+      "route": "/subcontractors-v2/payments",
+      "source": "subcontractor-tabs"
+    },
+    {
+      "label": "Work Orders",
+      "group": "Client and field / Sub-contractor",
+      "module": "Sub-contractor",
+      "route": "/subcontractors-v2/workorders",
+      "source": "subcontractor-tabs"
+    },
+    {
+      "label": "Tasks",
+      "group": "Work",
+      "module": "Tasks",
+      "route": "/tasks",
+      "source": "sidebar"
+    },
+    {
+      "label": "My Tasks",
+      "group": "Work / Tasks",
+      "module": "Tasks",
+      "route": "/tasks",
+      "tab": "my-tasks",
+      "source": "tasks-query-tabs"
+    },
+    {
+      "label": "Reminders",
+      "group": "Work / Tasks",
+      "module": "Tasks",
+      "route": "/tasks",
+      "tab": "reminders",
+      "source": "tasks-query-tabs"
+    },
+    {
+      "label": "Tools Management",
+      "group": "Supply chain / Tools & Equipment",
+      "module": "Tools & Equipment",
+      "route": "/tools-management",
+      "source": "sidebar"
+    },
+    {
+      "label": "Tools Settings",
+      "group": "Supply chain / Tools & Equipment",
+      "module": "Tools & Equipment",
+      "route": "/tools-settings",
+      "source": "sidebar"
+    },
+    {
+      "label": "Trial balance",
+      "group": "Finance",
+      "module": "Trial balance",
+      "route": "/accounting/trial-balance",
+      "source": "sidebar"
+    },
+    {
+      "label": "Dashboard",
+      "group": "Supply chain / Warehouse",
+      "module": "Warehouse",
+      "route": "/warehouse/dashboard",
+      "source": "warehouse-tabs"
+    },
+    {
+      "label": "Designer",
+      "group": "Supply chain / Warehouse",
+      "module": "Warehouse",
+      "route": "/warehouse/designer",
+      "source": "warehouse-tabs"
+    },
+    {
+      "label": "Fulfillment",
+      "group": "Supply chain / Warehouse",
+      "module": "Warehouse",
+      "route": "/warehouse/fulfillment",
+      "source": "warehouse-tabs"
+    },
+    {
+      "label": "Inventory",
+      "group": "Supply chain / Warehouse",
+      "module": "Warehouse",
+      "route": "/warehouse/inventory",
+      "source": "warehouse-tabs"
+    },
+    {
+      "label": "Operations",
+      "group": "Supply chain / Warehouse",
+      "module": "Warehouse",
+      "route": "/warehouse/operations",
+      "source": "warehouse-tabs"
+    },
+    {
+      "label": "Reports",
+      "group": "Supply chain / Warehouse",
+      "module": "Warehouse",
+      "route": "/warehouse/reports",
+      "source": "warehouse-tabs"
+    },
+    {
+      "label": "Stock Requests",
+      "group": "Supply chain / Warehouse",
+      "module": "Warehouse",
+      "route": "/warehouse/stock-requests",
+      "source": "warehouse-tabs"
+    },
+    {
+      "label": "Viewer",
+      "group": "Supply chain / Warehouse",
+      "module": "Warehouse",
+      "route": "/warehouse/viewer",
+      "source": "warehouse-tabs"
+    },
+    {
+      "label": "Warehouses",
+      "group": "Supply chain / Warehouse",
+      "module": "Warehouse",
+      "route": "/warehouse/warehouses",
+      "source": "warehouse-tabs"
+    }
+  ],
+  "localSubtabCount": 20,
+  "localSubtabs": [
+    {
+      "module": "Tasks",
+      "page": "/tasks",
+      "label": "Company Tasks",
+      "source": "tasks-subtab"
+    },
+    {
+      "module": "Tasks",
+      "page": "/tasks",
+      "label": "My Tasks",
+      "source": "tasks-subtab"
+    },
+    {
+      "module": "Tasks",
+      "page": "/tasks",
+      "label": "Reminders",
+      "source": "tasks-subtab"
+    },
+    {
+      "module": "Tasks",
+      "page": "/tasks",
+      "label": "Table",
+      "source": "tasks-view",
+      "whenTab": "company"
+    },
+    {
+      "module": "Tasks",
+      "page": "/tasks",
+      "label": "Board",
+      "source": "tasks-view",
+      "whenTab": "company"
+    },
+    {
+      "module": "Tasks",
+      "page": "/tasks",
+      "label": "Gantt",
+      "source": "tasks-view",
+      "whenTab": "company"
+    },
+    {
+      "module": "Tasks",
+      "page": "/tasks",
+      "label": "Calendar",
+      "source": "tasks-view",
+      "whenTab": "company"
+    },
+    {
+      "module": "Projects",
+      "page": "/projects",
+      "label": "Projects",
+      "source": "projects-tab"
+    },
+    {
+      "module": "Projects",
+      "page": "/projects",
+      "label": "Tasks",
+      "source": "projects-tab"
+    },
+    {
+      "module": "Projects",
+      "page": "/projects",
+      "label": "Timeline",
+      "source": "projects-tab"
+    },
+    {
+      "module": "Projects",
+      "page": "/projects",
+      "label": "Material",
+      "source": "projects-tab"
+    },
+    {
+      "module": "Projects",
+      "page": "/projects",
+      "label": "Collaboration",
+      "source": "projects-tab"
+    },
+    {
+      "module": "Projects",
+      "page": "/projects",
+      "label": "All Intents",
+      "source": "projects-material-subtab",
+      "whenTab": "material-management"
+    },
+    {
+      "module": "Projects",
+      "page": "/projects",
+      "label": "Select Project",
+      "source": "projects-material-subtab",
+      "whenTab": "material-management"
+    },
+    {
+      "module": "Warehouse",
+      "page": "/warehouse/operations",
+      "label": "Receiving",
+      "source": "warehouse-operations-tab"
+    },
+    {
+      "module": "Warehouse",
+      "page": "/warehouse/operations",
+      "label": "Transfers",
+      "source": "warehouse-operations-tab"
+    },
+    {
+      "module": "Warehouse",
+      "page": "/warehouse/operations",
+      "label": "Dispatch",
+      "source": "warehouse-operations-tab"
+    },
+    {
+      "module": "Warehouse",
+      "page": "/warehouse/operations",
+      "label": "Picking",
+      "source": "warehouse-operations-tab"
+    },
+    {
+      "module": "Warehouse",
+      "page": "/warehouse/operations",
+      "label": "Replenishment",
+      "source": "warehouse-operations-tab"
+    },
+    {
+      "module": "Warehouse",
+      "page": "/warehouse/operations",
+      "label": "Cycle Count",
+      "source": "warehouse-operations-tab"
+    }
+  ],
+  "excludedCount": 18,
+  "excluded": [
+    {
+      "route": "/custom-table-demo",
+      "label": "Custom Table Demo",
+      "group": "Settings / Settings",
+      "reason": "non-production demo or audit surface"
+    },
+    {
+      "route": "/dc/create",
+      "label": "Create DC",
+      "group": "Sales / Delivery challan",
+      "reason": "non-read-only form or detail surface"
+    },
+    {
+      "route": "/dynamic-table-demo",
+      "label": "Dynamic Table Demo",
+      "group": "Settings / Settings",
+      "reason": "non-production demo or audit surface"
+    },
+    {
+      "route": "/estimation/boq/new",
+      "label": "Create BOQ",
+      "group": "Estimation / Estimation",
+      "reason": "non-read-only form or detail surface"
+    },
+    {
+      "route": "/estimation/tenders/new",
+      "label": "Create Tender",
+      "group": "Estimation / Estimation",
+      "reason": "non-read-only form or detail surface"
+    },
+    {
+      "route": "/invoices/create",
+      "label": "Create invoice",
+      "group": "Sales / Invoices",
+      "reason": "non-read-only form or detail surface"
+    },
+    {
+      "route": "/manufacturing-v0",
+      "label": "Dashboard",
+      "group": "Source tabs / Manufacturing V0",
+      "reason": "legacy route family is explicitly not in the active sidebar"
+    },
+    {
+      "route": "/manufacturing-v0/activity-log",
+      "label": "Activity Log",
+      "group": "Source tabs / Manufacturing V0",
+      "reason": "legacy route family is explicitly not in the active sidebar"
+    },
+    {
+      "route": "/manufacturing-v0/boms",
+      "label": "BOMs",
+      "group": "Source tabs / Manufacturing V0",
+      "reason": "legacy route family is explicitly not in the active sidebar"
+    },
+    {
+      "route": "/manufacturing-v0/custom-units",
+      "label": "Settings",
+      "group": "Source tabs / Manufacturing V0",
+      "reason": "legacy route family is explicitly not in the active sidebar"
+    },
+    {
+      "route": "/manufacturing-v0/inventory",
+      "label": "Inventory",
+      "group": "Source tabs / Manufacturing V0",
+      "reason": "legacy route family is explicitly not in the active sidebar"
+    },
+    {
+      "route": "/manufacturing-v0/job-cards",
+      "label": "Job Cards",
+      "group": "Source tabs / Manufacturing V0",
+      "reason": "legacy route family is explicitly not in the active sidebar"
+    },
+    {
+      "route": "/manufacturing-v0/production",
+      "label": "Production",
+      "group": "Source tabs / Manufacturing V0",
+      "reason": "legacy route family is explicitly not in the active sidebar"
+    },
+    {
+      "route": "/manufacturing-v0/schedules",
+      "label": "Schedules",
+      "group": "Source tabs / Manufacturing V0",
+      "reason": "legacy route family is explicitly not in the active sidebar"
+    },
+    {
+      "route": "/quotation/create",
+      "label": "Create quotation",
+      "group": "Sales / Quotation",
+      "reason": "non-read-only form or detail surface"
+    },
+    {
+      "route": "/sales-orders/create",
+      "label": "Create Sales Order",
+      "group": "Sales / Sales Orders",
+      "reason": "non-read-only form or detail surface"
+    },
+    {
+      "route": "/subcontractors-v2/new",
+      "label": "Add new",
+      "group": "Client and field / Sub-contractor",
+      "reason": "non-read-only form or detail surface"
+    },
+    {
+      "route": "/table-demo",
+      "label": "Table Demo",
+      "group": "Settings / Settings",
+      "reason": "non-production demo or audit surface"
+    }
+  ]
+}

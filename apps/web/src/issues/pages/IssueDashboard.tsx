@@ -26,8 +26,6 @@ import {
 } from 'lucide-react';
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
-  
   :root {
     --iss-bg-page: #f8f9fa;
     --iss-bg-card: #ffffff;
@@ -576,7 +574,7 @@ export function IssueDashboard() {
               className="iss-btn iss-btn-secondary"
               value={clientFilter}
               onChange={(e) => { setClientFilter(e.target.value); setProjectFilter(''); }}
-              style={{ paddingRight: '2rem' }}
+              style={{ paddingRight: '2rem', width: '12rem' }}
             >
               <option value="">All Clients</option>
               {clientsData?.map(c => (
@@ -588,7 +586,7 @@ export function IssueDashboard() {
               className="iss-btn iss-btn-secondary"
               value={projectFilter}
               onChange={(e) => setProjectFilter(e.target.value)}
-              style={{ paddingRight: '2rem' }}
+              style={{ paddingRight: '2rem', width: '12rem' }}
             >
               <option value="">All Projects</option>
               {filteredProjects.map(p => (

@@ -6,7 +6,7 @@
 // The shell hosts the phase-1..5 screens: Dashboard, Designer, Viewer,
 // Inventory, Operations (+ picking/dispatch/replenishment), Warehouses.
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { SubTabsNav } from '../components/ui/SubTabsNav';
 import GlobalSearchBar from './components/GlobalSearchBar';
@@ -60,6 +60,15 @@ export default function WarehouseModule() {
     return best || TABS[0];
   }, [pathKey]);
 
+  const [visitedTabIds, setVisitedTabIds] = useState<Set<string>>(() => new Set([activeTab.id]));
+  const mountedTabIds = new Set(visitedTabIds).add(activeTab.id);
+
+  useEffect(() => {
+    setVisitedTabIds((visited) =>
+      visited.has(activeTab.id) ? visited : new Set(visited).add(activeTab.id),
+    );
+  }, [activeTab.id]);
+
   return (
     <div className="min-h-screen bg-[#f8f9fb]">
       <div className="px-[5px] py-0">
@@ -73,33 +82,51 @@ export default function WarehouseModule() {
           <StockRequestDetailPage requestId={stockRequestId} />
         ) : (
           <>
-            <div style={{ display: activeTab.id === 'dashboard' ? undefined : 'none' }}>
-              <WarehouseDashboardPage />
-            </div>
-            <div style={{ display: activeTab.id === 'stock-requests' ? undefined : 'none' }}>
-              <StockRequestListPage />
-            </div>
-            <div style={{ display: activeTab.id === 'fulfillment' ? undefined : 'none' }}>
-              <FulfillmentQueuePage />
-            </div>
-            <div style={{ display: activeTab.id === 'designer' ? undefined : 'none' }}>
-              <WarehouseDesignerPage />
-            </div>
-            <div style={{ display: activeTab.id === 'viewer' ? undefined : 'none' }}>
-              <WarehouseViewerPage />
-            </div>
-            <div style={{ display: activeTab.id === 'inventory' ? undefined : 'none' }}>
-              <InventoryPage />
-            </div>
-            <div style={{ display: activeTab.id === 'operations' ? undefined : 'none' }}>
-              <OperationsPage />
-            </div>
-            <div style={{ display: activeTab.id === 'reports' ? undefined : 'none' }}>
-              <WarehouseReportsPage />
-            </div>
-            <div style={{ display: activeTab.id === 'warehouses' ? undefined : 'none' }}>
-              <WarehouseListPage />
-            </div>
+            {mountedTabIds.has('dashboard') && (
+              <div key="dashboard" style={{ display: activeTab.id === 'dashboard' ? undefined : 'none' }}>
+                <WarehouseDashboardPage />
+              </div>
+            )}
+            {mountedTabIds.has('stock-requests') && (
+              <div key="stock-requests" style={{ display: activeTab.id === 'stock-requests' ? undefined : 'none' }}>
+                <StockRequestListPage />
+              </div>
+            )}
+            {mountedTabIds.has('fulfillment') && (
+              <div key="fulfillment" style={{ display: activeTab.id === 'fulfillment' ? undefined : 'none' }}>
+                <FulfillmentQueuePage />
+              </div>
+            )}
+            {mountedTabIds.has('designer') && (
+              <div key="designer" style={{ display: activeTab.id === 'designer' ? undefined : 'none' }}>
+                <WarehouseDesignerPage />
+              </div>
+            )}
+            {mountedTabIds.has('viewer') && (
+              <div key="viewer" style={{ display: activeTab.id === 'viewer' ? undefined : 'none' }}>
+                <WarehouseViewerPage />
+              </div>
+            )}
+            {mountedTabIds.has('inventory') && (
+              <div key="inventory" style={{ display: activeTab.id === 'inventory' ? undefined : 'none' }}>
+                <InventoryPage />
+              </div>
+            )}
+            {mountedTabIds.has('operations') && (
+              <div key="operations" style={{ display: activeTab.id === 'operations' ? undefined : 'none' }}>
+                <OperationsPage />
+              </div>
+            )}
+            {mountedTabIds.has('reports') && (
+              <div key="reports" style={{ display: activeTab.id === 'reports' ? undefined : 'none' }}>
+                <WarehouseReportsPage />
+              </div>
+            )}
+            {mountedTabIds.has('warehouses') && (
+              <div key="warehouses" style={{ display: activeTab.id === 'warehouses' ? undefined : 'none' }}>
+                <WarehouseListPage />
+              </div>
+            )}
           </>
         )}
       </div>

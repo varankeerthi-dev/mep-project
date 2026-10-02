@@ -16,6 +16,7 @@ import {
   TemplatesTab,
   ToolsTab,
   SalesOrdersTab,
+  ChecklistGroupsTab,
 } from './tabs';
 import { SETTINGS_TABS, SettingsTabContract } from './types';
 import { PageSkeleton } from '@/components/ui/skeleton';
@@ -268,6 +269,15 @@ export const SettingsV2Page: React.FC<{ initialTab?: string }> = ({ initialTab }
             }
             onRegisterSave={(saveFn, discardFn) =>
               handleRegisterSave('document-templates', saveFn, discardFn)
+            }
+          />
+        );
+      case 'checklist-groups':
+        return (
+          <ChecklistGroupsTab
+            onDirtyChange={(isDirty) => handleDirtyChange('checklist-groups', isDirty)}
+            onRegisterSave={(saveFn, discardFn) =>
+              handleRegisterSave('checklist-groups', saveFn, discardFn)
             }
           />
         );

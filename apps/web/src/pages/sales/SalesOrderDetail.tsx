@@ -36,6 +36,8 @@ import { DocumentActions } from '../../components/document/DocumentActions';
 import { DocumentTimeline } from '../../components/document/DocumentTimeline';
 import { DocumentPreviewTabs } from '../../components/document/DocumentPreviewTabs';
 import { previewSalesOrderPdf } from './utils/soPdf';
+import { ChecklistConfirmationDialog } from '../../features/document-checklists/ChecklistConfirmationDialog';
+import { useDocumentChecklistGate } from '../../features/document-checklists/useDocumentChecklistGate';
 
 const STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
   draft:            { bg: 'bg-zinc-100', color: 'text-zinc-700', label: 'Draft' },
@@ -52,6 +54,7 @@ export default function SalesOrderDetail() {
   const queryClient = useQueryClient();
   const { organisation } = useAuth();
   const orgId = organisation?.id;
+  const checklistGate = useDocumentChecklistGate();
   const [searchParams] = useSearchParams();
   const id = searchParams.get('id');
 
@@ -199,61 +202,69 @@ export default function SalesOrderDetail() {
     if (!orgId) return;
     setPoCreating(true);
     try {
-      const { data, error } = await supabase.rpc('create_purchase_order_atomic', {
-        p_organisation_id: orgId,
-        p_vendor_id: poVendorId,
-        p_project_id: order?.project_id || order?.project?.id || null,
-        p_internal_notes: `From sales order ${order?.sales_order_no || ''}`,
-        p_items: lines.map((l: any) => ({
-          item_id: l.item_id,
-          item_name: l.description,
-          quantity: parseFloat(l.qty) || 0,
-          unit: l.uom || 'Nos',
-          rate: parseFloat(l.rate) || 0,
-          discount_percent: parseFloat(l.discount_percent) || 0,
-          tax_percent: parseFloat(l.tax_percent) || 0,
-          make: l.make,
-          variant: l.variant,
-        })),
-        p_idempotency_key: poSessionKey,
-      });
-      if (error) throw error;
-      if ((data as any)?.idempotent_replayed) {
-        toast.success(`Purchase order already created (${(data as any).po_number})`);
-      } else {
-        const poId = (data as any).po_id;
-        const { data: poItems } = await supabase
-          .from('purchase_order_items')
-          .select('id')
-          .eq('po_id', poId)
-          .order('sr', { ascending: true });
-        let linkOk = !!(poItems && poItems.length > 0);
-        if (poItems) {
-          for (let i = 0; i < lines.length && i < poItems.length; i++) {
-            const { error: linkErr } = await supabase.from('purchase_order_items').update({ sales_order_item_id: lines[i].so_item_id }).eq('id', (poItems as any)[i].id);
-            if (linkErr) linkOk = false;
-          }
-        }
-        const { error: soLinkErr } = await supabase.from('purchase_orders').update({ sales_order_id: id }).eq('id', poId);
-        if (soLinkErr) linkOk = false;
-        if (!linkOk) {
-          toast.error(`PO ${(data as any).po_number} created, but linking it back to this order failed (check purchase edit permission). Open the PO to verify.`);
-        } else {
-          toast.success(`Purchase order ${(data as any).po_number} created`);
-        }
-        try {
-          await supabase.from('sales_order_activity_log').insert({
-            organisation_id: orgId,
-            sales_order_id: id,
-            event_type: 'po_raised',
-            summary: { po_id: poId, po_number: (data as any).po_number, total: (data as any).total_amount },
-            created_by: null,
+      const gateResult = await checklistGate.run({
+        organisationId: orgId,
+        documentType: 'purchase_order',
+        action: async () => {
+          const { data, error } = await supabase.rpc('create_purchase_order_atomic', {
+            p_organisation_id: orgId,
+            p_vendor_id: poVendorId,
+            p_project_id: order?.project_id || order?.project?.id || null,
+            p_internal_notes: `From sales order ${order?.sales_order_no || ''}`,
+            p_items: lines.map((l: any) => ({
+              item_id: l.item_id,
+              item_name: l.description,
+              quantity: parseFloat(l.qty) || 0,
+              unit: l.uom || 'Nos',
+              rate: parseFloat(l.rate) || 0,
+              discount_percent: parseFloat(l.discount_percent) || 0,
+              tax_percent: parseFloat(l.tax_percent) || 0,
+              make: l.make,
+              variant: l.variant,
+            })),
+            p_idempotency_key: poSessionKey,
           });
-        } catch { /* activity is best-effort */ }
-      }
-      setShowPoDialog(false);
-      queryClient.invalidateQueries({ queryKey: ['sales-order-purchase-orders', id] });
-      queryClient.invalidateQueries({ queryKey: salesKeys.activity(id || '') });
+          if (error) throw error;
+          if ((data as any)?.idempotent_replayed) {
+            toast.success(`Purchase order already created (${(data as any).po_number})`);
+          } else {
+            const poId = (data as any).po_id;
+            const { data: poItems } = await supabase
+              .from('purchase_order_items')
+              .select('id')
+              .eq('po_id', poId)
+              .order('sr', { ascending: true });
+            let linkOk = !!(poItems && poItems.length > 0);
+            if (poItems) {
+              for (let i = 0; i < lines.length && i < poItems.length; i++) {
+                const { error: linkErr } = await supabase.from('purchase_order_items').update({ sales_order_item_id: lines[i].so_item_id }).eq('id', (poItems as any)[i].id);
+                if (linkErr) linkOk = false;
+              }
+            }
+            const { error: soLinkErr } = await supabase.from('purchase_orders').update({ sales_order_id: id }).eq('id', poId);
+            if (soLinkErr) linkOk = false;
+            if (!linkOk) {
+              toast.error(`PO ${(data as any).po_number} created, but linking it back to this order failed (check purchase edit permission). Open the PO to verify.`);
+            } else {
+              toast.success(`Purchase order ${(data as any).po_number} created`);
+            }
+            try {
+              await supabase.from('sales_order_activity_log').insert({
+                organisation_id: orgId,
+                sales_order_id: id,
+                event_type: 'po_raised',
+                summary: { po_id: poId, po_number: (data as any).po_number, total: (data as any).total_amount },
+                created_by: null,
+              });
+            } catch { /* activity is best-effort */ }
+          }
+          setShowPoDialog(false);
+          queryClient.invalidateQueries({ queryKey: ['sales-order-purchase-orders', id] });
+          queryClient.invalidateQueries({ queryKey: salesKeys.activity(id || '') });
+        },
+      });
+      if (gateResult.kind === 'failed') throw new Error(gateResult.error);
+      if (gateResult.kind === 'incomplete') toast.error('Complete every required checklist item before continuing.');
     } catch (e: any) {
       toast.error('PO creation failed: ' + (e.message || e));
     } finally {
@@ -392,7 +403,7 @@ export default function SalesOrderDetail() {
     enabled: !!id
   });
 
-  const handleSubmitApproval = async () => {
+  const performSubmitApproval = async () => {
     if (!id || !order) return;
     try {
       setSubmittingApproval(true);
@@ -413,6 +424,20 @@ export default function SalesOrderDetail() {
       toast.error(err.message || 'Error submitting approval');
     } finally {
       setSubmittingApproval(false);
+    }
+  };
+
+  const handleSubmitApproval = async () => {
+    if (!id || !order || !orgId) return;
+    const result = await checklistGate.run({
+      organisationId: orgId,
+      documentType: 'sales_order',
+      action: performSubmitApproval,
+    });
+    if (result.kind === 'failed') {
+      toast.error('Checklist verification failed. Nothing was submitted.', { description: result.error });
+    } else if (result.kind === 'incomplete') {
+      toast.error('Complete every required checklist item before continuing.');
     }
   };
 
@@ -484,7 +509,7 @@ export default function SalesOrderDetail() {
 
         <div className="flex gap-2">
           <DocumentActions
-            submitForApproval={order.status === 'draft' ? { visible: true, onClick: handleSubmitApproval, loading: submittingApproval } : undefined}
+            submitForApproval={order.status === 'draft' ? { visible: true, onClick: handleSubmitApproval, loading: submittingApproval || checklistGate.isBusy } : undefined}
             print={{ onClick: openPdfPreview, loading: pdfLoading }}
             menuItems={[
               {
@@ -991,7 +1016,7 @@ export default function SalesOrderDetail() {
               <button
                 type="button"
                 onClick={handleCreatePo}
-                disabled={poCreating || poLines.length === 0}
+                disabled={poCreating || checklistGate.isBusy || poLines.length === 0}
                 className="h-9 px-4 text-[13px] font-bold text-white bg-[#2563EB] rounded-lg hover:bg-[#1D4ED8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {poCreating ? 'Creating...' : 'Create PO'}
@@ -1016,6 +1041,13 @@ export default function SalesOrderDetail() {
           order={order}
         />
       )}
+      {/* One confirmation surface serves the sales_order approval and purchase_order create gates. */}
+      <ChecklistConfirmationDialog
+        policy={checklistGate.policy}
+        policyChanged={checklistGate.policyChanged}
+        onContinue={checklistGate.continueWith}
+        onCancel={checklistGate.cancel}
+      />
       </div>
       </div>
       </div>

@@ -9,6 +9,8 @@ import { toast } from '../../lib/logger';
 import { DocumentListShell, type ShellColumn } from '../../components/document/DocumentListShell';
 import { useSalesOrders, useDeleteSalesOrders, useDuplicateSalesOrder } from './hooks';
 import { SalesOrderImportModal } from './components/SalesOrderImportModal';
+import { ChecklistConfirmationDialog } from '../../features/document-checklists/ChecklistConfirmationDialog';
+import { useDocumentChecklistGate } from '../../features/document-checklists/useDocumentChecklistGate';
 
 const SO_STATUSES = ['All', 'draft', 'waiting_approval', 'open', 'in_production', 'partially_shipped', 'completed', 'cancelled'];
 
@@ -42,6 +44,33 @@ const SO_COLUMNS: ShellColumn[] = [
 
 const DEFAULT_VISIBLE = SO_COLUMNS.map((c) => c.id);
 
+type SalesOrderDuplicateMutation = Pick<ReturnType<typeof useDuplicateSalesOrder>, 'mutateAsync'>;
+
+export async function duplicateSalesOrderWithChecklist(
+  orgId: string,
+  orderId: string,
+  runChecklist: ReturnType<typeof useDocumentChecklistGate>['run'],
+  mutation: SalesOrderDuplicateMutation,
+): Promise<void> {
+  try {
+    const result = await runChecklist({
+      organisationId: orgId,
+      documentType: 'sales_order',
+      action: () => mutation.mutateAsync({ orderId, orgId }),
+    });
+
+    if (result.kind === 'completed') {
+      toast.success(`Duplicated as ${result.value.sales_order_no}`);
+    } else if (result.kind === 'failed') {
+      toast.error(`Duplicate failed: ${result.error}`);
+    } else if (result.kind === 'incomplete') {
+      toast.error('Complete every required checklist item before continuing.');
+    }
+  } catch (e: any) {
+    toast.error('Duplicate failed: ' + (e.message || e));
+  }
+}
+
 export default function SalesOrderList() {
   const navigate = useNavigate();
   const { organisation } = useAuth();
@@ -66,6 +95,7 @@ export default function SalesOrderList() {
   const { data: salesOrders = [], isLoading } = useSalesOrders(orgId);
   const deleteMutation = useDeleteSalesOrders();
   const duplicateMutation = useDuplicateSalesOrder();
+  const checklistGate = useDocumentChecklistGate();
 
   const filteredOrders = useMemo(() => {
     const q = searchTerm.toLowerCase();
@@ -115,12 +145,7 @@ export default function SalesOrderList() {
 
   const duplicateOrder = async (so: any) => {
     if (!orgId) return;
-    try {
-      const created: any = await duplicateMutation.mutateAsync({ orderId: so.id, orgId });
-      toast.success(`Duplicated as ${created.sales_order_no}`);
-    } catch (e: any) {
-      toast.error('Duplicate failed: ' + (e.message || e));
-    }
+    await duplicateSalesOrderWithChecklist(orgId, so.id, checklistGate.run, duplicateMutation);
   };
 
   const soRowMenuItems = (so: any) => [
@@ -196,6 +221,12 @@ export default function SalesOrderList() {
 
   return (
     <PermissionGuard permissions={['sales.view']}>
+      <ChecklistConfirmationDialog
+        policy={checklistGate.policy}
+        policyChanged={checklistGate.policyChanged}
+        onContinue={checklistGate.continueWith}
+        onCancel={checklistGate.cancel}
+      />
       <DocumentListShell
         title="Sales Orders"
         count={filteredOrders.length}

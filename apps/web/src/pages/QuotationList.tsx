@@ -9,6 +9,8 @@ import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { ApprovalAPI } from '../approvals/api';
 import { initiateQuotationRevision } from '../lib/quotation-workflow';
 import { duplicateQuotation } from '../api';
+import { ChecklistConfirmationDialog } from '../features/document-checklists/ChecklistConfirmationDialog';
+import { useDocumentChecklistGate } from '../features/document-checklists/useDocumentChecklistGate';
 import { DocumentListShell, type ShellColumn } from '../components/document/DocumentListShell';
 import {
 
@@ -68,10 +70,50 @@ const ALL_COLUMNS = [
   { id: 'grand_total', label: 'Amount', width: '100px' },
 ];
 
+type ChecklistRunner = ReturnType<typeof useDocumentChecklistGate>['run'];
+
+export async function runQuotationChecklistAction<T>(options: {
+  organisationId: string;
+  runChecklist: ChecklistRunner;
+  action: () => Promise<T> | T;
+}) {
+  const { organisationId, runChecklist, action } = options;
+  const result = await runChecklist({ organisationId, documentType: 'quotation', action });
+  if (result.kind === 'failed') throw new Error(result.error);
+  return result;
+}
+
+export async function duplicateQuotationWithChecklist(options: {
+  organisationId: string;
+  quotationId: string;
+  runChecklist: ChecklistRunner;
+  duplicate: (quotationId: string) => Promise<unknown>;
+  invalidate: () => Promise<unknown>;
+  onError: (error: unknown) => void;
+}): Promise<void> {
+  const { organisationId, quotationId, runChecklist, duplicate, invalidate, onError } = options;
+
+  try {
+    const result = await runQuotationChecklistAction({
+      organisationId,
+      runChecklist,
+      action: () => duplicate(quotationId),
+    });
+
+    if (result.kind !== 'completed') return;
+
+    await invalidate();
+  } catch (error) {
+    onError(error);
+  }
+}
+
 export default function QuotationList() {
   const navigate = useNavigate();
   const { organisation, user } = useAuth();
   const queryClient = useQueryClient();
+
+  const checklistGate = useDocumentChecklistGate();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -579,19 +621,26 @@ export default function QuotationList() {
       items.push({
         label: 'Mark as Sent', tone: 'blue',
         onClick: async () => {
-          const now = new Date().toISOString();
-          const update: any = { updated_at: now, sent_at: now };
-          if (q.status === 'Draft') update.status = 'Sent';
-          const { error } = await supabase
-            .from('quotation_header')
-            .update(update)
-            .eq('id', q.id)
-            .eq('organisation_id', organisation?.id);
-          if (error) {
-            alert('Failed to mark as sent: ' + error.message);
-            return;
-          }
-          queryClient.invalidateQueries({ queryKey: ['quotations'] });
+          if (!organisation?.id) return;
+          await runQuotationChecklistAction({
+            organisationId: organisation.id,
+            runChecklist: checklistGate.run,
+            action: async () => {
+              const now = new Date().toISOString();
+              const update: any = { updated_at: now, sent_at: now };
+              if (q.status === 'Draft') update.status = 'Sent';
+              const { error } = await supabase
+                .from('quotation_header')
+                .update(update)
+                .eq('id', q.id)
+                .eq('organisation_id', organisation.id);
+              if (error) {
+                alert('Failed to mark as sent: ' + error.message);
+                return;
+              }
+              queryClient.invalidateQueries({ queryKey: ['quotations'] });
+            },
+          });
         },
       });
     }
@@ -599,22 +648,31 @@ export default function QuotationList() {
       {
         label: 'Duplicate',
         onClick: async () => {
-          try {
-            await duplicateQuotation(q.id);
-            await queryClient.invalidateQueries({
-              queryKey: ['quotations', statusFilter, organisation?.id]
-            });
-          } catch (err: any) {
-            console.error('Duplicate exception:', err);
-            alert('Error duplicating quotation: ' + (err?.message || err));
-          }
+          if (!organisation?.id) return;
+          await duplicateQuotationWithChecklist({
+            organisationId: organisation.id,
+            quotationId: q.id,
+            runChecklist: checklistGate.run,
+            duplicate: duplicateQuotation,
+            invalidate: () => queryClient.invalidateQueries({
+              queryKey: ['quotations', statusFilter, organisation.id],
+            }),
+            onError: (err: any) => {
+              console.error('Duplicate exception:', err);
+              alert('Error duplicating quotation: ' + (err?.message || err));
+            },
+          });
         },
       },
       {
         label: 'Request Revision', tone: 'amber',
         onClick: async () => {
           if (organisation?.id && q.id) {
-            await initiateQuotationRevision(organisation.id, q.id);
+            await runQuotationChecklistAction({
+              organisationId: organisation.id,
+              runChecklist: checklistGate.run,
+              action: () => initiateQuotationRevision(organisation.id, q.id),
+            });
           }
         },
       },
@@ -634,6 +692,12 @@ export default function QuotationList() {
 
   return (
     <>
+      <ChecklistConfirmationDialog
+        policy={checklistGate.policy}
+        policyChanged={checklistGate.policyChanged}
+        onContinue={checklistGate.continueWith}
+        onCancel={checklistGate.cancel}
+      />
       <DocumentListShell
 
         title="Quotations"
