@@ -15,13 +15,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Inter is served from here, and only here. Do not also add it to index.css.
-         The self-hosted @fontsource-variable/inter is currently inert in production
-         builds: its ./files/*.woff2 assets are referenced by the emitted CSS but
-         never written to dist, so every request 404s into the SPA fallback. Keep
-         this tag until that emission is fixed, then switch to self-hosting and
-         drop this line. -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <!-- Inter is self-hosted and imported from src/main.tsx. Do not add a Google
+         Fonts stylesheet or @import for Inter here or in index.css: --font-sans
+         resolves to "Inter Variable", which now loads from /assets, so a second
+         source is fetched on every cold load and never used. The preconnect hints
+         above stay for the components that still pull Roboto, Manrope and
+         Space Grotesk lazily from their own <style> blocks. -->
     <title>mep-project</title>
     <style>
       @keyframes shimmer {

@@ -4,6 +4,19 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
+// Font faces must be imported from JS rather than from index.css.
+// @tailwindcss/postcss resolves CSS @import itself and inlines the file text,
+// which leaves url() pointing at node_modules-relative ./files/*.woff2 paths that
+// Vite never emits. Production builds shipped all 18 of those requests as 404s
+// falling through to the SPA index.html. Importing the same packages from JS
+// routes them through Vite's own CSS pipeline, which writes the woff2 assets.
+// Found during audit FE-012; do not move these back into index.css.
+// The explicit /index.css paths are deliberate: vite/client declares module
+// '*.css', whereas the bare specifier only type-checks for the packages that
+// happen to ship a .d.css.ts, which @fontsource-variable/geist does not.
+import '@fontsource-variable/inter/index.css'
+import '@fontsource-variable/geist/index.css'
+import '@fontsource-variable/jetbrains-mono/index.css'
 import App from './App'
 import { queryClient } from './queryClient'
 

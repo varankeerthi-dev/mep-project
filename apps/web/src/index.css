@@ -1,14 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-/* Inter comes from the Google Fonts tag in index.html. Do not re-add a Google
-   Fonts @import for it here: that was a second source for the same family.
-   @fontsource-variable/inter is listed below because --font-sans resolves to
-   "Inter Variable", but its woff2 assets are not emitted into dist, so in a
-   production build the cascade falls through to the CDN "Inter". */
-@import "@fontsource-variable/geist";
-@import "@fontsource-variable/inter";
-@import "@fontsource-variable/jetbrains-mono";
+/* Inter is self-hosted and imported from src/main.tsx. Do not re-add a Google
+   Fonts @import for it here: that was a second source for the same family, and
+   with the self-hosted woff2 now emitted to dist the CDN copy is never reached.
+   The @fontsource-variable/* faces are imported from src/main.tsx rather than
+   here, because @tailwindcss/postcss inlines CSS @import without letting Vite
+   emit the referenced woff2 assets. */
 
 @custom-variant dark (&:is(.dark *));
 
