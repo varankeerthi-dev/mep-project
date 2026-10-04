@@ -1,9 +1,11 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500;600;700&display=swap');
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+/* Inter comes from the Google Fonts tag in index.html. Do not re-add a Google
+   Fonts @import for it here: that was a second source for the same family.
+   @fontsource-variable/inter is listed below because --font-sans resolves to
+   "Inter Variable", but its woff2 assets are not emitted into dist, so in a
+   production build the cascade falls through to the CDN "Inter". */
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";

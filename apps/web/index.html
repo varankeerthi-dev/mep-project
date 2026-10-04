@@ -15,8 +15,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Inter is served from here, and only here. Do not also add it to index.css.
+         The self-hosted @fontsource-variable/inter is currently inert in production
+         builds: its ./files/*.woff2 assets are referenced by the emitted CSS but
+         never written to dist, so every request 404s into the SPA fallback. Keep
+         this tag until that emission is fixed, then switch to self-hosting and
+         drop this line. -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
     <title>mep-project</title>
     <style>
       @keyframes shimmer {
