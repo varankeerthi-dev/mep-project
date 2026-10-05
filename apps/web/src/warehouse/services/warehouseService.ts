@@ -1101,11 +1101,8 @@ export async function receiveStock(args: {
  * zone chain (bin → tier → rack → layout → zone), current qty + free
  * capacity computed from live bin_items. All non-deleted bins in the org.
  */
-export async function fetchBinCandidates(organisationId: string) {
-  const [structure, binItems] = await Promise.all([
-    fetchOrgStructure(organisationId),
-    fetchAllBinItems(organisationId),
-  ]);
+export async function fetchBinCandidates(organisationId: string, structure: OrgStructure) {
+  const binItems = await fetchAllBinItems(organisationId);
 
   const zoneById = new Map(structure.zones.map(z => [z.id, z]));
   const warehouseByFloor = new Map(structure.floors.map(f => [f.id, f.warehouse_id]));
@@ -1354,17 +1351,17 @@ export async function reverseMovement(
  * dashboard never queries every module independently). Returns raw rows;
  * the pure engine in dashboard.ts computes the ViewModel.
  */
-export async function fetchDashboardData(organisationId: string) {
+export async function fetchDashboardData(organisationId: string, structure: OrgStructure) {
   const [warehouses, binItems, movements, transfers, dispatches, pickLists, rulesRes, binCandidates, cycleCounts] = await Promise.all([
     fetchWarehouses(organisationId),
     fetchOrgBinItems(organisationId),
     fetchMovements(organisationId, { limit: 300 }),
     fetchTransfers(organisationId),
     fetchDispatches(organisationId),
-    fetchPickLists(organisationId),
+    fetchPickLists(organisationId, structure),
     fetchReplenishmentRules(organisationId),
-    fetchBinCandidates(organisationId),
-    fetchCycleCounts(organisationId),
+    fetchBinCandidates(organisationId, structure),
+    fetchCycleCounts(organisationId, structure),
   ]);
 
   // Item names for activity + insights (resolved once, keyed by id).
@@ -1550,11 +1547,10 @@ export async function cancelCycleCountBatch(
 }
 
 /** All cycle batches for an org, enriched with line items + names. */
-export async function fetchCycleCounts(organisationId: string): Promise<CycleCountBatchView[]> {
-  const [batchesRes, itemsRes, structure, warehouses] = await Promise.all([
+export async function fetchCycleCounts(organisationId: string, structure: OrgStructure): Promise<CycleCountBatchView[]> {
+  const [batchesRes, itemsRes, warehouses] = await Promise.all([
     supabase.from('warehouse_cycle_count_batches').select('*').eq('organisation_id', organisationId).order('created_at', { ascending: false }),
     supabase.from('warehouse_cycle_count_items').select('*').eq('organisation_id', organisationId).order('created_at'),
-    fetchOrgStructure(organisationId),
     fetchWarehouses(organisationId),
   ]);
   if (batchesRes.error) throw batchesRes.error;
@@ -1595,8 +1591,8 @@ export async function fetchCycleCounts(organisationId: string): Promise<CycleCou
 }
 
 /** Cycle batches that are due (scheduled/overdue) — drives dashboard alerts. */
-export async function fetchCycleCountsDue(organisationId: string): Promise<Array<{ id: string; label: string }>> {
-  const rows = await fetchCycleCounts(organisationId);
+export async function fetchCycleCountsDue(organisationId: string, structure: OrgStructure): Promise<Array<{ id: string; label: string }>> {
+  const rows = await fetchCycleCounts(organisationId, structure);
   return rows
     .filter(b => b.status === 'scheduled' || b.status === 'in_progress')
     .map(b => ({ id: b.id, label: `${b.batch_no} · ${b.scopeLabel ?? b.name}` }));
@@ -1793,11 +1789,10 @@ export async function updatePickLineQty(
 }
 
 /** Fetch pick lists enriched with item + bin names (oldest open first). */
-export async function fetchPickLists(organisationId: string): Promise<PickListView[]> {
-  const [lists, items, structure, binItems] = await Promise.all([
+export async function fetchPickLists(organisationId: string, structure: OrgStructure): Promise<PickListView[]> {
+  const [lists, items, binItems] = await Promise.all([
     supabase.from('warehouse_pick_lists').select('*').eq('organisation_id', organisationId).order('created_at', { ascending: false }),
     supabase.from('warehouse_pick_list_items').select('*').eq('pick_list_id', () => supabase.from('warehouse_pick_lists').select('id').eq('organisation_id', organisationId)),
-    fetchOrgStructure(organisationId),
     fetchAllBinItems(organisationId),
   ]);
   if (lists.error) throw lists.error;
@@ -1854,7 +1849,25 @@ export async function completePickList(
 }
 
 /** All structure rows for an org (bin → tier → rack → layout → zone chain). */
-export async function fetchOrgStructure(organisationId: string) {
+export interface OrgStructure {
+  floors: { id: string; name: string; warehouse_id: string }[];
+  zones: { id: string; name: string; floor_id: string; storage_role: string | null }[];
+  layouts: { id: string; zone_id: string }[];
+  racks: { id: string; layout_id: string; name: string; position_x: number | null; position_y: number | null }[];
+  tiers: { id: string; rack_id: string }[];
+  bins: { id: string; tier_id: string; name: string; max_quantity: number | null; max_weight_kg: number | null; status: string | null }[];
+}
+
+export const EMPTY_ORG_STRUCTURE: OrgStructure = { floors: [], zones: [], layouts: [], racks: [], tiers: [], bins: [] };
+
+/**
+ * Six-request fallback for get_warehouse_structure.
+ *
+ * TODO: remove once supabase/migrations/20261004000000_get_warehouse_structure.sql
+ * is applied and the endpoint is visible to PostgREST. Callers must go through
+ * loadOrgStructure, never this directly.
+ */
+export async function fetchOrgStructure(organisationId: string): Promise<OrgStructure> {
   const [floors, zones, layouts, racks, tiers, bins] = await Promise.all([
     supabase.from('warehouse_floors').select('id, name, warehouse_id').eq('organisation_id', organisationId).is('deleted_at', null),
     supabase.from('warehouse_zones').select('id, name, floor_id, storage_role').eq('organisation_id', organisationId).is('deleted_at', null),
@@ -1867,13 +1880,73 @@ export async function fetchOrgStructure(organisationId: string) {
     throw floors.error ?? zones.error ?? layouts.error ?? racks.error ?? tiers.error ?? bins.error;
   }
   return {
-    floors: (floors.data ?? []) as { id: string; name: string; warehouse_id: string }[],
-    zones: (zones.data ?? []) as { id: string; name: string; floor_id: string; storage_role: string | null }[],
-    layouts: (layouts.data ?? []) as { id: string; zone_id: string }[],
-    racks: (racks.data ?? []) as { id: string; layout_id: string; name: string; position_x: number | null; position_y: number | null }[],
-    tiers: (tiers.data ?? []) as { id: string; rack_id: string }[],
-    bins: (bins.data ?? []) as { id: string; tier_id: string; name: string; max_quantity: number | null; max_weight_kg: number | null; status: string | null }[],
+    floors: (floors.data ?? []) as OrgStructure['floors'],
+    zones: (zones.data ?? []) as OrgStructure['zones'],
+    layouts: (layouts.data ?? []) as OrgStructure['layouts'],
+    racks: (racks.data ?? []) as OrgStructure['racks'],
+    tiers: (tiers.data ?? []) as OrgStructure['tiers'],
+    bins: (bins.data ?? []) as OrgStructure['bins'],
   };
+}
+
+/**
+ * Single-request path: one RPC instead of six REST reads.
+ * The function is SECURITY INVOKER, so RLS filters these rows exactly as it
+ * filters the REST calls.
+ */
+async function fetchOrgStructureRpc(organisationId: string): Promise<OrgStructure> {
+  const { data, error } = await supabase.rpc('get_warehouse_structure', { p_org_id: organisationId });
+  if (error) throw error;
+  const payload = (data ?? {}) as Partial<OrgStructure>;
+  return {
+    floors: payload.floors ?? [],
+    zones: payload.zones ?? [],
+    layouts: payload.layouts ?? [],
+    racks: payload.racks ?? [],
+    tiers: payload.tiers ?? [],
+    bins: payload.bins ?? [],
+  };
+}
+
+// Orgs for which the RPC is known to be missing, so a deployment that has not
+// applied the migration yet does not pay one guaranteed-failed request per call.
+const rpcUnavailableFor = new Set<string>();
+// In-flight de-duplication, so callers that arrive in the same tick share one
+// execution. Entries are dropped on settle; persistence is React Query's job.
+const orgStructureInFlight = new Map<string, Promise<OrgStructure>>();
+
+/**
+ * The one entry point for reading warehouse structure. Prefers the single RPC
+ * and falls back to the six-request path while the migration is unapplied.
+ * Audit FE-001 / BE-001.
+ */
+export function loadOrgStructure(organisationId: string): Promise<OrgStructure> {
+  const inFlight = orgStructureInFlight.get(organisationId);
+  if (inFlight) return inFlight;
+
+  const pending = (rpcUnavailableFor.has(organisationId)
+    ? fetchOrgStructure(organisationId)
+    : fetchOrgStructureRpc(organisationId).catch((err: unknown) => {
+        // PGRST202 = endpoint missing from the schema cache. Anything else
+        // (RLS denial, transient 5xx) is left to surface to the caller rather
+        // than silently masked by a second code path.
+        const message = err instanceof Error ? err.message : String(err);
+        if (/PGRST202|not found|does not exist/i.test(message)) {
+          rpcUnavailableFor.add(organisationId);
+          console.warn('[warehouse] get_warehouse_structure unavailable, using the six-request fallback. Apply supabase/migrations/20261004000000_get_warehouse_structure.sql to remove this.');
+        }
+        return fetchOrgStructure(organisationId);
+      })
+  ).finally(() => orgStructureInFlight.delete(organisationId));
+
+  orgStructureInFlight.set(organisationId, pending);
+  return pending;
+}
+
+/** Test seam: forget that the RPC is missing for an org. */
+export function resetOrgStructureRpcAvailability(): void {
+  rpcUnavailableFor.clear();
+  orgStructureInFlight.clear();
 }
 
 /** Lightweight org-wide search index for the universal search bar (PRD §2.8).
@@ -1886,10 +1959,12 @@ export interface WarehouseSearchIndex {
   items: Array<{ id: string; name: string; code: string | null }>;
 }
 
-export async function fetchSearchIndex(organisationId: string): Promise<WarehouseSearchIndex> {
-  const [candidates, structure, binItemsRes] = await Promise.all([
-    fetchBinCandidates(organisationId),
-    fetchOrgStructure(organisationId),
+export async function fetchSearchIndex(organisationId: string, structure: OrgStructure): Promise<WarehouseSearchIndex> {
+  // `structure` arrives from the caller. This function used to fetch it itself
+  // *and* call fetchBinCandidates, which fetched it again: two six-request fans
+  // for one search index. Both now share the caller's single structure read.
+  const [candidates, binItemsRes] = await Promise.all([
+    fetchBinCandidates(organisationId, structure),
     supabase
       .from('warehouse_bin_items')
       .select('item_id')

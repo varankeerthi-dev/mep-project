@@ -17,7 +17,31 @@ export const WAREHOUSE_QUERY_KEYS = {
   layouts: ['warehouse-layouts'] as const,
   racks: ['warehouse-racks'] as const,
   bins: ['warehouse-bins'] as const,
+  /**
+   * The single org-wide structure cache. Keyed by organisation only, never by
+   * warehouse, because the structure read is org-scoped. Every caller that needs
+   * bins/tiers/racks/zones goes through this one key.
+   */
+  orgStructure: (orgId?: string) => ['warehouse-org-structure', orgId] as const,
 } as const;
+
+/**
+ * Read the org structure through the shared cache.
+ *
+ * Every hook that needs warehouse structure calls this instead of fetching it.
+ * React Query de-duplicates concurrent fetches for the same key, so five hooks
+ * mounting in the same tick produce one structure request rather than five
+ * six-request fans. Audit FE-001 / BE-001.
+ */
+export function ensureOrgStructure(
+  queryClient: ReturnType<typeof useQueryClient>,
+  orgId: string,
+): Promise<warehouseService.OrgStructure> {
+  return queryClient.ensureQueryData({
+    queryKey: WAREHOUSE_QUERY_KEYS.orgStructure(orgId),
+    queryFn: () => warehouseService.loadOrgStructure(orgId),
+  });
+}
 
 export function useWarehouses() {
   const { organisation } = useAuth();
@@ -80,6 +104,10 @@ export function useSaveWarehouseDraft() {
       queryClient.invalidateQueries({ queryKey: ['warehouse-layouts'] });
       queryClient.invalidateQueries({ queryKey: ['warehouse-racks'] });
       queryClient.invalidateQueries({ queryKey: ['warehouse-bins'] });
+      // The org-wide structure is now cached in one shared entry, and a saved
+      // draft can create floors/zones/layouts/racks/bins. Without this the
+      // shared cache would keep serving the pre-save structure.
+      queryClient.invalidateQueries({ queryKey: WAREHOUSE_QUERY_KEYS.orgStructure(organisation?.id) });
     },
   });
 }
@@ -91,6 +119,7 @@ export function useDeleteWarehouse() {
     mutationFn: (id: string) => warehouseService.softDeleteWarehouse(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_QUERY_KEYS.warehouses(organisation?.id) });
+      queryClient.invalidateQueries({ queryKey: WAREHOUSE_QUERY_KEYS.orgStructure(organisation?.id) });
     },
   });
 }
@@ -306,11 +335,13 @@ export function useOrgBinItems() {
 
 export function useBinCandidates() {
   const { organisation } = useAuth();
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ['warehouse-bin-candidates', organisation?.id] as const,
     queryFn: async () => {
       if (!organisation?.id) return [];
-      return warehouseService.fetchBinCandidates(organisation.id);
+      const structure = await ensureOrgStructure(queryClient, organisation.id);
+      return warehouseService.fetchBinCandidates(organisation.id, structure);
     },
     enabled: !!organisation?.id,
   });
@@ -481,11 +512,13 @@ export function useReverseMovement() {
 
 export function useDashboard() {
   const { organisation } = useAuth();
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ['warehouse-dashboard', organisation?.id] as const,
     queryFn: async () => {
       if (!organisation?.id) return null;
-      const raw = await warehouseService.fetchDashboardData(organisation.id);
+      const structure = await ensureOrgStructure(queryClient, organisation.id);
+      const raw = await warehouseService.fetchDashboardData(organisation.id, structure);
       return buildDashboardViewModel(raw);
     },
     enabled: !!organisation?.id,
@@ -506,11 +539,13 @@ function invalidatePicking(queryClient: ReturnType<typeof useQueryClient>, orgId
 
 export function usePickLists() {
   const { organisation } = useAuth();
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ['warehouse-pick-lists', organisation?.id] as const,
     queryFn: async () => {
       if (!organisation?.id) return [];
-      return warehouseService.fetchPickLists(organisation.id);
+      const structure = await ensureOrgStructure(queryClient, organisation.id);
+      return warehouseService.fetchPickLists(organisation.id, structure);
     },
     enabled: !!organisation?.id,
     refetchInterval: 30_000,
@@ -561,7 +596,7 @@ export function useCompletePickList() {
 
 function invalidateCycleCounts(queryClient: ReturnType<typeof useQueryClient>, orgId?: string) {
   queryClient.invalidateQueries({ queryKey: ['warehouse-cycle-counts', orgId] });
-  queryClient.invalidateQueries({ queryKey: ['warehouse-org-structure'] });
+  queryClient.invalidateQueries({ queryKey: WAREHOUSE_QUERY_KEYS.orgStructure(orgId) });
   // Approvals adjust stock through the Movement Engine → refresh everything downstream.
   queryClient.invalidateQueries({ queryKey: ['warehouse-movements'] });
   queryClient.invalidateQueries({ queryKey: ['warehouse-bin-candidates'] });
@@ -572,11 +607,13 @@ function invalidateCycleCounts(queryClient: ReturnType<typeof useQueryClient>, o
 /** Org-wide search index for the universal search bar (PRD §2.8). */
 export function useSearchIndex() {
   const { organisation } = useAuth();
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ['warehouse-search-index', organisation?.id] as const,
     queryFn: async () => {
       if (!organisation?.id) return { bins: [], zones: [], racks: [], items: [] };
-      return warehouseService.fetchSearchIndex(organisation.id);
+      const structure = await ensureOrgStructure(queryClient, organisation.id);
+      return warehouseService.fetchSearchIndex(organisation.id, structure);
     },
     enabled: !!organisation?.id,
     staleTime: 60_000,
@@ -587,10 +624,10 @@ export function useSearchIndex() {
 export function useOrgStructure() {
   const { organisation } = useAuth();
   return useQuery({
-    queryKey: ['warehouse-org-structure', organisation?.id] as const,
+    queryKey: WAREHOUSE_QUERY_KEYS.orgStructure(organisation?.id),
     queryFn: async () => {
-      if (!organisation?.id) return { floors: [], zones: [], layouts: [], racks: [], tiers: [], bins: [] };
-      return warehouseService.fetchOrgStructure(organisation.id);
+      if (!organisation?.id) return warehouseService.EMPTY_ORG_STRUCTURE;
+      return warehouseService.loadOrgStructure(organisation.id);
     },
     enabled: !!organisation?.id,
   });
@@ -613,11 +650,13 @@ export function useOpenPurchaseOrders() {
 /** All cycle-count batches enriched with items + names (refreshes every 30s). */
 export function useCycleCounts() {
   const { organisation } = useAuth();
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ['warehouse-cycle-counts', organisation?.id] as const,
     queryFn: async () => {
       if (!organisation?.id) return [];
-      return warehouseService.fetchCycleCounts(organisation.id);
+      const structure = await ensureOrgStructure(queryClient, organisation.id);
+      return warehouseService.fetchCycleCounts(organisation.id, structure);
     },
     enabled: !!organisation?.id,
     refetchInterval: 30_000,
