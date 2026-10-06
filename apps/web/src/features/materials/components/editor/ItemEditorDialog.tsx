@@ -185,7 +185,29 @@ export function ItemEditorDialog({
       </div>
 
       {/* Item Classification — full width */}
-      {/* 1. Accounting Treatment & Item Classification — full width */}
+
+      {/* Row: 1. Basic Information + 2. Technical Attributes — two-column */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <BasicInformationSection
+          color="green"
+          formData={formData}
+          categoryOptions={categoryOptions}
+          unitOptions={unitOptions}
+          onChange={handleChange}
+          onCategoryCreated={onCategoryCreated}
+          onUnitCreated={onUnitCreated}
+        />
+        <TechnicalSection
+          color="purple"
+          customAttributes={customAttributes}
+          attributeDefinitions={attributeDefinitions}
+          onCustomAttributesChange={onCustomAttributesChange}
+          showTechnical={showTechnical}
+          onToggleTechnical={onToggleTechnical}
+        />
+      </div>
+
+      {/* 3. Accounting Treatment & Item Classification — full width */}
       <EditorSection
         color="indigo"
         title="Accounting & Item Classification"
@@ -392,28 +414,7 @@ export function ItemEditorDialog({
          )}
        </EditorSection>
 
-      {/* Row: 2. Basic Information + 3. Technical Attributes — two-column */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <BasicInformationSection
-          color="green"
-          formData={formData}
-          categoryOptions={categoryOptions}
-          unitOptions={unitOptions}
-          onChange={handleChange}
-          onCategoryCreated={onCategoryCreated}
-          onUnitCreated={onUnitCreated}
-        />
-        <TechnicalSection
-          color="purple"
-          customAttributes={customAttributes}
-          attributeDefinitions={attributeDefinitions}
-          onCustomAttributesChange={onCustomAttributesChange}
-          showTechnical={showTechnical}
-          onToggleTechnical={onToggleTechnical}
-        />
-      </div>
-
-      {/* Row: 5. Commercial / Pricing + 4. Discount Category — two-column */}
+      {/* Row: 4. Commercial / Pricing + 5. Discount Category — two-column */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <CommercialSection
           formData={formData}
@@ -514,7 +515,7 @@ export function ItemEditorDialog({
       </EditorSection>
       )}
 
-      {/* Row: 8. Variant Pricing + Inventory — two-column */}
+      {/* Row: 6. Variant Pricing + Inventory — two-column */}
       {(typeConfig.showVariantPricing || typeConfig.showInventory) && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <VariantPricingSection
@@ -542,7 +543,7 @@ export function ItemEditorDialog({
       </div>
       )}
 
-      {/* 9. Purchase & Vendor Mapping */}
+      {/* 7. Purchase & Vendor Mapping */}
       {typeConfig.showVendorMapping && (
       <VendorSection
         number={9}
@@ -576,12 +577,6 @@ export function ItemEditorDialog({
       />
       )}
 
-      {/* 11. Additional Information — collapsed */}
-      {typeConfig.showAdditionalInfo && (
-      <EditorSection color="slate" title="Additional Information" description="Barcodes, documents, notes and other custom fields." expanded={false}>
-        <p className="text-sm text-[#6B7280]">Additional fields will appear here once configured.</p>
-      </EditorSection>
-      )}
     </form>
   );
 

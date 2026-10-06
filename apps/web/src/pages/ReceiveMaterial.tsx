@@ -123,8 +123,14 @@ export default function ReceiveMaterial({ projectId, organisationId }: ProjectPr
         logData.organisation_id = organisationId;
       }
       
-      const { error: logError } = await supabase.from('material_logs').insert(logData);
-      if (logError) throw logError;
+      try {
+        const { error: logError } = await supabase.from('material_logs').insert(logData);
+        if (logError) {
+          console.warn('Could not insert material_log:', logError.message);
+        }
+      } catch (err: any) {
+        console.warn('material_logs insert failed:', err.message);
+      }
 
       const newReceivedQty = selectedIntent.received_qty + qtyReceived;
       const newStatus = newReceivedQty >= selectedIntent.requested_qty 

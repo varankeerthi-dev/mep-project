@@ -179,7 +179,16 @@ export function InvoiceHeaderCards(props: InvoiceHeaderCardsProps) {
             <option value="quotation">Quotation</option>
             <option value="challan">Challan</option>
             <option value="po">PO</option>
-            <option value="proforma">Proforma</option>
+            {/*
+              'proforma' is deliberately absent. It is not a legal source_type:
+              the database CHECK constraint `invoices_source_type_check` allows
+              only quotation/challan/po/direct, and InvoiceEditorSchema validates
+              against the same enum. The conversion path already maps a proforma
+              to source_type 'quotation' (conversions/api.ts transformProformaToInvoice)
+              and records the lineage in invoices.proforma_id instead. Offering the
+              option made the form unsavable, and the option loader's catch-all
+              quietly listed client POs in its place.
+            */}
           </select>
         </HeaderField>
 

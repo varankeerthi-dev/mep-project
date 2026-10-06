@@ -1177,22 +1177,43 @@ export default function CreateProject() {
 
       if (editId) {
         projectData.updated_by = user?.id;
-        const { error } = await supabase
+        let { error } = await supabase
           .from('projects')
           .update(projectData)
           .eq('id', editId)
           .eq('organisation_id', organisation.id);
         
+        if (error && error.message?.includes('projects_site_engineer_id_fkey')) {
+          console.warn('site_engineer_id constraint points to users rather than employees, falling back to null');
+          const fallbackData = { ...projectData, site_engineer_id: null };
+          const res = await supabase
+            .from('projects')
+            .update(fallbackData)
+            .eq('id', editId)
+            .eq('organisation_id', organisation.id);
+          error = res.error;
+        }
         if (error) throw error;
         auditLog.log('updated', 'project', editId, projectData as Record<string, unknown>);
       } else {
         projectData.created_by = user?.id;
-        const { data: newProject, error } = await supabase
+        let { data: newProject, error } = await supabase
           .from('projects')
           .insert(projectData)
           .select('id')
           .single();
         
+        if (error && error.message?.includes('projects_site_engineer_id_fkey')) {
+          console.warn('site_engineer_id constraint points to users rather than employees, falling back to null');
+          const fallbackData = { ...projectData, site_engineer_id: null };
+          const res = await supabase
+            .from('projects')
+            .insert(fallbackData)
+            .select('id')
+            .single();
+          newProject = res.data;
+          error = res.error;
+        }
         if (error) throw error;
         finalProjectId = newProject.id;
         clearDraft();

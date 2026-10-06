@@ -774,11 +774,18 @@ export default function ProjectTaskListView({
   const createTaskMutation = useMutation({
     mutationFn: async (input: TaskCreateInput) => {
       // Auto-generate task_no: find max task_no in project
-      const { data: existingTasks } = await supabase
+      const targetProjId = input.project_id || projectId;
+      let tasksQuery = supabase
         .from('tasks')
         .select('task_no')
-        .eq('project_id', input.project_id || projectId)
         .is('deleted_at', null);
+
+      if (targetProjId) {
+        tasksQuery = tasksQuery.eq('project_id', targetProjId);
+      } else {
+        tasksQuery = tasksQuery.eq('organisation_id', organisationId);
+      }
+      const { data: existingTasks } = await tasksQuery;
 
       let maxNo = 0;
       if (existingTasks) {
@@ -826,6 +833,7 @@ export default function ProjectTaskListView({
       return data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] });
       setShowCreateModal(false);
       setCreateForGroupId(null);

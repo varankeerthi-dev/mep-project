@@ -93,7 +93,6 @@ const DCView = lazyAny(() => import('./pages/DCView'));
 const ReturnListPage = lazyAny(() => import('./pages/ReturnListPage'));
 const ReturnEditorPage = lazyAny(() => import('./pages/ReturnEditorPage'));
 const ReturnViewPage = lazyAny(() => import('./pages/ReturnViewPage'));
-const TemplateSettings = lazyAny(() => import('./pages/TemplateSettings'));
 const DiscountSettings = lazyAny(() => import('./pages/DiscountSettings'));
 const QuickQuoteSettings = lazyAny(() => import('./pages/QuickQuoteSettings'));
 const TermsConditionsDashboard = lazyAny(() => import('./pages/TermsConditionsDirect').then(m => ({ default: m.TermsConditionsDashboard })));
@@ -192,7 +191,6 @@ const IssueCreateModal = lazyAny(() => import('./issues/pages/IssueCreateModal')
 const ClientComm = lazyAny(() => _projectMgmtInternal().then(m => ({ default: m.ClientComm })));
 const Documents  = lazyAny(() => _projectMgmtInternal().then(m => ({ default: m.Documents })));
 const DCEdit = lazyAny(() => import('./pages/DCEdit'));
-const SettingsPage = lazyAny(() => import('./pages/Settings'));
 const SettingsV2Page = lazyAny(() => import('./features/settings-v2/SettingsV2Page'));
 const ModuleSettingsPage = lazyAny(() => import('./components/ModuleSettings'));
 const StockAdjustmentPage = lazyAny(() => import('./pages/StockAdjustment'));

@@ -166,7 +166,6 @@ export default function CreateProjectInvoiceModal({
 
       const payload = {
         project_id: projectId,
-        organisation_id: organisation.id,
         invoice_number: form.invoice_number.trim(),
         invoice_date: form.invoice_date,
         invoice_amount: base,

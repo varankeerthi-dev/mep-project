@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Invoice, InvoiceInput, InvoiceItem, InvoiceMaterial } from './schemas';
 import { invoiceModes, invoiceSourceTypes, invoiceStatuses, invoiceTemplateTypes } from './types';
+import { calculateInvoiceTotals, effectiveLineRate } from './logic';
 import type { InvoiceTemplateRecord, InvoiceWithRelations } from './api';
 
 export const DEFAULT_COMPANY_STATE = 'Maharashtra';
@@ -11,6 +12,33 @@ const CustomValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()
 // `null` (and selects emit `''`) for empty optionals — coerce those to
 // `undefined` so `.optional()` / `.uuid()` fields validate cleanly.
 const emptyToUndefined = (val: unknown) => (val === null || val === '' ? undefined : val);
+
+/**
+ * Normalises an item's `meta_json` WITHOUT discarding keys we do not recognise.
+ *
+ * The PO/quotation/proforma line-import mappers stamp lineage keys
+ * (`po_line_item_id`, `quotation_item_id`, `proforma_item_id`) plus client
+ * custom fields, batch/serial data. Three call sites used to rebuild `meta_json`
+ * from a fixed whitelist, which silently dropped them on the way to the
+ * database and again on edit-load. Because the partial-billing and PO
+ * billed-quantity logic reads `meta_json` from the form, the first save looked
+ * fine; every subsequent edit of the same invoice lost its lineage and wrote
+ * "partially converted" regardless of the truth.
+ *
+ * Spreading the source first keeps unknown keys; the explicit assignments below
+ * only normalise the ones with defined defaults.
+ */
+export function normalizeItemMeta(
+  meta: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const source = (meta ?? {}) as Record<string, unknown>;
+  const taxPercent = Number(source.tax_percent);
+  return {
+    ...source,
+    tax_percent: Number.isFinite(taxPercent) ? taxPercent : 18,
+    uom: String(source.uom ?? 'Nos'),
+  };
+}
 
 export const InvoiceEditorItemSchema = z.object({
   description: z.string().trim().min(1, 'Description is required.'),
@@ -69,6 +97,7 @@ export const InvoiceEditorSchema = z
     ),
     invoice_no: z.preprocess(emptyToUndefined, z.string().optional()),
     invoice_date: z.string().optional(),
+    due_date: z.preprocess(emptyToUndefined, z.string().optional()),
     po_number: z.preprocess(emptyToUndefined, z.string().optional()),
     po_date: z.preprocess(emptyToUndefined, z.string().optional()),
     prepared_by: z.preprocess(emptyToUndefined, z.string().optional()),
@@ -249,17 +278,7 @@ export function createEmptyItem(overrides: any = {}): InvoiceEditorFormValues['i
     display_order: overrides.display_order ?? 0,
     custom1: overrides.custom1 ?? null,
     custom2: overrides.custom2 ?? null,
-    meta_json: {
-      tax_percent: Number(meta?.tax_percent) || 18,
-      uom: String(meta?.uom || 'Nos'),
-      make: meta?.make as string | undefined,
-      variant: meta?.variant as string | undefined,
-      base_rate: meta?.base_rate as number | undefined,
-      material_id: meta?.material_id as string | undefined,
-      warehouse_id: meta?.warehouse_id as string | undefined,
-      variant_id: meta?.variant_id as string | undefined,
-      is_service: meta?.is_service as boolean | undefined,
-    },
+    meta_json: normalizeItemMeta(meta),
   };
 }
 
@@ -291,6 +310,7 @@ export function createEmptyInvoiceFormValues(companyState?: string | null): Invo
     template_id: null,
     invoice_no: '',
     invoice_date: today,
+    due_date: '',
     po_number: '',
     po_date: '',
     source_type: 'direct',
@@ -319,6 +339,7 @@ export function invoiceToFormValues(invoice: InvoiceWithRelations): InvoiceEdito
     template_id: invoice.template_id ?? null,
     invoice_no: invoice.invoice_no ?? '',
     invoice_date: invoice.invoice_date ?? new Date().toISOString().split('T')[0],
+    due_date: invoice.due_date ?? '',
     po_number: invoice.po_number ?? '',
     po_date: invoice.po_date ?? '',
     source_type: invoice.source_type,
@@ -349,17 +370,10 @@ export function invoiceToFormValues(invoice: InvoiceWithRelations): InvoiceEdito
       display_order: item.display_order ?? 0,
       custom1: item.custom1 ?? null,
       custom2: item.custom2 ?? null,
-      meta_json: {
-        tax_percent: item.meta_json?.tax_percent ?? 18,
-        uom: item.meta_json?.uom ?? 'Nos',
-        make: item.meta_json?.make,
-        variant: item.meta_json?.variant,
-        base_rate: item.rate,
-        material_id: item.meta_json?.material_id,
-        warehouse_id: item.meta_json?.warehouse_id,
-        variant_id: item.meta_json?.variant_id,
-        is_service: item.meta_json?.is_service,
-      },
+      meta_json: normalizeItemMeta({
+        ...(item.meta_json ?? {}),
+        base_rate: item.meta_json?.base_rate ?? item.rate,
+      }),
     })),
     materials: invoice.materials.map((material) => createEmptyMaterial(material)),
   };
@@ -367,7 +381,7 @@ export function invoiceToFormValues(invoice: InvoiceWithRelations): InvoiceEdito
 
 export function composeInvoiceInput(
   values: InvoiceEditorFormValues,
-  totals: Pick<Invoice, 'subtotal' | 'cgst' | 'sgst' | 'igst' | 'total'>,
+  totals: Pick<Invoice, 'subtotal' | 'cgst' | 'sgst' | 'igst' | 'total'> & { roundOff?: number },
 ): InvoiceInput {
   const effectiveSourceId = values.source_type === 'direct' ? null : values.source_id;
   
@@ -376,6 +390,7 @@ export function composeInvoiceInput(
     template_id: values.template_id ?? null,
     invoice_no: values.invoice_no || null,
     invoice_date: values.invoice_date || null,
+    due_date: values.due_date || null,
     po_number: values.po_number || null,
     po_date: values.po_date || null,
     source_type: values.source_type,
@@ -386,6 +401,7 @@ export function composeInvoiceInput(
     cgst: totals.cgst,
     sgst: totals.sgst,
     igst: totals.igst,
+    round_off: totals.roundOff ?? 0,
     total: totals.total,
     status: values.status,
     prepared_by: values.prepared_by || null,
@@ -394,10 +410,10 @@ export function composeInvoiceInput(
     company_state: values.company_state,
     client_state: values.client_state ?? null,
     items: values.items.map((item, index) => {
-      const baseRate = Number(item.meta_json?.base_rate) || Number(item.rate) || 0;
+      const rateAfterDiscount = effectiveLineRate(item);
+      const meta = item.meta_json as Record<string, unknown>;
       const discountPercent = Number(item.discount_percent) || 0;
-      const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
-      const meta = item.meta_json as any;
+      const baseRate = Number(meta?.base_rate) || Number(item.rate) || 0;
       
       return {
         description: item.description.trim(),
@@ -411,18 +427,13 @@ export function composeInvoiceInput(
         display_order: index,
         custom1: item.custom1 ?? null,
         custom2: item.custom2 ?? null,
-        meta_json: {
-          tax_percent: Number(meta?.tax_percent) || 18,
-          uom: String(meta?.uom || 'Nos'),
-          make: meta?.make,
-          variant: meta?.variant,
+        // Preserve lineage (po_line_item_id / quotation_item_id /
+        // proforma_item_id) and client custom fields instead of whitelisting.
+        meta_json: normalizeItemMeta({
+          ...meta,
           base_rate: baseRate,
           discount_percent: discountPercent,
-          material_id: meta?.material_id,
-          variant_id: meta?.variant_id,
-          warehouse_id: meta?.warehouse_id,
-          is_service: meta?.is_service,
-        },
+        }),
       };
     }),
     materials: values.materials.map((material) => ({
@@ -529,49 +540,10 @@ export function calculateDraftTotals(
   values: Pick<InvoiceEditorFormValues, 'items' | 'company_state' | 'client_state'>,
   enableRoundOff: boolean = false,
 ) {
-  const subtotal = round2(
-    values.items.reduce((sum, item) => {
-      const baseRate = Number(item.meta_json?.base_rate) || Number(item.rate) || 0;
-      const discountPercent = Number(item.discount_percent) || 0;
-      const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
-      return sum + round2((Number(item.qty) || 0) * rateAfterDiscount);
-    }, 0),
+  return calculateInvoiceTotals(
+    values.items ?? [],
+    values.company_state,
+    values.client_state,
+    enableRoundOff,
   );
-
-  const taxTotal = round2(
-    values.items.reduce((sum, item) => {
-      const baseRate = Number(item.meta_json?.base_rate) || Number(item.rate) || 0;
-      const discountPercent = Number(item.discount_percent) || 0;
-      const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
-      const amount = round2((Number(item.qty) || 0) * rateAfterDiscount);
-      const taxPercentRaw = item.meta_json?.tax_percent;
-      const taxPercent = typeof taxPercentRaw === 'number' ? taxPercentRaw : Number(taxPercentRaw ?? 18);
-      return sum + amount * ((Number.isFinite(taxPercent) ? taxPercent : 18) / 100);
-    }, 0),
-  );
-
-  const interstate = isInterstateStates(values.company_state, values.client_state);
-  const cgst = interstate ? 0 : round2(taxTotal / 2);
-  const sgst = interstate ? 0 : round2(taxTotal - cgst);
-  const igst = interstate ? taxTotal : 0;
-  
-  const totalBeforeRoundOff = round2(subtotal + taxTotal);
-  let roundOff = 0;
-  let total = totalBeforeRoundOff;
-  
-  if (enableRoundOff) {
-    const roundedTotal = Math.round(totalBeforeRoundOff);
-    roundOff = round2(roundedTotal - totalBeforeRoundOff);
-    total = round2(roundedTotal);
-  }
-
-  return {
-    subtotal,
-    cgst,
-    sgst,
-    igst,
-    total,
-    interstate,
-    roundOff,
-  };
 }

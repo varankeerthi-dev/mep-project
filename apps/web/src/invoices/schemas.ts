@@ -16,6 +16,16 @@ const CurrencySchema = z.coerce
   .min(0, 'Value cannot be negative.')
   .transform(roundCurrency);
 
+// Round-off is the one monetary field that is legitimately signed: rounding a
+// total down produces a negative adjustment. CurrencySchema's min(0) would
+// reject every downward adjustment.
+const SignedCurrencySchema = z.coerce
+  .number({
+    invalid_type_error: 'Expected a numeric value.',
+  })
+  .finite('Expected a valid number.')
+  .transform(roundCurrency);
+
 const PositiveQuantitySchema = z.coerce
   .number({
     invalid_type_error: 'Expected a numeric quantity.',
@@ -44,8 +54,23 @@ const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
 // unlinked uuids — coerce to `undefined` so `.uuid().optional()` validates.
 const nullToUndefined = (val: unknown) => (val === null ? undefined : val);
 
-export const InvoiceItemMetaSchema = z
+/**
+ * Line-item lineage. These keys are written by the PO/quotation/proforma
+ * import mappers and consumed by partial-billing and PO billed-quantity logic.
+ * Declared explicitly (in addition to the catchall) so the intent is visible
+ * and the values stay typed.
+ */
+const InvoiceItemLineageSchema = {
+  po_line_item_id: z.string().nullish(),
+  quotation_item_id: z.string().nullish(),
+  proforma_item_id: z.string().nullish(),
+  challan_item_id: z.string().nullish(),
+  source_item_id: z.string().nullish(),
+} as const;
+
+const InvoiceItemMetaSchema = z
   .object({
+    ...InvoiceItemLineageSchema,
     tax_percent: PercentSchema.optional(),
     client_custom_label: z.string().min(1).optional(),
     client_custom_value: JsonValueSchema.optional(),
@@ -119,6 +144,7 @@ export const InvoiceSchema = z
     template_id: z.string().uuid('Valid template id is required.').optional().nullable(),
     invoice_no: z.string().optional().nullable(),
     invoice_date: z.string().optional().nullable(),
+    due_date: z.string().optional().nullable(),
     po_number: z.string().optional().nullable(),
     po_date: z.string().optional().nullable(),
     source_type: z.enum(invoiceSourceTypes),
@@ -129,6 +155,7 @@ export const InvoiceSchema = z
     cgst: CurrencySchema,
     sgst: CurrencySchema,
     igst: CurrencySchema,
+    round_off: SignedCurrencySchema.default(0),
     total: CurrencySchema,
     paid_amount: CurrencySchema.default(0),
     status: z.enum(invoiceStatuses).default('draft'),
@@ -155,14 +182,16 @@ export const InvoiceSchema = z
   })
   .superRefine((invoice, ctx) => {
     const taxTotal = roundCurrency(invoice.cgst + invoice.sgst + invoice.igst);
-    const expectedTotal = roundCurrency(invoice.subtotal + taxTotal);
+    const roundOff = invoice.round_off ?? 0;
+    const expectedTotal = roundCurrency(invoice.subtotal + taxTotal + roundOff);
 
-    // Allow for round off differences (up to ±1 when rounding to nearest integer)
-    if (Math.abs(invoice.total - expectedTotal) > 1.0) {
+    // Round-off is now persisted, so the identity is exact rather than
+    // approximate. The 0.05 tolerance only absorbs float noise.
+    if (Math.abs(invoice.total - expectedTotal) > 0.05) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['total'],
-        message: 'Total must equal subtotal plus GST (allowing for round off).',
+        message: 'Total must equal subtotal plus GST plus round off.',
       });
     }
 

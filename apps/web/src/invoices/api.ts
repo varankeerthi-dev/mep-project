@@ -43,6 +43,7 @@ type InvoiceInsertPayload = Omit<
 const INVOICE_FIELDS = [
   'invoice_no',
   'invoice_date',
+  'due_date',
   'po_number',
   'po_date',
   'source_type',
@@ -50,24 +51,26 @@ const INVOICE_FIELDS = [
 ];
 
 const INVOICE_SELECT = `
-  id,
-  organisation_id,
-  client_id,
-  invoice_no,
-  invoice_date,
-  po_number,
-  po_date,
-  source_type,
-  source_id,
-  template_id,
-  template_type,
-  mode,
-  subtotal,
-  cgst,
-  sgst,
-  igst,
-  total,
-  paid_amount,
+    id,
+    organisation_id,
+    client_id,
+    invoice_no,
+    invoice_date,
+    due_date,
+    po_number,
+    po_date,
+    source_type,
+    source_id,
+    template_id,
+    template_type,
+    mode,
+    subtotal,
+    cgst,
+    sgst,
+    igst,
+    round_off,
+    total,
+    paid_amount,
   status,
   prepared_by,
   remarks,
@@ -210,8 +213,12 @@ function buildInvoicePayload(invoice: Invoice): {
     variant_id: string | null;
   }>;
 } {
+  // Round-off is persisted on the row, so recomputing must honour it rather
+  // than silently dropping it and producing a total that disagrees with the
+  // editor footer the user just saw.
   const totals = calculateTotals(invoice, {
     defaultTaxPercent: 18,
+    enableRoundOff: (invoice.round_off ?? 0) !== 0,
   });
 
   const invoiceRow: InvoiceInsertPayload = {
@@ -219,6 +226,7 @@ function buildInvoicePayload(invoice: Invoice): {
     template_id: invoice.template_id ?? null,
     invoice_no: invoice.invoice_no ?? null,
     invoice_date: invoice.invoice_date ?? null,
+    due_date: invoice.due_date ?? null,
     po_number: invoice.po_number ?? null,
     po_date: invoice.po_date ?? null,
     source_type: invoice.source_type,
@@ -229,6 +237,7 @@ function buildInvoicePayload(invoice: Invoice): {
     cgst: totals.cgst,
     sgst: totals.sgst,
     igst: totals.igst,
+    round_off: totals.roundOff,
     total: totals.total,
     status: invoice.status,
     remarks: invoice.remarks ?? null,
@@ -302,6 +311,7 @@ function parseInvoiceRecord(row: any): InvoiceWithRelations {
     client_id: row.client_id,
     invoice_no: row.invoice_no ?? null,
     invoice_date: row.invoice_date ?? null,
+    due_date: row.due_date ?? null,
     po_number: row.po_number ?? null,
     po_date: row.po_date ?? null,
     template_id: row.template_id ?? null,
@@ -313,6 +323,7 @@ function parseInvoiceRecord(row: any): InvoiceWithRelations {
     cgst: row.cgst,
     sgst: row.sgst,
     igst: row.igst,
+    round_off: row.round_off ?? 0,
     total: row.total,
     paid_amount: row.paid_amount ?? 0,
     status: row.status,
@@ -354,6 +365,7 @@ export function parseInvoiceSummaryRecord(row: any): InvoiceWithRelations {
     cgst: Number(row.cgst || 0),
     sgst: Number(row.sgst || 0),
     igst: Number(row.igst || 0),
+    round_off: Number(row.round_off ?? 0),
     total: Number(row.total || 0),
     paid_amount: Number(row.paid_amount ?? 0),
     status: row.status,

@@ -943,31 +943,123 @@ export function SiteReport() {
         primary_task_id: primaryTaskId || null
       };
 
-      const { data: reportId, error: rpcError } = await supabase.rpc('create_complete_site_report', {
-        p_report: reportPayload,
-        p_links: taskSnapshots,
-        p_children: {
-          subContractors: values.manpower.subContractors.map(s => ({
+      let reportId = null;
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('create_complete_site_report', {
+          p_report: reportPayload,
+          p_links: taskSnapshots,
+          p_children: {
+            subContractors: values.manpower.subContractors.map(s => ({
+              subcontractor_id: s.subcontractor_id || null,
+              name: s.name,
+              count: s.count,
+              start: s.start || null,
+              end: s.end || null,
+            })),
+            workCarriedOut: values.workCarriedOut.map(w => ({
+              value: w.value,
+              trade: w.trade || 'General',
+            })),
+            milestonesCompleted: values.milestonesCompleted.map(m => ({ value: m.value })),
+            clientRequirements: values.clientRequirements.details,
+            workPlanNextDay: values.workPlanNextDay,
+            specialInstructions: values.specialInstructions,
+            issuesFaced: values.issues,
+          },
+        });
+        if (!rpcError && rpcData) {
+          reportId = rpcData;
+        }
+      } catch (err) {
+        console.warn('create_complete_site_report RPC unavailable, falling back to direct table inserts:', err);
+      }
+
+      if (!reportId) {
+        const { data: insertedReport, error: insertError } = await supabase
+          .from('site_reports')
+          .insert(reportPayload)
+          .select('id')
+          .single();
+        if (insertError) throw insertError;
+        reportId = insertedReport.id;
+
+        const subs = (values.manpower.subContractors || [])
+          .filter(s => s.name?.trim() || s.subcontractor_id)
+          .map(s => ({
+            report_id: reportId,
             subcontractor_id: s.subcontractor_id || null,
             name: s.name,
             count: s.count,
-            start: s.start || null,
-            end: s.end || null,
-          })),
-          workCarriedOut: values.workCarriedOut.map(w => ({
-            value: w.value,
-            trade: w.trade || 'General',
-          })),
-          milestonesCompleted: values.milestonesCompleted.map(m => ({ value: m.value })),
-          clientRequirements: values.clientRequirements.details,
-          workPlanNextDay: values.workPlanNextDay,
-          specialInstructions: values.specialInstructions,
-          issuesFaced: values.issues,
-        },
-      });
+            start_time: s.start || null,
+            end_time: s.end || null,
+          }));
+        if (subs.length > 0) await supabase.from('sub_contractors').insert(subs);
 
-      if (rpcError) throw rpcError;
+        const works = (values.workCarriedOut || [])
+          .filter(w => w.value?.trim())
+          .map(w => ({
+            report_id: reportId,
+            description: w.value,
+            trade: w.trade || 'General',
+          }));
+        if (works.length > 0) await supabase.from('work_carried_out').insert(works);
+
+        const milestones = (values.milestonesCompleted || [])
+          .filter(m => m.value?.trim())
+          .map(m => ({
+            report_id: reportId,
+            description: m.value,
+          }));
+        if (milestones.length > 0) await supabase.from('milestones_completed').insert(milestones);
+
+        const clientReqs = (values.clientRequirements.details || [])
+          .filter(c => c.value?.trim())
+          .map((c, idx) => ({
+            report_id: reportId,
+            description: c.value,
+            sort_order: idx,
+          }));
+        if (clientReqs.length > 0) await supabase.from('site_report_client_requirements').insert(clientReqs);
+
+        const wpnd = (values.workPlanNextDay || [])
+          .filter(w => w.value?.trim())
+          .map((w, idx) => ({
+            report_id: reportId,
+            description: w.value,
+            sort_order: idx,
+          }));
+        if (wpnd.length > 0) await supabase.from('site_report_work_plan_next_day').insert(wpnd);
+
+        const si = (values.specialInstructions || [])
+          .filter(s => s.value?.trim())
+          .map((s, idx) => ({
+            report_id: reportId,
+            description: s.value,
+            sort_order: idx,
+          }));
+        if (si.length > 0) await supabase.from('site_report_special_instructions').insert(si);
+
+        const issues = (values.issues || [])
+          .filter(i => i.issue?.trim())
+          .map((i, idx) => ({
+            report_id: reportId,
+            issue: i.issue,
+            solution: i.solution,
+            sort_order: idx,
+          }));
+        if (issues.length > 0) await supabase.from('site_report_issues_faced').insert(issues);
+
+        if (taskSnapshots && taskSnapshots.length > 0) {
+          const links = taskSnapshots.map(ts => ({
+            report_id: reportId,
+            task_id: ts.task_id,
+          }));
+          await supabase.from('report_task_links').insert(links);
+        }
+      }
+
       const report = { id: reportId };
+      return report;
     },
     
     onSuccess: async (report) => {

@@ -1,0 +1,1431 @@
+{
+  "audit_meta": {
+    "timestamp": "2026-10-04T07-21-39Z",
+    "app_url": "http://localhost:4173 (vite preview serving dist/, built 2026-10-01)",
+    "commit_sha": "1533b47dfb12e858b1b33fc6fffe41da77c12b1c",
+    "skill": "poteto-mode",
+    "browser": "Google Chrome 154.0.8037.97 driven over CDP (Network, Performance, Tracing, Runtime, Log domains)",
+    "viewport": "1512x982 at deviceScaleFactor 1, desktop, cold cache for the cold-load pass and warm cache for the 232-route sweep",
+    "modules_audited": [
+      "Dashboard",
+      "Projects",
+      "Clients",
+      "Quotations",
+      "Invoices",
+      "Proforma Invoices",
+      "Credit Notes",
+      "Delivery Challans",
+      "Client Purchase Orders",
+      "Materials & Inventory",
+      "Material Intents",
+      "Stock Transfer",
+      "Warehouse Management",
+      "Manufacturing",
+      "Purchase Module",
+      "Sub-Contractors",
+      "Meetings",
+      "Site Visits",
+      "Site Reports",
+      "Approvals",
+      "Follow-Up Centre",
+      "Bill of Quantities",
+      "Estimation (BOQ, tenders, resources)",
+      "Reports & Analytics",
+      "Ledger",
+      "Leads",
+      "Tasks & Reminders",
+      "Daily Updates",
+      "Site Expenses",
+      "Partner Allocation",
+      "Collaboration",
+      "GST",
+      "Accounting (chart of accounts, day book, trial balance)",
+      "HR (employees, attendance planning and entry, salary slip)",
+      "Work Completion",
+      "Settings",
+      "Client Communication",
+      "Client Lookup",
+      "Quick Stock Check",
+      "Purchase Requisitions",
+      "Purchase Inquiries",
+      "Procurement",
+      "Handover",
+      "Returns",
+      "Sales Orders",
+      "Field Variations",
+      "Vendor Disputes",
+      "Material Return Verification",
+      "Terms & Conditions"
+    ],
+    "severity_scale": [
+      "minor",
+      "moderate",
+      "major",
+      "critical"
+    ],
+    "routes_audited": 232,
+    "modules_excluded_by_operator": [
+      "Advances & Expenses (all 6 routes)",
+      "Tools & Equipment (/tools)"
+    ],
+    "supabase_project": "rujqejtisqermjyqqgoj",
+    "supabase_region_evidence": "database address in an AWS IPv6 range consistent with ap-southeast-1; users appear to be in India, and the observed per-request floor is about 210 ms",
+    "methodology": [
+      "All 232 routes in the router were loaded as full document navigations with the CDP Network domain recording every request, its status, payload size and wall-clock duration.",
+      "Core Web Vitals were captured in-page through PerformanceObserver for FCP, LCP, layout shift, event timing and long tasks, installed via Page.addScriptToEvaluateOnNewDocument so no application source was touched.",
+      "Renderer counters came from CDP Performance.getMetrics deltas around each navigation. React commit counts are not observable in a production React build because React only registers with the DevTools global hook in development, so this field is null by design and renderer counters are reported instead.",
+      "Cold loads with cache disabled were repeated three times under CDP Tracing with the devtools.timeline categories to attribute main-thread time.",
+      "Duplicate fetches were computed by grouping identical method, endpoint and select tuples appearing within a 2000 ms window on the same route.",
+      "Interaction latency was measured with the CDP Input domain so that event timing entries carry a real interactionId.",
+      "Backend findings come from read-only SQL against pg_stat_statements, pg_policies, pg_indexes, pg_constraint, pg_class, pg_indexes and information_schema, plus the Supabase 24 hour log window.",
+      "A confirmation pass over the twelve heaviest routes was run after the sweep on an idle machine to separate real cost from contention."
+    ],
+    "caveats": [
+      "The production bundle measured is dated 2026-10-01 and the working tree has 16 modified or untracked files, so source and bundle may already differ. The six error-boundary routes in FE-002 may be fixed in source but not in the bundle; rebuilding is the first step before acting on them.",
+      "pg_stat_statements covers a 7,169 hour window, roughly 299 days, so those figures describe long-run shape across all users and are not current-load measurements. They are used for relative comparison between statements and for proving schema drift, never as live latency.",
+      "Server-side mean execution times and client-observed latencies come from different windows and are compared only to attribute cost, not to produce an exact split.",
+      "The pg_timezone_names entry in BE-011 could not be attributed to the application and is reported as unresolved.",
+      "A first-pass LCP sample of 12,908 ms on /projects/edit/1 was not reproducible on the confirmation run, which measured 1,888 ms. The outlier is discarded and the confirmed figure is reported.",
+      "StrictMode double-invocation does not apply here because all measurements are against a production build. React Query cache hit rate is 0.0 by construction on a full document navigation, since each navigation starts a fresh document with an empty cache; duplicate-request count is used as the meaningful measure instead.",
+      "No Lighthouse run was performed, because installing it would have added a dependency, which the audit constraints forbid. The Core Web Vitals reported here are computed from PerformanceObserver and Tracing directly, which is the same underlying source Lighthouse reads.",
+      "Two SPA navigations could not be driven because the sidebar sections for those modules were collapsed; the three that succeeded (Projects, Tasks, Approvals) are reported and the rest are covered by the full-page sweep."
+    ]
+  },
+  "frontend": [
+    {
+      "id": "FE-016",
+      "module": "App Shell (all modules)",
+      "route": "all routes",
+      "severity": "minor",
+      "category": "network",
+      "title": "The organisation logo is re-fetched from Supabase Storage on every route load",
+      "symptom": "A small extra request on every navigation, occasionally spiking past a second.",
+      "evidence": "CDP Network: storage/v1/object/public/organisation-assets/.../logos/... requested on all 232 routes, client-observed median 10.4 ms but max 1296 ms, 240 KB total across the sweep.",
+      "metrics": {
+        "fcp_ms": null,
+        "lcp_ms": null,
+        "tbt_ms": null,
+        "cls": null,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": null,
+        "duplicate_query_count": 0,
+        "cache_hit_rate": 0,
+        "calls_per_route": 1,
+        "max_ms": 1296,
+        "total_kb": 240
+      },
+      "repro_steps": [
+        "Navigate between modules with the Network panel filtered to \"storage\".",
+        "Observe one logo request per navigation."
+      ],
+      "suspected_cause": "The logo URL is stored on the organisation record and rendered directly as an img source, so the browser revalidates it each time the component remounts. The organisation record is itself fetched on every route (FE-003), which changes the URL identity and defeats the browser cache.",
+      "estimated_impact_ms": 10,
+      "recommendation": "Resolve the logo once into the session context. Low priority on its own; it disappears as a side effect of fixing FE-003.",
+      "linked_backend_id": null,
+      "renderer_counters": {
+        "script_ms": null,
+        "layout_ms": null,
+        "recalc_style_ms": null,
+        "layout_count": 0,
+        "style_recalc_count": 40,
+        "renderer_nodes": 1054,
+        "dom_nodes": 701,
+        "js_heap_mb": 12,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-017",
+      "module": "Router (all modules)",
+      "route": "all routes",
+      "severity": "minor",
+      "category": "a11y-perf",
+      "title": "The application contains zero anchor elements; all navigation is button-driven",
+      "symptom": "Middle-click and open-in-new-tab do not work on any destination. Keyboard and screen-reader users must walk a flat list of about 40 buttons to reach a module.",
+      "evidence": "DOM query on the loaded dashboard: document.querySelectorAll(\"a[href]\").length is 0, while the sidebar contains 40 buttons with module labels. SPA navigation in this audit had to be driven by clicking button text, confirming no anchor-based navigation exists.",
+      "metrics": {
+        "fcp_ms": null,
+        "lcp_ms": null,
+        "tbt_ms": null,
+        "cls": null,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": null,
+        "duplicate_query_count": 0,
+        "cache_hit_rate": 0,
+        "anchors_in_dom": 0,
+        "sidebar_buttons": 40
+      },
+      "repro_steps": [
+        "Load the dashboard.",
+        "Run document.querySelectorAll(\"a[href]\").length in the console and observe 0."
+      ],
+      "suspected_cause": "Navigation was implemented with button elements and programmatic routing rather than links. Beyond the accessibility cost, this forfeits the browser ability to prefetch on intent and makes the URL bar the only place the current location is expressed.",
+      "estimated_impact_ms": 0,
+      "recommendation": "Render navigation destinations as anchors handled by the router. This is an accessibility fix that also restores native new-tab behaviour and link preloading.",
+      "linked_backend_id": null,
+      "renderer_counters": {
+        "script_ms": null,
+        "layout_ms": null,
+        "recalc_style_ms": null,
+        "layout_count": 0,
+        "style_recalc_count": 40,
+        "renderer_nodes": 1054,
+        "dom_nodes": 701,
+        "js_heap_mb": 12,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-018",
+      "module": "Purchase, Materials",
+      "route": "/purchase, /store/materials, /invoices/create",
+      "severity": "minor",
+      "category": "css",
+      "title": "Table routes shift 0.02-0.04 as rows populate after first paint",
+      "symptom": "A small settle after the table appears. Barely noticeable individually, but it happens on most data-heavy screens.",
+      "evidence": "Layout Shift per document load: /purchase 0.0415, /store/materials 0.0391, /invoices/create 0.0225, /client-communication 0.0362, /dc/consolidation/date 0.0427.",
+      "metrics": {
+        "fcp_ms": null,
+        "lcp_ms": null,
+        "tbt_ms": null,
+        "cls": null,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": null,
+        "duplicate_query_count": 0,
+        "cache_hit_rate": 0,
+        "routes_above_0_02": 5
+      },
+      "repro_steps": [
+        "Open /purchase.",
+        "Record a trace and read Layout Shift entries with no recent input."
+      ],
+      "suspected_cause": "Rows render at a different height once loaded than the placeholder occupies, most likely a padding or line-height difference between the skeleton and the real row.",
+      "estimated_impact_ms": 0,
+      "recommendation": "Make the skeleton row box identical to the loaded row box. Cheap, and it removes the residual jitter users feel on every list screen.",
+      "linked_backend_id": null,
+      "renderer_counters": {
+        "script_ms": 0.017,
+        "layout_ms": null,
+        "recalc_style_ms": 0.027,
+        "layout_count": 6,
+        "style_recalc_count": 0,
+        "renderer_nodes": null,
+        "dom_nodes": 838,
+        "js_heap_mb": 36,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-019",
+      "module": "Materials, Purchase, Invoices, Vendors",
+      "route": "/store/materials, /invoices, /purchase/vendors",
+      "severity": "minor",
+      "category": "animation",
+      "title": "Interaction latency measured within budget: INP 24-56 ms with no refetch storm on sort, filter or modal open",
+      "symptom": "Once a page is loaded, using it feels responsive. Sorting a column, typing in a search box and opening a create dialog all respond immediately.",
+      "evidence": "CDP Input domain with PerformanceObserver event timing (interact2.json): sort column header on /store/materials worst interaction 24 ms, type in search box 40 ms, open create modal 32 ms, sort on /invoices 0-24 ms, type in vendor search 56 ms. Zero Supabase requests fired by the table sort and the modal open, zero duplicate groups, and zero layout shift attributable to any interaction. Framer Motion produced no dropped-frame long tasks on these transitions.",
+      "metrics": {
+        "fcp_ms": null,
+        "lcp_ms": null,
+        "tbt_ms": null,
+        "cls": null,
+        "inp_ms": 56,
+        "react_commits": null,
+        "longest_task_ms": 0,
+        "duplicate_query_count": 0,
+        "cache_hit_rate": null,
+        "interactions_measured": 6,
+        "inp_budget_ms": 200,
+        "refetch_storm_on_interaction": false
+      },
+      "repro_steps": [
+        "Open /store/materials.",
+        "Sort a column, type in the search box, then open the create dialog, recording interaction timing each time."
+      ],
+      "suspected_cause": "Table interactions are served from already-loaded data and the list components avoid the fetch path entirely, so the interaction path never touches the network. This is a genuine strength of the current implementation and the reason the problem is isolated to first load.",
+      "estimated_impact_ms": 0,
+      "recommendation": "No action. Preserve this property when fixing the load path: whatever batching is introduced for first paint must not push work into the interaction path.",
+      "linked_backend_id": null,
+      "renderer_counters": {
+        "script_ms": 0.017,
+        "layout_ms": null,
+        "recalc_style_ms": 0.027,
+        "layout_count": 6,
+        "style_recalc_count": 0,
+        "renderer_nodes": null,
+        "dom_nodes": 838,
+        "js_heap_mb": 36,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-020",
+      "module": "Query client configuration",
+      "route": "n/a (configuration)",
+      "severity": "minor",
+      "category": "cache",
+      "title": "Global query cache defaults are already correct; the duplication is caused by callers bypassing them",
+      "symptom": "None directly. Recorded as a negative control so the remediation effort is aimed at the right layer.",
+      "evidence": "src/queryClient.ts sets staleTime 5 minutes, gcTime 30 minutes, refetchOnWindowFocus false, refetchOnMount true, refetchOnReconnect true and retry limited to one attempt. useOrgStructure and useSearchIndex in src/warehouse/hooks/useWarehouseData.ts are correctly wrapped in useQuery with organisation-scoped keys. Despite this, 214 duplicate groups were observed, all traceable to code that calls the Supabase client directly.",
+      "metrics": {
+        "fcp_ms": null,
+        "lcp_ms": null,
+        "tbt_ms": null,
+        "cls": null,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": null,
+        "duplicate_query_count": 214,
+        "cache_hit_rate": 0,
+        "stale_time_min": 5,
+        "gc_time_min": 30,
+        "refetch_on_window_focus": false
+      },
+      "repro_steps": [
+        "Read src/queryClient.ts defaults.",
+        "Compare with the duplicate-request inventory from the sweep: the duplicates do not come from these settings."
+      ],
+      "suspected_cause": "Not a configuration defect. Recorded so that nobody spends effort tuning staleTime, which would not reduce the observed duplicates, because the affected reads are not participating in the query cache.",
+      "estimated_impact_ms": 0,
+      "recommendation": "Leave the defaults alone. Fix the call sites instead, and consider adding a lint rule that flags direct supabase.from calls inside component files so new duplicates cannot be introduced.",
+      "linked_backend_id": null,
+      "renderer_counters": {
+        "script_ms": null,
+        "layout_ms": null,
+        "recalc_style_ms": null,
+        "layout_count": 0,
+        "style_recalc_count": 40,
+        "renderer_nodes": 1054,
+        "dom_nodes": 701,
+        "js_heap_mb": 12,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-011",
+      "module": "Invoices, Proforma Invoices, Purchase, BOQ",
+      "route": "/invoices/create, /proforma-invoices, /purchase, /boq/create",
+      "severity": "moderate",
+      "category": "bundle",
+      "title": "Route chunks of 674-679 KB of JavaScript are parsed before first paint on the heaviest screens",
+      "symptom": "The invoice and proforma entry screens take noticeably longer to become interactive than the rest of the product, even on repeat visits.",
+      "evidence": "Per-route JavaScript transfer on load: /invoices/create 679 KB across 55 files, /proforma-invoices 674 KB across 24, /purchase 348 KB across 62, /boq/create 341 KB across 19. Aggregate 4.90 MB of JavaScript across the 232-route sweep. Cold-load trace for /store/materials shows 591 KB of JavaScript and 2998 ms of total RunTask time, with Layout at 166 ms and style recalc at 81 ms, so the cost is script, not layout.",
+      "metrics": {
+        "fcp_ms": null,
+        "lcp_ms": null,
+        "tbt_ms": null,
+        "cls": null,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": null,
+        "duplicate_query_count": 0,
+        "cache_hit_rate": 0,
+        "heaviest_route_js_kb": 679,
+        "sweep_total_js_mb": 4.9,
+        "cold_load_runtask_ms": 2998
+      },
+      "repro_steps": [
+        "Open /invoices/create with a cold cache.",
+        "In the Network panel, sum the transferred JavaScript: roughly 679 KB.",
+        "Record a trace and read the scripting and parsing totals against layout."
+      ],
+      "suspected_cause": "These routes statically import heavy dependencies (spreadsheet, PDF and canvas libraries are present in the bundle) that are only needed when the user actually generates a document. manualChunks in vite.config.js splits icons, React, data and one UI package, but nothing splits the document-generation stack.",
+      "estimated_impact_ms": 1200,
+      "recommendation": "Move the PDF, spreadsheet and canvas libraries behind dynamic imports triggered by the export action, so the entry form does not pay for them. Extend manualChunks to cover the document stack as a single vendor chunk so it is fetched once and cached.",
+      "linked_backend_id": null,
+      "renderer_counters": {
+        "script_ms": 1.206,
+        "layout_ms": 0.01,
+        "recalc_style_ms": null,
+        "layout_count": 2,
+        "style_recalc_count": null,
+        "renderer_nodes": 446,
+        "dom_nodes": 890,
+        "js_heap_mb": 26,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-012",
+      "module": "App Shell (all modules)",
+      "route": "all routes",
+      "severity": "moderate",
+      "category": "asset",
+      "title": "Five Google Fonts stylesheets load on every cold start and four of the families are used by no CSS rule",
+      "symptom": "Cold starts pay a third-party font handshake before first paint, and part of that payload is never rendered.",
+      "evidence": "index.html links Inter and Material Symbols; index.css additionally @imports Inter again, plus Space Grotesk + IBM Plex Sans + IBM Plex Mono, plus Google Sans. Cold-load capture (interact.json cold_*): 5 fonts.googleapis.com requests per cold load at 112-326 ms each, and woff2 payloads of 48,288 and 85,107 bytes. Grep of src/index.css and src/**/*.tsx: zero references to Space Grotesk, IBM Plex, Google Sans, Merriweather or Open Sans in any rule or component; Inter Variable appears 8 times, JetBrains 4.",
+      "metrics": {
+        "fcp_ms": null,
+        "lcp_ms": null,
+        "tbt_ms": null,
+        "cls": null,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": null,
+        "duplicate_query_count": 0,
+        "cache_hit_rate": 0,
+        "google_font_css_requests": 5,
+        "unused_families": 4,
+        "duplicate_inter_families": 1,
+        "unused_css_bytes": 4646
+      },
+      "repro_steps": [
+        "Cold load any route with the Network panel open.",
+        "Filter by fonts.googleapis.com: five requests.",
+        "Search the built CSS for Space Grotesk, IBM Plex and Google Sans: no rule references them."
+      ],
+      "suspected_cause": "Fonts accumulated across design iterations and were never retired. Inter is requested from two sources at once, the Google CDN via a link and an import, and self-hosted via the variable package, so the browser can end up with two competing sources for the same family.",
+      "estimated_impact_ms": 330,
+      "recommendation": "Delete the unused families and keep one source of truth for Inter, preferably the self-hosted variable package already installed. Self-hosting also removes a third-party connection from the critical path.",
+      "linked_backend_id": null,
+      "renderer_counters": {
+        "script_ms": null,
+        "layout_ms": null,
+        "recalc_style_ms": null,
+        "layout_count": 0,
+        "style_recalc_count": 40,
+        "renderer_nodes": 1054,
+        "dom_nodes": 701,
+        "js_heap_mb": 12,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-013",
+      "module": "Invoices, Quotation, Purchase",
+      "route": "/invoices, /quotation, /purchase/*",
+      "severity": "moderate",
+      "category": "asset",
+      "title": "Two self-hosted variable fonts totalling 133 KB block text paint for 623-898 ms on cold load",
+      "symptom": "On a cold visit, text is invisible or rendered in a fallback face and then visibly re-renders once the real font arrives.",
+      "evidence": "interact.json cold loads: /invoices woff2 requests of 48,288 bytes at 898 ms and 85,107 bytes at 623 ms, with LCP 2940 ms and FCP 1356 ms. /store/materials: same two files at 181 ms and 355 ms, LCP 2208 ms. /invoices/create in the sweep loads 83-84 KB of fonts on several purchase routes (interact-free confirmation).",
+      "metrics": {
+        "fcp_ms": null,
+        "lcp_ms": null,
+        "tbt_ms": null,
+        "cls": null,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": null,
+        "duplicate_query_count": 0,
+        "cache_hit_rate": 0,
+        "cold_font_kb": 133,
+        "cold_font_ms_max": 898,
+        "subset_opportunity": "two variable fonts ship the full weight axis"
+      },
+      "repro_steps": [
+        "Cold load /invoices with cache disabled.",
+        "In Network, find the two woff2 responses from the self-hosted font package.",
+        "Watch the largest arrive after roughly 900 ms and observe the text reflow."
+      ],
+      "suspected_cause": "Variable font packages ship every weight in one file, and the stylesheet is not preloaded, so a 133 KB font is discovered only after the CSS parses. The cost lands squarely on LCP because the largest text element waits for it.",
+      "estimated_impact_ms": 900,
+      "recommendation": "Preload the one variable file the design system actually uses for body text, and subset the mono font to the weights and scripts in use. Ensure a metric-compatible fallback is declared so the swap does not reflow.",
+      "linked_backend_id": null,
+      "renderer_counters": {
+        "script_ms": null,
+        "layout_ms": null,
+        "recalc_style_ms": null,
+        "layout_count": null,
+        "style_recalc_count": null,
+        "renderer_nodes": null,
+        "dom_nodes": 758,
+        "js_heap_mb": 8,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-014",
+      "module": "Projects",
+      "route": "/projects/edit/1, /purchase/bills, /manufacturing/dispatch",
+      "severity": "moderate",
+      "category": "render",
+      "title": "Route load is dominated by long tasks: up to 2143 ms of blocking time with a single 773 ms task",
+      "symptom": "These screens freeze briefly during load. Scrolling and clicking do nothing for most of a second at a time.",
+      "evidence": "Long Task entries per document load: /projects/edit/1 2143 ms across 12 tasks, longest 773 ms, LCP 1888 ms on the quiet confirmation run. /purchase/bills 936 ms across 8 tasks, longest 259 ms. /manufacturing/dispatch 722 ms across 4 tasks, longest 541 ms. /purchase 788 ms, longest 429 ms. Renderer counters for /projects/edit/1 show 12 layout passes and 82 nodes added.",
+      "metrics": {
+        "fcp_ms": 1056,
+        "lcp_ms": 1888,
+        "tbt_ms": 82,
+        "cls": 0.0023,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": 82,
+        "duplicate_query_count": 2,
+        "cache_hit_rate": 0,
+        "supabase_calls_per_view": 23,
+        "confirmed_runs": 2,
+        "note": "the first-pass LCP sample of 12908 ms was not reproducible and is discarded as a contaminated measurement; confirmed LCP is 1888 ms"
+      },
+      "repro_steps": [
+        "Open /projects/edit/1.",
+        "Record a Performance trace and read the Long Tasks row.",
+        "Compare against /clients, which has none."
+      ],
+      "suspected_cause": "Heavy synchronous work during mount: large table and form model construction, and date and currency formatting over full row sets. The single 773 ms task points to one blocking computation rather than many small ones.",
+      "estimated_impact_ms": 2143,
+      "recommendation": "Profile that 773 ms task and split it: move row-model derivation and formatting out of the render path, and yield between chunks if the data set can grow.",
+      "linked_backend_id": null,
+      "renderer_counters": {
+        "script_ms": 0.016,
+        "layout_ms": null,
+        "recalc_style_ms": 0.009,
+        "layout_count": null,
+        "style_recalc_count": null,
+        "renderer_nodes": 2167,
+        "dom_nodes": 701,
+        "js_heap_mb": 30,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-015",
+      "module": "Purchase, Manufacturing",
+      "route": "/purchase, /purchase/bills, /manufacturing/dispatch",
+      "severity": "moderate",
+      "category": "render",
+      "title": "Purchase and Manufacturing routes issue the same reference-data queries per visit that never change",
+      "symptom": "Company variants, item units and roles are re-read every time the user opens a purchase screen, adding a fixed delay to each visit.",
+      "evidence": "Endpoint totals across the sweep: rest/v1/company_variants 6681 calls, rest/v1/item_units 1764, rest/v1/discount_categories 3326, rest/v1/roles 230, rest/v1/quick_quote_settings 3077. Client-observed means 1.6-8.8 ms per call, so the cost is the round trip, not the row count.",
+      "metrics": {
+        "fcp_ms": null,
+        "lcp_ms": null,
+        "tbt_ms": null,
+        "cls": null,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": null,
+        "duplicate_query_count": 0,
+        "cache_hit_rate": 0,
+        "company_variants_calls_sweep": 6681,
+        "discount_categories_calls_sweep": 3326,
+        "quick_quote_settings_calls_sweep": 3077
+      },
+      "repro_steps": [
+        "Open any purchase route twice in a row.",
+        "Compare the reference-data requests between the two visits; they are identical."
+      ],
+      "suspected_cause": "Reference data that is effectively static per organisation is fetched per visit rather than pinned for the session. Because the query client allows a 5 minute staleTime but these reads are keyed per mount or bypass the cache, the staleTime never gets a chance to apply.",
+      "estimated_impact_ms": 250,
+      "recommendation": "Promote company variants, item units, discount categories and roles to session-scoped reference data loaded once after login, with the existing invalidateAndRefetch helper as the escape hatch when settings change.",
+      "linked_backend_id": "BE-005",
+      "renderer_counters": {
+        "script_ms": 0.046,
+        "layout_ms": 0,
+        "recalc_style_ms": 0.003,
+        "layout_count": 1,
+        "style_recalc_count": null,
+        "renderer_nodes": null,
+        "dom_nodes": 713,
+        "js_heap_mb": 25,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-003",
+      "module": "App Shell (all modules)",
+      "route": "all 232 audited routes",
+      "severity": "major",
+      "category": "network",
+      "title": "Six global bootstrap queries run on every route at 210-320 ms each, adding 1.3-1.9 s before route content",
+      "symptom": "Every page feels equally slow to start, including pages with almost no data. Navigation is a consistent 2.5-4 s wait regardless of destination.",
+      "evidence": "CDP Network over 232 routes: rest/v1/org_members 487 calls, rest/v1/organisations 250, rest/v1/approvals 245, rpc/get_org_modules 232, rest/v1/roles 230, plus the organisation logo from Supabase Storage on all 232. Isolated latency probe from the page (8 samples each, interact.json latency): org_members median 248 ms min 223, organisations/settings median 280 min 206, approvals badge median 228 min 210, roles median 319 min 204, get_org_modules median 243 min 212.",
+      "metrics": {
+        "fcp_ms": 1196,
+        "lcp_ms": 3276,
+        "tbt_ms": 0,
+        "cls": 0.0023,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": 0,
+        "duplicate_query_count": 2,
+        "cache_hit_rate": 0,
+        "supabase_calls_per_view": 23,
+        "confirmed_runs": 2,
+        "shell_queries_per_route": 6,
+        "shell_floor_ms_median": 243
+      },
+      "repro_steps": [
+        "Sign in and open DevTools Network.",
+        "Navigate between any two modules.",
+        "Observe org_members, organisations, approvals, roles and get_org_modules all reissued on each navigation, none served from cache."
+      ],
+      "suspected_cause": "The shell resolves organisation, membership, roles, module enablement and the approval badge on every route mount rather than once per session. The global query client is configured sensibly (5 minute staleTime, 30 minute gcTime, refetchOnWindowFocus disabled), so this is not a global default problem: these reads sit outside React Query or sit under keys that change per mount. The 210 ms floor is round-trip cost to the Supabase region, so six sequential-enough reads cost more than their combined row count justifies.",
+      "estimated_impact_ms": 1500,
+      "recommendation": "Resolve the shell context once per authenticated session and keep it alive across navigations, so org_members, organisations, roles, module enablement and the logo are fetched on login and refreshed on an explicit invalidation rather than per route. The approval badge is a separate decision: it should be a count query or a Realtime subscription, not a full row fetch.",
+      "linked_backend_id": "BE-008",
+      "renderer_counters": {
+        "script_ms": null,
+        "layout_ms": null,
+        "recalc_style_ms": null,
+        "layout_count": 0,
+        "style_recalc_count": 40,
+        "renderer_nodes": 1054,
+        "dom_nodes": 701,
+        "js_heap_mb": 12,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-004",
+      "module": "Dashboard",
+      "route": "/",
+      "severity": "major",
+      "category": "query",
+      "title": "Dashboard fires 23 Supabase calls with 2 duplicate groups on every load; LCP 3276 ms confirmed",
+      "symptom": "The landing page is the slowest first impression in the product. Widgets pop in one at a time over roughly three seconds.",
+      "evidence": "sweep-prod and sweep-confirm both 23 calls, 2 duplicate groups. LCP 3276 ms (confirm) / 3680 ms (first pass), FCP 1196 ms. Aggregate endpoint table: org_members, organisations, approvals, roles, get_org_modules and the logo each appear once per route, plus dashboard widget queries.",
+      "metrics": {
+        "fcp_ms": 1196,
+        "lcp_ms": 3276,
+        "tbt_ms": 0,
+        "cls": 0.0023,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": 0,
+        "duplicate_query_count": 2,
+        "cache_hit_rate": 0,
+        "supabase_calls_per_view": 23,
+        "confirmed_runs": 2
+      },
+      "repro_steps": [
+        "Sign out and back in, land on the dashboard.",
+        "Filter the Network panel by supabase.co and count 23 requests.",
+        "Watch the widgets resolve sequentially rather than together."
+      ],
+      "suspected_cause": "The dashboard composes many independent widgets, each issuing its own query on mount, with no shared prefetch or batching. Combined with the six shell queries in FE-003, the first meaningful paint waits on the slowest of roughly 23 requests rather than on one batched response.",
+      "estimated_impact_ms": 3300,
+      "recommendation": "Decide which dashboard widgets are above the fold, serve those in a single batched call, and defer the rest until after first paint. Landing-page speed is the most visible number in the product.",
+      "linked_backend_id": "BE-005",
+      "renderer_counters": {
+        "script_ms": null,
+        "layout_ms": null,
+        "recalc_style_ms": null,
+        "layout_count": 0,
+        "style_recalc_count": 40,
+        "renderer_nodes": 1054,
+        "dom_nodes": 701,
+        "js_heap_mb": 12,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-005",
+      "module": "Approvals",
+      "route": "/approvals",
+      "severity": "major",
+      "category": "query",
+      "title": "Approvals issues 28-33 calls with 5-6 duplicate groups and never reaches network idle",
+      "symptom": "The approvals screen keeps its loading state for 11 seconds and periodically re-triggers work after it appears settled.",
+      "evidence": "sweep-prod: 33 calls, 5 duplicate groups, wall 12263 ms with idleReached false. sweep-confirm: 28 calls, 5 duplicate groups, wall 11071 ms. SPA navigation (interact.json): 3774 ms wall, 32 Supabase calls, 9095 ms aggregate request time, duplicates 3x GET auth/v1/user, 5x GET rest/v1/org_members, 3x GET rest/v1/user_organisations, 3x GET rest/v1/employees, 2x GET rest/v1/approval_workflows, 2x GET rest/v1/purchase_payments.",
+      "metrics": {
+        "fcp_ms": 1012,
+        "lcp_ms": 1496,
+        "tbt_ms": 230,
+        "cls": 0.0023,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": 120,
+        "duplicate_query_count": 5,
+        "cache_hit_rate": 0,
+        "supabase_calls_per_view": 28,
+        "confirmed_runs": 2
+      },
+      "repro_steps": [
+        "Open Approvals from the sidebar.",
+        "Count Supabase requests in Network: 28-33, with org_members repeated 5 times.",
+        "Observe that the page continues issuing requests after the list is visible."
+      ],
+      "suspected_cause": "Several independently keyed queries read the same three small tables (org_members, user_organisations, employees) for the approver picker and the permission gate, and the auth user is re-read rather than read once. The global approval badge query also lands on this route. Duplicate keys rather than a missing cache are the pattern here.",
+      "estimated_impact_ms": 4000,
+      "recommendation": "Collapse the approver picker and permission gate onto one shared membership query keyed by organisation, and read the auth user from the session already held in memory rather than over the network.",
+      "linked_backend_id": "BE-005",
+      "renderer_counters": {
+        "script_ms": 0.227,
+        "layout_ms": 0.147,
+        "recalc_style_ms": 0.137,
+        "layout_count": 1,
+        "style_recalc_count": null,
+        "renderer_nodes": 351,
+        "dom_nodes": 666,
+        "js_heap_mb": 13,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-006",
+      "module": "Projects",
+      "route": "/projects",
+      "severity": "major",
+      "category": "query",
+      "title": "One navigation to Projects fires 14 identical HEAD count-probes plus 15 aborted requests",
+      "symptom": "Clicking Projects in the sidebar generates a burst of more than twenty requests. Project tiles update several times in sequence rather than once.",
+      "evidence": "interact.json spa entry for Projects: 24 Supabase calls, 6617 ms aggregate request time, 2907 ms wall, duplicates 14x HEAD rest/v1/projects, 2x GET rest/v1/projects, 2x GET rest/v1/project_milestones, 2x GET rest/v1/org_members, and 15 aborted requests during the transition.",
+      "metrics": {},
+      "repro_steps": [],
+      "suspected_cause": "Each project tile issues its own exact-count HEAD probe to check existence or permissions before rendering. Because these bypass a shared query, the count is requested once per tile. The aborted requests indicate components start work and are then torn down, which points to effects firing against a dependency that changes mid-navigation.",
+      "estimated_impact_ms": 2900,
+      "recommendation": "Fetch the project list once with the count the tiles need, and pass it down. Investigate the 15 aborted requests as an effect dependency problem; aborted work is both wasted round trips and a sign that components mount before their inputs are stable.",
+      "linked_backend_id": "BE-005",
+      "renderer_counters": {
+        "script_ms": null,
+        "layout_ms": null,
+        "recalc_style_ms": null,
+        "layout_count": null,
+        "style_recalc_count": null,
+        "renderer_nodes": null,
+        "dom_nodes": null,
+        "js_heap_mb": null,
+        "react_commits": null,
+        "note": "measured via SPA navigation in interact.json, not a document load"
+      }
+    },
+    {
+      "id": "FE-007",
+      "module": "Multiple (29 modules)",
+      "route": "67 of 232 audited routes",
+      "severity": "major",
+      "category": "query",
+      "title": "Duplicate Supabase fetches detected on 67 routes, 214 duplicate groups in total",
+      "symptom": "Across the product, the same question is asked of the database several times within a two second window. The effect is a constant low hum of redundant traffic behind every screen.",
+      "evidence": "Duplicate detection over identical method + endpoint + select within a 2000 ms window, computed from the CDP Network log for all 232 routes: 67 routes carry at least one duplicate group, 214 groups total, 4,315 Supabase calls and 4.72 MB of Supabase payload across the sweep.",
+      "metrics": {
+        "fcp_ms": null,
+        "lcp_ms": null,
+        "tbt_ms": null,
+        "cls": null,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": null,
+        "duplicate_query_count": 214,
+        "cache_hit_rate": 0,
+        "routes_with_duplicates": 67,
+        "total_routes": 232,
+        "total_supa_calls": 4315,
+        "total_supa_mb": 4.72
+      },
+      "repro_steps": [
+        "Run any route sweep with the Network panel open and group requests by URL.",
+        "Compare identical entries inside a 2 second window."
+      ],
+      "suspected_cause": "A single dominant pattern: data is fetched by calling Supabase directly from component effects instead of through a shared query key, so nothing dedupes. The global query client defaults are already correct, which is why tuning them would not move this number.",
+      "estimated_impact_ms": 0,
+      "recommendation": "Treat this as an inventory rather than 67 separate bugs: list the duplicated endpoints by call volume, then convert the top few to shared keyed queries. Warehouse structure (FE-001) is the single largest cluster and should be done first.",
+      "linked_backend_id": "BE-005",
+      "renderer_counters": {
+        "script_ms": null,
+        "layout_ms": null,
+        "recalc_style_ms": null,
+        "layout_count": 0,
+        "style_recalc_count": 40,
+        "renderer_nodes": 1054,
+        "dom_nodes": 701,
+        "js_heap_mb": 12,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-008",
+      "module": "Multiple (Manufacturing, HR, Invoices, Tasks, Warehouse, Work Completion)",
+      "route": "48 of 232 audited routes",
+      "severity": "major",
+      "category": "network",
+      "title": "No timeout on data requests, so one slow call holds the page: 48 routes never reach network idle, individual requests pending up to 9.6 s",
+      "symptom": "Some pages show a spinner far longer than the data warrants. The user cannot tell whether the page is broken or the network is slow.",
+      "evidence": "idleReached false on 48 of 232 routes (full list in analysis.json agg.neverIdle), including /invoices, /tasks, /manufacturing/*, /hr/*, /warehouse/*, /work-completion/*. Pending-request capture at measurement time shows rest/v1/sites pending 6.3 s, rpc/get_org_modules pending 9.6 s, rest/v1/payroll_runs and rest/v1/variable_pay_logs pending 4.5 s. Latency probe samples reach 1993 ms (org_members) and 1326 ms (organisations) on an idle connection.",
+      "metrics": {
+        "fcp_ms": null,
+        "lcp_ms": null,
+        "tbt_ms": null,
+        "cls": null,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": null,
+        "duplicate_query_count": 214,
+        "cache_hit_rate": 0,
+        "routes_never_idle": 48,
+        "longest_pending_ms": 9616,
+        "note": "the client issues no timeout, so a slow response holds the loading state indefinitely"
+      },
+      "repro_steps": [
+        "Open any route from the 48-route list on a slow or distant connection.",
+        "Watch the spinner persist past 10 seconds while the Network panel shows a single request still pending."
+      ],
+      "suspected_cause": "Queries are awaited with no deadline and no error surface. A tail-latency spike on any one query therefore becomes an unbounded spinner rather than a degraded view with an error on one widget. The latency floor of roughly 210 ms per call means the app is sensitive to any queueing on the Supabase side.",
+      "estimated_impact_ms": 9600,
+      "recommendation": "Give the data layer a per-request deadline and make every list render its own error state, so one slow query degrades one widget instead of the page. This is the cheapest change in this report relative to the number of routes it rescues.",
+      "linked_backend_id": "BE-008",
+      "renderer_counters": {
+        "script_ms": null,
+        "layout_ms": null,
+        "recalc_style_ms": null,
+        "layout_count": null,
+        "style_recalc_count": null,
+        "renderer_nodes": null,
+        "dom_nodes": 758,
+        "js_heap_mb": 8,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-009",
+      "module": "Sub-contractors, Issues, Settings, Reports, Projects",
+      "route": "/subcontractors-v2/payments, /issue, /settings/modules, /reports/financial, /projects-overview, /subcontractors-v2/invoices",
+      "severity": "major",
+      "category": "css",
+      "title": "Six routes exceed a CLS of 0.11, peaking at 0.29, from content replacing placeholders after first paint",
+      "symptom": "Content jumps visibly after the page appears. Users who start reading or clicking move onto the wrong row.",
+      "evidence": "Layout Shift entries without recent input, per document load: /subcontractors-v2/payments 0.2881, /issue 0.2834, /settings/modules 0.1501, /reports/financial 0.1417, /projects-overview 0.1134, /subcontractors-v2/invoices 0.1122. Median across all 232 routes is 0, so this is specific to these screens rather than a shell-wide problem.",
+      "metrics": {
+        "fcp_ms": 1120,
+        "lcp_ms": 1220,
+        "tbt_ms": 0,
+        "cls": 0.2834,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": 0,
+        "duplicate_query_count": 0,
+        "cache_hit_rate": 0,
+        "supabase_calls_per_view": 17,
+        "confirmed_runs": 1,
+        "cls_threshold_exceeded": ">0.1 (poor)"
+      },
+      "repro_steps": [
+        "Open any of the six routes.",
+        "Record a Performance trace and read the Layout Shift track, filtering out entries with recent input."
+      ],
+      "suspected_cause": "These screens reserve less space than their loaded content needs, typically a summary panel or tab body that renders at a smaller height than the data that replaces it. The shift is a sizing mismatch, not an animation.",
+      "estimated_impact_ms": 0,
+      "recommendation": "Reserve final geometry for these panels before data arrives, using the known row count or a min-height, so the loaded state occupies the same box as the placeholder state.",
+      "linked_backend_id": null,
+      "renderer_counters": {
+        "script_ms": null,
+        "layout_ms": 0.031,
+        "recalc_style_ms": 0.103,
+        "layout_count": 3,
+        "style_recalc_count": 378,
+        "renderer_nodes": null,
+        "dom_nodes": 643,
+        "js_heap_mb": 22,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-010",
+      "module": "Build pipeline (all modules)",
+      "route": "n/a (build output)",
+      "severity": "major",
+      "category": "bundle",
+      "title": "Production build emits 43.85 MB of source maps across 416 files into the deployable output",
+      "symptom": "Anyone who can reach the deployed host can download a complete, navigable copy of the application source. Deploy size and upload time are inflated.",
+      "evidence": "dist/assets contains 416 .js files totalling 13.06 MB and 416 .map files totalling 43.85 MB, built 2026-10-01. Source: vite.config.js build.sourcemap is set to true. The largest map is registerFonts-CcTRGgdL.js.map at 4.96 MB.",
+      "metrics": {
+        "fcp_ms": null,
+        "lcp_ms": null,
+        "tbt_ms": null,
+        "cls": null,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": null,
+        "duplicate_query_count": 0,
+        "cache_hit_rate": 0,
+        "sourcemap_files": 416,
+        "sourcemap_mb": 43.85,
+        "js_files": 416,
+        "js_mb": 13.06
+      },
+      "repro_steps": [
+        "Inspect vite.config.js and note build.sourcemap.",
+        "List dist/assets and compare .js and .map counts and sizes."
+      ],
+      "suspected_cause": "Source maps are enabled unconditionally for every build rather than being tied to an error-monitoring upload step. This is a deploy-hygiene and source-exposure issue first, and a bundle-size issue second.",
+      "estimated_impact_ms": 0,
+      "recommendation": "Turn source maps off for production builds and upload them to the error tracker as a separate build artefact if they are needed for debugging.",
+      "linked_backend_id": null,
+      "renderer_counters": {
+        "script_ms": 1.206,
+        "layout_ms": 0.01,
+        "recalc_style_ms": null,
+        "layout_count": 2,
+        "style_recalc_count": null,
+        "renderer_nodes": 446,
+        "dom_nodes": 890,
+        "js_heap_mb": 26,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-001",
+      "module": "Warehouse Management",
+      "route": "/warehouse, /warehouse/* (10 sub-routes)",
+      "severity": "critical",
+      "category": "query",
+      "title": "Every warehouse view issues the same 6 structure queries 11 times each (124 Supabase calls per page view)",
+      "symptom": "Opening any warehouse page fires 124 Supabase REST calls. The page sits in a loading state for 10-11 seconds. The warehouse tab feels broken on a warm cache, and repeated visits feel no faster than the first.",
+      "evidence": "CDP Network domain, two independent runs (sweep-prod + confirm). /warehouse = 124 calls, 8 duplicate groups, LCP 6180 ms confirmed / 3444 ms first pass. Duplicate groups include 11x GET rest/v1/warehouse_bins?select=id,tier_id,name,max_quantity,max_weight_kg,status, 11x warehouse_racks, 11x warehouse_zones, 11x warehouse_layouts, 11x warehouse_tiers. Source: src/warehouse/services/warehouseService.ts fetchOrgStructure (line 1857) issues 6 parallel queries and is invoked from fetchBinCandidates (1106), fetchCycleCounts (1557), fetchPickLists (1800) and fetchSearchIndex (1892), with no memoisation. fetchSearchIndex alone triggers it twice. Client-observed latency per call 575-692 ms mean.",
+      "metrics": {
+        "fcp_ms": 1348,
+        "lcp_ms": 6180,
+        "tbt_ms": 155,
+        "cls": 0.0023,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": 103,
+        "duplicate_query_count": 8,
+        "cache_hit_rate": 0,
+        "supabase_calls_per_view": 124,
+        "confirmed_runs": 2
+      },
+      "repro_steps": [
+        "Sign in and open the Warehouse module from the sidebar.",
+        "Open DevTools Network and filter by \"supabase.co\".",
+        "Observe 124 requests, of which 8 groups repeat 9-11 times inside a 2 second window."
+      ],
+      "suspected_cause": "fetchOrgStructure is a plain exported async function with no cache of its own. It is composed inside other service functions rather than being a single cached query, so every distinct React Query key that touches bin, rack or zone data opens its own six-request fan. React Query deduplicates per key, and these callers each hold a different key, so nothing collapses. The underlying tables hold 2 rows each, so the cost is entirely request count and per-request round-trip latency, not data volume.",
+      "estimated_impact_ms": 6200,
+      "recommendation": "Make the organisation structure a single shared query keyed only by organisation id, with the six reads folded into one Postgres function returning one JSON payload, and have every consumer read from that one cache entry instead of calling the service function directly. Treat this as a prerequisite for the module being usable, not an optimisation.",
+      "linked_backend_id": "BE-001",
+      "renderer_counters": {
+        "script_ms": 0.051,
+        "layout_ms": null,
+        "recalc_style_ms": null,
+        "layout_count": null,
+        "style_recalc_count": 27,
+        "renderer_nodes": 2987,
+        "dom_nodes": 2056,
+        "js_heap_mb": 47,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    },
+    {
+      "id": "FE-002",
+      "module": "Reports & Analytics, GST, Delivery Challans, Sales Orders",
+      "route": "/reports, /reports/projects, /gst/rcm, /gst/reports, /dc/create-v2, /sales-orders/view",
+      "severity": "critical",
+      "category": "render",
+      "title": "Six lazy-loaded routes crash into the error boundary with a ReferenceError instead of rendering",
+      "symptom": "The Reports dashboard, two GST pages and three other routes show an error screen instead of content. The user sees a stack-trace panel where the report should be.",
+      "evidence": "In-page console capture via CDP. /reports: \"ReferenceError: Button is not defined\" (reproduced in both the sweep and the confirmation run). /reports/projects: \"ReferenceError: renderProjectSummary is not defined\". /gst/rcm and /gst/reports: \"ReferenceError: rcmLiabilities is not defined\". /dc/create-v2: \"ReferenceError: item is not defined\". /sales-orders/view: \"ReferenceError: Cannot access A before initialization\". Detected as error-boundary text on 6 of 232 routes.",
+      "metrics": {
+        "fcp_ms": null,
+        "lcp_ms": null,
+        "tbt_ms": null,
+        "cls": null,
+        "inp_ms": null,
+        "react_commits": null,
+        "longest_task_ms": null,
+        "duplicate_query_count": 0,
+        "cache_hit_rate": 0,
+        "supabase_calls_per_view": 3,
+        "confirmed_runs": 2,
+        "note": "content never mounts, so route vitals are not meaningful; /reports returned only 3 Supabase calls before crashing"
+      },
+      "repro_steps": [
+        "Sign in.",
+        "Open Reports & Analytics from the sidebar and observe the error boundary instead of the dashboard.",
+        "Repeat for GST > RCM and GST > Reports."
+      ],
+      "suspected_cause": "Identifiers referenced inside these lazy chunks are not defined in the chunk scope. The pattern (a capitalised component used without an import, a local render function referenced but not declared, a temporal dead zone hit on a module-level binding) points to symbols that were removed or renamed in the source file while a stale reference survived in the built chunk. The production bundle measured here is dated 2026-10-01, so it is possible the source has since been fixed and the bundle has not been rebuilt.",
+      "estimated_impact_ms": 0,
+      "recommendation": "Rebuild and redeploy before trusting any other number for these six routes, then re-run this audit against the fresh bundle. If the errors survive the rebuild, the six chunks need a static reference audit. Six of the most business-critical screens in the product are currently unreachable.",
+      "linked_backend_id": null,
+      "renderer_counters": {
+        "script_ms": null,
+        "layout_ms": null,
+        "recalc_style_ms": null,
+        "layout_count": null,
+        "style_recalc_count": null,
+        "renderer_nodes": 1849,
+        "dom_nodes": 28,
+        "js_heap_mb": 31,
+        "react_commits": null,
+        "note": "production React does not register with the DevTools global hook, so commit count is not observable without a dev build; renderer counters from CDP Performance.getMetrics are used instead. Negative deltas are reported as null because a full document navigation can swap the renderer process and reset these counters."
+      }
+    }
+  ],
+  "backend": [
+    {
+      "id": "BE-011",
+      "surface": "postgres",
+      "module": "Platform (unattributed)",
+      "severity": "minor",
+      "category": "slow-query",
+      "title": "Catalog reads of pg_timezone_names dominate lifetime statement time and cannot be attributed to the application",
+      "symptom": "None observed in the application. Recorded because it is the single largest entry in the server statistics and would otherwise look like an application problem.",
+      "evidence": "pg_stat_statements over a 299 day window: SELECT name FROM pg_timezone_names, 1,730 calls, 1,473,677 ms total, 851.84 ms mean, 5,657 ms max, 2,065,620 rows returned, roughly 1,193 rows per call. A search of every public function body found no reference to pg_timezone_names, so no application routine issues it. The stats window since 2025-12-08 is 7,169 hours, so this is a long-run average rather than a current condition. Several other large entries are Supabase dashboard introspection against pg_catalog.",
+      "metrics": {
+        "p50_ms": 851.84,
+        "p95_ms": null,
+        "rows_returned": 2065620,
+        "payload_kb": 0,
+        "call_count_per_view": 0,
+        "cold_start_ms": null,
+        "lifetime_calls": 1730,
+        "lifetime_total_ms": 1473677,
+        "stats_window_hours": 7169,
+        "attribution": "unresolved; no application function references it"
+      },
+      "repro_steps": [
+        "Query pg_stat_statements ordered by total_exec_time.",
+        "Search pg_proc prosrc for pg_timezone_names across the public schema and find no match."
+      ],
+      "suspected_cause": "Most likely Supabase dashboard or an introspection tool rather than the application, since no application function references the view. The high per-call cost is more consistent with CPU contention at the moments it ran than with the query itself, which reads a small catalog. Stated as unresolved rather than diagnosed.",
+      "estimated_impact_ms": 0,
+      "recommendation": "No action on the application. If this recurs, capture it with a statement-level log for a short window to identify the client. Do not tune against it: at 1,730 calls over 299 days it is roughly five calls a day.",
+      "linked_frontend_id": null
+    },
+    {
+      "id": "BE-012",
+      "surface": "edge-function",
+      "module": "Manager Alerts, Follow-up",
+      "severity": "minor",
+      "category": "cold-start",
+      "title": "No Supabase Edge Functions are deployed, so there is no cold-start surface and no function-attributed latency",
+      "symptom": "None. Recorded to close out the edge-function part of the audit scope explicitly rather than by omission.",
+      "evidence": "Supabase edge function list returns an empty array for project rujqejtisqermjyqqgoj. The 24 hour log window contains no function_edge_logs source; sources present are edge_logs 12,327, postgres_logs 503, postgrest_logs 212, auth_logs 98, realtime_logs 58. The .env.local defines service-role and webhook secrets for a manager-alerts agent, so a function is anticipated but not deployed.",
+      "metrics": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "payload_kb": 0,
+        "call_count_per_view": 0,
+        "cold_start_ms": 0,
+        "deployed_functions": 0,
+        "log_sources_24h": [
+          "edge_logs",
+          "postgres_logs",
+          "postgrest_logs",
+          "auth_logs",
+          "realtime_logs"
+        ]
+      },
+      "repro_steps": [
+        "List edge functions for the project; the list is empty.",
+        "Group the 24 hour logs by source; no function source appears."
+      ],
+      "suspected_cause": "Not applicable. Worth recording because the audit brief lists edge functions as a surface, and the correct finding is that none exist, which also means any webhook path in the environment has no function behind it.",
+      "estimated_impact_ms": 0,
+      "recommendation": "None for performance. Flag separately that the manager-alerts webhook configuration in the environment has no deployed function, which is a functional gap rather than a performance one.",
+      "linked_frontend_id": null
+    },
+    {
+      "id": "BE-013",
+      "surface": "realtime",
+      "module": "Collaboration, Approvals, Manager Alerts, Dashboard",
+      "severity": "minor",
+      "category": "subscription-leak",
+      "title": "Realtime subscriptions are correctly removed on unmount; no leak observed",
+      "symptom": "None observed. Recorded so the realtime part of the audit scope is closed with evidence rather than silence.",
+      "evidence": "Five subscription sites were reviewed and each pairs subscribe with teardown: src/pages/Approvals.tsx line 298, src/pages/ManagerAlerts.tsx line 80, src/components/dashboard/DashboardLedgerSplit.tsx line 108, src/projects/features/collaboration/useRealtimeChannel.ts line 108, src/pages/CreateQuotation/hooks/usePresence.ts line 65. The 24 hour logs contain 58 realtime entries and no reconnect-storm pattern. Across the 232-route sweep the renderer listener count never grew without bound, and js_heap_mb peaked at 53 MB.",
+      "metrics": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "payload_kb": 0,
+        "call_count_per_view": null,
+        "cold_start_ms": null,
+        "subscription_sites_reviewed": 5,
+        "sites_with_teardown": 5,
+        "realtime_log_entries_24h": 58,
+        "heap_peak_mb": 53
+      },
+      "repro_steps": [
+        "Navigate repeatedly between collaboration, approvals and the dashboard.",
+        "Watch the renderer process for growing listener counts or a rising heap."
+      ],
+      "suspected_cause": "No leak. The one caveat worth naming is that the collaboration channel subscribes to four separate postgres_changes bindings, so a channel left open is more expensive than it looks, but the teardown is present.",
+      "estimated_impact_ms": 0,
+      "recommendation": "No action. Preserve the teardown pairing when adding subscriptions; the collaboration hook is the one to watch because it holds four bindings.",
+      "linked_frontend_id": null
+    },
+    {
+      "id": "BE-006",
+      "surface": "postgres",
+      "module": "Clients",
+      "severity": "moderate",
+      "category": "payload-size",
+      "title": "Clients carries five indexes across two synonymous tenancy columns",
+      "symptom": "Every insert and update on clients maintains five indexes where two would do, and there are two different column names for the same concept.",
+      "evidence": "pg_indexes for public.clients: clients_client_id_key (client_id), clients_id_org_id_unique (id, org_id), clients_org_id_idx (org_id), idx_clients_org (org_id), idx_clients_org_id (organisation_id), idx_clients_organisation_id (organisation_id), idx_clients_org_name (org_id, client_name), idx_clients_discount_profile, idx_clients_default_template_id, clients_pkey. Four single-column indexes cover the same logical tenant key, split between org_id and organisation_id.",
+      "metrics": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "payload_kb": 0,
+        "call_count_per_view": null,
+        "cold_start_ms": null,
+        "total_indexes_on_table": 10,
+        "redundant_tenant_indexes": 4,
+        "distinct_tenant_column_names": 2
+      },
+      "repro_steps": [
+        "List indexes on the clients table.",
+        "Observe four single-column indexes covering the same tenant key under two column names."
+      ],
+      "suspected_cause": "A tenant column was renamed at some point and the old index was never removed. Both names are still referenced by different queries, which is why the duplicates accumulated rather than being replaced.",
+      "estimated_impact_ms": 0,
+      "recommendation": "Settle on one tenancy column name, keep a single index on it plus the existing composite, and drop the duplicates. Confirm with EXPLAIN that no query plan depends on a specific duplicate before dropping. The two-column naming split is the real issue and also affects the RLS policies in BE-007.",
+      "linked_frontend_id": null
+    },
+    {
+      "id": "BE-007",
+      "surface": "rls",
+      "module": "All 244 protected tables",
+      "severity": "moderate",
+      "category": "rls-overhead",
+      "title": "Tenant membership is resolved from two different tables, and one policy nests three levels",
+      "symptom": "Inconsistent access rules between tables that should behave identically, and a policy whose predicate performs a three-level correlated sub-query.",
+      "evidence": "208 policies resolve membership through org_members, 97 through user_organisations, and 285 reference auth.uid() directly. The two sources are not equivalent: user_can_access_org additionally requires org_members.status = active and an active employee record, while the user_organisations policies do not. The worst predicate is on account_mappings, which nests organisations inside org_members inside the policy expression.",
+      "metrics": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "payload_kb": 0,
+        "call_count_per_view": null,
+        "cold_start_ms": null,
+        "policies_via_org_members": 208,
+        "policies_via_user_organisations": 97,
+        "deepest_policy_nesting": 3,
+        "tables_affected": 244
+      },
+      "repro_steps": [
+        "Group pg_policies by which membership table the predicate references.",
+        "Compare the org_members and user_organisations policy families for the same table."
+      ],
+      "suspected_cause": "Two generations of tenant-membership modelling coexist. The newer helper adds an active-status condition that the older inline sub-queries do not, so the same logical question can be answered differently depending on which table is being read.",
+      "estimated_impact_ms": 0,
+      "recommendation": "Pick one membership source, express it once, and generate the policies from it so the rules cannot drift. This is primarily a correctness fix; the performance benefit is removing duplicated sub-queries from the majority of policies.",
+      "linked_frontend_id": "FE-003"
+    },
+    {
+      "id": "BE-009",
+      "surface": "auth",
+      "module": "Approvals, App Shell",
+      "severity": "moderate",
+      "category": "slow-query",
+      "title": "The auth user record is re-fetched over the network during navigation instead of being read from the held session",
+      "symptom": "Three requests to the auth user endpoint during a single Approvals navigation, plus a write that updates sign-in time on a 3 ms statement.",
+      "evidence": "interact.json SPA entry for Approvals: 3x GET auth/v1/user among 32 calls. Lifetime pg_stat_statements: UPDATE users SET last_sign_in_at averaged 21.89 ms over 1,641 calls, which is high for a three-column update on a three-row table and suggests lock contention on the users row.",
+      "metrics": {
+        "p50_ms": 21.89,
+        "p95_ms": 350.7,
+        "rows_returned": 1,
+        "payload_kb": null,
+        "call_count_per_view": 3,
+        "cold_start_ms": null,
+        "lifetime_calls": 1641,
+        "lifetime_mean_ms": 21.89
+      },
+      "repro_steps": [
+        "Open Approvals from the sidebar.",
+        "Filter the Network panel for auth/v1 and observe three user reads."
+      ],
+      "suspected_cause": "Components read the current user through the auth client rather than from the session already in memory, and several of them do it independently. The sign-in-time update running at 21.89 ms mean on a three-row table points at row-level lock contention between concurrent sessions writing the same user row.",
+      "estimated_impact_ms": 60,
+      "recommendation": "Read the user from the in-memory session, which the app already holds after login, and treat an auth network read as an exceptional path. Separately, consider moving the last_sign_in_at update off the hot path if it is not required synchronously.",
+      "linked_frontend_id": "FE-005"
+    },
+    {
+      "id": "BE-010",
+      "surface": "postgres",
+      "module": "HR",
+      "severity": "moderate",
+      "category": "rls-overhead",
+      "title": "Attendance queries joined to planned and actual sites are denied by row-level security",
+      "symptom": "The HR attendance screen cannot read its joined data. Requests fail with a permission error rather than returning rows.",
+      "evidence": "Supabase postgres_logs, 24 hour window: 4 occurrences of SQLSTATE 42501 insufficient_privilege on a PostgREST select from public.attendance with row_to_json joins against attendance_planned_sites and attendance_actual_sites, filtered by organisation_id. Also 2 occurrences of 42804 wrong object type on an RPC invoked with p_organisation_id as uuid.",
+      "metrics": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": 0,
+        "payload_kb": 0,
+        "call_count_per_view": null,
+        "cold_start_ms": null,
+        "insufficient_privilege_24h": 4,
+        "wrong_object_type_24h": 2
+      },
+      "repro_steps": [
+        "Open the attendance planning route.",
+        "Observe the 42501 error for the attendance query with its site joins."
+      ],
+      "suspected_cause": "The joined site tables do not grant the authenticated role the access the attendance policy assumes, so the embedded resource fails the permission check. The embedded-relation pattern in PostgREST requires select rights on every joined table, not just the base table.",
+      "estimated_impact_ms": 0,
+      "recommendation": "Grant the authenticated role the required access on attendance_planned_sites and attendance_actual_sites, or select the site fields through separate queries under their own policies. Low volume, but the screen is broken for the users who need it.",
+      "linked_frontend_id": "FE-008"
+    },
+    {
+      "id": "BE-003",
+      "surface": "rls",
+      "module": "All 244 protected tables",
+      "severity": "major",
+      "category": "rls-overhead",
+      "title": "573 of 999 row-level security policies call a plpgsql function per row, and the function is not inlinable",
+      "symptom": "Every query on a tenant table pays a function call for each candidate row before the row can be returned. The overhead is invisible in query plans but scales with row counts.",
+      "evidence": "pg_policies over the public schema: 999 policies total, of which 573 reference user_can_access_org across 244 distinct tables. Definition: plpgsql, STABLE, SECURITY DEFINER, and its body is a nested EXISTS over org_members filtered on auth.uid() plus a second EXISTS over employees with lower(coalesce(status, 'active')) = 'active'. Because it is plpgsql rather than SQL, the planner cannot inline it, so it executes once per row evaluated. The lower() call on employees.status also makes that lookup non-indexable.",
+      "metrics": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "payload_kb": 0,
+        "call_count_per_view": null,
+        "cold_start_ms": null,
+        "total_policies": 999,
+        "policies_using_function": 573,
+        "tables_affected": 244,
+        "nested_exists_depth": 2
+      },
+      "repro_steps": [
+        "Run a query on a tenant table and inspect EXPLAIN ANALYZE for a Filter on user_can_access_org.",
+        "Count policies referencing the function in pg_policies."
+      ],
+      "suspected_cause": "A convenient tenant helper was adopted as the default policy expression across the schema. It is correct, but its cost model is per row, and the employee-status sub-query with a function-based comparison on the text column multiplies that cost.",
+      "estimated_impact_ms": 0,
+      "recommendation": "Rewrite the helper as a SQL-language STABLE function taking no per-row work beyond an indexed membership lookup, or replace it with a direct EXISTS against an index on org_members(user_id, organisation_id, status), which already exists as org_members_user_org_status_idx. Removing the lower() on employees.status would let that lookup use an index too. At current row counts the absolute cost is small; the point is that it is unbounded as data grows.",
+      "linked_frontend_id": "FE-003"
+    },
+    {
+      "id": "BE-004",
+      "surface": "postgres",
+      "module": "Stock Requests, Audit, Document Templates, Clients",
+      "severity": "major",
+      "category": "missing-index",
+      "title": "564 of 1167 foreign keys have no index on the referencing column",
+      "symptom": "Joins, cascade deletes and reference lookups against these columns fall back to sequential scans. Invisible now because the tables are small, expensive as soon as they are not.",
+      "evidence": "Catalog comparison of pg_constraint foreign keys against pg_index leading columns: 1167 foreign keys, 564 without a leading index. Among tables with rows: role_permissions.permission_key (3261 rows), audit_log.user_id (675), rbac_module_actions.action_key (222), stock_request_activity_log with six unindexed foreign keys (56 rows), document_templates.organisation_id (56), material_logs with three (59), approvals.reviewer_id (55), approval_workflows.organisation_id (54), clients.created_by (31).",
+      "metrics": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": null,
+        "payload_kb": 0,
+        "call_count_per_view": null,
+        "cold_start_ms": null,
+        "total_foreign_keys": 1167,
+        "without_leading_index": 564,
+        "largest_affected_table_rows": 3261
+      },
+      "repro_steps": [
+        "Pick a foreign key from the list, for example document_templates.organisation_id.",
+        "Run EXPLAIN on a lookup by that column and observe a sequential scan."
+      ],
+      "suspected_cause": "Indexes were added for query patterns that were measured, not for the constraints the schema declares. Referential integrity checks on delete and update parent rows scan the child table when the child column is unindexed, so this affects writes as well as reads.",
+      "estimated_impact_ms": 0,
+      "recommendation": "Add indexes on the referencing columns of foreign keys, prioritised by table size and by whether the parent row is ever updated or deleted. Supabase's advisor surfaces the unindexed foreign keys automatically, so this can be worked as a generated list rather than by hand.",
+      "linked_frontend_id": null
+    },
+    {
+      "id": "BE-005",
+      "surface": "postgres",
+      "module": "App Shell, Approvals, Clients, Projects",
+      "severity": "major",
+      "category": "over-fetch",
+      "title": "The global approvals badge fetches every approval row with select=* on every route, purely to show a count",
+      "symptom": "The approval count in the header costs a full table read on every page. Combined with the per-view call counts, this is pure overhead on 245 of the observed navigations.",
+      "evidence": "89 client-observed Supabase calls during the sweep used select=*. The clearest case is rest/v1/approvals?select=*&organisation_id=eq.<org>&status=eq.PENDING, issued on all 232 routes at 455 ms client-observed mean. Lifetime pg_stat_statements shows the same statement at 34,009 calls over a 299 day window with 4.16 ms mean server-side execution, confirming the server work is trivial and the request count is the problem. Also over-fetching: clients, materials and several others with select=*.",
+      "metrics": {
+        "p50_ms": 455,
+        "p95_ms": null,
+        "rows_returned": null,
+        "payload_kb": 259,
+        "call_count_per_view": 1,
+        "cold_start_ms": null,
+        "star_select_observed": 89,
+        "lifetime_calls": 34009,
+        "lifetime_mean_server_ms": 4.16,
+        "stats_window_days": 299
+      },
+      "repro_steps": [
+        "Open any route and filter the Network panel for rest/v1/approvals.",
+        "Observe select=* with a status filter, on every page."
+      ],
+      "suspected_cause": "The badge was implemented as a row fetch rather than a count. PostgREST can return a count with Prefer: count=exact and a HEAD request, and the app already issues HEAD count-probes elsewhere (see FE-006), so the pattern exists but was not applied here.",
+      "estimated_impact_ms": 455,
+      "recommendation": "Serve the badge from a count-only request, or better, keep it live through a Realtime subscription on approvals so it costs nothing per navigation. Apply the same discipline to the remaining select=* calls.",
+      "linked_frontend_id": "FE-004"
+    },
+    {
+      "id": "BE-008",
+      "surface": "postgres",
+      "module": "App Shell (all modules)",
+      "severity": "major",
+      "category": "slow-query",
+      "title": "Shell queries execute in 2-7 ms on the server but are observed at 210-320 ms from the browser, with tails past 2 s",
+      "symptom": "Every navigation pays roughly a quarter second per shell query that the database barely spends any time on. Occasionally a single call takes several seconds and the page waits.",
+      "evidence": "Server-side, lifetime pg_stat_statements: org_members statements 1.6-1.9 ms mean, organisations 2.3 ms, roles 4.6 ms, the p_org_id RPC group 19.0 ms mean, projects 0.5-1.7 ms. Client-side, isolated 8-sample probe from the page: org_members median 248 ms min 223 max 1993, organisations/settings median 280 min 206 max 1326, roles median 319 min 204 max 626, get_org_modules median 243 min 212 max 435. Database address is an AWS IPv6 range consistent with ap-southeast-1, while the application is used from India. Connection state: 22 connections against a max of 60, 1 active, so contention is not the explanation. Note the server figures are lifetime averages over a 299 day window and the client figures are from this audit, so the comparison is indicative rather than exact.",
+      "metrics": {
+        "p50_ms": 248,
+        "p95_ms": null,
+        "rows_returned": 6,
+        "payload_kb": 3,
+        "call_count_per_view": 6,
+        "cold_start_ms": null,
+        "server_mean_ms": 1.9,
+        "client_median_ms": 248,
+        "client_max_ms": 1993,
+        "unattributed_ms": 245,
+        "longest_observed_pending_ms": 9616
+      },
+      "repro_steps": [
+        "From the page console, time eight consecutive fetches of rest/v1/org_members and note the floor of roughly 210 ms.",
+        "Compare against the server-side mean of 1.9 ms in pg_stat_statements."
+      ],
+      "suspected_cause": "The gap is transport and per-request overhead rather than query execution: TLS, a cross-region round trip, PostgREST request parsing, schema cache lookup, RLS evaluation and the connection pool. Because the app makes six such calls per navigation, the fixed per-request cost dominates. Connection contention is ruled out by the connection counts. The multi-second tails are not explained by the database and most likely come from pool queueing or network path variability.",
+      "estimated_impact_ms": 1500,
+      "recommendation": "Two levers, in order. First, reduce the number of round trips per navigation, which is FE-003 and FE-004; at a 245 ms floor each removed call is worth a quarter second. Second, evaluate moving the project to a region closer to the users, since a cross-region floor of roughly 210 ms is paid on every single request and no amount of query tuning reduces it.",
+      "linked_frontend_id": "FE-003"
+    },
+    {
+      "id": "BE-001",
+      "surface": "postgres",
+      "module": "Warehouse Management",
+      "severity": "critical",
+      "category": "n+1",
+      "title": "Warehouse structure queries are re-issued 11 times per page view across six tables",
+      "symptom": "The warehouse module generates 124 database round trips per view and the connection pool and PostgREST queue absorb them, which is what pushes page load past 10 seconds.",
+      "evidence": "Client-observed over two runs: 124 REST calls per /warehouse view, with 9-11 identical copies inside 2 s of warehouse_bins, warehouse_racks, warehouse_zones, warehouse_layouts and warehouse_tiers. Row counts are negligible: warehouse_floors 2, warehouse_zones 2, warehouse_racks 2, warehouse_bins 2, warehouse_layouts 2, warehouse_tiers 2, warehouse_bin_items 2. Client-observed per-call means 575-692 ms. No Edge Functions are deployed, so all of this traverses PostgREST.",
+      "metrics": {
+        "p50_ms": 620,
+        "p95_ms": 1534,
+        "rows_returned": 2,
+        "payload_kb": 140,
+        "call_count_per_view": 124,
+        "cold_start_ms": null,
+        "redundant_fraction": "approximately 94% of the 124 calls are duplicates of 6 distinct queries"
+      },
+      "repro_steps": [
+        "Sign in and open any warehouse sub-route.",
+        "Count Supabase REST requests: 124.",
+        "Compare against row counts: six reference tables with 2 rows each."
+      ],
+      "suspected_cause": "An application-level N+1 rather than a database one. The structure read is a plain function with no cache that is composed inside other service functions, so each distinct caller opens its own six-request fan. The database is doing almost no work; the request count is the entire cost.",
+      "estimated_impact_ms": 6200,
+      "recommendation": "Collapse the six reads into one Postgres function returning a single JSON structure, expose it as one cached query keyed by organisation, and have the bin-candidate, cycle-count, pick-list and search-index paths read from that single result. This is the highest-value change in the report: it removes about 118 of 124 requests per warehouse view.",
+      "linked_frontend_id": "FE-001"
+    },
+    {
+      "id": "BE-002",
+      "surface": "postgres",
+      "module": "Materials, Purchase, Accounting, Organisation",
+      "severity": "critical",
+      "category": "slow-query",
+      "title": "361 undefined-column errors and 69 invalid-input errors in 24 hours: the app queries columns that do not exist",
+      "symptom": "Every affected screen makes a request that fails at parse time. The user sees an empty list or an error, and the request is retried, multiplying the cost.",
+      "evidence": "Supabase postgres_logs, 24 hour window ending 2026-10-03T04:50Z, grouped by SQLSTATE. 42703 undefined_column: 190 occurrences on materials selecting id, name, code, unit; 82 more on the same table with ORDER BY name; 58 on purchase_orders with an embedded row_to_json select; 16 on purchase_vendors selecting id, name ORDER BY name, last seen 2026-10-03T04:27 so still occurring during this audit; 5 on accounts selecting is_active; 5 on org_members selecting full_name and email; 2 on organisations selecting saturday_type and holiday columns. 22P02 invalid_text_representation: 67 on warehouse_pick_list_items filtered by pick_list_id, 2 on delivery_challans filtered by id. 42501 insufficient_privilege: 4 on attendance joined to planned and actual sites. Confirmed against information_schema: materials has no \"code\" column (it has part_number, item_code, part_code), purchase_vendors has no \"name\" (it has company_name), accounts has no is_active (it has status), org_members has no full_name or email, organisations has no saturday_type.",
+      "metrics": {
+        "p50_ms": null,
+        "p95_ms": null,
+        "rows_returned": 0,
+        "payload_kb": 0,
+        "call_count_per_view": null,
+        "cold_start_ms": null,
+        "errors_24h": 436,
+        "undefined_column_24h": 361,
+        "invalid_text_24h": 69,
+        "insufficient_privilege_24h": 4,
+        "materials_code_24h": 272,
+        "purchase_vendors_name_24h": 16
+      },
+      "repro_steps": [
+        "Query the materials endpoint requesting the code column and observe a 42703 parse error.",
+        "Repeat with purchase_vendors requesting name, accounts requesting is_active, org_members requesting full_name.",
+        "Inspect information_schema.columns for each table to confirm the column is absent."
+      ],
+      "suspected_cause": "Schema drift between the application and the database, in both directions. Some columns were renamed in code (materials.code became item_code or part_number, vendors.name became company_name, accounts.is_active became status) while callers still reference the old names. Others were never deployed at all (organisations.saturday_type, org_members.full_name and email), which means whole features read fields that do not exist. The repeated failures within seconds of each other indicate retry behaviour layered on top of the schema mismatch.",
+      "estimated_impact_ms": 0,
+      "recommendation": "Reconcile every one of these column references against the live schema and fix the callers in one pass. The 24 hour error log is the authoritative work list. Note that a parse failure happens before any row is read, so this costs a round trip and a retry rather than a slow scan, but it makes the affected features non-functional, which is worse.",
+      "linked_frontend_id": "FE-002"
+    }
+  ],
+  "cross_layer_summary": [
+    {
+      "theme": "Fixed per-request round-trip cost multiplied by the number of requests per navigation",
+      "frontend_ids": [
+        "FE-003",
+        "FE-004",
+        "FE-005",
+        "FE-008"
+      ],
+      "backend_ids": [
+        "BE-008",
+        "BE-005"
+      ],
+      "combined_impact_ms": 2500,
+      "narrative": "The database answers the shell questions quickly: org_members, organisations, roles and projects all execute in roughly 2 to 7 ms on the server, and the approvals badge in 4 ms. From the browser the same calls take a minimum of about 210 ms each, which points at TLS, a cross-region round trip, PostgREST request setup and row-level security evaluation rather than at query execution. Six shell reads per route at that floor is roughly 1.5 s before any route content is requested, and the approvals badge makes it worse by fetching every approval row to render a number. Neither layer can fix this alone: tuning Postgres will not move a 245 ms transport floor, and reducing Postgres cost will not remove a request that should not have been made. The effective fix is to make fewer requests per navigation and, separately, to consider a closer region. Note the server-side figures are lifetime averages over 299 days while the client figures come from this audit, so treat the attribution as indicative rather than proven."
+    },
+    {
+      "theme": "Uncached composition inside the warehouse service turns one logical read into 124 database round trips",
+      "frontend_ids": [
+        "FE-001",
+        "FE-007"
+      ],
+      "backend_ids": [
+        "BE-001"
+      ],
+      "combined_impact_ms": 6200,
+      "narrative": "This is the clearest causal chain in the audit and it runs almost entirely through the application layer. Six reference tables hold two rows each, so the database has essentially no work to do, yet opening any warehouse view produces 124 requests, nine to eleven of each identical. The reason is structural: fetchOrgStructure is a plain exported function with no cache, and it is called from inside four other service functions, one of which calls it twice. React Query deduplicates per key, and each caller holds a different key, so eleven consumers produce eleven fans. The frontend symptom and the backend symptom are the same event seen from two ends: a 6.2 second LCP and a database absorbing 124 requests to return twelve rows. Fixing this on the database side, for example by indexing the structure tables, would change nothing."
+    },
+    {
+      "theme": "Schema drift produces hard request failures that are then retried",
+      "frontend_ids": [
+        "FE-002",
+        "FE-008"
+      ],
+      "backend_ids": [
+        "BE-002",
+        "BE-010"
+      ],
+      "combined_impact_ms": 0,
+      "narrative": "Over 24 hours the database logged 436 client errors, of which 361 are undefined-column. The application asks materials for a code column that does not exist, purchase_vendors for a name column that is actually called company_name, accounts for is_active which is actually status, org_members for full_name and email which do not exist at all, and organisations for saturday_type. Because a parse failure happens before any row is read, the cost is a wasted round trip rather than a slow scan, but it makes the affected screens non-functional, which is worse than slow. The retry behaviour layered on top multiplies the request count. Four attendance queries are separately denied by row-level security on joined site tables. This theme is included because the performance cost is small and the correctness cost is total: it is the one place where the audit would rather flag a bug than a slow query."
+    },
+    {
+      "theme": "Font loading sits directly on the critical path with a large unused payload",
+      "frontend_ids": [
+        "FE-012",
+        "FE-013"
+      ],
+      "backend_ids": [],
+      "combined_impact_ms": 1200,
+      "narrative": "A cold load issues five requests to Google Fonts before text can settle, and four of those families, Space Grotesk, IBM Plex Sans, IBM Plex Mono and Google Sans, are referenced by no rule anywhere in the source. Inter is requested twice, once from the Google CDN and once from the self-hosted variable package. Two self-hosted variable files totalling 133 KB then arrive 623 to 898 ms into the load on the invoice routes, which is why those routes show an LCP of roughly 2.9 s with an FCP of 1.4 s: the layout arrives early and the text re-renders late. This theme has no backend component at all, which is worth stating plainly in a report that otherwise links every symptom to the database. The whole cost is client-side and self-inflicted."
+    },
+    {
+      "theme": "Interaction quality is sound, so all remediation belongs on the load path",
+      "frontend_ids": [
+        "FE-019",
+        "FE-001",
+        "FE-003"
+      ],
+      "backend_ids": [
+        "BE-001"
+      ],
+      "combined_impact_ms": 0,
+      "narrative": "Sorting a column, typing in a search box and opening a create dialog were measured at 24 to 56 ms of interaction latency against a 200 ms budget, with zero Supabase requests fired by the table sort and zero layout shift attributable to any interaction. Framer Motion produced no dropped frames on these transitions. That is a real and unusual result: the problem in this application is confined to first load and navigation, and the part users touch after loading is in good shape. The practical consequence is a constraint on the fix. Whatever batching is introduced to cut the 124 warehouse requests or the six shell reads must land on the load path only; moving that work into the interaction path would trade a slow first paint for a sluggish interface and make the product worse."
+    }
+  ],
+  "top_offenders": [
+    "FE-001",
+    "BE-002",
+    "FE-003",
+    "BE-001",
+    "BE-008"
+  ]
+}

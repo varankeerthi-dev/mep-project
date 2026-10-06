@@ -35,6 +35,10 @@ export function SubcontractorsPage({ onNavigate }: SubcontractorsPageProps) {
   if (currentPath.startsWith('/subcontractors-v2/workorders/')) {
     const segments = extractSegments(currentPath, '/subcontractors-v2/workorders');
 
+    if (segments.length === 1 && segments[0] === 'create') {
+      return <SubcontractorWorkOrderCreate onNavigate={onNavigate} />;
+    }
+
     if (segments.length === 2 && segments[1] === 'create-measurement') {
       const workOrderId = segments[0];
       return (

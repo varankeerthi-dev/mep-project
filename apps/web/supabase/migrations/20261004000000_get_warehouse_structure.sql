@@ -115,11 +115,15 @@ AS $$
   );
 $$;
 
--- 2. Allow the authenticated role to call it.
+-- 2. Permissions.
 --    Required because the function is owned by the migration role, and it is the
 --    role PostgREST uses for signed-in users. This grants EXECUTE on the new
 --    function only; it grants nothing on any table and changes no policy.
+--    Postgres grants EXECUTE to PUBLIC on new functions by default, and PUBLIC
+--    includes anon. RLS would still stop anon reading rows, so this is hygiene
+--    rather than a leak, but there is no reason to leave the endpoint callable.
 GRANT EXECUTE ON FUNCTION public.get_warehouse_structure(uuid) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.get_warehouse_structure(uuid) FROM PUBLIC, anon;
 
 -- 3. Notes for the reviewer
 --    * Row ORDER inside each array is now deterministic (ORDER BY id). The

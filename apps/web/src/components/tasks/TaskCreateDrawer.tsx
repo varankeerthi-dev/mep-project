@@ -371,17 +371,38 @@ export default function TaskCreateDrawer({
   const [checklistInput, setChecklistInput] = useState('');
   const [milestones, setMilestones] = useState<any[]>([]);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId || null);
+  const [projectsList, setProjectsList] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    if (!projectId && organisationId) {
+      supabase
+        .from('projects')
+        .select('id, project_name, project_code')
+        .eq('organisation_id', organisationId)
+        .order('project_name')
+        .then(({ data }) => {
+          if (data) {
+            setProjectsList(data.map((p: any) => ({
+              id: p.id,
+              name: p.project_code ? `${p.project_name} (${p.project_code})` : p.project_name,
+            })));
+          }
+        });
+    }
+  }, [projectId, organisationId]);
 
   useEffect(() => {
     const fetchMilestones = async () => {
-      if (!projectId) {
+      const targetProjId = selectedProjectId || projectId;
+      if (!targetProjId) {
         setMilestones([]);
         return;
       }
       const { data } = await supabase
         .from('project_milestones')
         .select('id, name, milestone_date')
-        .eq('project_id', projectId)
+        .eq('project_id', targetProjId)
         .eq('organisation_id', organisationId)
         .order('milestone_date', { ascending: true });
       if (data) {
@@ -389,7 +410,7 @@ export default function TaskCreateDrawer({
       }
     };
     fetchMilestones();
-  }, [projectId, organisationId]);
+  }, [selectedProjectId, projectId, organisationId]);
 
   // Fetch org members for assignee dropdown
   const [orgMembers, setOrgMembers] = useState<MultiSelectOption[]>([]);
@@ -441,7 +462,7 @@ export default function TaskCreateDrawer({
   const handleSubmit = () => {
     if (!name.trim()) return;
     onSubmit({
-      project_id: projectId || null,
+      project_id: selectedProjectId || projectId || null,
       task_group_id: taskGroupId,
       title: name.trim(),
       description: description.trim() || undefined,
@@ -520,6 +541,23 @@ export default function TaskCreateDrawer({
         {/* Content */}
         <div style={{ flex: 1, overflow: 'auto', padding: '0.75rem 1.25rem 1.25rem' }}>
           
+          {/* Project Selection (when in global mode) */}
+          {!projectId && (
+            <div style={{ marginBottom: '0.75rem' }}>
+              <label style={labelStyle}>Project</label>
+              <select
+                value={selectedProjectId || ''}
+                onChange={(e) => setSelectedProjectId(e.target.value || null)}
+                style={inputStyle}
+              >
+                <option value="">Select Project</option>
+                {projectsList.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Task Name - Always visible, no collapse */}
           <div style={{ marginBottom: '0.75rem' }}>
             <label style={labelStyle}>Task Name *</label>

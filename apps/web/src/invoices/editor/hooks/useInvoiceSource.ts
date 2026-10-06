@@ -62,7 +62,13 @@ async function loadSourceOptions(
     }));
   }
 
-  if (clientId) {
+  // PO is the only remaining branch, and it is matched by name rather than
+  // being reached through a catch-all. The previous `if (clientId)` fall-through
+  // served POs for ANY unrecognised source_type, so a proforma selection silently
+  // listed client POs and could attach an unrelated PO to the invoice.
+  if (sourceType === 'po') {
+    if (!clientId) return [];
+
     const { data, error } = await supabase
       .from('client_purchase_orders')
       .select('*')
@@ -86,6 +92,8 @@ async function loadSourceOptions(
     }));
   }
 
+  // Unreachable for a validated source_type. Returning nothing is safer than
+  // guessing which source the caller meant.
   return [];
 }
 

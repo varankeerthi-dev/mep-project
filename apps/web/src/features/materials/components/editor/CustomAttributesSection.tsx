@@ -1,10 +1,12 @@
-import { useCallback, useMemo } from 'react';
-import { Plus, Settings } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { Plus, Settings, Layers, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AttributeRow } from '../attributes/AttributeRow';
 import { AttributeSuggestionPicker } from '../attributes/AttributeSuggestionPicker';
 import { getCategoryPresets } from '../../model/attributes/attributePresets';
 import { isAttributeDataType } from '../../model/attributes/attributeTypes';
+import { mergeAttributeSet } from '../../model/attributes/attributeSets';
+import { useAttributeSets } from '../../hooks/useAttributeSets';
 import type { AttributeDefinition, MaterialCustomAttribute } from '../../model/entities/Material';
 
 interface CustomAttributesSectionProps {
@@ -53,6 +55,56 @@ export function CustomAttributesSection({ attributes, definitions, category = ''
     });
   }, [addRow]);
 
+  // Reusable attribute sets: same Grade + Pressure Rating + End Connection
+  // across ten pipe items without retyping. Applying skips names the item
+  // already has, so a set never duplicates or overwrites.
+  const { sets, mutating: setsMutating, saveSet, deleteSet } = useAttributeSets();
+  const [selectedSetId, setSelectedSetId] = useState('');
+  const [savingSet, setSavingSet] = useState(false);
+  const [setName, setSetName] = useState('');
+  const [setFeedback, setSetFeedback] = useState('');
+
+  const applySet = useCallback(() => {
+    const set = sets.find((s) => s.id === selectedSetId);
+    if (!set) return;
+    const { merged, applied, skipped } = mergeAttributeSet(attributes, set.lines);
+    if (applied.length === 0) {
+      setSetFeedback(
+        skipped.length > 0
+          ? `All ${skipped.length} attribute${skipped.length === 1 ? '' : 's'} from "${set.name}" are already on this item.`
+          : `"${set.name}" has no attributes to apply.`,
+      );
+      return;
+    }
+    onChange(merged);
+    setSetFeedback(
+      `Applied ${applied.length} attribute${applied.length === 1 ? '' : 's'} from "${set.name}".` +
+        (skipped.length > 0 ? ` Skipped ${skipped.length} already present.` : ''),
+    );
+  }, [sets, selectedSetId, attributes, onChange]);
+
+  const confirmSaveSet = useCallback(async () => {
+    const result = await saveSet(setName, attributes);
+    setSetFeedback(result.message);
+    if (result.ok) {
+      setSetName('');
+      setSavingSet(false);
+    }
+  }, [saveSet, setName, attributes]);
+
+  const confirmDeleteSet = useCallback(async () => {
+    const set = sets.find((s) => s.id === selectedSetId);
+    if (!set) return;
+    if (!window.confirm(`Delete attribute set "${set.name}"? Items already using it keep their rows.`)) return;
+    const ok = await deleteSet(set.id);
+    if (ok) {
+      setSelectedSetId('');
+      setSetFeedback(`Deleted set "${set.name}".`);
+    } else {
+      setSetFeedback('Could not delete the set. Please try again.');
+    }
+  }, [sets, selectedSetId, deleteSet]);
+
   return (
     <div className="space-y-4">
       <AttributeSuggestionPicker
@@ -74,6 +126,60 @@ export function CustomAttributesSection({ attributes, definitions, category = ''
         <Button variant="outline" size="sm" type="button" onClick={() => addRow()}>
           <Plus size={14} /> Add Attribute
         </Button>
+      </div>
+
+      {/* Reusable sets: apply a saved Grade/Pressure/Connection bundle, or save this item's rows as one. */}
+      <div className="rounded-xl border border-[#E5E7EB] bg-[#FAFAFB] p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Layers size={14} className="shrink-0 text-[#6366F1]" />
+          <select
+            className="h-8 min-w-0 flex-1 rounded-md border border-[#D1D5DB] bg-white px-2 text-xs text-[#344054]"
+            value={selectedSetId}
+            onChange={(e) => { setSelectedSetId(e.target.value); setSetFeedback(''); }}
+            disabled={setsMutating}
+          >
+            <option value="">Apply a saved attribute set…</option>
+            {sets.map((set) => (
+              <option key={set.id} value={set.id}>
+                {set.name} ({set.lines.length})
+              </option>
+            ))}
+          </select>
+          <Button variant="outline" size="sm" type="button" onClick={applySet} disabled={!selectedSetId || setsMutating}>
+            Apply
+          </Button>
+          {selectedSetId && (
+            <Button variant="ghost" size="sm" type="button" onClick={confirmDeleteSet} disabled={setsMutating} title="Delete this set">
+              <Trash2 size={14} className="text-[#DC2626]" />
+            </Button>
+          )}
+          {!savingSet ? (
+            <Button variant="outline" size="sm" type="button" onClick={() => { setSavingSet(true); setSetFeedback(''); }} disabled={setsMutating}>
+              Save as set
+            </Button>
+          ) : (
+            <>
+              <input
+                type="text"
+                className="h-8 min-w-0 flex-1 rounded-md border border-[#D1D5DB] bg-white px-2 text-xs"
+                placeholder='Set name, e.g. "MS Pipe specs"'
+                value={setName}
+                maxLength={100}
+                onChange={(e) => setSetName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmSaveSet(); } }}
+              />
+              <Button variant="default" size="sm" type="button" onClick={confirmSaveSet} disabled={setsMutating}>
+                Save
+              </Button>
+              <Button variant="ghost" size="sm" type="button" onClick={() => { setSavingSet(false); setSetName(''); }}>
+                Cancel
+              </Button>
+            </>
+          )}
+        </div>
+        {setFeedback && (
+          <p className="mt-2 text-[11px] font-medium text-[#475569]">{setFeedback}</p>
+        )}
       </div>
 
       {attributes.length > 0 ? (

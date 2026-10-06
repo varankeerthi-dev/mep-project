@@ -47,32 +47,36 @@ export function useProjectDetails(
           .from('project_invoices')
           .select('*')
           .eq('project_id', pId)
-          .eq('organisation_id', organisationId)
           .order('invoice_date', { ascending: false }),
         supabase
           .from('project_expenses')
           .select('*')
           .eq('project_id', pId)
-          .eq('organisation_id', organisationId)
           .order('expense_date', { ascending: false }),
         supabase
           .from('project_payments')
           .select('*')
           .eq('project_id', pId)
-          .eq('organisation_id', organisationId)
           .order('payment_date', { ascending: false }),
         supabase
           .from('quotation_header')
           .select('id, quotation_no, date, grand_total, status, client_id, client:clients(client_name)')
           .eq('project_id', pId)
-          .eq('organisation_id', organisationId)
           .order('created_at', { ascending: false }),
       ]);
 
-      if (posResult.error) throw posResult.error;
-      if (invoicesResult.error) throw invoicesResult.error;
-      if (expensesResult.error) throw expensesResult.error;
-      if (paymentsResult.error) throw paymentsResult.error;
+      if (posResult.error) {
+        console.warn('Project purchase orders unavailable:', posResult.error.message);
+      }
+      if (invoicesResult.error) {
+        console.warn('Project invoices unavailable:', invoicesResult.error.message);
+      }
+      if (expensesResult.error) {
+        console.warn('Project expenses unavailable:', expensesResult.error.message);
+      }
+      if (paymentsResult.error) {
+        console.warn('Project payments unavailable:', paymentsResult.error.message);
+      }
 
       let quotations: any[] = [];
       if (quotationsResult.error) {
@@ -89,7 +93,7 @@ export function useProjectDetails(
         quotations,
       };
     },
-    enabled: isTransactionsEnabled && !!organisationId,
+    enabled: isTransactionsEnabled,
     staleTime: 30 * 1000,
   });
 
