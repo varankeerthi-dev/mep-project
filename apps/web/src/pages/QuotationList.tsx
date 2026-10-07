@@ -32,9 +32,9 @@ import { QuotationRevisionCompareModal } from '../components/QuotationRevisionCo
 
 const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
 
-const SUB_TABS = ['All Quotes', 'Drafts'];
 
-const STATUS_FILTER_OPTIONS = ['All', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
+const STATUS_FILTER_OPTIONS = ['All', 'Drafts', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
+const toDbStatus = (s: string) => (s === 'Drafts' ? 'Draft' : s);
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Draft:              { bg: '#f3f4f6', color: '#6b7280' },
@@ -82,7 +82,6 @@ export default function QuotationList() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
   const [toDate, setToDate] = useState<Date | undefined>(undefined);
-  const [subTab, setSubTab] = useState('All Quotes');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [showColumnCustomizer, setShowColumnCustomizer] = useState(false);
@@ -156,15 +155,6 @@ export default function QuotationList() {
   }, [showColumnCustomizer, visibleColumns]);
 
   // Reset status filter when switching sub-tabs
-  useEffect(() => {
-    if (subTab === 'Drafts') {
-      setStatusFilter('Draft');
-    } else {
-      setStatusFilter('All');
-    }
-    setCurrentPage(1); // Reset to first page when switching tabs
-  }, [subTab]);
-
   // Reset to first page when search, status or date filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -362,7 +352,7 @@ export default function QuotationList() {
         .eq('organisation_id', organisation?.id)
         .order('created_at', { ascending: false });
 
-      if (statusFilter !== 'All') query = query.eq('status', statusFilter);
+      if (statusFilter !== 'All') query = query.eq('status', toDbStatus(statusFilter));
 
       const data = await timedSupabaseQuery(query, 'Quotation list');
       const today = new Date().toISOString().split('T')[0];
@@ -413,10 +403,13 @@ export default function QuotationList() {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="h-[26px] px-3 flex items-center gap-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
+            title={fromDate ? `From ${fmtShort(fromDate)}` : 'From date'}
+            className={`relative h-[26px] w-[26px] flex items-center justify-center rounded-md transition-colors ${
+              fromDate ? 'text-blue-600 bg-blue-50' : 'text-zinc-600 hover:bg-zinc-100'
+            }`}
           >
             <CalendarIcon className="w-4 h-4" />
-            {fromDate ? fmtShort(fromDate) : 'From date'}
+            {fromDate && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-600" />}
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
@@ -427,10 +420,13 @@ export default function QuotationList() {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="h-[26px] px-3 flex items-center gap-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
+            title={toDate ? `To ${fmtShort(toDate)}` : 'To date'}
+            className={`relative h-[26px] w-[26px] flex items-center justify-center rounded-md transition-colors ${
+              toDate ? 'text-blue-600 bg-blue-50' : 'text-zinc-600 hover:bg-zinc-100'
+            }`}
           >
             <CalendarIcon className="w-4 h-4" />
-            {toDate ? fmtShort(toDate) : 'To date'}
+            {toDate && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-600" />}
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
@@ -691,10 +687,7 @@ export default function QuotationList() {
         search={searchTerm}
         onSearch={setSearchTerm}
         searchPlaceholder="Search quotations..."
-        subTabs={SUB_TABS}
-        activeSubTab={subTab}
-        onSubTab={setSubTab}
-        statusOptions={subTab === 'All Quotes' ? STATUS_FILTER_OPTIONS : []}
+        statusOptions={STATUS_FILTER_OPTIONS}
         statusFilter={statusFilter}
         onStatusFilter={setStatusFilter}
         sort={{ value: sortOrder, onToggle: toggleSort, columnId: 'date' }}
