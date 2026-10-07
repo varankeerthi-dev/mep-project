@@ -33,7 +33,6 @@ import { QuotationActions } from './components/QuotationActions';
 import { QuotationHeaderForm } from './components/QuotationHeaderForm';
 import { QuotationItemsTable } from './components/QuotationItemsTable';
 import { ErectionItemsSection } from './components/ErectionItemsSection';
-import { saveItemsDiff } from './utils/itemDiff';
 import { useAutosave } from './hooks/useAutosave';
 import { usePresence } from './hooks/usePresence';
 import { DocumentConversionChain } from '../../components/DocumentConversionChain';
@@ -2002,17 +2001,59 @@ export default function CreateQuotation() {
           }
         : null;
 
-      if (editId) {
-        const formattedItems = cleanItems.map((item) => ({
-          item_id: item.item_id || null,
+      // Full item payload: the RPCs already persist every field below, so the
+      // client must not write items a second time (see saveItemsDiff removal).
+      const formatItemsForRpc = (list: any[]) => list.map((item, index) => {
+        const isErection = item.section === 'erection';
+        return {
+          item_id: isErection ? null : (item.item_id || null),
           variant_id: item.variant_id || null,
-          description: item.description || '',
+          description: isErection ? (item.description || 'Erection Charges') : (item.description || ''),
           qty: parseFloat(item.qty as any) || 1,
           uom: item.uom || '',
           rate: parseFloat(item.rate) || 0,
           discount_percent: parseFloat(item.discount_percent) || 0,
           tax_percent: parseFloat(item.tax_percent) || 0,
-        }));
+          sac_code: isErection ? (item.sac_code || '995419') : (item.sac_code || null),
+          display_order: index,
+          custom1: item.custom1 || '',
+          custom2: item.custom2 || '',
+          base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
+          applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
+          is_override: !!item.is_override,
+          final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
+          is_header: !!item.is_header,
+          is_subtotal: !!item.is_subtotal,
+          subtotal_label: item.subtotal_label || null,
+        };
+      });
+
+      // RPCs return inserted items as [{id, display_order}] in p_items order —
+      // map temp ids to DB ids from the response (no second client write).
+      const mapRpcIdsToItems = (rpcItems: any[] | undefined | null) => {
+        const byOrder = new Map<number, string>();
+        (rpcItems || []).forEach((ri: any, riIndex: number) => {
+          const order = typeof ri.display_order === 'number' ? ri.display_order : riIndex;
+          if (ri.id) byOrder.set(order, String(ri.id));
+        });
+        const idMap = new Map<string, string>();
+        const mapped = cleanItems.map((item, index) => {
+          const newId = byOrder.get(index);
+          if (newId && String(item.id) !== newId) idMap.set(String(item.id), newId);
+          return newId ? { ...item, id: newId } : { ...item };
+        });
+        // Keep erection linked_material_id pointing at the new parent ids.
+        mapped.forEach((m: any) => {
+          if (m.linked_material_id && idMap.has(String(m.linked_material_id))) {
+            m.linked_material_id = idMap.get(String(m.linked_material_id));
+          }
+        });
+        return mapped;
+      };
+
+      let savedRpcItems: any[] | null = null;
+      if (editId) {
+        const formattedItems = formatItemsForRpc(cleanItems);
 
         const { data: rpcRes, error: updateError } = await supabase.rpc('update_quotation', {
           p_quotation_id: editId,
@@ -2037,18 +2078,10 @@ export default function CreateQuotation() {
 
         if (updateError) throw updateError;
         quotationId = editId;
+        savedRpcItems = (rpcRes as any)?.items || null;
         setFormData(prev => ({ ...prev, id: quotationId }));
       } else {
-        const formattedItems = cleanItems.map((item) => ({
-          item_id: item.item_id || null,
-          variant_id: item.variant_id || null,
-          description: item.description || '',
-          qty: parseFloat(item.qty as any) || 1,
-          uom: item.uom || '',
-          rate: parseFloat(item.rate) || 0,
-          discount_percent: parseFloat(item.discount_percent) || 0,
-          tax_percent: parseFloat(item.tax_percent) || 0,
-        }));
+        const formattedItems = formatItemsForRpc(cleanItems);
 
         const { data: rpcData, error: rpcError } = await supabase.rpc('record_quotation', {
           p_organisation_id: organisation.id,
@@ -2070,6 +2103,7 @@ export default function CreateQuotation() {
 
         if (rpcError) throw rpcError;
         quotationId = rpcData.quotation_id;
+        savedRpcItems = (rpcData as any)?.items || null;
         setFormData((prev: any) => ({ ...prev, id: quotationId }));
 
         // Increment series atomically with optimistic lock (create path only)
@@ -2101,61 +2135,10 @@ export default function CreateQuotation() {
         }
       }
 
-      const rawItems = cleanItems.map((item, index) => {
-        const isErection = item.section === 'erection';
-        return {
-          id: item.id,
-          quotation_id: quotationId,
-          organisation_id: organisation.id,
-          item_id: isErection ? null : (item.item_id || null),
-          sac_code: isErection ? (item.sac_code || '995419') : null,
-          description: isErection ? (item.description || 'Erection Charges') : (item.description || ''),
-          qty: item.qty === null ? null : (parseFloat(item.qty as any) || 0),
-          rate: parseFloat(item.rate) || 0,
-          tax_percent: parseFloat(item.tax_percent) || 0,
-          uom: item.uom || '',
-          discount_percent: parseFloat(item.discount_percent) || 0,
-  
-          line_total: parseFloat(item.line_total) || 0,
-          display_order: index,
-          custom1: item.custom1 || '',
-          custom2: item.custom2 || '',
-          variant_id: item.variant_id || null,
-          base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
-          applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
-          is_override: item.is_override || false,
-          final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
-          is_header: !!item.is_header,
-          is_subtotal: !!item.is_subtotal,
-          subtotal_label: item.subtotal_label || null
-        };
-      });
-
-      const savedItems = await saveItemsDiff(quotationId, rawItems, originalItems);
-
-      // Build temp-ID → DB-ID map so erection items' linked_material_id stays correct after save
-      const idMap = new Map<string, string>();
-      cleanItems.forEach((item, index) => {
-        const saved = savedItems[index];
-        if (saved && String(item.id) !== String(saved.id)) {
-          idMap.set(String(item.id), String(saved.id));
-        }
-      });
-
-      const mappedSavedItems = savedItems.map((saved, index) => {
-        const originalItem = cleanItems[index];
-        const mapped: any = {
-          ...originalItem,
-          id: saved.id,
-          created_at: saved.created_at,
-          updated_at: saved.updated_at
-        };
-        // Update linked_material_id if the parent material's ID changed
-        if (mapped.linked_material_id && idMap.has(String(mapped.linked_material_id))) {
-          mapped.linked_material_id = idMap.get(String(mapped.linked_material_id));
-        }
-        return mapped;
-      });
+      // Items are already stored exactly once by the RPC above (which persists the
+      // full payload). The legacy second write via saveItemsDiff duplicated every
+      // row on create — removed. Map temp ids to DB ids from the RPC response.
+      const mappedSavedItems = mapRpcIdsToItems(savedRpcItems);
       setItems(mappedSavedItems);
       setOriginalItems(JSON.parse(JSON.stringify(mappedSavedItems)));
 
