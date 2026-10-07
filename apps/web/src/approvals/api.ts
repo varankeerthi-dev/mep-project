@@ -371,15 +371,13 @@ export class ApprovalAPI {
         updated_at: new Date().toISOString()
       };
 
-      // If review is pending and the authorized approver approves, auto-complete review
+      // If review is pending and the authorized approver approves, auto-complete
+      // review WITHOUT a synthetic FORWARDED row (that row duplicated every approval
+      // in History with identical actor/timestamp/comment). The completion is
+      // recorded on the APPROVED row metadata instead; audit trail stays intact.
+      let reviewAutoCompleted = false;
       if (action.action === 'APPROVED' && approval.review_status === 'PENDING') {
-        actionsToInsert.push({
-          approval_id: approvalId,
-          action: 'FORWARDED',
-          approver_id: user.id,
-          comments: action.comments || 'Review completed on approval',
-          organisation_id: approval.organisation_id,
-        });
+        reviewAutoCompleted = true;
         updateData.review_status = 'REVIEWED';
         updateData.reviewed_at = new Date().toISOString();
       }
@@ -395,6 +393,7 @@ export class ApprovalAPI {
           bypassed_levels: bypassedLevels,
           acting_user_id: user.id,
           previous_level: approval.current_level,
+          review_auto_completed: reviewAutoCompleted,
           ...(action.metadata || {})
         }
       });
