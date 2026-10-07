@@ -728,7 +728,9 @@ export default function QuotationView() {
 
       if (res.success) {
         toast.success(`Quotation ${action.toLowerCase()} successfully!`, { id: toastId });
-        // Background sync to ensure all related tabs and data stay fresh
+        // Background sync to ensure all related tabs and data stay fresh,
+        // including the left split-pane list (key ['quotations', orgId]).
+        queryClient.invalidateQueries({ queryKey: ['quotations'] });
         void Promise.all([
           quotationQuery.refetch(),
           quoteApprovalsQuery.refetch(),
