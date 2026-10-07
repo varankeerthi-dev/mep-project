@@ -544,9 +544,9 @@ export default function QuotationList() {
         )}
       </div>
     );
-    if (col.id === 'subtotal') return <div className="text-right">{formatCurrency(q.subtotal)}</div>;
-    if (col.id === 'total_tax') return <div className="text-right">{formatCurrency(q.total_tax)}</div>;
-    if (col.id === 'grand_total') return <div className="text-right">{formatCurrency(q.grand_total)}</div>;
+    if (col.id === 'subtotal') return <div className="text-left">{formatCurrency(q.subtotal)}</div>;
+    if (col.id === 'total_tax') return <div className="text-left">{formatCurrency(q.total_tax)}</div>;
+    if (col.id === 'grand_total') return <div className="text-left">{formatCurrency(q.grand_total)}</div>;
     return null;
   };
 
