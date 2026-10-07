@@ -38,14 +38,23 @@ export function getPrintConfig(columnSettings: unknown): PrintConfig {
 
   const grid = isRecord(print.gridMinimal) ? print.gridMinimal : {};
   const cols = isRecord(grid.columns) ? grid.columns : {};
+  // Bridge: the settings UI edits `optional.*`; explicit gridMinimal.columns
+  // override when present, otherwise fall back to the matching optional flag
+  // (default visible). Keeps one source of truth for column visibility.
+  const opt = isRecord(columnSettings.optional) ? (columnSettings.optional as Record<string, unknown>) : {};
+  const flag = (explicitKey: string, optionalKey: string): boolean => {
+    if (cols[explicitKey] !== undefined) return cols[explicitKey] !== false;
+    if (opt[optionalKey] !== undefined) return opt[optionalKey] !== false;
+    return true;
+  };
 
   const columns: GridMinimalColumns = {
-    sno: cols.sno !== false,
-    hsn: cols.hsn !== false,
-    make: cols.make !== false,
-    unit: cols.unit !== false,
-    discPct: cols.discPct !== false,
-    gst: cols.gst !== false,
+    sno: flag('sno', 'sno'),
+    hsn: flag('hsn', 'hsn_code'),
+    make: flag('make', 'make'),
+    unit: flag('unit', 'uom'),
+    discPct: flag('discPct', 'discount_percent'),
+    gst: flag('gst', 'tax_percent'),
   };
 
   return {

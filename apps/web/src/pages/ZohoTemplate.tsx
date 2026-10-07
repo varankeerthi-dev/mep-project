@@ -47,6 +47,10 @@ export const generateZohoTemplate = (data: any, organisation: any, templateSetti
   };
 
   const labels = templateSettings?.column_settings?.labels || { rate_after_discount: 'Rate' };
+  const showLogo = templateSettings?.show_logo !== false;
+  const showTerms = templateSettings?.show_terms !== false;
+  const showSignature = templateSettings?.show_signature !== false;
+  const showField = (key: string) => (colSettings as any)?.[key] !== false;
 
   const columnWidth = (pageWidth - 2 * margin) / 2;
 
@@ -86,7 +90,7 @@ export const generateZohoTemplate = (data: any, organisation: any, templateSetti
     let y = margin;
 
     // Logo
-    if (organisation.logo_url) {
+    if (showLogo && organisation.logo_url) {
       try { doc.addImage(organisation.logo_url, 'PNG', margin, y, 26, 26); } catch (e) {}
     }
 
@@ -224,16 +228,30 @@ export const generateZohoTemplate = (data: any, organisation: any, templateSetti
   let currentY = drawPageHeader();
   currentY = drawSubHeader(currentY);
 
-  // ─── build table columns ────────────────────────────────────────────────────
-  const tableHead: string[] = [];
-  if (colSettings.sno    !== false) tableHead.push('S.No');
-  if (colSettings.hsn_code === true) tableHead.push('HSN/SAC');
-  if (colSettings.item   !== false) tableHead.push(labels.item || 'Item & Description');
-  if (colSettings.client_part_no === true) tableHead.push(labels.client_part_no || 'Part No');
-  if (colSettings.client_description === true) tableHead.push(labels.client_description || 'Client Desc');
-  if (colSettings.qty    !== false) tableHead.push(labels.qty || 'Qty / UOM');
-  if (colSettings.rate   !== false) tableHead.push(labels.rate_after_discount || 'Rate');
-  if (colSettings.line_total !== false) tableHead.push(labels.line_total || 'Amount');
+  // ─── build table columns (single colDef drives head, rows, styles) ──────────
+  const inr = (v: any) => new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(v || 0);
+  interface ZohoCol { key: string; header: string; width?: number; halign?: 'left' | 'center' | 'right'; cell: (item: any, idx: number, mapping: any) => string; }
+  const zohoCols: ZohoCol[] = [
+    ...(colSettings.sno !== false ? [{ key: 'sno', header: 'S.No', width: 10, halign: 'center' as const, cell: (_i: any, idx: number) => String(idx + 1) }] : []),
+    ...(colSettings.hsn_code === true ? [{ key: 'hsn', header: 'HSN/SAC', width: 18, halign: 'center' as const, cell: (item: any) => item.item?.hsn_code || item.sac_code || '-' }] : []),
+    ...(colSettings.item !== false ? [{ key: 'item', header: labels.item || 'Item & Description', halign: 'left' as const, cell: (item: any, _idx: number, mapping: any) => mapping?.client_description || item.description || item.item?.name || '-' }] : []),
+    ...(colSettings.variant === true ? [{ key: 'variant', header: labels.variant || 'Variant', width: 20, halign: 'left' as const, cell: (item: any) => item.variant?.variant_name || item.variant_name || '-' }] : []),
+    ...(colSettings.description === true ? [{ key: 'desc', header: labels.description || 'Description', width: 32, halign: 'left' as const, cell: (item: any) => item.description || item.item?.description || '-' }] : []),
+    ...(colSettings.make === true ? [{ key: 'make', header: labels.make || 'Make', width: 20, halign: 'left' as const, cell: (item: any) => item.make || item.item?.make || '-' }] : []),
+    ...(colSettings.item_code === true ? [{ key: 'code', header: labels.item_code || 'Item Code', width: 22, halign: 'center' as const, cell: (item: any) => item.item?.item_code || item.item_code || '-' }] : []),
+    ...(colSettings.client_part_no === true ? [{ key: 'part', header: labels.client_part_no || 'Part No', width: 22, halign: 'center' as const, cell: (item: any, _idx: number, mapping: any) => mapping?.client_part_no || '-' }] : []),
+    ...(colSettings.client_description === true ? [{ key: 'cdesc', header: labels.client_description || 'Client Desc', width: 26, halign: 'left' as const, cell: (item: any, _idx: number, mapping: any) => mapping?.client_description || '-' }] : []),
+    ...(colSettings.custom1 === true ? [{ key: 'c1', header: labels.custom1 || 'Custom 1', width: 20, halign: 'left' as const, cell: (item: any) => item.custom1 || '-' }] : []),
+    ...(colSettings.custom2 === true ? [{ key: 'c2', header: labels.custom2 || 'Custom 2', width: 20, halign: 'left' as const, cell: (item: any) => item.custom2 || '-' }] : []),
+    ...(colSettings.qty !== false ? [{ key: 'qty', header: labels.qty || 'Qty / UOM', width: 20, halign: 'center' as const, cell: (item: any) => `${item.qty}\n${item.uom}` }] : []),
+    ...(colSettings.rate !== false ? [{ key: 'rate', header: labels.rate_after_discount || 'Rate', width: 26, halign: 'right' as const, cell: (item: any) => inr(item.rate) }] : []),
+    ...(colSettings.discount_percent === true ? [{ key: 'disc', header: labels.discount_percent || 'Disc %', width: 16, halign: 'right' as const, cell: (item: any) => item.discount_percent ? `${item.discount_percent}%` : '-' }] : []),
+    ...(colSettings.tax_percent === true ? [{ key: 'tax', header: labels.tax_percent || 'GST %', width: 16, halign: 'right' as const, cell: (item: any) => (item.tax_percent ?? '') === '' ? '-' : `${item.tax_percent}%` }] : []),
+    ...(colSettings.line_total !== false ? [{ key: 'amt', header: labels.line_total || 'Amount', width: 30, halign: 'right' as const, cell: (item: any) => inr(item.line_total) }] : []),
+  ];
+  const tableHead = zohoCols.map(c => c.header);
+  const zohoColStyles: Record<number, any> = {};
+  zohoCols.forEach((c, i) => { zohoColStyles[i] = { ...(c.width ? { cellWidth: c.width } : {}), halign: c.halign }; });
 
   // ─── ITEMS TABLE ────────────────────────────────────────────────────────────
   // didDrawPage: reprint border + mini-header on every new page
@@ -243,19 +261,7 @@ export const generateZohoTemplate = (data: any, organisation: any, templateSetti
     head: [tableHead],
     body: (items || []).map((item: any, idx: number) => {
       const mapping = item.client_item_mappings?.[0];
-      const row: any[] = [];
-      if (colSettings.sno    !== false) row.push(String(idx + 1));
-      if (colSettings.hsn_code === true) row.push(item.item?.hsn_code || '-');
-      if (colSettings.item   !== false)
-        row.push(mapping?.client_description || item.description || item.item?.name || '-');
-      if (colSettings.client_part_no === true) row.push(mapping?.client_part_no || '-');
-      if (colSettings.client_description === true) row.push(mapping?.client_description || '-');
-      if (colSettings.qty    !== false) row.push(`${item.qty}\n${item.uom}`);
-      if (colSettings.rate   !== false)
-        row.push(new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.rate || 0));
-      if (colSettings.line_total !== false)
-        row.push(new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.line_total || 0));
-      return row;
+      return zohoCols.map(c => c.cell(item, idx, mapping));
     }),
     theme: 'grid',
     // Compact row sizing — fits ~22–25 rows on a page
@@ -276,14 +282,7 @@ export const generateZohoTemplate = (data: any, organisation: any, templateSetti
       lineWidth: 0.25,
       minCellHeight: 6
     },
-    columnStyles: {
-      0: { cellWidth: 10,  halign: 'center' }, // S.No
-      1: { cellWidth: 18,  halign: 'center' }, // HSN  (index shifts if hsn off)
-      2: { halign: 'left'                    }, // Description (flex)
-      3: { cellWidth: 20,  halign: 'center' }, // Qty/UOM
-      4: { cellWidth: 26,  halign: 'right'  }, // Rate
-      5: { cellWidth: 30,  halign: 'right'  }  // Amount
-    },
+    columnStyles: zohoColStyles,
     // ── Reprint border + mini-header on every new page ──────────────────────
     didDrawPage: (hookData: any) => {
       drawPageBorder();
@@ -308,14 +307,13 @@ export const generateZohoTemplate = (data: any, organisation: any, templateSetti
 
   // Estimate footer height
   const totals = [
-    { label: 'Sub Total',                                     value: subtotal },
-    { label: isInterState ? 'IGST'  : 'SGST',
-      value: isInterState ? total_tax : total_tax / 2         },
-    ...(isInterState ? [] : [
-      { label: 'CGST', value: total_tax / 2 }
-    ]),
-    { label: 'Rounding',                                      value: round_off },
-    { label: 'Total', value: grand_total, isBold: true, isFinal: true }
+    ...(showField('subtotal') ? [{ label: 'Sub Total', value: subtotal }] : []),
+    ...(showField('total_tax') ? [
+      { label: isInterState ? 'IGST'  : 'SGST', value: isInterState ? total_tax : total_tax / 2 },
+      ...(isInterState ? [] : [{ label: 'CGST', value: total_tax / 2 }]),
+    ] : []),
+    ...(showField('round_off') ? [{ label: 'Rounding', value: round_off }] : []),
+    ...(showField('grand_total') ? [{ label: 'Total', value: grand_total, isBold: true, isFinal: true }] : []),
   ];
 
   const parsedTnc = parseTermsIntoLines(terms_conditions);
@@ -386,28 +384,32 @@ export const generateZohoTemplate = (data: any, organisation: any, templateSetti
   currentY += 4;
 
   // Two-column: T&C left, signature right
-  doc.setFontSize(8).setFont('helvetica', 'bold').setTextColor(...darkText);
-  doc.text('Terms & Conditions', margin, currentY);
+  if (showTerms) {
+    doc.setFontSize(8).setFont('helvetica', 'bold').setTextColor(...darkText);
+    doc.text('Terms & Conditions', margin, currentY);
 
-  doc.setFontSize(7).setFont('helvetica', 'normal').setTextColor(...midGray);
-  doc.text(tncLines, margin, currentY + 5);
-
-  // Signature block
-  const sigX = pageWidth - margin - 55;
-  doc.setFontSize(7.5).setFont('helvetica', 'bold').setTextColor(...darkText);
-  doc.text(`FOR ${(organisation.name || '').toUpperCase()}`, pageWidth - margin, currentY, { align: 'right' });
-
-  if (authorized_signatory?.url) {
-    try {
-      doc.addImage(authorized_signatory.url, 'PNG', pageWidth - margin - 38, currentY + 4, 32, 10);
-    } catch (e) {}
+    doc.setFontSize(7).setFont('helvetica', 'normal').setTextColor(...midGray);
+    doc.text(tncLines, margin, currentY + 5);
   }
 
-  doc.setDrawColor(180, 180, 180).setLineWidth(0.3);
-  doc.line(sigX, currentY + 22, pageWidth - margin, currentY + 22);
+  // Signature block
+  if (showSignature) {
+    const sigX = pageWidth - margin - 55;
+    doc.setFontSize(7.5).setFont('helvetica', 'bold').setTextColor(...darkText);
+    doc.text(`FOR ${(organisation.name || '').toUpperCase()}`, pageWidth - margin, currentY, { align: 'right' });
 
-  doc.setFontSize(7).setFont('helvetica', 'normal').setTextColor(...midGray);
-  doc.text('Authorized Signatory', pageWidth - margin, currentY + 26, { align: 'right' });
+    if (authorized_signatory?.url) {
+      try {
+        doc.addImage(authorized_signatory.url, 'PNG', pageWidth - margin - 38, currentY + 4, 32, 10);
+      } catch (e) {}
+    }
+
+    doc.setDrawColor(180, 180, 180).setLineWidth(0.3);
+    doc.line(sigX, currentY + 22, pageWidth - margin, currentY + 22);
+
+    doc.setFontSize(7).setFont('helvetica', 'normal').setTextColor(...midGray);
+    doc.text('Authorized Signatory', pageWidth - margin, currentY + 26, { align: 'right' });
+  }
 
   // ── Page numbers on every page ────────────────────────────────────────────
   const pageCount = doc.internal.getNumberOfPages();

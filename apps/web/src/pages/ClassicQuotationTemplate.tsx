@@ -16,6 +16,20 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
   const showTax = colSettings.tax_percent !== false;
   const showAmount = colSettings.line_total !== false;
   const showItem = colSettings.item !== false;
+  const showVariant = colSettings.variant === true;
+  const showDescription = colSettings.description === true;
+  const showMake = colSettings.make === true;
+  const showCustom1 = colSettings.custom1 === true;
+  const showCustom2 = colSettings.custom2 === true;
+  const showLogo = extSettings.show_logo !== false;
+  const showPrepBy = colSettings.prepared_by !== false;
+  const showPayTerms = colSettings.payment_terms !== false;
+  const showValidTill = colSettings.valid_till !== false;
+  const variantLabel = extSettings.column_settings?.labels?.variant || 'Variant';
+  const descLabel = extSettings.column_settings?.labels?.description || 'Description';
+  const makeLabel = extSettings.column_settings?.labels?.make || 'Make';
+  const custom1Label = extSettings.column_settings?.labels?.custom1 || 'Custom 1';
+  const custom2Label = extSettings.column_settings?.labels?.custom2 || 'Custom 2';
   
   const showBankDet = extSettings.show_bank_details !== false;
   const showTandC = extSettings.show_terms !== false;
@@ -92,9 +106,9 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
     { label: 'DATE', value: date || '-' },
     { label: 'REVISION NO.', value: '00' },
     { label: 'REMARKS', value: remarks || reference || '-' },
-    { label: 'PREP. BY', value: prepared_by || '-' },
-    { label: 'PAYMENT TERMS', value: payment_terms || '-' },
-    { label: 'VALID UNTIL', value: valid_till || '-' }
+    ...(showPrepBy ? [{ label: 'PREP. BY', value: prepared_by || '-' }] : []),
+    ...(showPayTerms ? [{ label: 'PAYMENT TERMS', value: payment_terms || '-' }] : []),
+    ...(showValidTill ? [{ label: 'VALID UNTIL', value: valid_till || '-' }] : []),
   ];
 
   doc.setFont('helvetica', 'normal');
@@ -130,10 +144,10 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
   let textX = margin + 2;
   const logoWidth = 20;
   const logoHeight = 14;
-  if (organisation?.logo_url) {
+  if (showLogo && organisation?.logo_url) {
     try {
       doc.addImage(organisation.logo_url, 'PNG', margin + 2, currentY + 4, logoWidth, logoHeight);
-      textX = margin + logoWidth + 4; 
+      textX = margin + logoWidth + 4;
     } catch (e) {}
   }
 
@@ -250,9 +264,14 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
     if (showHsn) row.push(item.sac_code || item.item?.hsn_code || '');
     const mapping = client?.id && item.item?.mappings?.find((m: any) => m.client_id === client.id);
     if (showItem) row.push(mapping?.client_description || item.description || item.item?.display_name || item.item?.name || '');
+    if (showVariant) row.push(item.variant?.variant_name || item.variant_name || '');
+    if (showDescription) row.push(item.description || item.item?.description || '');
+    if (showMake) row.push(item.make || item.item?.make || '');
     if (showClientDescription) row.push(mapping?.client_description || '');
     if (showItemCode) row.push(mapping?.client_part_no || item.item?.item_code || '');
     if (showClientPartNo) row.push(mapping?.client_part_no || '');
+    if (showCustom1) row.push(item.custom1 || '');
+    if (showCustom2) row.push(item.custom2 || '');
     row.push(String(item.qty || ''));
     row.push(item.uom || '');
     if (showRate) row.push(formatNumber(item.rate));
@@ -303,6 +322,24 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
     colIndex++;
   }
 
+  if (showVariant) {
+    activeHeaders.push(variantLabel);
+    colStyles[colIndex] = { cellWidth: getDynamicW(colIndex, variantLabel), halign: 'left' };
+    colIndex++;
+  }
+
+  if (showDescription) {
+    activeHeaders.push(descLabel);
+    colStyles[colIndex] = { cellWidth: getDynamicW(colIndex, descLabel), halign: 'left' };
+    colIndex++;
+  }
+
+  if (showMake) {
+    activeHeaders.push(makeLabel);
+    colStyles[colIndex] = { cellWidth: getDynamicW(colIndex, makeLabel), halign: 'left' };
+    colIndex++;
+  }
+
   if (showClientDescription) {
     activeHeaders.push('Client Description');
     colStyles[colIndex] = { cellWidth: getDynamicW(colIndex, 'Client Description'), halign: 'left' };
@@ -318,6 +355,18 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
   if (showClientPartNo) {
     activeHeaders.push('Client Part No');
     colStyles[colIndex] = { cellWidth: getDynamicW(colIndex, 'Client Part No'), halign: 'center' };
+    colIndex++;
+  }
+
+  if (showCustom1) {
+    activeHeaders.push(custom1Label);
+    colStyles[colIndex] = { cellWidth: getDynamicW(colIndex, custom1Label), halign: 'left' };
+    colIndex++;
+  }
+
+  if (showCustom2) {
+    activeHeaders.push(custom2Label);
+    colStyles[colIndex] = { cellWidth: getDynamicW(colIndex, custom2Label), halign: 'left' };
     colIndex++;
   }
 

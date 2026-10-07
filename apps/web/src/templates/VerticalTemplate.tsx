@@ -132,8 +132,12 @@ const numberToWords = (num: number): string => {
 export default function VerticalTemplate({
   data,
   organisation,
-  templateConfig
+  templateConfig,
+  showFlags
 }: any) {
+  const showLogo = showFlags?.show_logo !== false;
+  const showTerms = showFlags?.show_terms !== false;
+  const showSignature = showFlags?.show_signature !== false;
   const isReviewCopy = !!(data.isReviewCopy || data.render_as_tax_invoice);
   const showWatermark = !!data.showWatermark;
 
@@ -361,13 +365,15 @@ export default function VerticalTemplate({
         {/* Header */}
         <div className="dense-header flex justify-between items-start pt-2">
           <div className="flex gap-5">
+            {(showLogo || !organisation.logo_url) && (
             <div className="w-20 h-20 bg-zinc-900 rounded-lg flex items-center justify-center text-white shrink-0 overflow-hidden">
-              {organisation.logo_url ? (
+              {showLogo && organisation.logo_url ? (
                 <img src={organisation.logo_url} alt="Logo" className="w-full h-full object-contain bg-white p-1" />
               ) : (
                 <span className="text-4xl font-bold italic">{organisation.name?.[0] || 'S'}</span>
               )}
             </div>
+            )}
             <div className="flex flex-col justify-center" style={{ lineHeight: '1.3' }}>
               <div className="text-2xl font-black txt-zinc-900 tracking-tight leading-tight org-name-font">
                 {organisation.name}
@@ -621,21 +627,22 @@ export default function VerticalTemplate({
             <div className="text-[9px] txt-zinc-400 font-bold uppercase italic">
               * This is a computer generated document.
             </div>
+            {showSignature && (
             <div className="text-right">
               <div className="font-black uppercase text-[11px] txt-zinc-900 mb-[5px]">
                 FOR {organisation.name}
               </div>
               <div className="h-8 flex items-center justify-end mb-[2px]">
                 {organisation.signatures?.find((s: any) => String(s.id) === String(data.authorized_signatory_id))?.url ? (
-                  <img 
-                    src={organisation.signatures.find((s: any) => String(s.id) === String(data.authorized_signatory_id)).url} 
-                    alt="Signature" 
+                  <img
+                    src={organisation.signatures.find((s: any) => String(s.id) === String(data.authorized_signatory_id)).url}
+                    alt="Signature"
                     className="max-h-8 max-w-[160px] object-contain"
                   />
                 ) : organisation.signatures?.[0]?.url ? (
-                  <img 
-                    src={organisation.signatures[0].url} 
-                    alt="Signature" 
+                  <img
+                    src={organisation.signatures[0].url}
+                    alt="Signature"
                     className="max-h-8 max-w-[160px] object-contain"
                   />
                 ) : (
@@ -646,11 +653,13 @@ export default function VerticalTemplate({
                 Authorised Signature
               </div>
             </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* ---------------- PAGE 2: TERMS ---------------- */}
+      {showTerms && (
       <div className="a4-page">
         {showWatermark && (
           <div style={{
@@ -699,6 +708,7 @@ export default function VerticalTemplate({
           <div className="text-zinc-400 font-bold uppercase text-[9px]">End of Document</div>
         </div>
       </div>
+      )}
     </div>
   );
 }

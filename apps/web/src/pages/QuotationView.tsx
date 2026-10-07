@@ -580,19 +580,22 @@ export default function QuotationView() {
       setEmbedError(null);
 
       const templates = templatesQuery.data || [];
-      // Prioritize the default template from Template Settings
-      let template = templates.find(t => t.is_default);
+      // Prioritize the default template from Template Settings: an
+      // organisation-specific default wins over a global one, so orgs keep
+      // their chosen default while others fall back to the global default.
+      let template = templates.find(t => t.is_default && t.organisation_id)
+        || templates.find(t => t.is_default);
 
       if (!template) {
-        // Fetch default manually
+        // Fetch default manually (list, not single: multiple defaults can
+        // coexist across org/global scopes — prefer the org-specific one).
         const { data } = await supabase
           .from('document_templates')
           .select('*')
           .eq('document_type', 'Quotation')
-          .eq('is_default', true)
-          .maybeSingle();
-        if (data) {
-          template = data;
+          .eq('is_default', true);
+        if (data && data.length > 0) {
+          template = data.find((t: any) => t.organisation_id) || data[0];
         }
       }
 
@@ -1149,11 +1152,12 @@ export default function QuotationView() {
           .from('document_templates')
           .select('*')
           .eq('document_type', 'Quotation')
-          .eq('is_default', true)
-          .single();
+          .eq('is_default', true);
         console.log('Default template query result:', { data, error });
         if (error) throw error;
-        template = data;
+        // Org-specific default wins over the global one (multiple defaults
+        // can coexist across scopes); fall back to the first default found.
+        template = (data || []).find((t: any) => t.organisation_id) || (data || [])[0] || null;
       }
 
       if (!template) {
@@ -1207,6 +1211,12 @@ export default function QuotationView() {
               data={quotationWithTerms}
               organisation={organisation}
               templateConfig={tmpl.column_settings}
+              showFlags={{
+                show_logo: tmpl.show_logo !== false,
+                show_bank_details: tmpl.show_bank_details !== false,
+                show_terms: tmpl.show_terms !== false,
+                show_signature: tmpl.show_signature !== false,
+              }}
             />
           );
         });
@@ -1236,6 +1246,12 @@ export default function QuotationView() {
               data={quotationWithTerms}
               organisation={organisation}
               templateConfig={tmpl.column_settings}
+              showFlags={{
+                show_logo: tmpl.show_logo !== false,
+                show_bank_details: tmpl.show_bank_details !== false,
+                show_terms: tmpl.show_terms !== false,
+                show_signature: tmpl.show_signature !== false,
+              }}
             />
           );
         });
@@ -1606,7 +1622,7 @@ export default function QuotationView() {
             terms_conditions: termsConditionsQuery.data?.custom_content || null
           };
           flushSync(() => {
-            root.render(<SaaSTemplate data={quotationWithTerms} organisation={organisation} templateConfig={template.column_settings} />);
+            root.render(<SaaSTemplate data={quotationWithTerms} organisation={organisation} templateConfig={template.column_settings} showFlags={{ show_logo: template.show_logo !== false, show_bank_details: template.show_bank_details !== false, show_terms: template.show_terms !== false, show_signature: template.show_signature !== false }} />);
           });
 
           // Wait longer for fonts and layout
@@ -1652,7 +1668,7 @@ export default function QuotationView() {
             terms_conditions: termsConditionsQuery.data?.custom_content || null
           };
           flushSync(() => {
-            root.render(<VerticalTemplate data={quotationWithTerms} organisation={organisation} templateConfig={template.column_settings} />);
+            root.render(<VerticalTemplate data={quotationWithTerms} organisation={organisation} templateConfig={template.column_settings} showFlags={{ show_logo: template.show_logo !== false, show_bank_details: template.show_bank_details !== false, show_terms: template.show_terms !== false, show_signature: template.show_signature !== false }} />);
           });
 
           // Wait longer for fonts and layout
@@ -1804,6 +1820,12 @@ export default function QuotationView() {
             amountInWords: quotation.amount_in_words || ''
           },
           columnSettings: template.column_settings,
+          templateFlags: {
+            show_logo: template.show_logo !== false,
+            show_bank_details: template.show_bank_details !== false,
+            show_terms: template.show_terms !== false,
+            show_signature: template.show_signature !== false,
+          },
           signatory: {
             name: selectedSignatory?.name || '',
             designation: organisation?.signatory_designation || 'Authorised Signatory',
@@ -1919,7 +1941,9 @@ export default function QuotationView() {
       doc.setFont('helvetica', 'normal');
       doc.text(`No: ${quotation.quotation_no}`, 14, startY);
       doc.text(`Date: ${formatDate(quotation.date)}`, 14, startY + 6);
-      doc.text(`Valid Till: ${formatDate(quotation.valid_till)}`, 14, startY + 12);
+      if (optionalCols.valid_till !== false) {
+        doc.text(`Valid Till: ${formatDate(quotation.valid_till)}`, 14, startY + 12);
+      }
 
       doc.text('To:', 14, startY + 22);
       doc.setFont('helvetica', 'bold');
@@ -1935,7 +1959,7 @@ export default function QuotationView() {
       doc.text(`State: ${quotation.state || '-'}`, 14, startY + 54);
 
       const rightCol = isLandscape ? 140 : 120;
-      if (quotation.project) {
+      if (optionalCols.project_name !== false && quotation.project) {
         doc.text(`Project: ${quotation.project.project_name || quotation.project.project_code || '-'}`, rightCol, startY + 22);
       }
 
@@ -1984,61 +2008,69 @@ export default function QuotationView() {
       const finalY = (doc.lastAutoTable?.finalY || tableStartY + 10) + 10;
       const summaryX = isLandscape ? 200 : 160;
 
-      doc.setFontSize(9);
-      doc.text('Subtotal:', summaryX, finalY);
-      doc.text(formatCurrency(quotation.subtotal), summaryX + 35, finalY, { align: 'right' });
+      // Cursor-driven totals so hidden rows collapse without gaps.
+      let ty = finalY;
+      const trow = (label: string, val: string, bold = false) => {
+        doc.setFontSize(bold ? 11 : 9);
+        doc.setFont('helvetica', bold ? 'bold' : 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.text(label, summaryX, ty);
+        doc.text(val, summaryX + 35, ty, { align: 'right' });
+        ty += 6;
+      };
+      if (optionalCols.subtotal !== false) trow('Subtotal:', formatCurrency(quotation.subtotal));
 
-      doc.text('Item Discount:', summaryX, finalY + 6);
-      doc.text(`-${formatCurrency(quotation.total_item_discount)}`, summaryX + 35, finalY + 6, { align: 'right' });
-
-      doc.text('Extra Discount:', summaryX, finalY + 12);
-      doc.text(`-${formatCurrency(quotation.extra_discount_amount)}`, summaryX + 35, finalY + 12, { align: 'right' });
+      trow('Item Discount:', `-${formatCurrency(quotation.total_item_discount)}`);
+      trow('Extra Discount:', `-${formatCurrency(quotation.extra_discount_amount)}`);
 
       const isInterState = quotation.state && organisation?.state &&
         quotation.state.trim().toLowerCase() !== organisation.state.trim().toLowerCase();
-      if (isInterState) {
-        doc.text('IGST:', summaryX, finalY + 18);
-        doc.text(formatCurrency(quotation.total_tax), summaryX + 35, finalY + 18, { align: 'right' });
-      } else {
-        doc.text('CGST:', summaryX, finalY + 18);
-        doc.text(formatCurrency(quotation.total_tax / 2), summaryX + 35, finalY + 18, { align: 'right' });
-        doc.text('SGST:', summaryX, finalY + 24);
-        doc.text(formatCurrency(quotation.total_tax / 2), summaryX + 35, finalY + 24, { align: 'right' });
+      if (optionalCols.total_tax !== false) {
+        if (isInterState) {
+          trow('IGST:', formatCurrency(quotation.total_tax));
+        } else {
+          trow('CGST:', formatCurrency(quotation.total_tax / 2));
+          trow('SGST:', formatCurrency(quotation.total_tax / 2));
+        }
       }
 
-      const offset = isInterState ? 24 : 30;
-      doc.text('Round Off:', summaryX, finalY + offset);
-      doc.text(formatCurrency(quotation.round_off), summaryX + 35, finalY + offset, { align: 'right' });
+      if (optionalCols.round_off !== false) trow('Round Off:', formatCurrency(quotation.round_off));
 
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      const grandTotalOffset = isInterState ? 34 : 40;
-      doc.text('Grand Total:', summaryX, finalY + grandTotalOffset);
-      doc.text(formatCurrency(quotation.grand_total), summaryX + 35, finalY + grandTotalOffset, { align: 'right' });
+      if (optionalCols.grand_total !== false) {
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Grand Total:', summaryX, ty);
+        doc.text(formatCurrency(quotation.grand_total), summaryX + 35, ty, { align: 'right' });
+        ty += 6;
+      }
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      doc.text(`Payment Terms: ${quotation.payment_terms || '-'}`, 14, finalY + grandTotalOffset);
+      if (optionalCols.payment_terms !== false) {
+        doc.text(`Payment Terms: ${quotation.payment_terms || '-'}`, 14, ty);
+        ty += 6;
+      }
 
       if (quotation.contact_no) {
-        doc.text(`Contact No: ${quotation.contact_no}`, 14, finalY + (isInterState ? 42 : 48));
+        doc.text(`Contact No: ${quotation.contact_no}`, 14, ty);
+        ty += 6;
       }
 
       const remarksText = quotation.remarks || quotation.reference;
       if (remarksText) {
-        doc.text(`Remarks: ${remarksText}`, 14, finalY + (isInterState ? 50 : 56));
+        doc.text(`Remarks: ${remarksText}`, 14, ty);
+        ty += 6;
       }
 
       if (template.show_terms !== false) {
         doc.setFontSize(8);
-        const termsStart = finalY + (isInterState ? 58 : 64);
-        doc.text('Terms & Conditions:', 14, termsStart);
-        doc.text('1. Payment as per terms mentioned above.', 14, termsStart + 6);
-        doc.text('2. This is a system-generated document.', 14, termsStart + 12);
+        doc.text('Terms & Conditions:', 14, ty);
+        doc.text('1. Payment as per terms mentioned above.', 14, ty + 6);
+        doc.text('2. This is a system-generated document.', 14, ty + 12);
       }
 
       if (template.show_signature !== false) {
-        const signStart = finalY + (isInterState ? 58 : 64);
+        const signStart = ty;
         doc.text(`For, ${organisation?.name || 'Company Name'}`, 140, signStart);
 
         // Find selected signature
@@ -2077,6 +2109,8 @@ export default function QuotationView() {
     if (optionalCols.item !== false) columnsHTML += '<th>Item</th>';
     if (optionalCols.variant) columnsHTML += '<th>Variant</th>';
     if (optionalCols.description) columnsHTML += '<th>Description</th>';
+    if (optionalCols.make) columnsHTML += '<th>Make</th>';
+    if (optionalCols.item_code) columnsHTML += '<th>Item Code</th>';
     if (optionalCols.qty !== false) columnsHTML += '<th>Qty</th>';
     if (optionalCols.uom !== false) columnsHTML += '<th>Unit</th>';
     if (optionalCols.rate) columnsHTML += '<th>Rate</th>';
@@ -2096,6 +2130,8 @@ export default function QuotationView() {
         if (optionalCols.item !== false) colCount++;
         if (optionalCols.variant) colCount++;
         if (optionalCols.description) colCount++;
+        if (optionalCols.make) colCount++;
+        if (optionalCols.item_code) colCount++;
         if (optionalCols.qty !== false) colCount++;
         if (optionalCols.uom !== false) colCount++;
         if (optionalCols.rate) colCount++;
@@ -2121,6 +2157,8 @@ export default function QuotationView() {
         if (optionalCols.item !== false) colCount++;
         if (optionalCols.variant) colCount++;
         if (optionalCols.description) colCount++;
+        if (optionalCols.make) colCount++;
+        if (optionalCols.item_code) colCount++;
         if (optionalCols.qty !== false) colCount++;
         if (optionalCols.uom !== false) colCount++;
         if (optionalCols.rate) colCount++;
@@ -2140,6 +2178,8 @@ export default function QuotationView() {
       if (optionalCols.item !== false) rowHTML += `<td>${item.description || '-'}</td>`;
       if (optionalCols.variant) rowHTML += `<td>${item.variant?.variant_name || '-'}</td>`;
       if (optionalCols.description) rowHTML += `<td>${item.description || '-'}</td>`;
+      if (optionalCols.make) rowHTML += `<td>${item.make || '-'}</td>`;
+      if (optionalCols.item_code) rowHTML += `<td>${material.item_code || '-'}</td>`;
       if (optionalCols.qty !== false) rowHTML += `<td style="text-align:right">${item.qty}</td>`;
       if (optionalCols.uom !== false) rowHTML += `<td>${item.uom}</td>`;
       if (optionalCols.rate) rowHTML += `<td style="text-align:right">${formatCurrency(item.base_rate_snapshot || item.rate)}</td>`;

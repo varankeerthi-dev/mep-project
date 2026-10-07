@@ -210,8 +210,14 @@ function normalizeDocumentData(data: any, org: any, type: string): NormalizedDat
     }
 
     const amount = item.line_total !== undefined ? item.line_total : (item.amount !== undefined ? item.amount : (item.total_amount !== undefined ? item.total_amount : 0));
-    
-    return { sno, hsn, description, qty, unit, rate, gstPercent, amount };
+    const variant = item.variant?.variant_name || item.variant_name || '';
+    const make = item.make || (item.item as any)?.make || '';
+    const itemCode = (item.item as any)?.item_code || item.item_code || '';
+    const custom1 = item.custom1 || '';
+    const custom2 = item.custom2 || '';
+    const discountPercent = item.discount_percent ?? '';
+
+    return { sno, hsn, description, qty, unit, rate, gstPercent, amount, variant, make, itemCode, custom1, custom2, discountPercent };
   });
 
   // Totals normalization
@@ -395,7 +401,9 @@ export async function generateSakthiPdf(
     { label: norm.details.docNoLabel.replace(':', ''), value: norm.details.docNo || '—' },
     { label: 'Date', value: formatDate(norm.details.date) },
     { label: 'Place of Supply', value: norm.details.placeOfSupply || '—' },
-    { label: 'Payment Terms', value: norm.details.paymentTerms || '—' }
+    ...(opt.payment_terms !== false
+      ? [{ label: 'Payment Terms', value: norm.details.paymentTerms || '—' }]
+      : []),
   ];
 
   docDetails.forEach((item) => {
@@ -450,6 +458,54 @@ export async function generateSakthiPdf(
       halign: 'left',
       getValue: (it) => it.description || '—',
       include: opt.item !== false && opt.description !== false,
+    },
+    {
+      key: 'variant',
+      header: lbl.variant || 'Variant',
+      cellWidth: 20,
+      halign: 'left',
+      getValue: (it) => it.variant || '—',
+      include: opt.variant === true,
+    },
+    {
+      key: 'make',
+      header: lbl.make || 'Make',
+      cellWidth: 20,
+      halign: 'left',
+      getValue: (it) => it.make || '—',
+      include: opt.make === true,
+    },
+    {
+      key: 'item_code',
+      header: lbl.item_code || 'Item Code',
+      cellWidth: 20,
+      halign: 'center',
+      getValue: (it) => it.itemCode || '—',
+      include: opt.item_code === true,
+    },
+    {
+      key: 'custom1',
+      header: lbl.custom1 || 'Custom 1',
+      cellWidth: 20,
+      halign: 'left',
+      getValue: (it) => it.custom1 || '—',
+      include: opt.custom1 === true,
+    },
+    {
+      key: 'custom2',
+      header: lbl.custom2 || 'Custom 2',
+      cellWidth: 20,
+      halign: 'left',
+      getValue: (it) => it.custom2 || '—',
+      include: opt.custom2 === true,
+    },
+    {
+      key: 'discount_percent',
+      header: lbl.discount_percent || 'Disc %',
+      cellWidth: 14,
+      halign: 'right',
+      getValue: (it) => (it.discountPercent === '' || it.discountPercent === undefined ? '' : `${it.discountPercent}%`),
+      include: opt.discount_percent === true,
     },
     {
       key: 'qty',
@@ -563,19 +619,27 @@ export async function generateSakthiPdf(
   const halfRate = (combinedRate / 2).toFixed(1);
 
   const totalsRows = [];
-  totalsRows.push(['Taxable Amount', fmt(norm.totals.taxableAmount)]);
-  
-  if (isInterState) {
-    totalsRows.push([`IGST (${combinedRate.toFixed(1)}%)`, fmt(norm.totals.igstAmount)]);
-  } else {
-    const cgstVal = norm.totals.cgstAmount || (norm.totals.igstAmount / 2);
-    const sgstVal = norm.totals.sgstAmount || (norm.totals.igstAmount / 2);
-    totalsRows.push([`CGST (${halfRate}%)`, fmt(cgstVal)]);
-    totalsRows.push([`SGST (${halfRate}%)`, fmt(sgstVal)]);
+  if (opt.subtotal !== false) {
+    totalsRows.push(['Taxable Amount', fmt(norm.totals.taxableAmount)]);
   }
 
-  totalsRows.push(['Round Off', fmt(norm.totals.roundOff)]);
-  totalsRows.push(['Total Amount', `Rs. ${fmt(norm.totals.grandTotal)}`]);
+  if (opt.total_tax !== false) {
+    if (isInterState) {
+      totalsRows.push([`IGST (${combinedRate.toFixed(1)}%)`, fmt(norm.totals.igstAmount)]);
+    } else {
+      const cgstVal = norm.totals.cgstAmount || (norm.totals.igstAmount / 2);
+      const sgstVal = norm.totals.sgstAmount || (norm.totals.igstAmount / 2);
+      totalsRows.push([`CGST (${halfRate}%)`, fmt(cgstVal)]);
+      totalsRows.push([`SGST (${halfRate}%)`, fmt(sgstVal)]);
+    }
+  }
+
+  if (opt.round_off !== false) {
+    totalsRows.push(['Round Off', fmt(norm.totals.roundOff)]);
+  }
+  if (opt.grand_total !== false) {
+    totalsRows.push(['Total Amount', `Rs. ${fmt(norm.totals.grandTotal)}`]);
+  }
 
   // Totals table starts immediately below the items table (eliminates blank space between empty rows & total)
   const totalsStartY = finalY + 0.5;
@@ -616,10 +680,15 @@ export async function generateSakthiPdf(
   });
 
   // 5. Terms & Conditions (Left side of Total table with 9px font) & Bank Details
-  const termsList: string[] = parseTermsIntoLines(rawDocData.terms_conditions || rawDocData.terms);
+  const showTerms = templateSettings?.show_terms !== false;
+  const showBank = templateSettings?.show_bank_details !== false;
+  const showSignature = templateSettings?.show_signature !== false;
+  const termsList: string[] = showTerms
+    ? parseTermsIntoLines(rawDocData.terms_conditions || rawDocData.terms)
+    : [];
 
   // Fallback default terms if empty
-  if (termsList.length === 0) {
+  if (showTerms && termsList.length === 0) {
     termsList.push(
       `GST: ${combinedRate}%`,
       'PAYMENT: PO, 100% AGAINST PROFORMA INVOICE',
@@ -634,70 +703,76 @@ export async function generateSakthiPdf(
 
   let currentTermsY = totalsStartY + 3.5;
 
-  // Draw Terms & Conditions with 9px Roboto fonts
-  setFont('bold');
-  doc.setFontSize(9);
-  doc.setTextColor(38, 73, 76);
-  doc.text('Terms and Conditions:', leftColX, currentTermsY);
-  currentTermsY += 4.5;
+  if (showTerms) {
+    // Draw Terms & Conditions with 9px Roboto fonts
+    setFont('bold');
+    doc.setFontSize(9);
+    doc.setTextColor(38, 73, 76);
+    doc.text('Terms and Conditions:', leftColX, currentTermsY);
+    currentTermsY += 4.5;
 
-  setFont('normal');
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
+    setFont('normal');
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
 
-  termsList.forEach((term, idx) => {
-    const prefix = `${idx + 1}. `;
-    const fullText = prefix + term;
-    const lines = doc.splitTextToSize(fullText, leftColWidth);
-    doc.text(lines, leftColX, currentTermsY);
-    currentTermsY += lines.length * 4.0;
-  });
+    termsList.forEach((term, idx) => {
+      const prefix = `${idx + 1}. `;
+      const fullText = prefix + term;
+      const lines = doc.splitTextToSize(fullText, leftColWidth);
+      doc.text(lines, leftColX, currentTermsY);
+      currentTermsY += lines.length * 4.0;
+    });
+  }
 
   // Draw Bank Details below Terms & Conditions on the left
-  let currentBankY = currentTermsY + 2.5;
-  setFont('bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(38, 73, 76);
-  doc.text('Bank Details:', leftColX, currentBankY);
-  currentBankY += 4.0;
+  if (showBank) {
+    let currentBankY = currentTermsY + 2.5;
+    setFont('bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(38, 73, 76);
+    doc.text('Bank Details:', leftColX, currentBankY);
+    currentBankY += 4.0;
 
-  doc.setFontSize(8);
-  doc.setTextColor(0, 0, 0);
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
 
-  const bankItems = [
-    { label: 'Bank: ', value: norm.bank.bankName || 'CITY UNION BANK' },
-    { label: 'Account #: ', value: norm.bank.bankAccNo || '285120000207581' },
-    { label: 'IFSC Code: ', value: `${norm.bank.bankIfsc || 'CIUB0000285'}   Branch: ${norm.bank.bankBranch || 'Poonamallee'}` }
-  ];
+    const bankItems = [
+      { label: 'Bank: ', value: norm.bank.bankName || 'CITY UNION BANK' },
+      { label: 'Account #: ', value: norm.bank.bankAccNo || '285120000207581' },
+      { label: 'IFSC Code: ', value: `${norm.bank.bankIfsc || 'CIUB0000285'}   Branch: ${norm.bank.bankBranch || 'Poonamallee'}` }
+    ];
 
-  bankItems.forEach((item) => {
-    setFont('medium');
-    doc.text(item.label, leftColX, currentBankY);
-    const labelW = doc.getTextWidth(item.label);
-    setFont('normal');
-    doc.text(item.value, leftColX + labelW, currentBankY);
-    currentBankY += 3.6;
-  });
+    bankItems.forEach((item) => {
+      setFont('medium');
+      doc.text(item.label, leftColX, currentBankY);
+      const labelW = doc.getTextWidth(item.label);
+      setFont('normal');
+      doc.text(item.value, leftColX + labelW, currentBankY);
+      currentBankY += 3.6;
+    });
+  }
 
   // Draw Authorised Signatory Block on the right side below Totals table (centered under Totals table)
-  let currentRightY = totalsEndY + 3;
-  setFont('medium');
-  doc.setFontSize(8.5);
-  doc.setTextColor(38, 73, 76);
-  const forText = `For ${organisation.name || 'SAKTHI SOLUTIONS & SERVICES'}`;
-  const forLines = doc.splitTextToSize(forText, 65);
-  forLines.forEach((line: string) => {
-    doc.text(line, 138, currentRightY);
-    currentRightY += 4.0;
-  });
+  if (showSignature) {
+    let currentRightY = totalsEndY + 3;
+    setFont('medium');
+    doc.setFontSize(8.5);
+    doc.setTextColor(38, 73, 76);
+    const forText = `For ${organisation.name || 'SAKTHI SOLUTIONS & SERVICES'}`;
+    const forLines = doc.splitTextToSize(forText, 65);
+    forLines.forEach((line: string) => {
+      doc.text(line, 138, currentRightY);
+      currentRightY += 4.0;
+    });
 
-  // Space for signature
-  currentRightY += 12;
+    // Space for signature
+    currentRightY += 12;
 
-  setFont('bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(0, 0, 0);
-  doc.text('Authorised Signatory', 145, currentRightY);
+    setFont('bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Authorised Signatory', 145, currentRightY);
+  }
 
   // Draw outer page border around all pages except the top document title area
   const totalPages = doc.internal.pages.length - 1;

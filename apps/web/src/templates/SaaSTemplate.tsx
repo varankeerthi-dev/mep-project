@@ -88,9 +88,14 @@ const getDocumentNumber = (data: any) => {
 export default function DocumentPreview({
   data,
   organisation,
-  templateConfig
+  templateConfig,
+  showFlags
 }: any) {
   const columns = getActiveColumns(templateConfig);
+  const optional = templateConfig?.optional || {};
+  const showField = (key: string) => optional[key] !== false;
+  const showTerms = showFlags?.show_terms !== false;
+  const showSignature = showFlags?.show_signature !== false;
 
   if (columns.length === 0) {
     return <div>No columns configured</div>;
@@ -133,13 +138,15 @@ export default function DocumentPreview({
 
       {/* ---------------- INFO ---------------- */}
       <div className="grid grid-cols-3 gap-4 py-2 border-b text-[10px] text-zinc-600">
-        <div>PO No: {data.po_no || "-"}</div>
-        <div>Valid Till: {data.valid_till || "-"}</div>
-        <div>Payment: {data.payment_terms || "-"}</div>
+        {showField('po_no') && <div>PO No: {data.po_no || "-"}</div>}
+        {showField('valid_till') && <div>Valid Till: {data.valid_till || "-"}</div>}
+        {showField('payment_terms') && <div>Payment: {data.payment_terms || "-"}</div>}
       </div>
 
       {/* ---------------- BILL / SHIP ---------------- */}
-      <div className="grid grid-cols-2 gap-4 mt-2">
+      {(showField('bill_to') || showField('ship_to')) && (
+      <div className={`grid gap-4 mt-2 ${showField('bill_to') && showField('ship_to') ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        {showField('bill_to') && (
         <div className="border p-2">
           <div className="text-blue-700 font-semibold text-[10px]">BILL TO</div>
           <div className="font-medium">{data.client?.client_name}</div>
@@ -147,7 +154,9 @@ export default function DocumentPreview({
             {data.billing_address}
           </div>
         </div>
+        )}
 
+        {showField('ship_to') && (
         <div className="border p-2">
           <div className="text-blue-700 font-semibold text-[10px]">SHIP TO</div>
           <div className="font-medium">{data.client?.client_name}</div>
@@ -155,7 +164,9 @@ export default function DocumentPreview({
             {data.shipping_address || data.billing_address}
           </div>
         </div>
+        )}
       </div>
+      )}
 
       {/* ---------------- TABLE ---------------- */}
       <div className="mt-3 flex-1 border">
@@ -238,6 +249,7 @@ export default function DocumentPreview({
             <div>{data.amount_words}</div>
           </div>
 
+          {showTerms && (
           <div className="border p-2">
             <div className="text-blue-700 font-semibold text-[10px]">
               Terms & Conditions
@@ -250,31 +262,40 @@ export default function DocumentPreview({
               })()}
             </div>
           </div>
+          )}
         </div>
 
         {/* RIGHT */}
         <div className="border p-2 text-right">
+          {showField('subtotal') && (
           <div className="flex justify-between">
             <span>Sub Total</span>
             <span>{formatCurrency(data.subtotal)}</span>
           </div>
+          )}
 
+          {showField('total_tax') && (
           <div className="flex justify-between">
             <span>Tax</span>
             <span>{formatCurrency(data.total_tax || data.cgst_amount + data.sgst_amount)}</span>
           </div>
+          )}
 
+          {showField('grand_total') && (
           <div className="flex justify-between font-bold text-lg text-blue-700 mt-2">
             <span>Total</span>
             <span>{formatCurrency(data.grand_total || data.total)}</span>
           </div>
+          )}
 
+          {showSignature && (
           <div className="mt-[10px] text-center">
             <div>For {organisation?.name || '-'}</div>
             <div className="mt-[8px] border-t pt-0.5 text-xs w-32 mx-auto">
               Authorized Signature
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>

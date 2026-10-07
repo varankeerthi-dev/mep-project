@@ -108,6 +108,13 @@ export interface BankDetails {
   swift?: string;
 }
 
+export interface TemplateVisibilityFlags {
+  show_logo?: boolean;
+  show_bank_details?: boolean;
+  show_terms?: boolean;
+  show_signature?: boolean;
+}
+
 export interface QuotationPdfOptions {
   org: OrgDetails;
   client: ClientDetails;
@@ -119,6 +126,13 @@ export interface QuotationPdfOptions {
   bankDetails?: BankDetails;
   termsAndConditions?: string[];
   companyLogoBase64?: string;
+  templateFlags?: TemplateVisibilityFlags;
+}
+
+// Visibility helper for header/field/footer toggles: undefined means visible
+// (matches historical rendering), explicit false hides.
+export function templateFlag(opt: Record<string, boolean> | undefined, key: string): boolean {
+  return !opt || opt[key] !== false;
 }
 
 // ─── HSN/SAC Tax Summary ──────────────────────────────────────────────────────
@@ -285,6 +299,13 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const cols = buildColumns(columnSettings);
+  const opt = columnSettings?.optional ?? {};
+  const showField = (key: string) => templateFlag(opt, key);
+  const tflags = opts.templateFlags ?? {};
+  const showLogo = tflags.show_logo !== false;
+  const showBank = tflags.show_bank_details !== false;
+  const showTerms = tflags.show_terms !== false;
+  const showSignature = tflags.show_signature !== false;
 
   doc.setFont('helvetica');
   let curY = MARGIN;
@@ -298,7 +319,7 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
     const logoW = 28, logoH = 14;
     let textStartX = MARGIN;
 
-    if (companyLogoBase64) {
+    if (showLogo && companyLogoBase64) {
       try {
         const ext = companyLogoBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
         doc.addImage(companyLogoBase64, ext, MARGIN, y0 + 3, logoW, logoH);
@@ -366,10 +387,10 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
     ['Quotation No.',  formattedQuoteNo],
     ['Revision',       formattedRevNo],
     ['Date',           header.date],
-    ['Valid Till',     header.valid_till ?? '—'],
-    ['Reference',      header.reference ?? '—'],
-    ['Payment Terms',  header.payment_terms ?? '—'],
-    ['Prepared By',    header.prepared_by ?? '—'],
+    ...(showField('valid_till') ? [['Valid Till', header.valid_till ?? '—'] as [string, string]] : []),
+    ...(showField('reference') ? [['Reference', header.reference ?? '—'] as [string, string]] : []),
+    ...(showField('payment_terms') ? [['Payment Terms', header.payment_terms ?? '—'] as [string, string]] : []),
+    ...(showField('prepared_by') ? [['Prepared By', header.prepared_by ?? '—'] as [string, string]] : []),
   ];
 
   doc.setFont('helvetica', 'normal');
@@ -386,45 +407,47 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
   });
 
   const rightX = MARGIN + halfW + 4;
-  doc.setFillColor(...C.white);
-  doc.rect(rightX, metaY, halfW, 36, 'F');
-  doc.setDrawColor(...C.border);
-  doc.setLineWidth(0.25);
-  doc.rect(rightX, metaY, halfW, 36);
+  if (showField('bill_to')) {
+    doc.setFillColor(...C.white);
+    doc.rect(rightX, metaY, halfW, 36, 'F');
+    doc.setDrawColor(...C.border);
+    doc.setLineWidth(0.25);
+    doc.rect(rightX, metaY, halfW, 36);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(...C.primary);
-  doc.text('BILL TO', rightX + 3, metaY + 4.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...C.primary);
+    doc.text('BILL TO', rightX + 3, metaY + 4.5);
 
-  doc.setLineWidth(0.5);
-  doc.setDrawColor(...C.accent);
-  doc.line(rightX, metaY + 6, rightX + halfW, metaY + 6);
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(...C.accent);
+    doc.line(rightX, metaY + 6, rightX + halfW, metaY + 6);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(...C.text);
-  doc.text(client.display_name ?? client.name ?? 'Client Name', rightX + 3, metaY + 10);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...C.muted);
-
-  let addrY = metaY + 14;
-  if (client.billing_address) {
-    const addrLines = doc.splitTextToSize(client.billing_address, halfW - 6);
-    addrLines.forEach((l: string) => { doc.text(l, rightX + 3, addrY); addrY += 3.6; });
-  }
-  if (client.gstin) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
     doc.setTextColor(...C.text);
-    doc.text(`GSTIN: ${client.gstin}`, rightX + 3, addrY); addrY += 3.6;
-  }
-  if (client.state) {
+    doc.text(client.display_name ?? client.name ?? 'Client Name', rightX + 3, metaY + 10);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
     doc.setTextColor(...C.muted);
-    doc.text(`State: ${client.state}`, rightX + 3, addrY);
+
+    let addrY = metaY + 14;
+    if (client.billing_address) {
+      const addrLines = doc.splitTextToSize(client.billing_address, halfW - 6);
+      addrLines.forEach((l: string) => { doc.text(l, rightX + 3, addrY); addrY += 3.6; });
+    }
+    if (client.gstin) {
+      doc.setTextColor(...C.text);
+      doc.text(`GSTIN: ${client.gstin}`, rightX + 3, addrY); addrY += 3.6;
+    }
+    if (client.state) {
+      doc.setTextColor(...C.muted);
+      doc.text(`State: ${client.state}`, rightX + 3, addrY);
+    }
   }
 
-  if (header.project_name) {
+  if (header.project_name && showField('project_name')) {
     const pY = metaY + 36 + 2;
     doc.setFillColor(...C.sectionHdr);
     doc.rect(MARGIN, pY, CONTENT_W, 6, 'F');
@@ -588,9 +611,9 @@ export function generateQuotationPdf(opts: QuotationPdfOptions): jsPDF {
   }
 
   fY = drawSectionSubtotals(doc, fY, sectionSubtotals);
-  drawFooterBlock(doc, fY, calculations, signatory, bankDetails, header.remarks, items, org.name);
+  drawFooterBlock(doc, fY, calculations, signatory, bankDetails, header.remarks, items, org.name, { showBank, showSignature, showField });
 
-  if (termsAndConditions && termsAndConditions.length > 0) {
+  if (showTerms && termsAndConditions && termsAndConditions.length > 0) {
     doc.addPage();
     const y0 = MARGIN;
     doc.setFillColor(...C.primary);
@@ -717,8 +740,12 @@ function drawFooterBlock(
   bank?: BankDetails,
   remarks?: string,
   items?: QuotationItem[],
-  orgName?: string
+  orgName?: string,
+  vis?: { showBank: boolean; showSignature: boolean; showField: (key: string) => boolean }
 ): number {
+  const showBank = vis?.showBank !== false;
+  const showSignature = vis?.showSignature !== false;
+  const showField = vis?.showField ?? (() => true);
   let y = startY;
 
   const wordsText = calc.amountInWords || numberToWords(calc.grandTotal);
@@ -754,7 +781,9 @@ function drawFooterBlock(
     rightY += rowH;
   };
 
-  drawSummaryRow('Sub-Total (before GST)', fmtCur(calc.subtotal), false, C.footerBg);
+  if (showField('subtotal')) {
+    drawSummaryRow('Sub-Total (before GST)', fmtCur(calc.subtotal), false, C.footerBg);
+  }
 
   if (calc.totalItemDiscount > 0) {
     drawSummaryRow('Item-level Discount', `- ${fmtCur(calc.totalItemDiscount)}`);
@@ -763,37 +792,41 @@ function drawFooterBlock(
     drawSummaryRow('Additional Discount', `- ${fmtCur(calc.extraDiscountAmount)}`);
   }
 
-  if (calc.taxGroups && Object.keys(calc.taxGroups).length > 0) {
-    Object.entries(calc.taxGroups).forEach(([rate, grp]) => {
-      if (calc.isInterState) {
-        drawSummaryRow(`IGST @ ${rate}%`, fmtCur(grp.taxAmount));
-      } else {
-        drawSummaryRow(`CGST @ ${parseFloat(rate) / 2}%`, fmtCur(grp.cgst));
-        drawSummaryRow(`SGST @ ${parseFloat(rate) / 2}%`, fmtCur(grp.sgst));
-      }
-    });
-  } else {
-    if (calc.isInterState) {
-      drawSummaryRow('IGST', fmtCur(calc.igst));
+  if (showField('total_tax')) {
+    if (calc.taxGroups && Object.keys(calc.taxGroups).length > 0) {
+      Object.entries(calc.taxGroups).forEach(([rate, grp]) => {
+        if (calc.isInterState) {
+          drawSummaryRow(`IGST @ ${rate}%`, fmtCur(grp.taxAmount));
+        } else {
+          drawSummaryRow(`CGST @ ${parseFloat(rate) / 2}%`, fmtCur(grp.cgst));
+          drawSummaryRow(`SGST @ ${parseFloat(rate) / 2}%`, fmtCur(grp.sgst));
+        }
+      });
     } else {
-      drawSummaryRow('CGST', fmtCur(calc.cgst));
-      drawSummaryRow('SGST', fmtCur(calc.sgst));
+      if (calc.isInterState) {
+        drawSummaryRow('IGST', fmtCur(calc.igst));
+      } else {
+        drawSummaryRow('CGST', fmtCur(calc.cgst));
+        drawSummaryRow('SGST', fmtCur(calc.sgst));
+      }
     }
   }
 
-  if (calc.roundOff !== 0) {
+  if (showField('round_off') && calc.roundOff !== 0) {
     drawSummaryRow('Round Off', (calc.roundOff >= 0 ? '+ ' : '- ') + fmtCur(Math.abs(calc.roundOff)));
   }
 
-  const gtH = 9;
-  doc.setFillColor(...C.grandTotal);
-  doc.rect(summaryX, rightY, summaryW, gtH, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...C.white);
-  doc.text('GRAND TOTAL', summaryX + 3, rightY + 6);
-  doc.text(fmtCur(calc.grandTotal), summaryX + summaryW - 2, rightY + 6, { align: 'right' });
-  rightY += gtH;
+  if (showField('grand_total')) {
+    const gtH = 9;
+    doc.setFillColor(...C.grandTotal);
+    doc.rect(summaryX, rightY, summaryW, gtH, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...C.white);
+    doc.text('GRAND TOTAL', summaryX + 3, rightY + 6);
+    doc.text(fmtCur(calc.grandTotal), summaryX + summaryW - 2, rightY + 6, { align: 'right' });
+    rightY += gtH;
+  }
 
   if (remarks && remarks.trim()) {
     doc.setFont('helvetica', 'bold');
@@ -813,7 +846,7 @@ function drawFooterBlock(
   doc.setLineWidth(0.3);
   doc.line(MARGIN, y - 2, PAGE_W - MARGIN, y - 2);
 
-  if (items && items.length > 0) {
+  if (showField('total_tax') && items && items.length > 0) {
     const hsnRows = buildHsnTaxSummary(items, calc.isInterState);
 
     if (hsnRows.length > 0) {
@@ -970,7 +1003,8 @@ function drawFooterBlock(
   y += 4;
 
   const colGap  = 1.5;
-  const colW    = (CONTENT_W - colGap * 2) / 3;
+  const colCount = showBank ? 3 : 2;
+  const colW    = (CONTENT_W - colGap * (colCount - 1)) / colCount;
   const col1X   = MARGIN;
   const col2X   = MARGIN + colW + colGap;
   const col3X   = MARGIN + (colW + colGap) * 2;
@@ -989,20 +1023,25 @@ function drawFooterBlock(
     doc.text(label, x + w / 2, y + 4, { align: 'center' });
   };
 
-  drawColHeader(col1X, colW, 'BANK DETAILS');
-  drawColHeader(col2X, colW, "RECEIVER'S SIGNATURE");
-  drawColHeader(col3X, colW, 'FOR ' + (signatory?.for_company ?? orgName ?? '').toUpperCase());
+  // When bank is hidden the footer collapses to receiver + company columns.
+  const recvX = showBank ? col2X : col1X;
+  const compX = showBank ? col3X : col2X;
+  if (showBank) {
+    drawColHeader(col1X, colW, 'BANK DETAILS');
+  }
+  drawColHeader(recvX, colW, "RECEIVER'S SIGNATURE");
+  drawColHeader(compX, colW, 'FOR ' + (signatory?.for_company ?? orgName ?? '').toUpperCase());
 
   const bodyY = y + hdrH;
 
-  [col1X, col2X, col3X].forEach((cx, i) => {
+  [showBank ? col1X : -1, recvX, compX].forEach((cx, i) => {
+    if (cx < 0) return;
     doc.setFillColor(i === 1 ? C.white[0] : C.footerBg[0],
                      i === 1 ? C.white[1] : C.footerBg[1],
                      i === 1 ? C.white[2] : C.footerBg[2]);
-    doc.rect(cx, bodyY, colW, footerH, 'F');
     doc.setDrawColor(...C.border);
     doc.setLineWidth(0.2);
-    doc.rect(cx, bodyY, colW, footerH);
+    doc.rect(cx, bodyY, colW, footerH, 'F');
   });
 
   let by = bodyY + pad + 3;
@@ -1019,27 +1058,29 @@ function drawFooterBlock(
     by += lineH;
   };
 
-  if (bank) {
-    if (bank.bank_name)    drawBankRow('Bank',    bank.bank_name);
-    if (bank.branch)       drawBankRow('Branch',  bank.branch);
-    if (bank.account_name) drawBankRow('Name',    bank.account_name);
-    if (bank.account_no)   drawBankRow('A/c No.', bank.account_no);
-    if (bank.ifsc)         drawBankRow('IFSC',    bank.ifsc);
-    if (bank.account_type) drawBankRow('Type',    bank.account_type);
-    if (bank.swift)        drawBankRow('SWIFT',   bank.swift);
-  } else {
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(6.5);
-    doc.setTextColor(...C.muted);
-    doc.text('Bank details not provided', col1X + colW / 2, bodyY + footerH / 2, { align: 'center' });
+  if (showBank) {
+    if (bank) {
+      if (bank.bank_name)    drawBankRow('Bank',    bank.bank_name);
+      if (bank.branch)       drawBankRow('Branch',  bank.branch);
+      if (bank.account_name) drawBankRow('Name',    bank.account_name);
+      if (bank.account_no)   drawBankRow('A/c No.', bank.account_no);
+      if (bank.ifsc)         drawBankRow('IFSC',    bank.ifsc);
+      if (bank.account_type) drawBankRow('Type',    bank.account_type);
+      if (bank.swift)        drawBankRow('SWIFT',   bank.swift);
+    } else {
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(6.5);
+      doc.setTextColor(...C.muted);
+      doc.text('Bank details not provided', col1X + colW / 2, bodyY + footerH / 2, { align: 'center' });
+    }
   }
 
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(6.5);
   doc.setTextColor(...C.muted);
-  doc.text('Received with thanks', col2X + colW / 2, bodyY + 5, { align: 'center' });
+  doc.text('Received with thanks', recvX + colW / 2, bodyY + 5, { align: 'center' });
 
-  const sigAreaX = col2X + 4;
+  const sigAreaX = recvX + 4;
   const sigAreaW = colW - 8;
   const sigAreaY = bodyY + 8;
   const sigAreaH = 14;
@@ -1053,17 +1094,19 @@ function drawFooterBlock(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(6.5);
   doc.setTextColor(...C.text);
-  doc.text('Signature & Date', col2X + colW / 2, bodyY + footerH - pad, { align: 'center' });
+  doc.text('Signature & Date', recvX + colW / 2, bodyY + footerH - pad, { align: 'center' });
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...C.primary);
-  doc.text(signatory?.name ?? '', col3X + colW / 2, bodyY + footerH - pad - 3.5, { align: 'center' });
+  if (showSignature) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...C.primary);
+    doc.text(signatory?.name ?? '', compX + colW / 2, bodyY + footerH - pad - 3.5, { align: 'center' });
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
-  doc.setTextColor(...C.muted);
-  doc.text(signatory?.designation ?? 'Authorised Signatory', col3X + colW / 2, bodyY + footerH - pad, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...C.muted);
+    doc.text(signatory?.designation ?? 'Authorised Signatory', compX + colW / 2, bodyY + footerH - pad, { align: 'center' });
+  }
 
   return y + footerH + 5;
 }
