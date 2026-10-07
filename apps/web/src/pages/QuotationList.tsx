@@ -457,7 +457,7 @@ export default function QuotationList() {
   const renderQuoteCell = (col: ShellColumn, q: any) => {
     if (col.id === 'date') return <span className="font-medium text-zinc-900 whitespace-nowrap">{formatDate(q.date)}</span>;
     if (col.id === 'quotation_no') return (
-      <span>
+      <span className="whitespace-nowrap">
         <span className="font-semibold text-zinc-900">{q.quotation_no}</span>
         {q.revision_no && q.revision_no > 1 ? (
           <span className="ml-1.5 px-1.5 py-0.5 text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80 rounded inline-block">
