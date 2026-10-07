@@ -55,6 +55,8 @@ interface DocumentListShellProps {
   actionsInHeader?: boolean;
   // Compact rows: 32px body rows. Opt-in; default density unchanged.
   rowDensity?: 'comfortable' | 'compact';
+  // Extra filter controls rendered inline with the sub-tabs/status group.
+  filterExtra?: React.ReactNode;
   columns: ShellColumn[];
   visibleIds: string[];
   onVisibleChange: (ids: string[]) => void;
@@ -92,7 +94,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
     search, onSearch, searchPlaceholder,
     subTabs, activeSubTab, onSubTab,
     statusOptions, statusFilter, onStatusFilter, statusLabel, statusFilterStyle,
-    onCreate, createLabel, createButton, headerExtra, actionsInHeader, rowDensity,
+    onCreate, createLabel, createButton, headerExtra, actionsInHeader, rowDensity, filterExtra,
     columns, visibleIds, onVisibleChange, columnStorageKey, showColumnCustomizer, columnCustomizer,
     rows, getRowId, selectedIds, onToggleSelect, onToggleSelectAll, onClearSelection,
     onRowClick, renderCell, eyeButton, rowActions, rowMenuItems,
@@ -255,6 +257,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
           </div>
         </div>
       )}
+      {filterExtra ? filterExtra : null}
     </div>
   );
 

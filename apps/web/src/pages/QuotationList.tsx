@@ -10,6 +10,9 @@ import { ApprovalAPI } from '../approvals/api';
 import { initiateQuotationRevision } from '../lib/quotation-workflow';
 import { duplicateQuotation } from '../api';
 import { DocumentListShell, type ShellColumn } from '../components/document/DocumentListShell';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+import { Calendar } from '../components/ui/Calendar';
+import { Calendar as CalendarIcon, X as ClearIcon } from 'lucide-react';
 import {
 
   Download as DownloadIcon,
@@ -77,6 +80,8 @@ export default function QuotationList() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
+  const [toDate, setToDate] = useState<Date | undefined>(undefined);
   const [subTab, setSubTab] = useState('All Quotes');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
@@ -160,10 +165,10 @@ export default function QuotationList() {
     setCurrentPage(1); // Reset to first page when switching tabs
   }, [subTab]);
 
-  // Reset to first page when search or status filter changes
+  // Reset to first page when search, status or date filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, fromDate, toDate]);
 
   const generateSinglePdfUint8Array = async (quotationId: string): Promise<Uint8Array | null> => {
     if (!organisation) return null;
@@ -378,10 +383,16 @@ export default function QuotationList() {
 
   const filteredQuotations = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    const items = quotations.filter((qt: any) =>
-      qt.quotation_no?.toLowerCase().includes(q) ||
-      qt.client?.client_name?.toLowerCase().includes(q)
-    );
+    const fromStr = fromDate ? fromDate.toISOString().slice(0, 10) : null;
+    const toStr = toDate ? toDate.toISOString().slice(0, 10) : null;
+    const items = quotations.filter((qt: any) => {
+      if (!(qt.quotation_no?.toLowerCase().includes(q) ||
+        qt.client?.client_name?.toLowerCase().includes(q))) return false;
+      const d = String(qt.date || '').slice(0, 10);
+      if (fromStr && d < fromStr) return false;
+      if (toStr && d > toStr) return false;
+      return true;
+    });
 
     if (sortOrder) {
       items.sort((a: any, b: any) => {
@@ -392,7 +403,52 @@ export default function QuotationList() {
     }
 
     return items;
-  }, [quotations, searchTerm, sortOrder]);
+  }, [quotations, searchTerm, sortOrder, fromDate, toDate]);
+
+  const fmtShort = (d: Date | undefined) => (d ? formatDateTable(d) : '');
+
+  const dateFilterExtra = (
+    <div className="flex items-center gap-2">
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="h-[26px] px-3 flex items-center gap-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
+          >
+            <CalendarIcon className="w-4 h-4" />
+            {fromDate ? fmtShort(fromDate) : 'From date'}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar mode="single" selected={fromDate} onSelect={setFromDate} initialFocus />
+        </PopoverContent>
+      </Popover>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="h-[26px] px-3 flex items-center gap-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
+          >
+            <CalendarIcon className="w-4 h-4" />
+            {toDate ? fmtShort(toDate) : 'To date'}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar mode="single" selected={toDate} onSelect={setToDate} initialFocus />
+        </PopoverContent>
+      </Popover>
+      {(fromDate || toDate) && (
+        <button
+          type="button"
+          title="Clear dates"
+          onClick={() => { setFromDate(undefined); setToDate(undefined); }}
+          className="h-[26px] w-[26px] flex items-center justify-center text-sm font-medium text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-md transition-colors"
+        >
+          <ClearIcon className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
 
   // Pagination calculations (header stats/total-value removed from display)
   const paginationData = useMemo(() => {
@@ -631,6 +687,7 @@ export default function QuotationList() {
         count={paginationData.totalItems}
         actionsInHeader
         rowDensity="compact"
+        filterExtra={dateFilterExtra}
         search={searchTerm}
         onSearch={setSearchTerm}
         searchPlaceholder="Search quotations..."
