@@ -449,9 +449,9 @@ export default function QuotationList() {
     { id: 'client', label: 'Client', width: '400px' },
     { id: 'prepared_by', label: 'Created By', width: '150px' },
     { id: 'status', label: 'Status', width: '140px', tdClass: 'text-left whitespace-nowrap' },
-    { id: 'subtotal', label: 'Sub-total', width: '100px', align: 'right', tdClass: 'font-medium text-zinc-900 tabular-nums whitespace-nowrap' },
-    { id: 'total_tax', label: 'Tax Amount', width: '100px', align: 'right', tdClass: 'font-medium text-zinc-900 tabular-nums whitespace-nowrap' },
-    { id: 'grand_total', label: 'Amount', width: '100px', align: 'right', tdClass: 'font-medium text-zinc-900 tabular-nums whitespace-nowrap' },
+    { id: 'subtotal', label: 'Sub-total', width: '100px', align: 'left', tdClass: 'font-medium text-zinc-900 tabular-nums whitespace-nowrap' },
+    { id: 'total_tax', label: 'Tax Amount', width: '100px', align: 'left', tdClass: 'font-medium text-zinc-900 tabular-nums whitespace-nowrap' },
+    { id: 'grand_total', label: 'Amount', width: '100px', align: 'left', tdClass: 'font-medium text-zinc-900 tabular-nums whitespace-nowrap' },
   ];
 
   const renderQuoteCell = (col: ShellColumn, q: any) => {
