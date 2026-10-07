@@ -2606,6 +2606,7 @@ export default function CreateQuotation() {
                 clientId={formData.client_id}
                 getRateForMaterialVariant={getRateForMaterialVariant}
                 calculateVariantDiscountedRate={calculateVariantDiscountedRate}
+                lastRatesMap={lastRatesMap}
                 getTableMinWidth={getTableMinWidth}
                 selectedItemIds={selectedItemIds}
                 setSelectedItemIds={setSelectedItemIds}

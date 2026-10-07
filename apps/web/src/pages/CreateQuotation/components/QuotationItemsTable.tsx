@@ -7,6 +7,8 @@ import { Button } from '../../../components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../../components/ui/dropdown-menu';
 import { StandardRateBadge, ArcRateBadge } from '../../../components/ArcPricingToggle';
+import { toast } from '../../../lib/logger';
+import type { LastRatesMap } from '../../../hooks/useLastDocumentRates';
 import { ArrowUpDown, ChevronDown, GripVertical, Heading, Lock, CornerDownRight, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
@@ -245,7 +247,33 @@ interface QuotationItemsTableProps {
   getTableMinWidth: () => string;
   selectedItemIds: string[];
   setSelectedItemIds: React.Dispatch<React.SetStateAction<string[]>>;
+  // Last quoted/invoiced rates per useLastDocumentRates key `${item_id}_${variant||'no_variant'}`.
+  lastRatesMap?: LastRatesMap;
 }
+
+// Key mirror of useLastDocumentRates.getItemKey — keep in sync.
+const getLastRateKey = (itemId: string | null | undefined, variantId: string | null | undefined) => {
+  const normalizedVariant = variantId && variantId !== '' ? variantId : 'no_variant';
+  return `${itemId}_${normalizedVariant}`;
+};
+
+const formatDocDate = (iso: string) => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso || '-';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
+};
+
+const LQ_STYLE: React.CSSProperties = {
+  fontSize: '10px', fontWeight: 700, color: '#92400e', background: '#fef3c7',
+  border: '1px solid #fcd34d', borderRadius: '4px', padding: '1px 5px', cursor: 'pointer', whiteSpace: 'nowrap',
+};
+
+const LI_STYLE: React.CSSProperties = {
+  fontSize: '10px', fontWeight: 700, color: '#1e40af', background: '#dbeafe',
+  border: '1px solid #93c5fd', borderRadius: '4px', padding: '1px 5px', cursor: 'pointer', whiteSpace: 'nowrap',
+};
 
 const formatStockQty = (v: any) => {
   const n = parseFloat(v) || 0;
@@ -302,6 +330,7 @@ export function QuotationItemsTable({
   getTableMinWidth,
   selectedItemIds,
   setSelectedItemIds,
+  lastRatesMap,
 }: QuotationItemsTableProps) {
   const rowVirtualizer = useVirtualizer({
     count: items.length,
@@ -877,6 +906,46 @@ export function QuotationItemsTable({
                       title="MRP (auto-fetched rate) — editing recomputes only the net rate"
                       style={{ ...NUM_CELL, textAlign: 'right', fontWeight: 500, fontSize: '13px', color: INK, background: 'transparent', boxShadow: 'none' }}
                     />
+                    {(() => {
+                      if (!item.item_id || item.is_header || item.is_subtotal) return null;
+                      const hist = lastRatesMap?.[getLastRateKey(item.item_id, item.variant_id)];
+                      if (!hist || (!hist.lastQuoted && !hist.lastInvoiced)) return null;
+                      const entered = parseFloat(item.base_rate_snapshot ?? item.rate) || 0;
+                      const underBilled = hist.lastInvoiced && entered > 0 && entered < hist.lastInvoiced.baseRate;
+                      const applyRate = (rate: number, label: string) => {
+                        updateItem(item.id, 'base_rate_snapshot', rate);
+                        toast.success(`${label} rate applied: ₹${formatNumber(rate)}`);
+                      };
+                      return (
+                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end', alignItems: 'center', marginTop: '2px', flexWrap: 'wrap' }}>
+                          {underBilled && (
+                            <span title={`Warning: Entered rate (₹${formatNumber(entered)}) is lower than the last invoiced rate (₹${formatNumber(hist.lastInvoiced!.baseRate)}) for this client.`} style={{ fontSize: '11px', cursor: 'help' }}>
+                              ⚠️
+                            </span>
+                          )}
+                          {hist.lastQuoted && hist.lastQuoted.baseRate > 0 && (
+                            <button
+                              type="button"
+                              style={LQ_STYLE}
+                              title={`Quote #${hist.lastQuoted.docNo} on ${formatDocDate(hist.lastQuoted.date)} — click to apply`}
+                              onClick={() => applyRate(hist.lastQuoted!.baseRate, 'Last quoted')}
+                            >
+                              LQ: ₹{formatNumber(hist.lastQuoted.baseRate)}
+                            </button>
+                          )}
+                          {hist.lastInvoiced && hist.lastInvoiced.baseRate > 0 && (
+                            <button
+                              type="button"
+                              style={LI_STYLE}
+                              title={`Invoice #${hist.lastInvoiced.docNo} on ${formatDocDate(hist.lastInvoiced.date)} — click to apply`}
+                              onClick={() => applyRate(hist.lastInvoiced!.baseRate, 'Last invoiced')}
+                            >
+                              LI: ₹{formatNumber(hist.lastInvoiced.baseRate)}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="col-disc" style={{ position: 'relative', verticalAlign: 'middle', textAlign: 'right' }}>
                     <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'flex-end' }}>
