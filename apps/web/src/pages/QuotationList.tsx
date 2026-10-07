@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
-import { formatDate, formatCurrency } from '../utils/formatters';
+import { formatDate, formatCurrency, formatDateTable } from '../utils/formatters';
 import { useAuth } from '../App';
 import { PermissionGuard } from '../rbac';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
@@ -58,7 +58,7 @@ const displayStatus = (q: any) =>
 
 const MANDATORY_COLUMNS = ['date', 'quotation_no', 'client', 'grand_total'];
 const ALL_COLUMNS = [
-  { id: 'date', label: 'Date', width: '120px' },
+    { id: 'date', label: 'Date', width: '100px' },
   { id: 'quotation_no', label: 'Quote No', width: '120px' },
   { id: 'revision_no', label: 'Rev No', width: '90px' },
   { id: 'project', label: 'Project', width: '200px' },
@@ -455,10 +455,10 @@ export default function QuotationList() {
   ];
 
   const renderQuoteCell = (col: ShellColumn, q: any) => {
-    if (col.id === 'date') return <span className="font-medium text-zinc-900 whitespace-nowrap">{formatDate(q.date)}</span>;
+    if (col.id === 'date') return <span className="font-medium text-zinc-900 whitespace-nowrap">{formatDateTable(q.date)}</span>;
     if (col.id === 'quotation_no') return (
       <span className="whitespace-nowrap">
-        <span className="font-semibold text-zinc-900">{q.quotation_no}</span>
+        <span className="font-semibold" style={{ color: '#2d62cd' }}>{q.quotation_no}</span>
         {q.revision_no && q.revision_no > 1 ? (
           <span className="ml-1.5 px-1.5 py-0.5 text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/80 rounded inline-block">
             (Rev {String(q.revision_no).padStart(2, '0')})
