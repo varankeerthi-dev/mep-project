@@ -2843,14 +2843,14 @@ export default function QuotationView() {
 
                       return (
                         <tr key={item.id} className="border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors align-top">
-                          {showPrev.sno && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-400 font-medium block">{String(index + 1).padStart(2, '0')}</span></td>}
+                          {showPrev.sno && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-400 font-medium block">{String(index + 1).padStart(2, '0')}</span></td>}
                           {showPrev.hsn && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 font-mono block">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</span></td>}
                           {showPrev.itemCode && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="inline-block rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600">{item.item?.item_code || '-'}</span></td>}
                           {showPrev.make && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-400 italic block">{item.make || '-'}</span></td>}
                           <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}>
-                            <div className="text-[12px] font-medium text-zinc-900 leading-tight">{item.item?.display_name || item.item?.name || '-'}</div>
+                            <div className="text-[10px] font-medium text-zinc-900 leading-tight">{item.item?.display_name || item.item?.name || '-'}</div>
                             {item.description && item.description !== (item.item?.display_name || item.item?.name) && (
-                              <div className="text-[11px] text-zinc-500 leading-snug mt-1">{item.description}</div>
+                              <div className="text-[10px] text-zinc-500 leading-snug mt-1">{item.description}</div>
                             )}
                             {item.override_flag && (
                               <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-100">Modified</span>
@@ -2858,19 +2858,19 @@ export default function QuotationView() {
                           </td>
                           {showPrev.variant && (
                             <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}>
-                              <span className="text-[11px] text-zinc-500 block">{allVariants.find(v => v.id === item.variant_id)?.variant_name || '-'}</span>
+                              <span className="text-[10px] text-zinc-500 block">{allVariants.find(v => v.id === item.variant_id)?.variant_name || '-'}</span>
                             </td>
                           )}
-                          {showPrev.qty && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-900 text-right font-medium block">{item.qty}</span></td>}
+                          {showPrev.qty && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-900 text-right font-medium block">{item.qty}</span></td>}
                           {showPrev.uom && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-400 block">{item.uom}</span></td>}
-                          {showPrev.rate && <td className="border-l border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-900 text-right block">{formatCurrency(item.rate)}</span></td>}
+                          {showPrev.rate && <td className="border-l border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-900 text-right block">{formatCurrency(item.rate)}</span></td>}
 
                           {showPrev.disc && <td style={{ padding: '14px 7px' }}><span className={`text-[10px] text-right font-medium block rounded px-1.5 py-0.5 ${parseFloat(item.discount_percent) >= 40 ? 'text-red-600 bg-red-50' : parseFloat(item.discount_percent) > 0 ? 'text-amber-600' : 'text-zinc-400'}`}>{item.discount_percent}%</span></td>}
-                          {showPrev.netRate && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-zinc-900 text-right font-semibold block">{formatCurrency(item.rate)}</span></td>}
+                          {showPrev.netRate && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-900 text-right font-semibold block">{formatCurrency(item.rate)}</span></td>}
                           {showPrev.tax && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 text-right block">{item.tax_percent}%</span></td>}
                           {showPrev.custom1 && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.custom1 || '-'}</span></td>}
                           {showPrev.custom2 && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.custom2 || '-'}</span></td>}
-                          <td className="bg-zinc-50" style={{ padding: '14px 7px' }}><span className="text-[11px] font-bold text-zinc-900 text-right block">{formatCurrency(item.line_total)}</span></td>
+                          <td className="bg-zinc-50" style={{ padding: '14px 7px' }}><span className="text-[10px] font-bold text-zinc-900 text-right block">{formatCurrency(item.line_total)}</span></td>
                         </tr>
                       );
                     })}
