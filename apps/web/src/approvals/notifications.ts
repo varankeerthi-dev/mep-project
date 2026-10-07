@@ -3,6 +3,21 @@ import { Approval, ApprovalNotification } from '../types/approvals';
 
 export class ApprovalNotificationService {
   /**
+   * Resolve a displayable contact for an auth user id. There is no FK from
+   * approvals/approval_workflows/approval_actions to public.users (those FKs
+   * point at auth.users), so FK-embed selects 400 live — look up employees instead.
+   */
+  private static async getContact(userId: string | null | undefined): Promise<{ name?: string; email?: string; phone?: string } | null> {
+    if (!userId) return null;
+    const { data } = await supabase
+      .from('employees')
+      .select('name, email, phone')
+      .eq('id', userId)
+      .maybeSingle();
+    return data || null;
+  }
+
+  /**
    * Send approval notifications to relevant users
    */
   static async sendApprovalNotifications(approvalId: string, level?: number): Promise<void> {
@@ -10,23 +25,19 @@ export class ApprovalNotificationService {
       // Get approval details
       const { data: approval } = await supabase
         .from('approvals')
-        .select(`
-          *,
-          requester:users(name, email)
-        `)
+        .select('*')
         .eq('id', approvalId)
         .single();
 
       if (!approval) return;
+      const requester = await this.getContact(approval.requested_by);
+      const approvalForMail = { ...approval, requester: requester || undefined };
 
       // Get approvers for current/next level
       const targetLevel = level || approval.current_level;
       const { data: workflows } = await supabase
         .from('approval_workflows')
-        .select(`
-          *,
-          approver:users(name, email, phone)
-        `)
+        .select('*')
         .eq('approval_type', approval.approval_type)
         .eq('level', targetLevel)
         .eq('is_active', true)
@@ -36,15 +47,18 @@ export class ApprovalNotificationService {
 
       // Send notifications to each approver
       for (const workflow of workflows) {
-        if (workflow.approver_id && workflow.approver) {
+        if (workflow.approver_id) {
           await this.createNotification(approvalId, workflow.approver_id, 'IN_APP');
-          
-          // Send email notification
-          await this.sendEmailNotification(approval, workflow.approver);
-          
+
+          const approver = await this.getContact(workflow.approver_id);
+          if (approver?.email) {
+            // Send email notification
+            await this.sendEmailNotification(approvalForMail, approver);
+          }
+
           // Send SMS for urgent approvals
-          if (approval.priority === 'URGENT' && workflow.approver.phone) {
-            await this.sendSMSNotification(approval, workflow.approver);
+          if (approval.priority === 'URGENT' && approver?.phone) {
+            await this.sendSMSNotification(approvalForMail, approver);
           }
         }
       }
@@ -140,23 +154,21 @@ export class ApprovalNotificationService {
     try {
       const { data: approval } = await supabase
         .from('approvals')
-        .select(`
-          *,
-          requester:users(name, email)
-        `)
+        .select('*')
         .eq('id', approvalId)
         .single();
 
-      if (!approval || !approval.requester) return;
+      const requester = approval ? await this.getContact(approval.requested_by) : null;
+      if (!approval || !requester) return;
 
       await this.createNotification(approvalId, approval.requested_by, 'IN_APP');
 
       const emailData = {
-        to: approval.requester.email,
+        to: requester.email,
         subject: `Returned: ${approval.title}`,
         template: 'approval-returned',
         data: {
-          requesterName: approval.requester.name,
+          requesterName: requester.name,
           approvalTitle: approval.title,
           approvalType: approval.approval_type,
           amount: approval.amount,
@@ -184,21 +196,19 @@ export class ApprovalNotificationService {
       // Get approval details
       const { data: approval } = await supabase
         .from('approvals')
-        .select(`
-          *,
-          requester:users(name, email)
-        `)
+        .select('*')
         .eq('id', approvalId)
         .single();
 
       if (!approval) return;
 
       // Notify requester about status change
-      if (approval.requester) {
+      const requester = await this.getContact(approval.requested_by);
+      if (requester) {
         await this.createNotification(approvalId, approval.requested_by, 'IN_APP');
-        
+
         // Send email notification to requester
-        await this.sendStatusChangeEmail(approval, oldStatus, newStatus, approval.requester);
+        await this.sendStatusChangeEmail(approval, oldStatus, newStatus, requester);
       }
 
       // If rejected, notify all previous approvers
@@ -250,10 +260,7 @@ export class ApprovalNotificationService {
       // Get all previous approvers
       const { data: actions } = await supabase
         .from('approval_actions')
-        .select(`
-          approver_id,
-          approver:users(name, email)
-        `)
+        .select('approver_id')
         .eq('approval_id', approvalId)
         .eq('action', 'APPROVED')
         .neq('approver_id', null);
@@ -262,11 +269,14 @@ export class ApprovalNotificationService {
 
       // Notify each previous approver
       for (const action of actions) {
-        if (action.approver_id && action.approver) {
+        if (action.approver_id) {
           await this.createNotification(approvalId, action.approver_id, 'IN_APP');
-          
+
+          const approver = await this.getContact(action.approver_id);
+          if (!approver?.email) continue;
+
           // Send email notification
-          await this.sendRejectionEmailToApprovers(approvalId, action.approver);
+          await this.sendRejectionEmailToApprovers(approvalId, approver);
         }
       }
     } catch (error) {
@@ -462,10 +472,7 @@ export class ApprovalNotificationService {
       const nextLevel = approval.current_level + 1;
       const { data: workflows } = await supabase
         .from('approval_workflows')
-        .select(`
-          *,
-          approver:users(name, email)
-        `)
+        .select('*')
         .eq('approval_type', approval.approval_type)
         .eq('level', nextLevel)
         .eq('is_active', true)
@@ -475,15 +482,18 @@ export class ApprovalNotificationService {
 
       // Send escalation notifications
       for (const workflow of workflows) {
-        if (workflow.approver_id && workflow.approver) {
+        if (workflow.approver_id) {
           await this.createNotification(approvalId, workflow.approver_id, 'IN_APP');
-          
+
+          const approver = await this.getContact(workflow.approver_id);
+          if (!approver?.email) continue;
+
           const emailData = {
-            to: workflow.approver.email,
+            to: approver.email,
             subject: `ESCALATION: Urgent Approval Pending - ${approval.title}`,
             template: 'approval-escalation',
             data: {
-              approverName: workflow.approver.name,
+              approverName: approver.name,
               approvalTitle: approval.title,
               approvalType: approval.approval_type,
               amount: approval.amount,
