@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from '@/lib/logger';
 import { 
   Building2, 
@@ -23,6 +24,7 @@ interface QuickAddClientModalProps {
 
 export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClientModalProps) {
   const queryClient = useQueryClient();
+  const { organisation, user } = useAuth();
   const [formData, setFormData] = useState({
     client_name: '',
     client_type: '',
@@ -37,13 +39,21 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
 
   const addClientMutation = useMutation({
     mutationFn: async (newClient: any) => {
+      if (!organisation?.id) {
+        throw new Error('Active organisation session not found. Please refresh and try again.');
+      }
       const { client_type, phone, ...rest } = newClient;
       const { data, error } = await supabase
         .from('clients')
         .insert([{
           ...rest,
+          client_type: client_type || 'Business',
           contact: phone,
-          client_id: `CL-${Date.now()}`,
+          name: newClient.client_name,
+          party_type: 'client',
+          client_id: `CLT-${Date.now().toString().slice(-6)}`,
+          organisation_id: organisation.id,
+          created_by: user?.id || null,
           created_at: new Date().toISOString()
         }])
         .select();
@@ -52,6 +62,9 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      if (organisation?.id) {
+        queryClient.invalidateQueries({ queryKey: ['clients', organisation.id] });
+      }
       toast.success('Client onboarded successfully');
       setFormData({
         client_name: '',

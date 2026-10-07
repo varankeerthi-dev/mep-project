@@ -961,7 +961,7 @@ export class ApprovalIntegration {
           break;
 
         case 'quotations':
-          await this.updateDocumentStatus('quotations', approval.reference_id, newStatus);
+          await this.updateDocumentStatus('quotation_header', approval.reference_id, status === 'APPROVED' ? 'Approved' : 'Rejected');
           if (status === 'APPROVED') {
             await this.triggerPostApprovalActions('QUOTATION', approval.reference_id);
           }

@@ -88,6 +88,8 @@ export interface QuotationHeader {
   status?: string
   negotiation_mode?: boolean
   revised_from_id?: string
+  source_id?: string | null
+  source_type?: string | null
   created_at?: string
   updated_at?: string
   client?: { id: string; client_name: string; gstin: string; state: string }

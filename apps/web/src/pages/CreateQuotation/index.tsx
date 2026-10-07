@@ -14,7 +14,8 @@ import { useConvertDocument, useConversionStatus, getSourceTableName } from '../
 import type { ConversionType } from '../../conversions/types';
 import ItemCreateDrawer from '../../components/ItemCreateDrawer';
 import { TermsConditionsDrawer } from '../../components/TermsConditionsDrawer';
-import { FileText, Plus, RotateCcw } from 'lucide-react';
+import { formatTermsTemplateToText } from '../../utils/termsHelper';
+import { FileText, Plus, RotateCcw, Loader2 } from 'lucide-react';
 import { AiDocumentParserModal } from '../../components/AiDocumentParserModal';
 import { ErectionSection } from '../../components/ErectionSection';
 import { Button } from '../../components/ui/button';
@@ -116,7 +117,7 @@ export default function CreateQuotation() {
     fetchProfile();
   }, [user?.id]);
   
-  const { data: materials = [] } = useMaterials();
+  const { data: materials = [], isLoading: materialsLoading } = useMaterials();
   const { data: clients = [] } = useClients();
   const { data: projects = [] } = useProjects();
   const { data: variants = [] } = useVariants();
@@ -229,7 +230,9 @@ export default function CreateQuotation() {
     status: 'Draft',
     negotiation_mode: false,
     authorized_signatory_id: '',
-    include_erection_charges: false
+    include_erection_charges: false,
+    terms_conditions: null,
+    terms_text: ''
   });
 
   const setFormData = useCallback((val: any) => {
@@ -781,6 +784,48 @@ export default function CreateQuotation() {
             };
           }));
         }
+      }
+
+      // Load Terms & Conditions
+      try {
+        const { data: termsRow } = await supabase
+          .from('quotation_terms_conditions')
+          .select('template_id, custom_content, template:terms_templates(id, name, sections)')
+          .eq('quotation_id', id)
+          .maybeSingle();
+
+        if (termsRow) {
+          let termsText = '';
+          let termsObj: any = termsRow.template || null;
+          if (termsRow.custom_content) {
+            let parsed = termsRow.custom_content;
+            if (typeof parsed === 'string') {
+              try { parsed = JSON.parse(parsed); } catch { /* noop */ }
+            }
+            if (typeof parsed === 'string') {
+              termsText = parsed;
+            } else if (parsed && typeof parsed === 'object') {
+              if (parsed.text) {
+                termsText = parsed.text;
+              } else {
+                termsText = formatTermsTemplateToText(parsed);
+              }
+              termsObj = parsed;
+            }
+          } else if (termsRow.template) {
+            termsText = formatTermsTemplateToText(termsRow.template);
+          }
+
+          if (termsText || termsObj) {
+            setFormData((prev: any) => ({
+              ...prev,
+              terms_conditions: termsObj || prev.terms_conditions,
+              terms_text: termsText || prev.terms_text || ''
+            }));
+          }
+        }
+      } catch (termsLoadErr) {
+        console.error('Error loading quotation terms:', termsLoadErr);
       }
     }
   };
@@ -1516,18 +1561,22 @@ export default function CreateQuotation() {
     setActiveImportSessionId(null);
   };
 
-  const DEFAULT_CLASSIFICATIONS = ['finished_good', 'goods_sold', 'consumable'];
-
   const filteredMaterials = useMemo(() => {
-    const search = itemSearch.toLowerCase();
-    const base = search
-      ? materials
-      : materials.filter((m: any) => DEFAULT_CLASSIFICATIONS.includes(m.item_classification));
-    return base.filter((m: any) =>
-      !search ||
-      m.name?.toLowerCase().includes(search) ||
-      m.item_code?.toLowerCase().includes(search) ||
-      m.display_name?.toLowerCase().includes(search)
+    const search = itemSearch.trim().toLowerCase();
+    const isSaleable = (m: any) => {
+      if (m.allow_sales === false) return false;
+      if (m.allow_sales === true) return true;
+      if (!m.item_classification) return true;
+      const upper = String(m.item_classification).toUpperCase();
+      return !['RAW_MATERIAL', 'WIP', 'TOOL', 'PLANT_MACHINERY', 'VEHICLE'].includes(upper);
+    };
+
+    const base = materials.filter(isSaleable);
+    if (!search) return base;
+    return base.filter(
+      (m: any) =>
+        (m.display_name || m.name || '').toLowerCase().includes(search) ||
+        (m.item_code || '').toLowerCase().includes(search)
     );
   }, [materials, itemSearch]);
 
@@ -1939,6 +1988,20 @@ export default function CreateQuotation() {
         variantDiscountsPayload[variantId] = parseFloat(discPercent as any) || 0;
       });
 
+      // Prepare Terms & Conditions payload
+      const termsConditionsPayload = (formData.terms_text?.trim() || formData.terms_conditions)
+        ? {
+            template_id: formData.terms_conditions?.id || null,
+            is_custom: true,
+            custom_content: {
+              text: formData.terms_text || '',
+              template_id: formData.terms_conditions?.id || null,
+              template_name: formData.terms_conditions?.name || null,
+              sections: formData.terms_conditions?.sections || null,
+            }
+          }
+        : null;
+
       if (editId) {
         const formattedItems = cleanItems.map((item) => ({
           item_id: item.item_id || null,
@@ -1969,6 +2032,7 @@ export default function CreateQuotation() {
           p_revision_no: formData.revision_no || 1,
           p_revision_history: formData.revision_history || [],
           p_variant_discounts: variantDiscountsPayload,
+          p_terms_conditions: termsConditionsPayload,
         });
 
         if (updateError) throw updateError;
@@ -2001,21 +2065,12 @@ export default function CreateQuotation() {
           p_reference: formData.reference || null,
           p_variant_discounts: variantDiscountsPayload,
           p_idempotency_key: idempotencyKeyRef.current,
+          p_terms_conditions: termsConditionsPayload,
         });
 
         if (rpcError) throw rpcError;
         quotationId = rpcData.quotation_id;
         setFormData((prev: any) => ({ ...prev, id: quotationId }));
-
-          if (formData.terms_conditions || formData.terms_text) {
-            supabase.from('quotation_terms_conditions').insert({
-              quotation_id: quotationId,
-              organisation_id: organisation?.id,
-              custom_content: JSON.stringify(formData.terms_conditions || { text: formData.terms_text }),
-              template_id: formData.terms_conditions?.id || null,
-              is_custom: true
-            }).then().catch(err => console.error('Error saving terms:', err));
-          }
 
         // Increment series atomically with optimistic lock (create path only)
         const seriesRow = await fetchDefaultSeriesRow().catch(() => null);
@@ -2026,7 +2081,24 @@ export default function CreateQuotation() {
           const updatedCfg = { ...cfg, quote: { ...quoteCfg, start_number: nextNo } };
           await supabase.from('document_series').update({ current_number: nextNo, configs: updatedCfg }).eq('id', seriesRow.id);
         }
+      }
 
+      // Ensure quotation_terms_conditions is saved (fallback for both create and update)
+      if (termsConditionsPayload && quotationId) {
+        try {
+          await supabase
+            .from('quotation_terms_conditions')
+            .upsert({
+              quotation_id: quotationId,
+              organisation_id: organisation?.id,
+              template_id: termsConditionsPayload.template_id,
+              custom_content: termsConditionsPayload.custom_content,
+              is_custom: true,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'quotation_id' });
+        } catch (termsSaveErr) {
+          console.error('Error saving quotation terms fallback:', termsSaveErr);
+        }
       }
 
       const rawItems = cleanItems.map((item, index) => {
@@ -2702,7 +2774,7 @@ export default function CreateQuotation() {
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_300px] gap-4">
           <div>
             <div className="card" style={{ padding: '12px', height: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContainer: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Notes & Remarks:</label>
               </div>
               <textarea 
@@ -2768,7 +2840,11 @@ export default function CreateQuotation() {
                     id="roundOffToggle"
                     style={{ width: '14px', height: '14px', cursor: 'pointer' }}
                     checked={formData.round_off_enabled} 
-                    onChange={(e) => setFormData({ ...formData, round_off_enabled: e.target.checked })} 
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      round_off_enabled: e.target.checked,
+                      round_off: e.target.checked ? 0 : (formData.round_off || 0)
+                    })} 
                   />
                   <label htmlFor="roundOffToggle" style={{ fontSize: '13px', cursor: 'pointer', userSelect: 'none', fontWeight: 500, color: '#4b5563' }}>Round Off</label>
                 </div>
@@ -2784,7 +2860,7 @@ export default function CreateQuotation() {
                     backgroundColor: formData.round_off_enabled ? '#f8fafc' : 'white',
                     color: formData.round_off_enabled ? '#64748b' : '#1e293b'
                   }} 
-                  value={calculations.roundOff.toFixed(2)} 
+                  value={formData.round_off_enabled ? calculations.roundOff.toFixed(2) : (formData.round_off ?? 0)} 
                   readOnly={formData.round_off_enabled}
                   onChange={(e) => !formData.round_off_enabled && setFormData({ ...formData, round_off: e.target.value })} 
                   step="0.01" 
@@ -3059,36 +3135,58 @@ export default function CreateQuotation() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredMaterials.map(material => {
-                        const itemId = material.id;
-                        const isSelected = itemId && pickerItems.some(p => p.item_id === itemId);
-                        return (
-                          <tr 
-                            key={material.id}
-                            style={{ cursor: isSelected ? 'default' : 'pointer', background: isSelected ? '#f0fdf4' : '#fff' }}
-                            onClick={() => {
-                              if (itemId && !isSelected) {
-                                handleAddItemToPicker(material);
-                              }
-                            }}
-                          >
-                            <td style={{ padding: '10px 8px', borderBottom: '1px solid #f1f5f9' }}>
-                              <div style={{ fontWeight: 500, color: '#1e293b' }}>{material.display_name || material.name}</div>
-                              <div style={{ fontSize: '11px', color: '#64748b' }}>{material.item_code}</div>
-                            </td>
-                            <td style={{ padding: '10px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', color: '#64748b' }}>
-                              {material.stock_on_hand ?? '-'}
-                            </td>
-                            <td style={{ padding: '10px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'center' }}>
-                              {isSelected ? (
-                                <span style={{ color: '#16a34a', fontSize: '14px' }}>✓</span>
-                              ) : (
-                                <button style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', cursor: 'pointer', fontSize: '11px', fontWeight: 500 }}>+</button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {materialsLoading ? (
+                        <tr>
+                          <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                              <span>Loading items...</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : filteredMaterials.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} style={{ padding: '36px 16px', textAlign: 'center', color: '#94a3b8' }}>
+                            {itemSearch ? 'No items match your search.' : 'No items found.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredMaterials.map(material => {
+                          const itemId = material.id;
+                          const isSelected = itemId && pickerItems.some(p => p.item_id === itemId);
+                          return (
+                            <tr 
+                              key={material.id}
+                              style={{ cursor: isSelected ? 'default' : 'pointer', background: isSelected ? '#f0fdf4' : '#fff' }}
+                              onClick={() => {
+                                if (itemId && !isSelected) {
+                                  handleAddItemToPicker(material);
+                                }
+                              }}
+                            >
+                              <td style={{ padding: '10px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                                <div style={{ fontWeight: 500, color: '#1e293b' }}>{material.display_name || material.name}</div>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>{material.item_code}</div>
+                              </td>
+                              <td style={{ padding: '10px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', color: '#64748b' }}>
+                                {material.stock_on_hand ?? '-'}
+                              </td>
+                              <td style={{ padding: '10px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'center' }}>
+                                {isSelected ? (
+                                  <span style={{ color: '#16a34a', fontSize: '14px', fontWeight: 'bold' }}>✓</span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', cursor: 'pointer', fontSize: '11px', fontWeight: 500 }}
+                                  >
+                                    +
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -3143,12 +3241,24 @@ export default function CreateQuotation() {
         <TermsConditionsDrawer
           isOpen={showTermsDrawer}
           onClose={() => setShowTermsDrawer(false)}
-          onSelect={(terms) => {
-            setFormData({
-              ...formData,
-              terms_conditions: terms.id,
-              terms_text: terms.terms_text
-            });
+          quotationId={editId || undefined}
+          initialTemplate={formData.terms_conditions || null}
+          onSave={(selectedTemplate) => {
+            const formattedText = formatTermsTemplateToText(selectedTemplate);
+            setFormData((prev: any) => ({
+              ...prev,
+              terms_conditions: selectedTemplate,
+              terms_text: formattedText || prev.terms_text
+            }));
+            setShowTermsDrawer(false);
+          }}
+          onSelect={(selectedTemplate) => {
+            const formattedText = formatTermsTemplateToText(selectedTemplate);
+            setFormData((prev: any) => ({
+              ...prev,
+              terms_conditions: selectedTemplate,
+              terms_text: formattedText || prev.terms_text
+            }));
             setShowTermsDrawer(false);
           }}
           documentType="Quotation"

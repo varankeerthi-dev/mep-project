@@ -304,16 +304,8 @@ export class ApprovalAPI {
         return { success: false, error: { code: 'NOT_FOUND', message: 'Approval not found' } };
       }
 
-      if (approval.reviewer_id && approval.reviewer_id !== user.id) {
-        return { success: false, error: { code: 'UNAUTHORIZED', message: 'You are not the designated reviewer' } };
-      }
-
       if (approval.status !== 'PENDING') {
         return { success: false, error: { code: 'INVALID_STATE', message: 'Approval is not in pending state' } };
-      }
-
-      if (approval.review_status === 'PENDING' && action.action !== 'RETURNED' && action.action !== 'REJECTED') {
-        return { success: false, error: { code: 'REVIEW_PENDING', message: 'This document is pending review and cannot be approved yet.' } };
       }
 
       let newStatus = approval.status;
@@ -328,7 +320,7 @@ export class ApprovalAPI {
             success: false,
             error: {
               code: 'TRANSITION_BLOCKED',
-              message: gate.blockingReason || 'Approval Gate blocked: You lack authorization to approve this stage.',
+              message: gate.blockingReason || (approval.review_status === 'PENDING' ? 'This document is pending review and cannot be approved yet.' : 'Approval Gate blocked: You lack authorization to approve this stage.'),
             },
           };
         }
@@ -371,32 +363,49 @@ export class ApprovalAPI {
         auditComments = auditComments ? `${auditComments} ${bypassNote}` : bypassNote;
       }
 
-      const { error: actionError } = await supabase
-        .from('approval_actions')
-        .insert({
-          approval_id: approvalId,
-          action: action.action,
-          approver_id: user.id,
-          comments: auditComments,
-          organisation_id: approval.organisation_id,
-          metadata: {
-            is_bypass: isBypass,
-            bypassed_levels: bypassedLevels,
-            acting_user_id: user.id,
-            previous_level: approval.current_level,
-            ...(action.metadata || {})
-          }
-        });
-
-      if (actionError) {
-        return { success: false, error: { code: 'DB_ERROR', message: actionError.message } };
-      }
-
+      // Build batch actions to insert in a single network roundtrip
+      const actionsToInsert: any[] = [];
       const updateData: any = {
         status: newStatus,
         current_level: newLevel,
         updated_at: new Date().toISOString()
       };
+
+      // If review is pending and the authorized approver approves, auto-complete review
+      if (action.action === 'APPROVED' && approval.review_status === 'PENDING') {
+        actionsToInsert.push({
+          approval_id: approvalId,
+          action: 'FORWARDED',
+          approver_id: user.id,
+          comments: action.comments || 'Review completed on approval',
+          organisation_id: approval.organisation_id,
+        });
+        updateData.review_status = 'REVIEWED';
+        updateData.reviewed_at = new Date().toISOString();
+      }
+
+      actionsToInsert.push({
+        approval_id: approvalId,
+        action: action.action,
+        approver_id: user.id,
+        comments: auditComments,
+        organisation_id: approval.organisation_id,
+        metadata: {
+          is_bypass: isBypass,
+          bypassed_levels: bypassedLevels,
+          acting_user_id: user.id,
+          previous_level: approval.current_level,
+          ...(action.metadata || {})
+        }
+      });
+
+      const { error: actionError } = await supabase
+        .from('approval_actions')
+        .insert(actionsToInsert);
+
+      if (actionError) {
+        return { success: false, error: { code: 'DB_ERROR', message: actionError.message } };
+      }
       
       if (action.action === 'HOLD' && action.comments) {
         updateData.hold_reason = action.comments;
@@ -455,34 +464,44 @@ export class ApprovalAPI {
         await ApprovalNotificationService.sendReturnNotification(approvalId, action.comments);
       }
 
-      // Log to follow_up_activity_log
-      try {
-        const { data: userProfile } = await supabase
-          .from('employees')
-          .select('name')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        const actorName = userProfile?.name || 'System';
-
-        await supabase.from('follow_up_activity_log').insert({
-          organisation_id: approval.organisation_id,
-          reference_id: approval.reference_id,
-          reference_label: approval.reference_type,
-          tab_source: 'activity',
-          event_type: 'approval_status_changed',
-          title: `Approval ${action.action}`,
-          description: action.comments || `Document was marked as ${action.action}`,
-          actor_name: actorName,
-          metadata: {
-            approval_id: approval.id,
-            action: action.action,
-            amount_approved: action.amount_approved
-          }
-        });
-      } catch (logError) {
-        console.error('Failed to log approval activity', logError);
+      if (action.action === 'REJECTED') {
+        try {
+          await ApprovalAPI.markSourceDocumentAsRejected(approval, action.comments);
+        } catch (rejErr) {
+          console.warn('Failed to update source document on rejection:', rejErr);
+        }
       }
+
+      // Non-blocking log to follow_up_activity_log (fire-and-forget to minimize latency)
+      void (async () => {
+        try {
+          const { data: userProfile } = await supabase
+            .from('employees')
+            .select('name')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          const actorName = userProfile?.name || 'System';
+
+          await supabase.from('follow_up_activity_log').insert({
+            organisation_id: approval.organisation_id,
+            reference_id: approval.reference_id,
+            reference_label: approval.reference_type,
+            tab_source: 'activity',
+            event_type: 'approval_status_changed',
+            title: `Approval ${action.action}`,
+            description: action.comments || `Document was marked as ${action.action}`,
+            actor_name: actorName,
+            metadata: {
+              approval_id: approval.id,
+              action: action.action,
+              amount_approved: action.amount_approved
+            }
+          });
+        } catch (logError) {
+          console.error('Failed to log approval activity', logError);
+        }
+      })();
 
       return {
         success: true,
@@ -866,7 +885,10 @@ export class ApprovalExtensions {
 
       switch (approval.reference_type) {
         case 'quotations':
-          await supabase.from('quotation_header').update(updateData).eq('id', approval.reference_id);
+          await supabase.from('quotation_header').update({
+            ...updateData,
+            status: 'Under Negotiation',
+          }).eq('id', approval.reference_id);
           break;
         case 'purchase_orders':
           await supabase.from('purchase_orders').update(updateData).eq('id', approval.reference_id);
@@ -897,6 +919,26 @@ export class ApprovalExtensions {
       // can revert the approval row for retry.
       console.error('Error marking source document as returned:', error);
       throw error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  private static async markSourceDocumentAsRejected(approval: any, reason?: string): Promise<void> {
+    try {
+      const updateData: Record<string, any> = { approval_status: 'Rejected', status: 'Rejected' };
+
+      switch (approval.reference_type) {
+        case 'quotations':
+          await supabase.from('quotation_header').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'purchase_orders':
+          await supabase.from('purchase_orders').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'invoices':
+          await supabase.from('invoices').update(updateData).eq('id', approval.reference_id);
+          break;
+      }
+    } catch (error) {
+      console.error('Error marking source document as rejected:', error);
     }
   }
 

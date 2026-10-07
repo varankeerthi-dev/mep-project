@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { parseTermsIntoLines } from '../utils/termsHelper';
 
 export const generateZohoTemplate = (data: any, organisation: any, templateSettings: any = null) => {
   const {
@@ -317,8 +318,10 @@ export const generateZohoTemplate = (data: any, organisation: any, templateSetti
     { label: 'Total', value: grand_total, isBold: true, isFinal: true }
   ];
 
-  const tncText   = terms_conditions ||
-    'Payment - Purchase Order & 100% Advance\nDelivery - 3-4 days\nFreight - Client scope';
+  const parsedTnc = parseTermsIntoLines(terms_conditions);
+  const tncText   = parsedTnc.length > 0
+    ? parsedTnc.join('\n')
+    : 'Payment - Purchase Order & 100% Advance\nDelivery - 3-4 days\nFreight - Client scope';
   const tncLines  = doc.splitTextToSize(tncText, 85);
   const tncHeight = tncLines.length * 3.8 + 8;
 

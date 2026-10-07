@@ -170,7 +170,18 @@ export function QuotationCard({ message }: Props) {
           <span className="font-semibold text-zinc-800">{formatCurrency(amount)}</span>
         )}
         {status ? (
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+          <span
+            className={cn(
+              'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+              status === 'PENDING_APPROVAL'
+                ? 'bg-red-100 text-red-700'
+                : status === 'Approved'
+                ? 'bg-emerald-100 text-emerald-700'
+                : status === 'Rejected'
+                ? 'bg-red-100 text-red-700'
+                : 'bg-zinc-100 text-zinc-600'
+            )}
+          >
             {status}
           </span>
         ) : null}

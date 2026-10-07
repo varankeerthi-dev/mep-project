@@ -17,8 +17,9 @@ describe('numberToWords', () => {
     expect(numberToWords(100)).toBe('One Hundred Only');
   });
 
-  it('rounds before converting', () => {
-    expect(numberToWords(1234.56)).toBe('One Thousand Two Hundred and Thirty Five Only');
+  it('converts numbers with decimals/paise without loss', () => {
+    expect(numberToWords(1234.56)).toBe('One Thousand Two Hundred and Thirty Four and Fifty Six Paise Only');
+    expect(numberToWords(1235.00)).toBe('One Thousand Two Hundred and Thirty Five Only');
   });
 
   it('handles large numbers up to crore', () => {

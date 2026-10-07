@@ -27,7 +27,7 @@ export interface DocConvertItem {
 
 interface DocumentActionsProps {
   submitForApproval?: { visible: boolean; onClick: () => void; loading?: boolean };
-  review?: { visible: boolean; onClick: () => void };
+  review?: { visible: boolean; onClick: () => void; label?: string; loading?: boolean };
   edit?: { visible: boolean; onClick: () => void };
   print?: { onClick: () => void; loading?: boolean };
   convertItems?: DocConvertItem[];
@@ -69,10 +69,15 @@ export function DocumentActions(props: DocumentActionsProps) {
       {review && review.visible && (
         <button
           onClick={review.onClick}
-          className="inline-flex items-center gap-1 h-8 px-2 rounded-md bg-emerald-600 text-white text-[13px] font-semibold hover:bg-emerald-700 transition-colors"
+          disabled={review.loading}
+          className="inline-flex items-center gap-1 h-8 px-2 rounded-md bg-emerald-600 text-white text-[13px] font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <CheckCircle className="w-[14px] h-[14px]" />
-          Review
+          {review.loading ? (
+            <Loader2 className="w-[14px] h-[14px] animate-spin" />
+          ) : (
+            <CheckCircle className="w-[14px] h-[14px]" />
+          )}
+          {review.label || 'Review'}
         </button>
       )}
       {edit && edit.visible && (

@@ -1,4 +1,5 @@
 import React from "react";
+import { parseTermsIntoLines } from "../utils/termsHelper";
 
 /* ---------------- CONFIG ---------------- */
 
@@ -244,28 +245,8 @@ export default function DocumentPreview({
             <div className="text-[10px] whitespace-pre-line">
               {(() => {
                 if (!data.terms_conditions) return '';
-                
-                try {
-                  const termsData = typeof data.terms_conditions === 'string' 
-                    ? JSON.parse(data.terms_conditions) 
-                    : data.terms_conditions;
-                  
-                  if (termsData && termsData.sections) {
-                    return termsData.sections.map((section: any, sectionIndex: number) => {
-                      const sectionTitle = `${sectionIndex + 1}. ${section.title}`;
-                      const items = section.items ? section.items.map((item: any, itemIndex: number) => {
-                        const prefix = item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`;
-                        return `   ${prefix} ${item.content}`;
-                      }).join('\n') : '';
-                      return `${sectionTitle}\n${items}`;
-                    }).join('\n\n');
-                  }
-                } catch (error) {
-                  // Fallback to plain text if JSON parsing fails
-                  return String(data.terms_conditions);
-                }
-                
-                return String(data.terms_conditions);
+                const lines = parseTermsIntoLines(data.terms_conditions);
+                return lines.join('\n');
               })()}
             </div>
           </div>

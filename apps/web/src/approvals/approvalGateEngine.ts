@@ -28,22 +28,34 @@ export async function getApprovalGateConfig(
   organisationId: string,
   approvalType: string
 ): Promise<ModuleGateConfig> {
-  const { data: settings = [] } = await supabase
-    .from('approval_settings')
-    .select('setting_key, setting_value')
-    .eq('organisation_id', organisationId)
-    .in('setting_key', [
-      approvalType,
-      `${approvalType}_WORKFLOW_MODE`,
-      `${approvalType}_EXECUTION_MODE`,
-      `${approvalType}_SINGLE_APPROVER_ID`,
-      `${approvalType}_SINGLE_MIN_AMOUNT`,
-      `${approvalType}_REQUIRES_REVIEW`,
-      `${approvalType}_REVIEWER_ID`,
-    ]);
+  const [settingsRes, workflowsRes] = await Promise.all([
+    supabase
+      .from('approval_settings')
+      .select('setting_key, setting_value')
+      .eq('organisation_id', organisationId)
+      .in('setting_key', [
+        approvalType,
+        `${approvalType}_WORKFLOW_MODE`,
+        `${approvalType}_EXECUTION_MODE`,
+        `${approvalType}_SINGLE_APPROVER_ID`,
+        `${approvalType}_SINGLE_MIN_AMOUNT`,
+        `${approvalType}_REQUIRES_REVIEW`,
+        `${approvalType}_REVIEWER_ID`,
+      ]),
+    supabase
+      .from('approval_workflows')
+      .select('*')
+      .eq('organisation_id', organisationId)
+      .eq('approval_type', approvalType)
+      .eq('is_active', true)
+      .order('level', { ascending: true }),
+  ]);
+
+  const settings = settingsRes.data || [];
+  const workflows = workflowsRes.data || [];
 
   const settingMap = new Map<string, string>();
-  (settings || []).forEach((row: any) => {
+  settings.forEach((row: any) => {
     settingMap.set(row.setting_key, row.setting_value);
   });
 
@@ -54,14 +66,6 @@ export async function getApprovalGateConfig(
   const singleMinAmount = Number(settingMap.get(`${approvalType}_SINGLE_MIN_AMOUNT`) || 0);
   const requiresReview = settingMap.get(`${approvalType}_REQUIRES_REVIEW`) === 'true';
   const reviewerId = settingMap.get(`${approvalType}_REVIEWER_ID`) || null;
-
-  const { data: workflows = [] } = await supabase
-    .from('approval_workflows')
-    .select('*')
-    .eq('organisation_id', organisationId)
-    .eq('approval_type', approvalType)
-    .eq('is_active', true)
-    .order('level', { ascending: true });
 
   return {
     enabled,

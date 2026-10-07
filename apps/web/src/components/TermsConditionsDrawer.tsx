@@ -3,6 +3,7 @@ import { X, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { formatTermsTemplateToText } from '@/utils/termsHelper';
 
 interface TermsSection {
   id: string;
@@ -34,16 +35,23 @@ interface TermsConditionsDrawerProps {
   onClose: () => void;
   quotationId?: string;
   initialTemplate?: TermsTemplate | null;
-  onSave: (termsData: any) => void;
+  onSave?: (termsData: any) => void;
+  onSelect?: (termsData: any) => void;
+  documentType?: string;
 }
 
-export function TermsConditionsDrawer({ isOpen, onClose, quotationId, initialTemplate, onSave }: TermsConditionsDrawerProps) {
+export function TermsConditionsDrawer({ isOpen, onClose, quotationId, initialTemplate, onSave, onSelect }: TermsConditionsDrawerProps) {
   const { organisation } = useAuth();
   const [templates, setTemplates] = useState<TermsTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<TermsTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+
+  const handleNotifySave = (template: TermsTemplate) => {
+    if (onSave) onSave(template);
+    if (onSelect) onSelect(template);
+  };
 
   useEffect(() => {
     if (isOpen && organisation) {
@@ -60,7 +68,7 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, initialTem
       const { data: templatesData, error: templatesError } = await supabase
         .from('terms_conditions_templates')
         .select('*')
-        .eq('organisation_id', organisation.id)
+        .or(`organisation_id.eq.${organisation.id},organisation_id.is.null`)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
@@ -69,24 +77,34 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, initialTem
       const templatesWithSections: TermsTemplate[] = [];
       
       for (const template of templatesData || []) {
-        const { data: sectionsData, error: sectionsError } = await supabase
+        let secQuery = supabase
           .from('terms_conditions_sections')
           .select('*')
           .eq('template_id', template.id)
-          .eq('organisation_id', organisation.id)
           .order('display_order', { ascending: true });
+
+        if (template.organisation_id) {
+          secQuery = secQuery.eq('organisation_id', template.organisation_id);
+        }
+
+        const { data: sectionsData, error: sectionsError } = await secQuery;
 
         if (sectionsError) throw sectionsError;
 
         const sections: TermsSection[] = [];
         
         for (const section of sectionsData || []) {
-          const { data: itemsData, error: itemsError } = await supabase
+          let itemQuery = supabase
             .from('terms_conditions_items')
             .select('*')
             .eq('section_id', section.id)
-            .eq('organisation_id', organisation.id)
             .order('display_order', { ascending: true });
+
+          if (section.organisation_id) {
+            itemQuery = itemQuery.eq('organisation_id', section.organisation_id);
+          }
+
+          const { data: itemsData, error: itemsError } = await itemQuery;
 
           if (itemsError) throw itemsError;
 
@@ -248,48 +266,33 @@ export function TermsConditionsDrawer({ isOpen, onClose, quotationId, initialTem
   const saveTermsToQuotation = async () => {
     if (!selectedTemplate) return;
 
+    const payload = {
+      ...selectedTemplate,
+      text: formatTermsTemplateToText(selectedTemplate),
+    };
+
     if (!quotationId) {
-      onSave(selectedTemplate);
+      handleNotifySave(payload);
       onClose();
       return;
     }
 
     setSaving(true);
     try {
-      const { data: existingTerms, error: checkError } = await supabase
+      const { error } = await supabase
         .from('quotation_terms_conditions')
-        .select('id')
-        .eq('quotation_id', quotationId)
-        .maybeSingle();
-
-      let error;
-      
-      if (existingTerms) {
-        const { error: updateError } = await supabase
-          .from('quotation_terms_conditions')
-          .update({
-            custom_content: JSON.stringify(selectedTemplate),
-            template_id: selectedTemplate.id,
-            is_custom: true
-          })
-          .eq('quotation_id', quotationId);
-        error = updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from('quotation_terms_conditions')
-          .insert({
-            quotation_id: quotationId,
-            organisation_id: organisation?.id,
-            custom_content: JSON.stringify(selectedTemplate),
-            template_id: selectedTemplate.id,
-            is_custom: true
-          });
-        error = insertError;
-      }
+        .upsert({
+          quotation_id: quotationId,
+          organisation_id: organisation?.id,
+          custom_content: payload,
+          template_id: selectedTemplate.id,
+          is_custom: true,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'quotation_id' });
 
       if (error) throw error;
 
-      onSave(selectedTemplate);
+      handleNotifySave(payload);
       onClose();
     } catch (error) {
       console.error('Error saving terms:', error);

@@ -46,6 +46,8 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Cancelled:          { bg: '#fee2e2', color: '#991b1b' },
   Expired:            { bg: '#f3f4f6', color: '#9ca3af' },
   INVOICED:           { bg: '#d1fae5', color: '#065f46' },
+  PENDING_APPROVAL:   { bg: '#fee2e2', color: '#b91c1c' },
+  'Pending Approval': { bg: '#fee2e2', color: '#b91c1c' },
 };
 
 const getStatusColor = (status?: string) =>

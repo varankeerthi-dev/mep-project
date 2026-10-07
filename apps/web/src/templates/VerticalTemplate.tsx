@@ -1,6 +1,7 @@
 import React from "react";
 import DOMPurify from 'dompurify';
 import { formatCurrency, formatDate } from "../utils/formatters";
+import { parseTermsIntoLines } from "../utils/termsHelper";
 
 /* ---------------- HELPERS ---------------- */
 
@@ -678,66 +679,17 @@ export default function VerticalTemplate({
             __html: DOMPurify.sanitize((() => {
               let termsText = '';
               
-              // Handle new Terms & Conditions format
               if (data.terms_conditions) {
-                console.log('VerticalTemplate: Processing terms_conditions:', data.terms_conditions);
-                console.log('Type:', typeof data.terms_conditions);
-                console.log('Stringified:', JSON.stringify(data.terms_conditions, null, 2));
-                try {
-                  let termsData = data.terms_conditions;
-                  
-                  // Handle if it's a string that needs parsing
-                  if (typeof termsData === 'string') {
-                    console.log('Parsing string terms data');
-                    termsData = JSON.parse(termsData);
-                  }
-                  
-                  console.log('Processed termsData:', termsData);
-                  console.log('Is array:', Array.isArray(termsData));
-                  console.log('Has sections:', termsData?.sections);
-                  console.log('Keys:', termsData ? Object.keys(termsData) : 'null');
-                  
-                  // Handle actual database structure
-                  if (Array.isArray(termsData)) {
-                    // Direct array of sections
-                    termsText = termsData.map((section: any, sectionIndex: number) => {
-                      const sectionTitle = `${sectionIndex + 1}. ${section.title}`;
-                      const items = section.items ? section.items.map((item: any, itemIndex: number) => {
-                        const prefix = item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`;
-                        return `   ${prefix} ${item.content}`;
-                      }).join('\n') : '';
-                      return `${sectionTitle}\n${items}`;
-                    }).join('\n\n');
-                  } else if (termsData && termsData.sections) {
-                    // Nested structure with sections property
-                    termsText = termsData.sections.map((section: any, sectionIndex: number) => {
-                      const sectionTitle = `${sectionIndex + 1}. ${section.title}`;
-                      const items = section.items ? section.items.map((item: any, itemIndex: number) => {
-                        const prefix = item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`;
-                        return `   ${prefix} ${item.content}`;
-                      }).join('\n') : '';
-                      return `${sectionTitle}\n${items}`;
-                    }).join('\n\n');
-                  } else {
-                    // Fallback: treat as plain text
-                    console.log('Using fallback plain text for terms');
-                    termsText = String(data.terms_conditions);
-                  }
-                } catch (error) {
-                  console.error('Error parsing terms conditions:', error);
-                  // Fallback to plain text if JSON parsing fails
-                  console.log('Using fallback plain text due to error');
-                  termsText = String(data.terms_conditions);
+                const lines = parseTermsIntoLines(data.terms_conditions);
+                if (lines.length > 0) {
+                  termsText = lines.join('\n');
                 }
               }
               
-              // Fallback to organisation terms if no quotation terms
               if (!termsText) {
-                console.log('No terms text found, using organisation terms or default');
                 termsText = organisation.terms_conditions || 'Standard terms and conditions apply.';
               }
               
-              console.log('Final termsText:', termsText);
               return termsText.replace(/\n/g, '<br/>');
             })())
           }} />

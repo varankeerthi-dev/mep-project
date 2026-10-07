@@ -370,9 +370,9 @@ export const Approvals: React.FC<{ isDemo?: boolean }> = ({ isDemo = false }) =>
 
         // 3. Update source document on final approval
         if (isFinal && item.reference_id && item.reference_type) {
-          const table = item.reference_type;
+          const table = item.reference_type === 'quotations' ? 'quotation_header' : item.reference_type;
           const statusCol =
-            table === 'purchase_orders' ? 'status' : table === 'quotations' ? 'status' : 'approval_status';
+            table === 'purchase_orders' ? 'status' : table === 'quotation_header' ? 'status' : 'approval_status';
           await supabase.from(table).update({ [statusCol]: 'Approved' }).eq('id', item.reference_id);
         }
       } else {
@@ -399,9 +399,9 @@ export const Approvals: React.FC<{ isDemo?: boolean }> = ({ isDemo = false }) =>
         if (updateErr) throw updateErr;
 
         if (item.reference_id && item.reference_type) {
-          const table = item.reference_type;
+          const table = item.reference_type === 'quotations' ? 'quotation_header' : item.reference_type;
           const statusCol =
-            table === 'purchase_orders' ? 'status' : table === 'quotations' ? 'status' : 'approval_status';
+            table === 'purchase_orders' ? 'status' : table === 'quotation_header' ? 'status' : 'approval_status';
           await supabase.from(table).update({ [statusCol]: 'Rejected' }).eq('id', item.reference_id);
         }
       }

@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ensureRobotoFontsForJsPdf } from './registerRobotoFonts';
+import { parseTermsIntoLines } from '../utils/termsHelper';
 
 // Helper to convert URL to base64 safely
 async function getBase64ImageFromUrl(imageUrl: string): Promise<{ dataUrl: string; width: number; height: number }> {
@@ -245,8 +246,30 @@ export async function generateSakthiPdf(
 ): Promise<jsPDF> {
   const norm = normalizeDocumentData(rawDocData, organisation, docType);
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  await ensureRobotoFontsForJsPdf(doc);
-  doc.setFont('Roboto', 'normal');
+  let fontName = 'helvetica';
+  try {
+    await ensureRobotoFontsForJsPdf(doc);
+    const fontList = doc.getFontList();
+    if (fontList && fontList['Roboto']) {
+      fontName = 'Roboto';
+    }
+  } catch {
+    fontName = 'helvetica';
+  }
+
+  try {
+    doc.setFont(fontName, 'normal');
+  } catch {
+    doc.setFont('helvetica', 'normal');
+  }
+
+  const setFont = (style: string = 'normal') => {
+    try {
+      doc.setFont(fontName, (style === 'medium' ? 'normal' : style) as any);
+    } catch {
+      doc.setFont('helvetica', (style === 'medium' ? 'normal' : style) as any);
+    }
+  };
   const pageWidth = doc.internal.pageSize.getWidth();
 
   // Try to load logo if available
@@ -262,7 +285,7 @@ export async function generateSakthiPdf(
 
   // 1. Draw Header
   // Document Title at the very top centered (Bold)
-  doc.setFont('Roboto', 'bold');
+  setFont('bold');
   doc.setFontSize(13);
   doc.setTextColor(38, 73, 76); // Dark Teal Color `#26494c`
   doc.text(docType.toUpperCase(), pageWidth / 2, 10, { align: 'center' });
@@ -289,20 +312,20 @@ export async function generateSakthiPdf(
   }
 
   // Centered Company Name (Bold)
-  doc.setFont('Roboto', 'bold');
+  setFont('bold');
   doc.setFontSize(14);
   doc.setTextColor(38, 73, 76);
   doc.text('SAKTHI SOLUTIONS & SERVICES', pageWidth / 2, 19, { align: 'center' });
 
   // Centered Company Address (Normal)
-  doc.setFont('Roboto', 'normal');
+  setFont('normal');
   doc.setFontSize(8.5);
   doc.setTextColor(0, 0, 0);
   const addrLines = doc.splitTextToSize(norm.company.companyAddress, pageWidth - 65);
   doc.text(addrLines, pageWidth / 2, 23.5, { align: 'center' });
 
   // Centered Contact Details (GSTIN, PAN, Phone, Email) - split in 2 lines (Normal)
-  doc.setFont('Roboto', 'normal');
+  setFont('normal');
   doc.setFontSize(7.5);
   doc.setTextColor(80, 80, 80);
   const line1Parts = [];
@@ -331,19 +354,19 @@ export async function generateSakthiPdf(
   const metaStartY = y;
   
   // Left Column: Customer or Vendor Details (Bold section title)
-  doc.setFont('Roboto', 'bold');
+  setFont('bold');
   doc.setFontSize(9);
   doc.setTextColor(38, 73, 76);
   doc.text((norm.client as any).partyHeader || 'Customer Details:', 12, y);
   
   // Party Name (Bold emphasis)
-  doc.setFont('Roboto', 'bold');
+  setFont('bold');
   doc.setFontSize(9.5);
   doc.setTextColor(0, 0, 0);
   doc.text(norm.client.clientName.toUpperCase(), 12, y + 5);
 
   // Party Address (Normal)
-  doc.setFont('Roboto', 'normal');
+  setFont('normal');
   doc.setFontSize(8.5);
   doc.setTextColor(60, 60, 60);
   const clientAddrLines = doc.splitTextToSize(norm.client.clientAddress, 85);
@@ -352,18 +375,18 @@ export async function generateSakthiPdf(
   const clientAddrHeight = clientAddrLines.length * 3.8;
   if (norm.client.clientGstin) {
     // GSTIN label Medium, value Normal
-    doc.setFont('Roboto', 'medium');
+    setFont('medium');
     doc.setFontSize(8.5);
     doc.setTextColor(0, 0, 0);
     doc.text('GSTIN: ', 12, y + 10 + clientAddrHeight + 1);
     const gstinLabelW = doc.getTextWidth('GSTIN: ');
-    doc.setFont('Roboto', 'normal');
+    setFont('normal');
     doc.text(norm.client.clientGstin, 12 + gstinLabelW, y + 10 + clientAddrHeight + 1);
   }
 
   // Right Column: Document Details (Bold section title)
   let rightY = metaStartY;
-  doc.setFont('Roboto', 'bold');
+  setFont('bold');
   doc.setFontSize(9);
   doc.setTextColor(38, 73, 76);
   doc.text(norm.details.docTitle, 110, rightY);
@@ -377,12 +400,12 @@ export async function generateSakthiPdf(
 
   docDetails.forEach((item) => {
     rightY += 5;
-    doc.setFont('Roboto', 'medium');
+    setFont('medium');
     doc.setFontSize(8.5);
     doc.setTextColor(0, 0, 0);
     doc.text(item.label, 110, rightY);
     doc.text(':', 142, rightY);
-    doc.setFont('Roboto', 'normal');
+    setFont('normal');
     doc.text(String(item.value), 145, rightY);
   });
 
@@ -500,7 +523,7 @@ export async function generateSakthiPdf(
     headStyles: {
       fillColor: [255, 255, 255], // Remove header background color (White)
       textColor: [38, 73, 76],    // Dark Teal Text Color
-      font: 'Roboto',
+      font: fontName,
       fontStyle: 'bold',
       fontSize: 8.5,
       halign: 'center',
@@ -509,7 +532,7 @@ export async function generateSakthiPdf(
       lineWidth: 0.15
     },
     styles: {
-      font: 'Roboto',
+      font: fontName,
       fontStyle: 'normal',
       fontSize: 8,
       cellPadding: 1.2,
@@ -564,7 +587,7 @@ export async function generateSakthiPdf(
     body: totalsRows,
     theme: 'grid',
     styles: {
-      font: 'Roboto',
+      font: fontName,
       fontStyle: 'normal',
       fontSize: 8,
       cellPadding: 1.8,
@@ -572,8 +595,8 @@ export async function generateSakthiPdf(
       lineWidth: 0.15
     },
     columnStyles: {
-      0: { cellWidth: 45, halign: 'right', font: 'Roboto', fontStyle: 'medium' },
-      1: { cellWidth: 30, halign: 'right', font: 'Roboto', fontStyle: 'normal' }
+      0: { cellWidth: 45, halign: 'right', font: fontName, fontStyle: 'bold' },
+      1: { cellWidth: 30, halign: 'right', font: fontName, fontStyle: 'normal' }
     },
     showHead: false,
     didDrawPage: (data) => {
@@ -585,7 +608,7 @@ export async function generateSakthiPdf(
       // Total Amount row styling (Bold emphasis)
       if (data.row.index === totalsRows.length - 1) {
         data.cell.styles.fillColor = [241, 245, 249];
-        data.cell.styles.font = 'Roboto';
+        data.cell.styles.font = fontName;
         data.cell.styles.fontStyle = 'bold';
         data.cell.styles.fontSize = 8.5;
       }
@@ -593,28 +616,7 @@ export async function generateSakthiPdf(
   });
 
   // 5. Terms & Conditions (Left side of Total table with 9px font) & Bank Details
-  const termsList: string[] = [];
-  if (rawDocData.terms_conditions || rawDocData.terms) {
-    try {
-      const termsObj = typeof rawDocData.terms_conditions === 'string'
-        ? JSON.parse(rawDocData.terms_conditions)
-        : (rawDocData.terms_conditions || rawDocData.terms);
-        
-      if (termsObj && termsObj.sections) {
-        termsObj.sections.forEach((sec: any) => {
-          if (sec.items) {
-            sec.items.forEach((it: any) => termsList.push(it.content));
-          }
-        });
-      } else if (Array.isArray(termsObj)) {
-        termsList.push(...termsObj.map(t => typeof t === 'string' ? t : t.content || ''));
-      } else if (typeof termsObj === 'string') {
-        termsList.push(...termsObj.split('\n').filter(Boolean));
-      }
-    } catch {
-      termsList.push(...String(rawDocData.terms_conditions || rawDocData.terms || '').split('\n').filter(Boolean));
-    }
-  }
+  const termsList: string[] = parseTermsIntoLines(rawDocData.terms_conditions || rawDocData.terms);
 
   // Fallback default terms if empty
   if (termsList.length === 0) {
@@ -633,13 +635,13 @@ export async function generateSakthiPdf(
   let currentTermsY = totalsStartY + 3.5;
 
   // Draw Terms & Conditions with 9px Roboto fonts
-  doc.setFont('Roboto', 'bold');
+  setFont('bold');
   doc.setFontSize(9);
   doc.setTextColor(38, 73, 76);
   doc.text('Terms and Conditions:', leftColX, currentTermsY);
   currentTermsY += 4.5;
 
-  doc.setFont('Roboto', 'normal');
+  setFont('normal');
   doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
 
@@ -653,7 +655,7 @@ export async function generateSakthiPdf(
 
   // Draw Bank Details below Terms & Conditions on the left
   let currentBankY = currentTermsY + 2.5;
-  doc.setFont('Roboto', 'bold');
+  setFont('bold');
   doc.setFontSize(8.5);
   doc.setTextColor(38, 73, 76);
   doc.text('Bank Details:', leftColX, currentBankY);
@@ -669,17 +671,17 @@ export async function generateSakthiPdf(
   ];
 
   bankItems.forEach((item) => {
-    doc.setFont('Roboto', 'medium');
+    setFont('medium');
     doc.text(item.label, leftColX, currentBankY);
     const labelW = doc.getTextWidth(item.label);
-    doc.setFont('Roboto', 'normal');
+    setFont('normal');
     doc.text(item.value, leftColX + labelW, currentBankY);
     currentBankY += 3.6;
   });
 
   // Draw Authorised Signatory Block on the right side below Totals table (centered under Totals table)
   let currentRightY = totalsEndY + 3;
-  doc.setFont('Roboto', 'medium');
+  setFont('medium');
   doc.setFontSize(8.5);
   doc.setTextColor(38, 73, 76);
   const forText = `For ${organisation.name || 'SAKTHI SOLUTIONS & SERVICES'}`;
@@ -692,7 +694,7 @@ export async function generateSakthiPdf(
   // Space for signature
   currentRightY += 12;
 
-  doc.setFont('Roboto', 'bold');
+  setFont('bold');
   doc.setFontSize(8.5);
   doc.setTextColor(0, 0, 0);
   doc.text('Authorised Signatory', 145, currentRightY);

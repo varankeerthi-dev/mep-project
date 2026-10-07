@@ -78,10 +78,9 @@ const TENS = [
   '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety',
 ];
 
-function inWords(n: number | string): string {
-  const num = Number(n);
-  if (num === 0) return 'Zero Only';
-  const str = String(Math.round(num));
+function convertInteger(num: number): string {
+  if (num === 0) return '';
+  const str = String(num);
   if (str.length > 9) return 'overflow';
   const padded = ('000000000' + str).substr(-9);
   const match = padded.match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
@@ -108,11 +107,26 @@ function inWords(n: number | string): string {
   if (tens !== 0) {
     result += (result !== '' ? 'and ' : '') + (ONES[tens] || TENS[Math.floor(tens / 10)] + ' ' + ONES[tens % 10]);
   }
-  return result.trim() + ' Only';
+  return result.trim();
 }
 
-export function numberToWords(num: number): string {
-  return inWords(Math.round(num));
+export function numberToWords(n: number | string): string {
+  const num = Number(n);
+  if (!Number.isFinite(num) || num === 0) return 'Zero Only';
+  const absNum = Math.abs(num);
+  const intPart = Math.floor(absNum);
+  const paise = Math.round((absNum - intPart) * 100);
+
+  const rupeesWords = intPart > 0 ? convertInteger(intPart) : '';
+  const paiseWords = paise > 0 ? convertInteger(paise) : '';
+
+  if (rupeesWords && paiseWords) {
+    return `${rupeesWords} and ${paiseWords} Paise Only`;
+  }
+  if (paiseWords) {
+    return `${paiseWords} Paise Only`;
+  }
+  return `${rupeesWords || 'Zero'} Only`;
 }
 
 export function calculateLineItem(item: QuotationItem): LineCalculationResult {

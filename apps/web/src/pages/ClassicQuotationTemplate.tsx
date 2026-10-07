@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { parseTermsIntoLines } from '../utils/termsHelper';
 
 export const generateClassicQuotationTemplate = (data: any, organisation: any, templateSettings: any = null) => {
   // Extract template settings
@@ -609,26 +610,10 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
   if (showTandC) {
     let termsText = '';
     
-    // Handle new Terms & Conditions format
     if (terms_conditions) {
-      try {
-        const termsData = typeof terms_conditions === 'string' 
-          ? JSON.parse(terms_conditions) 
-          : terms_conditions;
-        
-        if (termsData && termsData.sections) {
-          termsText = termsData.sections.map((section: any, sectionIndex: number) => {
-            const sectionTitle = `${sectionIndex + 1}. ${section.title}`;
-            const items = section.items ? section.items.map((item: any, itemIndex: number) => {
-              const prefix = item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`;
-              return `   ${prefix} ${item.content}`;
-            }).join('\n') : '';
-            return `${sectionTitle}\n${items}`;
-          }).join('\n\n');
-        }
-      } catch (error) {
-        // Fallback to plain text if JSON parsing fails
-        termsText = String(terms_conditions);
+      const lines = parseTermsIntoLines(terms_conditions);
+      if (lines.length > 0) {
+        termsText = lines.join('\n');
       }
     }
     

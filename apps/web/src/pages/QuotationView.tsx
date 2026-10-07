@@ -3,7 +3,8 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Button } from '../components/ui/button';
 import DOMPurify from 'dompurify';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { supabase } from '../supabase';
 import { duplicateQuotation } from '../api';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -23,10 +24,14 @@ import { initiateQuotationRevision } from '../lib/quotation-workflow';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../components/ui/resizable';
 import DocumentSettingsDrawer from '../components/document-settings/DocumentSettingsDrawer';
 import { numberToInrWords } from '../pdf/numberToWords';
+import { parseTermsIntoLines } from '../utils/termsHelper';
 import { RevisionHistoryDialog } from '../components/RevisionHistoryDialog';
 import { generateQuotationPdf } from '../pdf/enterpriseQuotationPdf';
 import { generateSakthiPdf } from '../pdf/sakthiTemplatePdf';
-import { htmlToPdf } from '../utils/htmlTemplateRenderer';
+import { generateZohoTemplate } from './ZohoTemplate';
+import { generateClassicQuotationTemplate } from './ClassicQuotationTemplate';
+import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
+import { htmlToPdf, renderTemplateToPdf } from '../utils/htmlTemplateRenderer';
 import { QuotationRevisionCompareModal } from '../components/QuotationRevisionCompareModal';
 import { FloatingQuoteChat } from '../projects/features/collaboration/components/FloatingQuoteChat';
 import { DocumentTimeline } from '../components/document/DocumentTimeline';
@@ -38,7 +43,7 @@ const getStatusBadge = (status) => {
     'Sent': { bg: '#dbeafe', color: '#1e40af' },
     'Under Negotiation': { bg: '#fef3c7', color: '#b45309' },
     'Approved': { bg: '#d1fae5', color: '#047857' },
-    'PENDING_APPROVAL': { bg: '#fef3c7', color: '#d97706' },
+    'PENDING_APPROVAL': { bg: '#fee2e2', color: '#b91c1c' },
     'Rejected': { bg: '#fee2e2', color: '#dc2626' },
     'Converted': { bg: '#dbeafe', color: '#1e40af' },
     'Cancelled': { bg: '#fee2e2', color: '#991b1b' },
@@ -88,7 +93,8 @@ const LIST_STATUS_STYLE: Record<string, { bg: string; color: string }> = {
   Approved: { bg: '#D1FAE5', color: '#047857' },
   Expired: { bg: '#FEE2E2', color: '#B91C1C' },
   'Under Negotiation': { bg: '#FEF3C7', color: '#B45309' },
-  PENDING_APPROVAL: { bg: '#FEF3C7', color: '#B45309' },
+  PENDING_APPROVAL: { bg: '#FEE2E2', color: '#B91C1C' },
+  'Pending Approval': { bg: '#FEE2E2', color: '#B91C1C' },
   Rejected: { bg: '#FEE2E2', color: '#B91C1C' },
   Converted: { bg: '#DBEAFE', color: '#1D4ED8' },
   Cancelled: { bg: '#F3F4F6', color: '#9CA3AF' },
@@ -99,6 +105,7 @@ export default function QuotationView() {
   const [searchParams] = useSearchParams();
   const quotationId = searchParams.get('id');
   const { organisation, user } = useAuth();
+  const queryClient = useQueryClient();
   
   const isEmbed = searchParams.get('embed') === 'true';
   const [embedPdfUrl, setEmbedPdfUrl] = useState<string | null>(null);
@@ -109,6 +116,8 @@ export default function QuotationView() {
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [reviewComments, setReviewComments] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewActionType, setReviewActionType] = useState<'APPROVED' | 'REJECTED' | 'RETURNED' | 'REVIEWED' | null>(null);
+  const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
   const [showStockCheckModal, setShowStockCheckModal] = useState(false);
   const [launchingStockCheck, setLaunchingStockCheck] = useState(false);
   // Informational stock availability (display-only - no reservations, no writes)
@@ -264,6 +273,13 @@ export default function QuotationView() {
     () => (quoteApprovalsQuery.data || []).map((a: any) => a.id),
     [quoteApprovalsQuery.data]
   );
+
+  const activeApproval = useMemo(() => {
+    const list = quoteApprovalsQuery.data || [];
+    return (quotation?.approval_id ? list.find((a: any) => a.id === quotation.approval_id) : null) || list[list.length - 1] || null;
+  }, [quoteApprovalsQuery.data, quotation?.approval_id]);
+
+  const isReviewPending = activeApproval?.review_status === 'PENDING';
 
   const quoteApprovalActionsQuery = useQuery({
     queryKey: ['quotation-approval-actions', quotationId, quoteApprovalIds.join('|')],
@@ -692,16 +708,31 @@ export default function QuotationView() {
 
   const handleApprovalAction = async (action: 'APPROVED' | 'REJECTED' | 'RETURNED', comments?: string) => {
     if (!quotationId || !quotation) return;
-    
+    const targetApprovalId = quotation.approval_id || activeApproval?.id || quotationId;
+    const previousStatus = quotation.status;
+    const optimisticStatus = action === 'APPROVED' ? 'Approved' : action === 'REJECTED' ? 'Rejected' : 'Under Negotiation';
+
+    // 1. Instant optimistic update: badge & actions update in 0ms
+    queryClient.setQueryData(['quotation', quotationId, organisation?.id], (old: any) => {
+      if (!old) return old;
+      return { ...old, status: optimisticStatus };
+    });
+
+    const toastId = toast.loading(`${action === 'APPROVED' ? 'Approving' : action === 'REJECTED' ? 'Rejecting' : 'Returning'} quotation...`);
+
     try {
       const res = await ApprovalAPI.processApproval(
-        quotation.approval_id || quotationId,
+        targetApprovalId,
         { action, comments: comments || (action === 'APPROVED' ? 'Approved via quotation view' : action === 'REJECTED' ? 'Rejected via quotation view' : 'Changes requested via quotation view') }
       );
 
       if (res.success) {
-        alert(`Quotation ${action.toLowerCase()} successfully!`);
-        quotationQuery.refetch();
+        toast.success(`Quotation ${action.toLowerCase()} successfully!`, { id: toastId });
+        // Background sync to ensure all related tabs and data stay fresh
+        void Promise.all([
+          quotationQuery.refetch(),
+          quoteApprovalsQuery.refetch(),
+        ]);
         if (quotation.project_id) {
           const ev = action === 'APPROVED' ? 'approved' : action === 'REJECTED' ? 'rejected' : 'returned';
           postQuotationChannelCard(quotationId, ev).catch((err: any) => {
@@ -709,29 +740,86 @@ export default function QuotationView() {
           });
         }
       } else {
-        alert(res.error?.message || `Failed to ${action.toLowerCase()} quotation`);
+        // Rollback optimistic state on rejection/error
+        queryClient.setQueryData(['quotation', quotationId, organisation?.id], (old: any) => {
+          if (!old) return old;
+          return { ...old, status: previousStatus };
+        });
+        toast.error(res.error?.message || `Failed to ${action.toLowerCase()} quotation`, { id: toastId });
       }
     } catch (error) {
+      queryClient.setQueryData(['quotation', quotationId, organisation?.id], (old: any) => {
+        if (!old) return old;
+        return { ...old, status: previousStatus };
+      });
       console.error('Error processing approval:', error);
-      alert('Error processing approval. Please try again.');
+      toast.error('Error processing approval. Please try again.', { id: toastId });
     }
   };
 
   const submitReview = async (action: 'APPROVED' | 'REJECTED' | 'RETURNED') => {
-    if (!reviewComments.trim()) return;
+    if (action !== 'APPROVED' && !reviewComments.trim()) {
+      toast.error(`Please enter a comment to ${action === 'REJECTED' ? 'reject' : 'request changes'}`);
+      return;
+    }
+    const comments = reviewComments.trim() || (action === 'APPROVED' ? 'Approved via quotation view' : '');
     setReviewSubmitting(true);
+    setReviewActionType(action);
     try {
-      await handleApprovalAction(action, reviewComments.trim());
+      await handleApprovalAction(action, comments);
       setShowReviewDialog(false);
       setReviewComments('');
     } finally {
       setReviewSubmitting(false);
+      setReviewActionType(null);
+    }
+  };
+
+  const handleReviewOnly = async () => {
+    const targetApprovalId = quotation?.approval_id || activeApproval?.id;
+    if (!targetApprovalId) {
+      toast.error('Approval record not found');
+      return;
+    }
+    const comments = reviewComments.trim() || 'Reviewed line items and terms';
+    setReviewSubmitting(true);
+    setReviewActionType('REVIEWED');
+    const toastId = toast.loading('Marking quotation as reviewed...');
+
+    try {
+      const res = await ApprovalAPI.submitReviewAction(targetApprovalId, 'REVIEWED', comments);
+      if (res.success) {
+        toast.success('Quotation marked as reviewed and forwarded for approval!', { id: toastId });
+        void Promise.all([
+          quotationQuery.refetch(),
+          quoteApprovalsQuery.refetch(),
+        ]);
+        setShowReviewDialog(false);
+        setReviewComments('');
+      } else {
+        toast.error(res.error?.message || 'Failed to complete review', { id: toastId });
+      }
+    } catch (error: any) {
+      console.error('Error submitting review:', error);
+      toast.error('Error submitting review: ' + (error?.message || error), { id: toastId });
+    } finally {
+      setReviewSubmitting(false);
+      setReviewActionType(null);
     }
   };
 
   const handleSubmitForApproval = async () => {
     if (!quotationId || !organisation?.id || !quotation) return;
     if (!window.confirm(`Submit ${quotation.quotation_no} for MD / manager approval?`)) return;
+
+    setIsSubmittingApproval(true);
+    const toastId = toast.loading('Submitting quotation for approval...');
+    // Optimistic UI state update so badge changes immediately without lag
+    queryClient.setQueryData(['quotation', quotationId, organisation?.id], (old: any) => {
+      if (!old) return old;
+      return { ...old, status: 'PENDING_APPROVAL' };
+    });
+
     try {
       const res = await ApprovalIntegration.createQuotationApproval(
         quotationId,
@@ -740,20 +828,27 @@ export default function QuotationView() {
         Number(quotation.grand_total) || 0
       );
       if (res.approvalId) {
-        alert('Submitted for approval successfully!');
-        quotationQuery.refetch();
-        quotationsQuery.refetch();
+        toast.success('Submitted for approval successfully!', { id: toastId });
+        await Promise.all([
+          quotationQuery.refetch(),
+          quotationsQuery.refetch(),
+          quoteApprovalsQuery.refetch(),
+        ]);
         if (quotation.project_id) {
           postQuotationChannelCard(quotationId, 'submitted').catch((err: any) => {
             console.warn('Quotation channel post failed:', err?.message || err);
           });
         }
       } else {
-        alert(res.error || 'No approval required for this quotation.');
+        toast.info(res.error || 'No approval required for this quotation.', { id: toastId });
+        await quotationQuery.refetch();
       }
     } catch (err: any) {
       console.error('Error submitting for approval:', err);
-      alert('Error submitting for approval: ' + (err?.message || err));
+      toast.error('Error submitting for approval: ' + (err?.message || err), { id: toastId });
+      await quotationQuery.refetch();
+    } finally {
+      setIsSubmittingApproval(false);
     }
   };
 
@@ -1721,8 +1816,8 @@ export default function QuotationView() {
             account_type: organisation?.bank_account_type,
             swift: organisation?.bank_swift
           },
-          termsAndConditions: quotationWithTerms.terms_conditions 
-            ? quotationWithTerms.terms_conditions.split('\n').filter((t: string) => t.trim().length > 0)
+          termsAndConditions: parseTermsIntoLines(quotationWithTerms.terms_conditions).length > 0
+            ? parseTermsIntoLines(quotationWithTerms.terms_conditions)
             : ['Payment as per terms mentioned above.', 'This is a system-generated document.'],
           companyLogoBase64: organisation?.logo_url 
         };
@@ -2275,38 +2370,61 @@ export default function QuotationView() {
       <ResizablePanel defaultSize={78} className="bg-zinc-50">
         <div className="h-full overflow-auto">
           <div className="max-w-5xl mx-auto pt-6 pb-12 px-4 sm:px-6 lg:px-8">
-          <div className="bg-white border border-[#E5E7EB] rounded-xl px-5 pt-4 pb-0 mb-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-semibold text-zinc-900 whitespace-nowrap">{quotation.quotation_no}</h1>
-                {quotation.revision_no && quotation.revision_no > 1 ? (
-                  <span className="text-xs font-semibold text-amber-800 bg-amber-100 border border-amber-200/80 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
-                    (Rev {String(quotation.revision_no).padStart(2, '0')})
-                  </span>
-                ) : null}
-                <span
-                  className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap shrink-0"
-                  style={{
-                    backgroundColor: (LIST_STATUS_STYLE[quotation.status] || LIST_STATUS_STYLE.Draft).bg,
-                    color: (LIST_STATUS_STYLE[quotation.status] || LIST_STATUS_STYLE.Draft).color
-                  }}
-                >
-                  {quotation.status}
+            {(reviewSubmitting || isSubmittingApproval) && (
+              <div className="mb-3 flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold shadow-sm animate-pulse">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600 shrink-0" />
+                <span>
+                  {isSubmittingApproval
+                    ? 'Submitting quotation for MD / manager approval...'
+                    : reviewActionType === 'APPROVED'
+                    ? (isReviewPending ? 'Approving & completing quotation...' : 'Approving quotation...')
+                    : reviewActionType === 'REVIEWED'
+                    ? 'Marking quotation as reviewed and forwarding for approval...'
+                    : reviewActionType === 'REJECTED'
+                    ? 'Rejecting quotation...'
+                    : reviewActionType === 'RETURNED'
+                    ? 'Requesting changes on quotation...'
+                    : 'Processing request...'}
                 </span>
               </div>
-            </div>
-            <DocumentActions
-              submitForApproval={
-                ['Draft', 'Sent', 'Rejected', 'Under Negotiation'].includes(quotation?.status)
-                  ? { visible: true, onClick: handleSubmitForApproval }
-                  : undefined
-              }
-              review={
-                canApprove
-                  ? { visible: true, onClick: () => { setReviewComments(''); setShowReviewDialog(true); } }
-                  : undefined
-              }
+            )}
+            <div className="bg-white border border-[#E5E7EB] rounded-xl px-5 pt-4 pb-0 mb-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-semibold text-zinc-900 whitespace-nowrap">{quotation.quotation_no}</h1>
+                  {quotation.revision_no && quotation.revision_no > 1 ? (
+                    <span className="text-xs font-semibold text-amber-800 bg-amber-100 border border-amber-200/80 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
+                      (Rev {String(quotation.revision_no).padStart(2, '0')})
+                    </span>
+                  ) : null}
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap shrink-0"
+                    style={{
+                      backgroundColor: (LIST_STATUS_STYLE[quotation.status] || LIST_STATUS_STYLE.Draft).bg,
+                      color: (LIST_STATUS_STYLE[quotation.status] || LIST_STATUS_STYLE.Draft).color
+                    }}
+                  >
+                    {quotation.status}
+                  </span>
+                </div>
+              </div>
+              <DocumentActions
+                submitForApproval={
+                  ['Draft', 'Sent', 'Rejected', 'Under Negotiation'].includes(quotation?.status)
+                    ? { visible: true, onClick: handleSubmitForApproval, loading: isSubmittingApproval }
+                    : undefined
+                }
+                review={
+                  canApprove
+                    ? {
+                        visible: true,
+                        label: isReviewPending ? 'Review' : 'Approve',
+                        loading: reviewSubmitting,
+                        onClick: () => { setReviewComments(''); setShowReviewDialog(true); }
+                      }
+                    : undefined
+                }
               edit={isEditable ? { visible: true, onClick: handleEdit } : undefined}
               print={{ onClick: () => handlePrintAction('download'), loading: printLoading }}
               convertItems={[
@@ -2775,11 +2893,20 @@ export default function QuotationView() {
               <div className="bg-zinc-50 rounded-lg p-6">
                 {(() => {
                   try {
-                    const termsData = typeof termsConditionsQuery.data.custom_content === 'string' 
-                      ? (termsConditionsQuery.data.custom_content.trim() ? JSON.parse(termsConditionsQuery.data.custom_content) : null) 
-                      : termsConditionsQuery.data.custom_content;
+                    const rawContent = termsConditionsQuery.data.custom_content;
+                    const termsData = typeof rawContent === 'string' 
+                      ? (rawContent.trim() ? JSON.parse(rawContent) : null) 
+                      : rawContent;
                     
-                    if (termsData && termsData.sections) {
+                    if (termsData && typeof termsData.text === 'string' && termsData.text.trim()) {
+                      return (
+                        <div className="text-sm text-zinc-700 whitespace-pre-wrap leading-relaxed">
+                          {termsData.text}
+                        </div>
+                      );
+                    }
+
+                    if (termsData && Array.isArray(termsData.sections) && termsData.sections.length > 0) {
                       return termsData.sections.map((section: any, sectionIndex: number) => (
                         <div key={sectionIndex} className="mb-4 last:mb-0">
                           <h4 className="text-sm font-semibold text-zinc-900 mb-2">
@@ -2800,6 +2927,20 @@ export default function QuotationView() {
                         </div>
                       ));
                     }
+
+                    const lines = parseTermsIntoLines(rawContent);
+                    if (lines.length > 0) {
+                      return (
+                        <div className="space-y-1.5">
+                          {lines.map((line: string, i: number) => (
+                            <div key={i} className="text-sm text-zinc-700">
+                              {line}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+
                     return (
                       <div className="space-y-1">
                         {['Payment as per terms mentioned above.', 'This is a system-generated document.'].map((t: string, i: number) => (
@@ -2811,14 +2952,12 @@ export default function QuotationView() {
                       </div>
                     );
                   } catch (error) {
-                    // Fallback to plain text if JSON parsing fails
                     return (
                       <div className="text-sm text-zinc-600 whitespace-pre-line">
                         {String(termsConditionsQuery.data.custom_content)}
                       </div>
                     );
                   }
-                  return null;
                 })()}
               </div>
             </div>
@@ -3211,22 +3350,84 @@ export default function QuotationView() {
     />
 
     {showReviewDialog && (
-      <div className="fixed inset-0 z-[100] bg-black/45 flex items-center justify-center p-4" onClick={() => setShowReviewDialog(false)}>
+      <div className="fixed inset-0 z-[100] bg-black/45 flex items-center justify-center p-4" onClick={() => !reviewSubmitting && setShowReviewDialog(false)}>
         <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
-          <div className="text-sm font-bold text-zinc-900">Review {quotation?.quotation_no}</div>
-          <div className="mt-1 text-xs text-zinc-500">Your comment is required and will be visible to the quote creator in History.</div>
+          <div className="text-sm font-bold text-zinc-900 flex items-center justify-between">
+            <span>{isReviewPending ? `Review ${quotation?.quotation_no}` : `Approve ${quotation?.quotation_no}`}</span>
+            {reviewSubmitting && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
+          </div>
+          <div className="mt-1 text-xs text-zinc-500">
+            {isReviewPending
+              ? 'Preliminary review is required. You can mark as reviewed to forward, or directly approve if authorized.'
+              : 'Add optional comments to be recorded in the approval history.'}
+          </div>
           <textarea
             value={reviewComments}
             onChange={(e) => setReviewComments(e.target.value)}
+            disabled={reviewSubmitting}
             rows={4}
-            placeholder="e.g. Approved - ensure dispatch via ABC Transport and confirm the date with the client"
-            className="mt-3 w-full rounded-md border border-[#E5E7EB] p-2.5 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
+            placeholder={
+              isReviewPending
+                ? 'Optional notes (e.g. Reviewed line items and margins)'
+                : 'Optional comments for approval...'
+            }
+            className="mt-3 w-full rounded-md border border-[#E5E7EB] p-2.5 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE] disabled:bg-zinc-50 disabled:cursor-not-allowed"
           />
-          <div className="mt-4 flex items-center justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowReviewDialog(false)}>Cancel</Button>
-            <Button variant="warning" size="sm" disabled={reviewSubmitting || !reviewComments.trim()} onClick={() => submitReview('RETURNED')}>Request Changes</Button>
-            <Button variant="destructive" size="sm" disabled={reviewSubmitting || !reviewComments.trim()} onClick={() => submitReview('REJECTED')}>Reject</Button>
-            <Button variant="success" size="sm" disabled={reviewSubmitting || !reviewComments.trim()} onClick={() => submitReview('APPROVED')}>Approve</Button>
+          <div className="mt-4 flex items-center justify-end gap-2 flex-wrap">
+            <Button variant="outline" size="sm" disabled={reviewSubmitting} onClick={() => setShowReviewDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="warning"
+              size="sm"
+              disabled={reviewSubmitting || !reviewComments.trim()}
+              onClick={() => submitReview('RETURNED')}
+            >
+              {reviewSubmitting && reviewActionType === 'RETURNED' ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />Requesting Changes...</>
+              ) : (
+                'Request Changes'
+              )}
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={reviewSubmitting || !reviewComments.trim()}
+              onClick={() => submitReview('REJECTED')}
+            >
+              {reviewSubmitting && reviewActionType === 'REJECTED' ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />Rejecting...</>
+              ) : (
+                'Reject'
+              )}
+            </Button>
+            {isReviewPending && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                disabled={reviewSubmitting}
+                onClick={handleReviewOnly}
+              >
+                {reviewSubmitting && reviewActionType === 'REVIEWED' ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />Marking Reviewed...</>
+                ) : (
+                  'Mark as Reviewed'
+                )}
+              </Button>
+            )}
+            <Button
+              variant="success"
+              size="sm"
+              disabled={reviewSubmitting}
+              onClick={() => submitReview('APPROVED')}
+            >
+              {reviewSubmitting && reviewActionType === 'APPROVED' ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />{isReviewPending ? 'Approving & Completing...' : 'Approving...'}</>
+              ) : (
+                isReviewPending ? 'Approve & Complete' : 'Approve'
+              )}
+            </Button>
           </div>
         </div>
       </div>
