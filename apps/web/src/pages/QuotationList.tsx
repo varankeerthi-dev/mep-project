@@ -394,18 +394,16 @@ export default function QuotationList() {
     return items;
   }, [quotations, searchTerm, sortOrder]);
 
-  // Pagination and totals calculations
+  // Pagination calculations (header stats/total-value removed from display)
   const paginationData = useMemo(() => {
     const totalItems = filteredQuotations.length;
-    const totalValue = filteredQuotations.reduce((sum, q) => sum + (q.grand_total || 0), 0);
     const totalPages = Math.ceil(totalItems / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const currentItems = filteredQuotations.slice(startIndex, endIndex);
-    
+
     return {
       totalItems,
-      totalValue,
       totalPages,
       startIndex,
       endIndex,
@@ -414,15 +412,6 @@ export default function QuotationList() {
       hasPrevPage: currentPage > 1
     };
   }, [filteredQuotations, currentPage, itemsPerPage]);
-
-  const stats = useMemo(() => {
-    return {
-      draft: quotations.filter((q: any) => q.status === 'Draft').length,
-      sent: quotations.filter((q: any) => q.status === 'Sent').length,
-      approved: quotations.filter((q: any) => q.status === 'Approved').length,
-      converted: quotations.filter((q: any) => q.status === 'Converted').length,
-    };
-  }, [quotations]);
 
   const toggleSort = () => {
     if (sortOrder === null) setSortOrder('desc');
@@ -640,12 +629,7 @@ export default function QuotationList() {
 
         title="Quotations"
         count={paginationData.totalItems}
-        stats={[
-          { label: 'Draft', value: stats.draft, valueClass: 'text-zinc-700' },
-          { label: 'Sent', value: stats.sent, labelClass: 'text-blue-400', valueClass: 'text-blue-700' },
-          { label: 'Approved', value: stats.approved, labelClass: 'text-emerald-400', valueClass: 'text-emerald-700' },
-        ]}
-        totalValue={{ label: 'Total Value', value: formatCurrency(paginationData.totalValue) }}
+        actionsInHeader
         search={searchTerm}
         onSearch={setSearchTerm}
         searchPlaceholder="Search quotations..."

@@ -50,6 +50,9 @@ interface DocumentListShellProps {
   createLabel?: string;
   createButton?: React.ReactNode;
   headerExtra?: React.ReactNode;
+  // Compact header: search sits left next to the title, create/columns
+  // buttons move up to the title row. Opt-in; default layout unchanged.
+  actionsInHeader?: boolean;
   columns: ShellColumn[];
   visibleIds: string[];
   onVisibleChange: (ids: string[]) => void;
@@ -87,7 +90,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
     search, onSearch, searchPlaceholder,
     subTabs, activeSubTab, onSubTab,
     statusOptions, statusFilter, onStatusFilter, statusLabel, statusFilterStyle,
-    onCreate, createLabel, createButton, headerExtra,
+    onCreate, createLabel, createButton, headerExtra, actionsInHeader,
     columns, visibleIds, onVisibleChange, columnStorageKey, showColumnCustomizer, columnCustomizer,
     rows, getRowId, selectedIds, onToggleSelect, onToggleSelectAll, onClearSelection,
     onRowClick, renderCell, eyeButton, rowActions, rowMenuItems,
@@ -135,6 +138,52 @@ export function DocumentListShell(props: DocumentListShellProps) {
     }
   };
 
+  const renderCreateButton = createButton ? createButton : (onCreate && (
+    <button
+      onClick={onCreate}
+      className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
+      style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+    >
+      {createLabel || 'Create'}
+    </button>
+  ));
+
+  const renderColumnControl = columnCustomizer ? columnCustomizer : (showColumnCustomizer !== false && (
+    <div className="relative" ref={colsRef}>
+      <button
+        onClick={() => setShowCols(!showCols)}
+        className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 transition-colors active:scale-[0.98]"
+        style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+      >
+        Columns
+      </button>
+      {showCols && (
+        <div className="absolute right-0 top-full mt-2 z-[110] w-64 bg-white border border-zinc-200 rounded-xl shadow-2xl p-4">
+          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Visible Columns</h3>
+          <div className="space-y-[10px]">
+            {columns.map((col) => (
+              <label
+                key={col.id}
+                className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
+                  col.mandatory ? 'opacity-50 cursor-not-allowed' : 'hover:bg-zinc-50 cursor-pointer'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={visibleIds.includes(col.id)}
+                  disabled={!!col.mandatory}
+                  onChange={() => toggleColumn(col.id)}
+                  className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-sm font-medium text-zinc-700">{col.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  ));
+
   return (
     <div className="flex flex-col h-full bg-white relative">
       <AnimatePresence>
@@ -174,6 +223,17 @@ export function DocumentListShell(props: DocumentListShellProps) {
               {count}
             </span>
           </div>
+          {actionsInHeader && (
+            <div className="relative">
+              <input
+                type="text"
+                placeholder={searchPlaceholder || 'Search...'}
+                value={search}
+                onChange={(e) => onSearch(e.target.value)}
+                className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+            </div>
+          )}
           {stats && stats.length > 0 && (
             <>
               <div className="h-4 w-px bg-zinc-200" />
@@ -201,15 +261,22 @@ export function DocumentListShell(props: DocumentListShellProps) {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder={searchPlaceholder || 'Search...'}
-              value={search}
-              onChange={(e) => onSearch(e.target.value)}
-              className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-          </div>
+          {actionsInHeader ? (
+            <>
+              {renderCreateButton}
+              {renderColumnControl}
+            </>
+          ) : (
+            <div className="relative">
+              <input
+                type="text"
+                placeholder={searchPlaceholder || 'Search...'}
+                value={search}
+                onChange={(e) => onSearch(e.target.value)}
+                className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -286,50 +353,12 @@ export function DocumentListShell(props: DocumentListShellProps) {
 
         <div className="flex items-center gap-[10px]">
           {headerExtra ? headerExtra : null}
-          {createButton ? createButton : (onCreate && (
-            <button
-              onClick={onCreate}
-              className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
-              style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
-            >
-              {createLabel || 'Create'}
-            </button>
-          ))}
-          {columnCustomizer ? columnCustomizer : (showColumnCustomizer !== false && (
-            <div className="relative" ref={colsRef}>
-              <button
-                onClick={() => setShowCols(!showCols)}
-                className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 transition-colors active:scale-[0.98]"
-                style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
-              >
-                Columns
-              </button>
-              {showCols && (
-                <div className="absolute right-0 top-full mt-2 z-[110] w-64 bg-white border border-zinc-200 rounded-xl shadow-2xl p-4">
-                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Visible Columns</h3>
-                  <div className="space-y-[10px]">
-                    {columns.map((col) => (
-                      <label
-                        key={col.id}
-                        className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
-                          col.mandatory ? 'opacity-50 cursor-not-allowed' : 'hover:bg-zinc-50 cursor-pointer'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={visibleIds.includes(col.id)}
-                          disabled={!!col.mandatory}
-                          onChange={() => toggleColumn(col.id)}
-                          className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span className="text-sm font-medium text-zinc-700">{col.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+          {!actionsInHeader && (
+            <>
+              {renderCreateButton}
+              {renderColumnControl}
+            </>
+          )}
         </div>
       </div>
 
