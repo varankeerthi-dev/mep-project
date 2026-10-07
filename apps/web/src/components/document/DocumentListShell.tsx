@@ -184,6 +184,75 @@ export function DocumentListShell(props: DocumentListShellProps) {
     </div>
   ));
 
+  const renderFilters = (
+    <div className="flex items-center gap-2">
+      {subTabs && subTabs.length > 0 && subTabs.map((tab) => (
+        <button
+          key={tab}
+          onClick={() => onSubTab && onSubTab(tab)}
+          className={`w-[150px] h-[26px] px-4 text-sm font-medium transition-colors ${
+            activeSubTab === tab
+              ? 'bg-blue-600/10 text-blue-600'
+              : 'text-zinc-600 hover:bg-zinc-100'
+          }`}
+        >
+          {tab}
+        </button>
+      ))}
+      {statusOptions && statusOptions.length > 0 && statusFilterStyle !== 'pills' && (
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+            className="w-[150px] h-[26px] flex items-center justify-center gap-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
+          >
+            {statusFilter === 'All' ? 'All Statuses' : (statusLabel ? statusLabel(statusFilter || '') : statusFilter)}
+            <ChevronDownIcon className="w-4 h-4" />
+          </button>
+          {showStatusDropdown && (
+            <div className="absolute left-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-zinc-200 rounded-lg shadow-lg py-1">
+              {statusOptions.map((status) => (
+                <button
+                  key={status}
+                  onClick={() => {
+                    if (onStatusFilter) onStatusFilter(status);
+                    setShowStatusDropdown(false);
+                  }}
+                  className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
+                    statusFilter === status
+                      ? 'bg-indigo-50 text-indigo-700'
+                      : 'text-zinc-700 hover:bg-zinc-50'
+                  }`}
+                >
+                  {status === 'All' ? 'All Statuses' : (statusLabel ? statusLabel(status) : status)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {statusOptions && statusOptions.length > 0 && statusFilterStyle === 'pills' && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-500 shrink-0">Status:</span>
+          <div className="flex flex-wrap gap-1">
+            {statusOptions.map((status) => (
+              <button
+                key={status}
+                onClick={() => onStatusFilter && onStatusFilter(status)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  statusFilter === status
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                    : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                }`}
+              >
+                {statusLabel ? statusLabel(status) : status}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="flex flex-col h-full bg-white relative">
       <AnimatePresence>
@@ -224,15 +293,19 @@ export function DocumentListShell(props: DocumentListShellProps) {
             </span>
           </div>
           {actionsInHeader && (
-            <div className="relative">
-              <input
-                type="text"
-                placeholder={searchPlaceholder || 'Search...'}
-                value={search}
-                onChange={(e) => onSearch(e.target.value)}
-                className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-            </div>
+            <>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder={searchPlaceholder || 'Search...'}
+                  value={search}
+                  onChange={(e) => onSearch(e.target.value)}
+                  className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+              <div className="h-4 w-px bg-zinc-200" />
+              {renderFilters}
+            </>
           )}
           {stats && stats.length > 0 && (
             <>
@@ -280,76 +353,12 @@ export function DocumentListShell(props: DocumentListShellProps) {
         </div>
       </div>
 
+      {(!actionsInHeader || headerExtra) && (
       <div
         className="flex items-center justify-between px-6 border-b border-zinc-100 bg-zinc-50/50"
         style={{ paddingTop: '15px', paddingBottom: '15px' }}
       >
-        <div className="flex items-center gap-2">
-          {subTabs && subTabs.length > 0 && subTabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => onSubTab && onSubTab(tab)}
-              className={`w-[150px] h-[26px] px-4 text-sm font-medium transition-colors ${
-                activeSubTab === tab
-                  ? 'bg-blue-600/10 text-blue-600'
-                  : 'text-zinc-600 hover:bg-zinc-100'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-          {statusOptions && statusOptions.length > 0 && statusFilterStyle !== 'pills' && (
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                className="w-[150px] h-[26px] flex items-center justify-center gap-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
-              >
-                {statusFilter === 'All' ? 'All Statuses' : (statusLabel ? statusLabel(statusFilter || '') : statusFilter)}
-                <ChevronDownIcon className="w-4 h-4" />
-              </button>
-              {showStatusDropdown && (
-                <div className="absolute left-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-zinc-200 rounded-lg shadow-lg py-1">
-                  {statusOptions.map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => {
-                        if (onStatusFilter) onStatusFilter(status);
-                        setShowStatusDropdown(false);
-                      }}
-                      className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
-                        statusFilter === status
-                          ? 'bg-indigo-50 text-indigo-700'
-                          : 'text-zinc-700 hover:bg-zinc-50'
-                      }`}
-                    >
-                      {status === 'All' ? 'All Statuses' : (statusLabel ? statusLabel(status) : status)}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          {statusOptions && statusOptions.length > 0 && statusFilterStyle === 'pills' && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500 shrink-0">Status:</span>
-              <div className="flex flex-wrap gap-1">
-                {statusOptions.map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => onStatusFilter && onStatusFilter(status)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                      statusFilter === status
-                        ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                        : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
-                    }`}
-                  >
-                    {statusLabel ? statusLabel(status) : status}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        {!actionsInHeader && renderFilters}
 
         <div className="flex items-center gap-[10px]">
           {headerExtra ? headerExtra : null}
@@ -361,6 +370,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
           )}
         </div>
       </div>
+      )}
 
       <div className="flex-1 overflow-auto">
         <div className="min-w-full">
