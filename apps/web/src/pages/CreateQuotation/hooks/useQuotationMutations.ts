@@ -218,6 +218,9 @@ export function useQuotationMutations({
         return null;
       })();
 
+      // Single update_quotation call per edit save (previously called twice —
+      // the second call's response is now reused from the first).
+      let editRpcData: any = null;
       if (editId) {
         const { data: rpcRes, error: updateError } = await supabase.rpc('update_quotation', {
           p_quotation_id: editId,
@@ -248,6 +251,7 @@ export function useQuotationMutations({
         });
 
         if (updateError) throw updateError;
+        editRpcData = rpcRes;
         quotationId = editId;
         onSetFormData(prev => ({ ...prev, id: quotationId }));
       } else {
@@ -297,35 +301,7 @@ export function useQuotationMutations({
         }
       }
 
-      const rpcResult = editId ? await supabase.rpc('update_quotation', {
-        p_quotation_id: editId,
-        p_organisation_id: organisation.id,
-        p_client_id: formData.client_id,
-        p_project_id: formData.project_id || null,
-        p_items: rpcItems,
-        p_remarks: formData.remarks || null,
-        p_payment_terms: formData.payment_terms || null,
-        p_valid_till: formData.valid_till || null,
-        p_billing_address: formData.billing_address || null,
-        p_gstin: formData.gstin || null,
-        p_state: formData.state || null,
-        p_contact_no: formData.contact_no || null,
-        p_reference: formData.reference || null,
-        p_authorized_signatory_id: formData.authorized_signatory_id || null,
-        p_revision_no: formData.revision_no || 1,
-        p_revision_history: formData.revision_history || [],
-        p_status: formData.status || 'Draft',
-        p_negotiation_mode: !!formData.negotiation_mode,
-        p_extra_discount_percent: parseFloat(formData.extra_discount_percent) || 0,
-        p_extra_discount_amount: parseFloat(formData.extra_discount_amount) || 0,
-        p_round_off: calculations.roundOff || 0,
-        p_round_off_enabled: formData.round_off_enabled ?? true,
-        p_include_erection_charges: !!formData.include_erection_charges,
-        p_variant_discounts: variantDiscounts,
-        p_terms_conditions: termsConditions,
-      }) : { data: null, error: null };
-
-      const returnedItems = (rpcResult.data?.items || []).map((it: any) => ({
+      const returnedItems = ((editRpcData as any)?.items || []).map((it: any) => ({
         id: it.id,
         created_at: it.created_at,
         updated_at: it.updated_at
