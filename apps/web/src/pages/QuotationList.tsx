@@ -482,8 +482,8 @@ export default function QuotationList() {
       </div>
     );
     if (col.id === 'prepared_by') return (
-      <div className="truncate" title={q.prepared_by || '-'}>
-        {q.prepared_by || '-'}
+      <div className="truncate" title={q.creator?.full_name || q.prepared_by || '-'}>
+        {q.creator?.full_name || q.prepared_by || '-'}
       </div>
     );
     if (col.id === 'status') return (
@@ -630,6 +630,7 @@ export default function QuotationList() {
         title="Quotations"
         count={paginationData.totalItems}
         actionsInHeader
+        rowDensity="compact"
         search={searchTerm}
         onSearch={setSearchTerm}
         searchPlaceholder="Search quotations..."

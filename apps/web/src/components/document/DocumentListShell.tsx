@@ -53,6 +53,8 @@ interface DocumentListShellProps {
   // Compact header: search sits left next to the title, create/columns
   // buttons move up to the title row. Opt-in; default layout unchanged.
   actionsInHeader?: boolean;
+  // Compact rows: 32px body rows. Opt-in; default density unchanged.
+  rowDensity?: 'comfortable' | 'compact';
   columns: ShellColumn[];
   visibleIds: string[];
   onVisibleChange: (ids: string[]) => void;
@@ -90,7 +92,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
     search, onSearch, searchPlaceholder,
     subTabs, activeSubTab, onSubTab,
     statusOptions, statusFilter, onStatusFilter, statusLabel, statusFilterStyle,
-    onCreate, createLabel, createButton, headerExtra, actionsInHeader,
+    onCreate, createLabel, createButton, headerExtra, actionsInHeader, rowDensity,
     columns, visibleIds, onVisibleChange, columnStorageKey, showColumnCustomizer, columnCustomizer,
     rows, getRowId, selectedIds, onToggleSelect, onToggleSelectAll, onClearSelection,
     onRowClick, renderCell, eyeButton, rowActions, rowMenuItems,
@@ -125,6 +127,8 @@ export function DocumentListShell(props: DocumentListShellProps) {
   }, [openMenuId, showStatusDropdown, showCols]);
 
   const visibleCols = columns.filter((c) => visibleIds.includes(c.id));
+  const compactRows = rowDensity === 'compact';
+  const cellPy = compactRows ? 'py-[6px]' : 'py-3';
   const allSelected = rows.length > 0 && rows.every((r, i) => selectedIds.has(getRowId(r, i)));
   const showBulk = bulkBar && selectedIds.size >= (bulkBar.threshold ?? 2);
 
@@ -466,7 +470,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
                           }
                         }}
                       >
-                        <td className="px-4 py-3 align-middle text-center border-t border-zinc-200/70">
+                        <td className={cn('px-4 align-middle text-center border-t border-zinc-200/70', cellPy)}>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(rowId)}
@@ -482,7 +486,8 @@ export function DocumentListShell(props: DocumentListShellProps) {
                           <td
                             key={col.id}
                             className={cn(
-                              'px-6 py-3 align-middle text-sm border-t border-zinc-200/70',
+                              'px-6 align-middle text-sm border-t border-zinc-200/70',
+                              cellPy,
                               col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left',
                               col.tdClass
                             )}
@@ -491,14 +496,14 @@ export function DocumentListShell(props: DocumentListShellProps) {
                           </td>
                         ))}
                         {eye && (
-                          <td className="px-0 py-3 align-middle border-t border-zinc-200/70">
+                          <td className={cn('px-0 align-middle border-t border-zinc-200/70', cellPy)}>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (!eye.loading) eye.onPreview();
                               }}
                               style={{
-                                padding: '14px',
+                                padding: compactRows ? '7px' : '14px',
                                 background: 'transparent',
                                 border: 'none',
                                 color: '#9ca3af',
@@ -521,12 +526,12 @@ export function DocumentListShell(props: DocumentListShellProps) {
                           </td>
                         )}
                         {rowActions && (
-                          <td className="px-5 pl-1 py-3 align-middle text-center border-t border-zinc-200/70">
+                          <td className={cn('px-5 pl-1 align-middle text-center border-t border-zinc-200/70', cellPy)}>
                             {rowActions(row)}
                           </td>
                         )}
                         {rowMenuItems && (
-                          <td className="px-5 pl-1 py-3 align-middle text-center border-t border-zinc-200/70">
+                          <td className={cn('px-5 pl-1 align-middle text-center border-t border-zinc-200/70', cellPy)}>
                             <div className="relative inline-block" ref={openMenuId === rowId ? menuRef : undefined}>
                               <button
                                 onClick={(e) => {
