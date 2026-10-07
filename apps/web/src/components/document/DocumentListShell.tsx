@@ -129,6 +129,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
   const visibleCols = columns.filter((c) => visibleIds.includes(c.id));
   const compactRows = rowDensity === 'compact';
   const cellPy = compactRows ? 'py-[6px]' : 'py-3';
+  const cellPx = compactRows ? 'px-3' : 'px-6';
   const allSelected = rows.length > 0 && rows.every((r, i) => selectedIds.has(getRowId(r, i)));
   const showBulk = bulkBar && selectedIds.size >= (bulkBar.threshold ?? 2);
 
@@ -381,7 +382,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
           <table className="w-full border-separate border-spacing-0">
             <thead className="z-10">
               <tr>
-                <th className="sticky top-0 z-10 h-[36px] px-4 text-center align-middle w-[50px] bg-white border-b border-zinc-200">
+                <th className={cn('sticky top-0 z-10 h-[36px] text-center align-middle bg-white border-b border-zinc-200', compactRows ? 'px-2 w-[36px]' : 'px-4 w-[50px]')}>
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -394,7 +395,8 @@ export function DocumentListShell(props: DocumentListShellProps) {
                     key={col.id}
                     style={{ width: col.width }}
                     className={cn(
-                      'sticky top-0 z-10 h-[36px] px-6 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200',
+                      'sticky top-0 z-10 h-[36px] align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200',
+                      cellPx,
                       col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
                     )}
                   >
@@ -470,7 +472,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
                           }
                         }}
                       >
-                        <td className={cn('px-4 align-middle text-center border-t border-zinc-200/70', cellPy)}>
+                        <td className={cn('align-middle text-center border-t border-zinc-200/70', compactRows ? 'px-2' : 'px-4', cellPy)}>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(rowId)}
@@ -486,7 +488,8 @@ export function DocumentListShell(props: DocumentListShellProps) {
                           <td
                             key={col.id}
                             className={cn(
-                              'px-6 align-middle text-sm border-t border-zinc-200/70',
+                              'align-middle text-sm border-t border-zinc-200/70',
+                              cellPx,
                               cellPy,
                               col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left',
                               col.tdClass
@@ -526,12 +529,12 @@ export function DocumentListShell(props: DocumentListShellProps) {
                           </td>
                         )}
                         {rowActions && (
-                          <td className={cn('px-5 pl-1 align-middle text-center border-t border-zinc-200/70', cellPy)}>
+                          <td className={cn('align-middle text-center border-t border-zinc-200/70', compactRows ? 'px-2' : 'px-5 pl-1', cellPy)}>
                             {rowActions(row)}
                           </td>
                         )}
                         {rowMenuItems && (
-                          <td className={cn('px-5 pl-1 align-middle text-center border-t border-zinc-200/70', cellPy)}>
+                          <td className={cn('align-middle text-center border-t border-zinc-200/70', compactRows ? 'px-2' : 'px-5 pl-1', cellPy)}>
                             <div className="relative inline-block" ref={openMenuId === rowId ? menuRef : undefined}>
                               <button
                                 onClick={(e) => {

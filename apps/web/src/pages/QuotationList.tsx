@@ -446,7 +446,7 @@ export default function QuotationList() {
     { id: 'quotation_no', label: 'Quote No', width: '120px' },
     { id: 'revision_no', label: 'Rev No', width: '90px' },
     { id: 'project', label: 'Project', width: '200px' },
-    { id: 'client', label: 'Client', width: '400px' },
+    { id: 'client', label: 'Client', width: '260px' },
     { id: 'prepared_by', label: 'Created By', width: '150px' },
     { id: 'status', label: 'Status', width: '140px', tdClass: 'text-left whitespace-nowrap' },
     { id: 'subtotal', label: 'Sub-total', width: '100px', align: 'left', tdClass: 'font-medium text-zinc-900 tabular-nums whitespace-nowrap' },
@@ -477,7 +477,7 @@ export default function QuotationList() {
       </div>
     );
     if (col.id === 'client') return (
-      <div className="max-w-[350px] truncate" title={q.client?.client_name || '-'}>
+      <div className="max-w-[220px] truncate" title={q.client?.client_name || '-'}>
         {q.client?.client_name || '-'}
       </div>
     );
