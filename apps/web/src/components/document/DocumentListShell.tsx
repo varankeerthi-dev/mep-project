@@ -394,7 +394,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
                     key={col.id}
                     style={{ width: col.width }}
                     className={cn(
-                      'sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200',
+                      'sticky top-0 z-10 h-[36px] px-6 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200',
                       col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
                     )}
                   >
