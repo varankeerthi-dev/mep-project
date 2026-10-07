@@ -816,6 +816,109 @@ export class ApprovalAPI {
       return {};
     }
   }
+
+  // Source-document transitions live here (single home): processApproval and
+  // ApprovalExtensions.resubmitApproval both call these. They were previously
+  // duplicated as privates on ApprovalExtensions while ApprovalAPI call sites
+  // referenced them here — a guaranteed runtime TypeError. Do not re-split.
+  static async markSourceDocumentAsReturned(approval: any, reason?: string): Promise<void> {
+    try {
+      const updateData: Record<string, any> = { approval_status: 'Revision Requested' };
+
+      switch (approval.reference_type) {
+        case 'quotations':
+          await supabase.from('quotation_header').update({
+            ...updateData,
+            status: 'Under Negotiation',
+          }).eq('id', approval.reference_id);
+          break;
+        case 'purchase_orders':
+          await supabase.from('purchase_orders').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'work_orders': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'work_orders', referenceId: approval.reference_id, action: 'return', clientRequestId: crypto.randomUUID() });
+          if (result.error) throw new Error(result.error.message);
+          break;
+        }
+        case 'invoices':
+          await supabase.from('invoices').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'payment_requests': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'payment_requests', referenceId: approval.reference_id, action: 'return', clientRequestId: crypto.randomUUID() });
+          if (result.error) throw new Error(result.error.message);
+          break;
+        }
+        case 'purchase_payments':
+        case 'subcontractor_payments': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: approval.reference_type, referenceId: approval.reference_id, action: 'return', clientRequestId: crypto.randomUUID() });
+          if (result.error) throw new Error(result.error.message);
+          break;
+        }
+      }
+    } catch (error) {
+      // Fail-closed (Rule 5): the approvals row was already set to RETURNED —
+      // a failed source-document transition must surface so processApproval
+      // can revert the approval row for retry.
+      console.error('Error marking source document as returned:', error);
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  static async markSourceDocumentAsRejected(approval: any, reason?: string): Promise<void> {
+    try {
+      const updateData: Record<string, any> = { approval_status: 'Rejected', status: 'Rejected' };
+
+      switch (approval.reference_type) {
+        case 'quotations':
+          await supabase.from('quotation_header').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'purchase_orders':
+          await supabase.from('purchase_orders').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'invoices':
+          await supabase.from('invoices').update(updateData).eq('id', approval.reference_id);
+          break;
+      }
+    } catch (error) {
+      console.error('Error marking source document as rejected:', error);
+    }
+  }
+
+  static async markSourceDocumentAsPending(approval: any): Promise<void> {
+    try {
+      const updateData: Record<string, any> = { approval_status: 'Pending' };
+
+      switch (approval.reference_type) {
+        case 'quotations':
+          await supabase.from('quotation_header').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'purchase_orders':
+          await supabase.from('purchase_orders').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'work_orders': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'work_orders', referenceId: approval.reference_id, action: 'resubmit', clientRequestId: crypto.randomUUID() });
+          if (result.error) throw new Error(result.error.message);
+          break;
+        }
+        case 'invoices':
+          await supabase.from('invoices').update(updateData).eq('id', approval.reference_id);
+          break;
+        case 'payment_requests': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'payment_requests', referenceId: approval.reference_id, action: 'resubmit', clientRequestId: crypto.randomUUID() });
+          if (result.error) throw new Error(result.error.message);
+          break;
+        }
+        case 'purchase_payments':
+        case 'subcontractor_payments': {
+          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: approval.reference_type, referenceId: approval.reference_id, action: 'resubmit', clientRequestId: crypto.randomUUID() });
+          if (result.error) throw new Error(result.error.message);
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('Error marking source document as pending:', error);
+    }
+  }
 }
 
 const REFERENCE_DENORM_MAP: Record<
@@ -875,105 +978,6 @@ export class ApprovalExtensions {
       return { success: true };
     } catch (error) {
       return { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' } };
-    }
-  }
-
-  private static async markSourceDocumentAsReturned(approval: any, reason?: string): Promise<void> {
-    try {
-      const updateData: Record<string, any> = { approval_status: 'Revision Requested' };
-
-      switch (approval.reference_type) {
-        case 'quotations':
-          await supabase.from('quotation_header').update({
-            ...updateData,
-            status: 'Under Negotiation',
-          }).eq('id', approval.reference_id);
-          break;
-        case 'purchase_orders':
-          await supabase.from('purchase_orders').update(updateData).eq('id', approval.reference_id);
-          break;
-        case 'work_orders': {
-          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'work_orders', referenceId: approval.reference_id, action: 'return', clientRequestId: crypto.randomUUID() });
-          if (result.error) throw new Error(result.error.message);
-          break;
-        }
-        case 'invoices':
-          await supabase.from('invoices').update(updateData).eq('id', approval.reference_id);
-          break;
-        case 'payment_requests': {
-          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'payment_requests', referenceId: approval.reference_id, action: 'return', clientRequestId: crypto.randomUUID() });
-          if (result.error) throw new Error(result.error.message);
-          break;
-        }
-        case 'purchase_payments':
-        case 'subcontractor_payments': {
-          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: approval.reference_type, referenceId: approval.reference_id, action: 'return', clientRequestId: crypto.randomUUID() });
-          if (result.error) throw new Error(result.error.message);
-          break;
-        }
-      }
-    } catch (error) {
-      // Fail-closed (Rule 5): the approvals row was already set to RETURNED —
-      // a failed source-document transition must surface so processApproval
-      // can revert the approval row for retry.
-      console.error('Error marking source document as returned:', error);
-      throw error instanceof Error ? error : new Error(String(error));
-    }
-  }
-
-  private static async markSourceDocumentAsRejected(approval: any, reason?: string): Promise<void> {
-    try {
-      const updateData: Record<string, any> = { approval_status: 'Rejected', status: 'Rejected' };
-
-      switch (approval.reference_type) {
-        case 'quotations':
-          await supabase.from('quotation_header').update(updateData).eq('id', approval.reference_id);
-          break;
-        case 'purchase_orders':
-          await supabase.from('purchase_orders').update(updateData).eq('id', approval.reference_id);
-          break;
-        case 'invoices':
-          await supabase.from('invoices').update(updateData).eq('id', approval.reference_id);
-          break;
-      }
-    } catch (error) {
-      console.error('Error marking source document as rejected:', error);
-    }
-  }
-
-  private static async markSourceDocumentAsPending(approval: any): Promise<void> {
-    try {
-      const updateData: Record<string, any> = { approval_status: 'Pending' };
-
-      switch (approval.reference_type) {
-        case 'quotations':
-          await supabase.from('quotation_header').update(updateData).eq('id', approval.reference_id);
-          break;
-        case 'purchase_orders':
-          await supabase.from('purchase_orders').update(updateData).eq('id', approval.reference_id);
-          break;
-        case 'work_orders': {
-          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'work_orders', referenceId: approval.reference_id, action: 'resubmit', clientRequestId: crypto.randomUUID() });
-          if (result.error) throw new Error(result.error.message);
-          break;
-        }
-        case 'invoices':
-          await supabase.from('invoices').update(updateData).eq('id', approval.reference_id);
-          break;
-        case 'payment_requests': {
-          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: 'payment_requests', referenceId: approval.reference_id, action: 'resubmit', clientRequestId: crypto.randomUUID() });
-          if (result.error) throw new Error(result.error.message);
-          break;
-        }
-        case 'purchase_payments':
-        case 'subcontractor_payments': {
-          const result = await approvalTransition({ organisationId: approval.organisation_id, referenceType: approval.reference_type, referenceId: approval.reference_id, action: 'resubmit', clientRequestId: crypto.randomUUID() });
-          if (result.error) throw new Error(result.error.message);
-          break;
-        }
-      }
-    } catch (error) {
-      console.error('Error marking source document as pending:', error);
     }
   }
 
