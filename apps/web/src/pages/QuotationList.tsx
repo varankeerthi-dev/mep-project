@@ -585,7 +585,7 @@ export default function QuotationList() {
               key={p.key}
               type="button"
               onClick={() => { setFromDate(p.from); setToDate(p.to); setCustomOpen(false); }}
-              className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors ${
+              className={`flex w-full items-center justify-between rounded px-2 py-1 text-xs transition-colors ${
                 activePreset === p.key ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'
               }`}
             >
@@ -596,12 +596,12 @@ export default function QuotationList() {
           <button
             type="button"
             onClick={() => setCustomOpen(v => !v)}
-            className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors ${
+            className={`flex w-full items-center justify-between rounded px-2 py-1 text-xs transition-colors ${
               customOpen || (activePreset === null && (fromDate || toDate)) ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'
             }`}
           >
             Custom
-            <span className="text-xs text-zinc-400">single or range</span>
+            <span className="text-[11px] text-zinc-400">single or range</span>
           </button>
           {customOpen && (
             <div className="border-t border-zinc-100 mt-1 pt-1 flex justify-center">
@@ -620,9 +620,9 @@ export default function QuotationList() {
             <button
               type="button"
               onClick={() => { setFromDate(undefined); setToDate(undefined); setCustomOpen(false); }}
-              className="flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-500 hover:bg-zinc-50 transition-colors"
+              className="flex w-full items-center justify-center gap-2 rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-50 transition-colors"
             >
-              <ClearIcon className="w-4 h-4" />
+              <ClearIcon className="w-3.5 h-3.5" />
               Clear dates
             </button>
           )}
