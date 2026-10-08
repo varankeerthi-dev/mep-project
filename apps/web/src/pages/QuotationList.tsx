@@ -199,13 +199,14 @@ export default function QuotationList() {
       }
       
       if (!template) {
+        // Org-specific default wins over the global one (multiple defaults
+        // can coexist across scopes); .single() would error on multiples.
         const { data } = await supabase
           .from('document_templates')
           .select('*')
           .eq('document_type', 'Quotation')
-          .eq('is_default', true)
-          .single();
-        template = data;
+          .eq('is_default', true);
+        template = (data || []).find((t: any) => t.organisation_id) || (data || [])[0] || null;
       }
 
       if (!template) return null;
@@ -233,6 +234,107 @@ export default function QuotationList() {
         const { generateSakthiPdf } = await import('../pdf/sakthiTemplatePdf');
         const quotationWithTerms = { ...quotation, terms_conditions: termsConditions?.custom_content || null };
         doc = await generateSakthiPdf(quotationWithTerms, org, 'Quotation', template);
+      } else if (template.template_code === 'QTN_ENTERPRISE') {
+        const { generateQuotationPdf } = await import('../pdf/enterpriseQuotationPdf');
+        const quotationWithTerms = { ...quotation, terms_conditions: termsConditions?.custom_content || null };
+        const isInterState = quotation.state && org?.state &&
+          String(quotation.state).trim().toLowerCase() !== String(org.state).trim().toLowerCase();
+        const selectedSignatory = (org?.signatures || []).find((s: any) => s.id == quotation.authorized_signatory_id);
+        const entDoc = generateQuotationPdf({
+          org: {
+            name: org?.name || '', address: org?.address || '', city: org?.city || '', state: org?.state || '',
+            pincode: org?.pincode || '', gstin: org?.gstin || '', phone: org?.phone || '', email: org?.email || '', logo_url: org?.logo_url || ''
+          },
+          client: {
+            display_name: quotation.client?.client_name || quotation.client?.name || '',
+            billing_address: quotation.billing_address || '',
+            gstin: quotation.client?.gstin || quotation.gstin || '',
+            state: quotation.client?.state || quotation.state || ''
+          },
+          header: {
+            quotation_no: quotation.quotation_no || '', revision_no: quotation.revision_no || 1,
+            date: quotation.date, valid_till: quotation.valid_till, payment_terms: quotation.payment_terms || '',
+            reference: quotation.reference || '', prepared_by: quotation.prepared_by || '', remarks: quotation.remarks || '',
+            project_name: quotation.project?.project_name || quotation.project?.project_code || ''
+          },
+          items: (quotation.items || []).map((item: any) => ({
+            is_header: item.is_header, is_subtotal: item.is_subtotal, subtotal_label: item.subtotal_label,
+            description: item.description || item.item?.name || item.item?.display_name || '',
+            item_code: item.item?.item_code || '', hsn_code: item.sac_code || item.item?.hsn_code || '',
+            variant_name: item.variant?.variant_name || '', qty: item.qty, uom: item.uom,
+            base_rate_snapshot: item.base_rate_snapshot || item.rate, discount_percent: item.discount_percent,
+            rate: item.rate, tax_percent: item.tax_percent, line_total: item.line_total,
+            custom1: item.custom1, custom2: item.custom2
+          })),
+          calculations: {
+            subtotal: quotation.subtotal || 0, totalItemDiscount: quotation.total_item_discount || 0,
+            extraDiscountAmount: quotation.extra_discount_amount || 0,
+            cgst: isInterState ? 0 : (quotation.total_tax || 0) / 2,
+            sgst: isInterState ? 0 : (quotation.total_tax || 0) / 2,
+            igst: isInterState ? (quotation.total_tax || 0) : 0,
+            isInterState,
+            totalTax: quotation.total_tax || 0, roundOff: quotation.round_off || 0,
+            grandTotal: quotation.grand_total || 0, amountInWords: quotation.amount_in_words || ''
+          },
+          columnSettings: template.column_settings,
+          templateFlags: {
+            show_logo: template.show_logo !== false,
+            show_bank_details: template.show_bank_details !== false,
+            show_terms: template.show_terms !== false,
+            show_signature: template.show_signature !== false,
+          },
+          signatory: {
+            name: selectedSignatory?.name || '',
+            designation: org?.signatory_designation || 'Authorised Signatory',
+            for_company: org?.name || ''
+          },
+          bankDetails: {
+            bank_name: org?.bank_name, branch: org?.bank_branch,
+            account_name: org?.bank_account_name || org?.name, account_no: org?.bank_account_no,
+            ifsc: org?.bank_ifsc, account_type: org?.bank_account_type, swift: org?.bank_swift
+          },
+          termsAndConditions: termsConditions?.custom_content
+            ? [String(termsConditions.custom_content)]
+            : ['Payment as per terms mentioned above.', 'This is a system-generated document.'],
+          companyLogoBase64: org?.logo_url
+        } as any);
+        doc = entDoc;
+      } else if (template.column_settings?.print?.style === 'vertical' || template.template_code === 'QTN_VERTICAL'
+        || template.column_settings?.print?.style === 'saas') {
+        const VerticalTemplate = (await import('../templates/VerticalTemplate')).default;
+        const SaaSTemplate = (await import('../templates/SaaSTemplate')).default;
+        const { createRoot } = await import('react-dom/client');
+        const { flushSync } = await import('react-dom');
+        const { htmlToPdf } = await import('../utils/htmlTemplateRenderer');
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.left = '-9999px';
+        container.style.top = '0';
+        container.style.width = '210mm';
+        container.style.background = 'white';
+        document.body.appendChild(container);
+        const root = createRoot(container);
+        try {
+          const quotationWithTerms = { ...quotation, terms_conditions: termsConditions?.custom_content || null };
+          const showFlags = {
+            show_logo: template.show_logo !== false,
+            show_bank_details: template.show_bank_details !== false,
+            show_terms: template.show_terms !== false,
+            show_signature: template.show_signature !== false,
+          };
+          flushSync(() => {
+            root.render(template.column_settings?.print?.style === 'saas'
+              ? <SaaSTemplate data={quotationWithTerms} organisation={org} templateConfig={template.column_settings} showFlags={showFlags} />
+              : <VerticalTemplate data={quotationWithTerms} organisation={org} templateConfig={template.column_settings} showFlags={showFlags} />);
+          });
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          const blob = await htmlToPdf(container, `${quotation.quotation_no || 'quotation'}.pdf`);
+          const buf = await blob.arrayBuffer();
+          return new Uint8Array(buf);
+        } finally {
+          root.unmount();
+          document.body.removeChild(container);
+        }
       } else {
         const { jsPDF } = await import('jspdf');
         doc = new jsPDF();
