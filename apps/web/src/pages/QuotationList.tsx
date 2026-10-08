@@ -12,7 +12,7 @@ import { duplicateQuotation } from '../api';
 import { DocumentListShell, type ShellColumn } from '../components/document/DocumentListShell';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Calendar } from '../components/ui/Calendar';
-import { Calendar as CalendarIcon, X as ClearIcon } from 'lucide-react';
+import { Filter as FilterIcon, X as ClearIcon } from 'lucide-react';
 import {
 
   Download as DownloadIcon,
@@ -534,52 +534,100 @@ export default function QuotationList() {
 
   const fmtShort = (d: Date | undefined) => (d ? formatDateTable(d) : '');
 
+  const sameDay = (a?: Date, b?: Date) =>
+    !!a && !!b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+  const datePresets = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const startOfMonth = new Date(y, m, 1);
+    const endOfMonth = new Date(y, m + 1, 0);
+    const startOfLastMonth = new Date(y, m - 1, 1);
+    const endOfLastMonth = new Date(y, m, 0);
+    const fyStartYear = m >= 3 ? y : y - 1;
+    const fyStart = new Date(fyStartYear, 3, 1);
+    const fyEnd = new Date(fyStartYear + 1, 2, 31);
+    const fyLabel = `FY${String(fyStartYear).slice(2)}-${String(fyStartYear + 1).slice(2)}`;
+    return [
+      { key: 'year', label: `This Year (${y})`, from: new Date(y, 0, 1), to: new Date(y, 11, 31) },
+      { key: 'fy', label: fyLabel, from: fyStart, to: fyEnd },
+      { key: 'month', label: 'This Month', from: startOfMonth, to: endOfMonth },
+      { key: 'last', label: 'Last Month', from: startOfLastMonth, to: endOfLastMonth },
+    ];
+  }, []);
+
+  const activePreset = datePresets.find(p => sameDay(p.from, fromDate) && sameDay(p.to, toDate))?.key || null;
+  const [customOpen, setCustomOpen] = useState(false);
+
+  const dateFilterTitle = fromDate || toDate
+    ? `Dates: ${fromDate ? fmtShort(fromDate) : '…'} → ${toDate ? fmtShort(toDate) : '…'}`
+    : 'Filter by date';
+
   const dateFilterExtra = (
     <div className="flex items-center gap-2">
-      <Popover>
+      <Popover onOpenChange={(open) => { if (!open) setCustomOpen(false); }}>
         <PopoverTrigger asChild>
           <button
             type="button"
-            title={fromDate ? `From ${fmtShort(fromDate)}` : 'From date'}
+            title={dateFilterTitle}
             className={`relative h-[26px] w-[26px] flex items-center justify-center rounded-md transition-colors ${
-              fromDate ? 'text-blue-600 bg-blue-50' : 'text-zinc-600 hover:bg-zinc-100'
+              (fromDate || toDate) ? 'text-blue-600 bg-blue-50' : 'text-zinc-600 hover:bg-zinc-100'
             }`}
           >
-            <CalendarIcon className="w-4 h-4" />
-            {fromDate && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-600" />}
+            <FilterIcon className="w-4 h-4" />
+            {(fromDate || toDate) && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-600" />}
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar mode="single" selected={fromDate} onSelect={setFromDate} initialFocus />
-        </PopoverContent>
-      </Popover>
-      <Popover>
-        <PopoverTrigger asChild>
+        <PopoverContent className="w-56 p-1" align="start">
+          {datePresets.map(p => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => { setFromDate(p.from); setToDate(p.to); setCustomOpen(false); }}
+              className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors ${
+                activePreset === p.key ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'
+              }`}
+            >
+              {p.label}
+              {activePreset === p.key && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+            </button>
+          ))}
           <button
             type="button"
-            title={toDate ? `To ${fmtShort(toDate)}` : 'To date'}
-            className={`relative h-[26px] w-[26px] flex items-center justify-center rounded-md transition-colors ${
-              toDate ? 'text-blue-600 bg-blue-50' : 'text-zinc-600 hover:bg-zinc-100'
+            onClick={() => setCustomOpen(v => !v)}
+            className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors ${
+              customOpen || (activePreset === null && (fromDate || toDate)) ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'
             }`}
           >
-            <CalendarIcon className="w-4 h-4" />
-            {toDate && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-600" />}
+            Custom
+            <span className="text-xs text-zinc-400">single or range</span>
           </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar mode="single" selected={toDate} onSelect={setToDate} initialFocus />
+          {customOpen && (
+            <div className="border-t border-zinc-100 mt-1 pt-1 flex justify-center">
+              <Calendar
+                mode="range"
+                selected={fromDate ? { from: fromDate, to: toDate } : undefined}
+                onSelect={(range: any) => {
+                  setFromDate(range?.from);
+                  setToDate(range?.to);
+                }}
+                initialFocus
+              />
+            </div>
+          )}
+          {(fromDate || toDate) && (
+            <button
+              type="button"
+              onClick={() => { setFromDate(undefined); setToDate(undefined); setCustomOpen(false); }}
+              className="flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-500 hover:bg-zinc-50 transition-colors"
+            >
+              <ClearIcon className="w-4 h-4" />
+              Clear dates
+            </button>
+          )}
         </PopoverContent>
       </Popover>
-      {(fromDate || toDate) && (
-        <button
-          type="button"
-          title="Clear dates"
-          onClick={() => { setFromDate(undefined); setToDate(undefined); }}
-          className="h-[26px] w-[26px] flex items-center justify-center text-sm font-medium text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-md transition-colors"
-        >
-          <ClearIcon className="w-4 h-4" />
-        </button>
-      )}
     </div>
   );
 
