@@ -82,6 +82,7 @@ export default function QuotationList() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
   const [toDate, setToDate] = useState<Date | undefined>(undefined);
+  const [createdByFilter, setCreatedByFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [showColumnCustomizer, setShowColumnCustomizer] = useState(false);
@@ -508,7 +509,6 @@ export default function QuotationList() {
   });
   const invoicedIds: Set<string> = invoicedQuery.data || new Set();
 
-  const [createdByFilter, setCreatedByFilter] = useState('All');
   const creatorOptions = useMemo(() => {
     const names = new Set<string>();
     quotations.forEach((qt: any) => {
