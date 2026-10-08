@@ -828,12 +828,20 @@ const indianStates = [
         throw new Error('Session expired. Please refresh the page and sign in again.');
       }
       const { client_type, country, ...insertData } = formData;
+      const sanitizedInsertData = {
+        ...insertData,
+        name: formData.client_name?.trim() || insertData.name,
+        client_name: formData.client_name?.trim() || insertData.client_name,
+        gst_treatment: formData.gst_treatment?.trim() || null,
+        msme_register_type: formData.msme_register_type?.trim() || null,
+        msme_number: formData.msme_number?.trim() || null,
+      };
       let newId;
       if (editMode && clientData?.id) {
         const { error } = await withTimeout(
           supabase
             .from('clients')
-            .update({ ...insertData, updated_at: new Date().toISOString() })
+            .update({ ...sanitizedInsertData, updated_at: new Date().toISOString() })
             .eq('id', clientData.id)
             .eq('organisation_id', orgId),
           30000,
@@ -845,7 +853,7 @@ const indianStates = [
         const clientId = 'CLT-' + Date.now().toString().slice(-6);
         const { data, error } = await withTimeout(
           supabase.from('clients').insert({ 
-            ...insertData, 
+            ...sanitizedInsertData, 
             client_id: clientId, 
             organisation_id: orgId 
           }).select('id').single(),
@@ -898,7 +906,14 @@ const indianStates = [
       onSuccess(newId);
     } catch (error: any) {
       console.error('Save Exception:', error);
-      alert('Transaction Error: ' + (error?.message || error));
+      const msg = error?.message || String(error);
+      if (msg.includes('check_gst_treatment')) {
+        alert('Please choose GST treatment');
+      } else if (msg.includes('check_msme_register_type')) {
+        alert('Please choose a valid MSME type');
+      } else {
+        alert('Transaction Error: ' + msg);
+      }
     } finally {
       setSaving(false);
     }

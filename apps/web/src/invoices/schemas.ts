@@ -149,6 +149,7 @@ export const InvoiceSchema = z
     po_date: z.string().optional().nullable(),
     source_type: z.enum(invoiceSourceTypes),
     source_id: z.string().uuid('Valid source id is required.').optional().nullable(),
+    proforma_id: z.string().uuid().optional().nullable(),
     template_type: z.enum(invoiceTemplateTypes),
     mode: z.enum(invoiceModes),
     subtotal: CurrencySchema,

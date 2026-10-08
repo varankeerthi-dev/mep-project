@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { FieldArrayWithId, UseFieldArrayAppend, UseFieldArrayRemove, UseFormRegister, UseFormSetValue } from 'react-hook-form';
-import { Plus, X, GripVertical, Copy, ArrowUpDown } from 'lucide-react';
+import { Plus, X, GripVertical, Copy, ArrowUpDown, MoreHorizontal, Heading, Trash2 } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import type { UseFieldArrayInsert } from 'react-hook-form';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -12,7 +12,8 @@ import { createEmptyItem, createLotItem, formatCurrency, round2 } from '../ui-ut
 import { useAuth } from '../../App';
 import { ArcRateBadge, StandardRateBadge } from '@/components/ArcPricingToggle';
 import { getArcRateFromMap } from '@/lib/arc-pricing';
-import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { InlineDescriptionCell } from '../../components/InlineDescriptionCell';
 
 type InvoiceItemsEditorProps = {
   fields: FieldArrayWithId<InvoiceEditorFormValues, 'items', 'id'>[];
@@ -46,9 +47,10 @@ type InvoiceItemsEditorProps = {
     max_discount_percent?: number | string | null;
   }>;
   hideHeader?: boolean;
+  clientId?: string;
 };
 
-function SortableRow({ children, id, index, onFocus }: { children: React.ReactNode; id: string; index: number; onFocus?: (e: React.FocusEvent) => void }) {
+function SortableRow({ children, id, index, onFocus, rowStyle }: { children: React.ReactNode; id: string; index: number; onFocus?: (e: React.FocusEvent) => void; rowStyle?: React.CSSProperties }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
   const style = {
@@ -58,18 +60,20 @@ function SortableRow({ children, id, index, onFocus }: { children: React.ReactNo
   };
 
   return (
-    <tr ref={setNodeRef} onFocus={onFocus} style={{ ...style, borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
+    <tr ref={setNodeRef} onFocus={onFocus} style={{ ...style, height: '40px', borderBottom: `1px solid ${BORDER_SUBTLE}`, ...rowStyle }}>
       {children}
     </tr>
   );
 }
 
-type ItemColumnKey = 'hsn' | 'make' | 'variant' | 'warehouse' | 'stock' | 'custom1' | 'custom2';
+type ItemColumnKey = 'hsn' | 'clientPartNo' | 'clientDescription' | 'make' | 'variant' | 'warehouse' | 'stock' | 'custom1' | 'custom2';
 
 const ITEM_COLUMNS_STORAGE_KEY = 'invoice-items-columns-v1';
 
 const DEFAULT_ITEM_COLUMNS: Record<ItemColumnKey, boolean> = {
   hsn: true,
+  clientPartNo: false,
+  clientDescription: false,
   make: true,
   variant: true,
   warehouse: true,
@@ -80,6 +84,8 @@ const DEFAULT_ITEM_COLUMNS: Record<ItemColumnKey, boolean> = {
 
 const ITEM_COLUMN_LABELS: Record<ItemColumnKey, string> = {
   hsn: 'HSN',
+  clientPartNo: 'Client Part No',
+  clientDescription: 'Client Description',
   make: 'Make',
   variant: 'Variant',
   warehouse: 'Warehouse',
@@ -104,12 +110,13 @@ const toolbarBtnStyle: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '4px',
-  padding: '4px 8px',
+  height: '32px',
+  padding: '0 12px',
   border: '1px solid #d4d4d4',
-  borderRadius: '4px',
+  borderRadius: 0,
   background: '#fff',
-  fontSize: '11px',
-  fontWeight: 600,
+  fontSize: '12px',
+  fontWeight: 700,
   color: '#525252',
   cursor: 'pointer',
 };
@@ -122,6 +129,7 @@ const SURFACE_LOW = '#EFF4FF';
 const BORDER_SUBTLE = '#E2E8F0';
 const BORDER_STRONG = '#CBD5E1';
 const INK = '#0B1C30';
+const INK_MUTED = '#475569';
 
 export function InvoiceItemsEditor({
   fields,
@@ -150,6 +158,7 @@ export function InvoiceItemsEditor({
   headerDiscounts = {},
   discountCategoryMap = {},
   hideHeader = false,
+  clientId,
 }: InvoiceItemsEditorProps) {
   const { organisation } = useAuth();
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
@@ -211,16 +220,23 @@ export function InvoiceItemsEditor({
   }, []);
 
   // Columns between # and actions, for structural-row colSpan and tfoot math.
-  // Order: grip, #, MATERIAL, [HSN], ITEM, [MAKE], [VARIANT], [WAREHOUSE], [STOCK],
+  // Visible order: grip, #, [HSN], ITEM & SPECIFICATIONS (includes the material picker), [client part no], [client description], [MAKE], [VARIANT], [WAREHOUSE], [STOCK],
   // QTY, UNIT, RATE, DISC, RATE_AFTER, [ARC], GST, [custom], [C1], [C2], AMOUNT, actions.
   const leadingCols =
-    3 + (visibleCols.hsn ? 1 : 0) + 1 +
+    2 + (visibleCols.hsn ? 1 : 0) + 1 + (visibleCols.clientPartNo ? 1 : 0) + (visibleCols.clientDescription ? 1 : 0) +
     (visibleCols.make ? 1 : 0) + (visibleCols.variant ? 1 : 0) +
     (visibleCols.warehouse ? 1 : 0) + (visibleCols.stock ? 1 : 0);
   const trailingCols =
     4 + (useArcPricing ? 1 : 0) + 1 +
     (showCustomColumn ? 1 : 0) + (visibleCols.custom1 ? 1 : 0) + (visibleCols.custom2 ? 1 : 0);
   const dataSpan = leadingCols + trailingCols;
+  const tableMinWidth = 44 + 40 + (visibleCols.hsn ? 60 : 0) + 180
+    + (visibleCols.clientPartNo ? 100 : 0) + (visibleCols.clientDescription ? 140 : 0)
+    + (visibleCols.make ? 80 : 0) + (visibleCols.variant ? 90 : 0)
+    + (visibleCols.warehouse ? 120 : 0) + (visibleCols.stock ? 80 : 0)
+    + 60 + 60 + 80 + 60 + 80 + (useArcPricing ? 32 : 0) + 60
+    + (showCustomColumn ? 80 : 0) + (visibleCols.custom1 ? 80 : 0) + (visibleCols.custom2 ? 80 : 0)
+    + 90 + 100;
 
   // ── Group subtotals: sum of normal rows since the last header row ──
   const groupSubtotals = useMemo(() => {
@@ -524,31 +540,26 @@ export function InvoiceItemsEditor({
 
   const getMaterialVariants = useCallback((materialId: string) => {
     const material = productOptions.find(m => m.id === materialId);
-    const variantsFromMaterial = material?.variants || [];
+    const pricingById = new Map<string, NonNullable<InvoiceMaterialOption['variants']>[number]>();
+    (material?.variants || []).forEach((variant) => {
+      if (variant.variant_id) pricingById.set(variant.variant_id, variant);
+    });
 
-    // Parity with CreateQuotation: derive variants from item->variant pricing mapping as source of truth.
+    // Match Create Quotation: offer active company variants with a pricing row for this material.
     const mappedIds = itemVariantIdsMap[materialId] || [];
-    const variantsFromMap = mappedIds
-      .map((variantId) => {
-        const opt = variantOptions.find((v) => v.id === variantId);
-        if (!opt) return null;
-        return {
+    return mappedIds.flatMap((variantId) => {
+      const option = variantOptions.find((variant) => variant.id === variantId);
+      if (!option) return [];
+      const pricing = pricingById.get(variantId);
+      return [{
+        ...(pricing || {
           variant_id: variantId,
-          variant_name: opt.variant_name || null,
           make: '',
           sale_price: 0,
-        };
-      })
-      .filter(Boolean) as Array<{ variant_id?: string | null; variant_name: string | null; make: string; sale_price: number }>;
-
-    const merged = [...variantsFromMaterial, ...variantsFromMap];
-    const seen = new Set<string>();
-    return merged.filter((variant) => {
-      // Use variant_id as primary dedup key, fallback to variant_name, then make
-      const key = variant.variant_id || variant.variant_name || variant.make || '';
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
+        }),
+        variant_id: variantId,
+        variant_name: pricing?.variant_name || option.variant_name || null,
+      }];
     });
   }, [productOptions, itemVariantIdsMap, variantOptions]);
 
@@ -724,7 +735,7 @@ export function InvoiceItemsEditor({
       // Close make dropdowns
       Object.keys(makeDropdownRefs.current).forEach(index => {
         const dropdown = makeDropdownRefs.current[Number(index)];
-        const input = inputRefs.current[Number(index)];
+        const input = makeInputRefs.current[Number(index)];
         if (dropdown && !dropdown.contains(e.target as Node) && input && !input.contains(e.target as Node)) {
           setMakeDropdowns(prev => ({ ...prev, [Number(index)]: false }));
         }
@@ -733,7 +744,7 @@ export function InvoiceItemsEditor({
       // Close variant dropdowns
       Object.keys(variantDropdownRefs.current).forEach(index => {
         const dropdown = variantDropdownRefs.current[Number(index)];
-        const input = inputRefs.current[Number(index)];
+        const input = variantInputRefs.current[Number(index)];
         if (dropdown && !dropdown.contains(e.target as Node) && input && !input.contains(e.target as Node)) {
           setVariantDropdowns(prev => ({ ...prev, [Number(index)]: false }));
         }
@@ -743,6 +754,18 @@ export function InvoiceItemsEditor({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openDropdowns, makeDropdowns, variantDropdowns]);
+
+  // Quotation closes its anchored pickers when the document scrolls; keep
+  // invoice pickers from becoming detached from their table cells as well.
+  useEffect(() => {
+    const closePickersOnScroll = () => {
+      setOpenDropdowns({});
+      setMakeDropdowns({});
+      setVariantDropdowns({});
+    };
+    document.addEventListener('scroll', closePickersOnScroll, { passive: true, capture: true });
+    return () => document.removeEventListener('scroll', closePickersOnScroll, true);
+  }, []);
 
   // Cleanup refs when fields are removed
   useEffect(() => {
@@ -778,8 +801,8 @@ export function InvoiceItemsEditor({
         const dropdown = dropdownRefs.current[Number(index)];
         if (input && dropdown) {
           const rect = input.getBoundingClientRect();
-          dropdown.style.top = `${rect.bottom + window.scrollY + 2}px`;
-          dropdown.style.left = `${rect.left + window.scrollX}px`;
+          dropdown.style.top = `${rect.bottom + 4}px`;
+          dropdown.style.left = `${rect.left}px`;
           dropdown.style.width = `${rect.width}px`;
         }
       }
@@ -791,8 +814,8 @@ export function InvoiceItemsEditor({
         const dropdown = makeDropdownRefs.current[Number(index)];
         if (input && dropdown) {
           const rect = input.getBoundingClientRect();
-          dropdown.style.top = `${rect.bottom + window.scrollY + 2}px`;
-          dropdown.style.left = `${rect.left + window.scrollX}px`;
+          dropdown.style.top = `${rect.bottom + 4}px`;
+          dropdown.style.left = `${rect.left}px`;
           dropdown.style.width = `${Math.max(rect.width, 120)}px`;
         }
       }
@@ -804,8 +827,8 @@ export function InvoiceItemsEditor({
         const dropdown = variantDropdownRefs.current[Number(index)];
         if (input && dropdown) {
           const rect = input.getBoundingClientRect();
-          dropdown.style.top = `${rect.bottom + window.scrollY + 2}px`;
-          dropdown.style.left = `${rect.left + window.scrollX}px`;
+          dropdown.style.top = `${rect.bottom + 4}px`;
+          dropdown.style.left = `${rect.left}px`;
           dropdown.style.width = `${Math.max(rect.width, 120)}px`;
         }
       }
@@ -823,8 +846,8 @@ export function InvoiceItemsEditor({
           background: SURFACE_LOWEST,
           borderBottom: `1px solid ${BORDER_SUBTLE}`
         }}>
-          <span style={{ fontFamily: INTER, fontSize: '13px', fontWeight: 700, color: INK }}>
-            Line Items{selectedCount > 0 ? ` (${selectedCount} selected)` : ''}
+          <span style={{ fontFamily: INTER, fontSize: '12px', fontWeight: 600, color: INK }}>
+            {selectedCount > 0 ? `${selectedCount} selected` : 'Table options'}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ position: 'relative' }}>
@@ -854,46 +877,6 @@ export function InvoiceItemsEditor({
                 </div>
               )}
             </div>
-          {mode !== 'lot' && (
-            <>
-            <button
-              type="button"
-              title="Add section header row"
-              onClick={() => append(createEmptyItem({ description: 'New Section', qty: 0, rate: 0, amount: 0, is_header: true }))}
-              style={toolbarBtnStyle}
-            >
-              <Plus size={12} />
-              Section
-            </button>
-            <button
-              type="button"
-              title="Add subtotal row"
-              onClick={() => append(createEmptyItem({ description: 'Subtotal', qty: 0, rate: 0, amount: 0, is_subtotal: true, subtotal_label: 'Subtotal' }))}
-              style={toolbarBtnStyle}
-            >
-              <Plus size={12} />
-              Subtotal
-            </button>
-            <Button variant="default" size="default" type="button" onClick={() => append(createEmptyItem())}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '4px 8px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                background: '#fff',
-                fontSize: '11px',
-                fontWeight: 600,
-                color: '#525252',
-                cursor: 'pointer'
-              }}
-            >
-              <Plus size={12} />
-              Add
-            </Button>
-            </>
-          )}
           </div>
         </div>
       )}
@@ -933,9 +916,9 @@ export function InvoiceItemsEditor({
       {/* Table - Quotation Style */}
       {/* DndContext renders a div (accessibility HiddenText) — must live OUTSIDE the <table> to keep valid HTML nesting */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', fontFamily: INTER }}>
-          <thead>
+      <div className="overflow-x-auto cq-table-container custom-scrollbar" style={{ maxHeight: '70vh', overflowX: 'auto', overflowY: 'auto', fontFamily: INTER, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: '8px', background: SURFACE_LOWEST, boxShadow: '0 1px 2px 0 rgba(15, 23, 42, 0.05)', overflowAnchor: 'none' }}>
+        <table className="grid-table cq-editable" style={{ width: '100%', minWidth: `${tableMinWidth}px`, borderCollapse: 'separate', borderSpacing: 0, fontSize: '11px', fontFamily: INTER, border: 'none', borderRadius: '8px', overflow: 'hidden' }}>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr style={{ height: '40px', background: SURFACE_LOW, borderBottom: `1px solid ${BORDER_STRONG}` }}>
               <th style={{ 
                 padding: '6px 4px', 
@@ -969,38 +952,8 @@ export function InvoiceItemsEditor({
               }}>
                 #
               </th>
-              {mode === 'itemized' && (
-                <th style={{ 
-                  padding: '6px 4px', 
-                  textAlign: 'left', 
-                   fontFamily: INTER,
-                   fontSize: '11px',
-                   fontWeight: 600,
-                   textTransform: 'uppercase',
-                   letterSpacing: '0.06em',
-                   color: '#334155',
-                  minWidth: '150px'
-                }}>
-                  MATERIAL
-                </th>
-              )}
-              {mode !== 'itemized' && (
-                <th style={{ 
-                  padding: '6px 4px', 
-                  textAlign: 'left', 
-                   fontFamily: INTER,
-                   fontSize: '11px',
-                   fontWeight: 600,
-                   textTransform: 'uppercase',
-                   letterSpacing: '0.06em',
-                   color: '#334155',
-                  minWidth: '150px'
-                }}>
-                  MATERIAL
-                </th>
-              )}
               {visibleCols.hsn && (
-              <th style={{ 
+              <th className="col-hsn" style={{
                 padding: '6px 4px', 
                 textAlign: 'left', 
                 fontFamily: INTER,
@@ -1014,7 +967,7 @@ export function InvoiceItemsEditor({
                 HSN
               </th>
               )}
-              <th style={{ 
+              <th className="col-item" style={{
                 padding: '6px 4px', 
                 textAlign: 'left', 
                 fontFamily: INTER,
@@ -1023,10 +976,18 @@ export function InvoiceItemsEditor({
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
                 color: '#334155',
-                minWidth: '180px'
+                width: '220px',
+                minWidth: '180px',
+                maxWidth: '240px'
               }}>
-                ITEM
+                ITEM & SPECIFICATIONS
               </th>
+              {visibleCols.clientPartNo && (
+                <th style={{ padding: '6px 8px', textAlign: 'left', fontFamily: INTER, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', width: '100px' }}>CLIENT PART NO</th>
+              )}
+              {visibleCols.clientDescription && (
+                <th style={{ padding: '6px 8px', textAlign: 'left', fontFamily: INTER, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', width: '140px', minWidth: '140px' }}>CLIENT DESCRIPTION</th>
+              )}
               {visibleCols.make && (
               <th style={{ 
                 padding: '6px 4px', 
@@ -1039,7 +1000,7 @@ export function InvoiceItemsEditor({
                 color: '#334155',
                 width: '80px'
               }}>
-                MAKE
+                MAKE / BRAND
               </th>
               )}
               {visibleCols.variant && (
@@ -1052,9 +1013,9 @@ export function InvoiceItemsEditor({
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
                 color: '#334155',
-                width: '80px'
+                width: '90px'
               }}>
-                VARIANT
+                VARIANT / GRADE
               </th>
               )}
               {visibleCols.warehouse && (
@@ -1124,7 +1085,7 @@ export function InvoiceItemsEditor({
                 color: '#334155',
                 width: '80px'
               }}>
-                RATE
+                UNIT RATE (₹)
               </th>
               <th style={{ 
                 padding: '6px 4px', 
@@ -1137,7 +1098,7 @@ export function InvoiceItemsEditor({
                 color: '#334155',
                 width: '60px'
               }}>
-                DISC %
+                DISC (%)
               </th>
               <th style={{ 
                 padding: '6px 4px', 
@@ -1150,7 +1111,7 @@ export function InvoiceItemsEditor({
                 color: '#334155',
                 width: '80px'
               }}>
-                RATE AFTER DISC
+                NET RATE (₹)
               </th>
               {/* ARC indicator column header */}
               {useArcPricing && (
@@ -1179,7 +1140,7 @@ export function InvoiceItemsEditor({
                 color: '#334155',
                 width: '60px'
               }}>
-                GST %
+                GST (%)
               </th>
               {showCustomColumn && (
                 <th style={{ 
@@ -1237,9 +1198,9 @@ export function InvoiceItemsEditor({
                 color: '#334155',
                 width: '90px'
               }}>
-                AMOUNT
+                TOTAL AMOUNT (₹)
               </th>
-              <th style={{ padding: '6px 4px', width: '32px' }} />
+              <th style={{ padding: '6px 8px', width: '100px', minWidth: '100px', position: 'sticky', right: 0, background: SURFACE_LOW, zIndex: 11, boxShadow: 'inset 1px 0 0 #CBD5E1', textAlign: 'center', fontFamily: INTER, fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155' }}>ACTIONS</th>
             </tr>
           </thead>
           <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
@@ -1254,6 +1215,13 @@ export function InvoiceItemsEditor({
                   const amount = round2((Number(item.qty) || 0) * rateAfterDiscount);
                   const isHeaderRow = Boolean((item as any).is_header);
                   const isSubtotalRow = Boolean((item as any).is_subtotal);
+                  const materialId = item.meta_json?.material_id as string | undefined;
+                  const selectedMaterial = materialId ? productOptions.find((material) => material.id === materialId) : undefined;
+                  const clientMapping = clientId && materialId
+                    ? selectedMaterial?.mappings?.find((mapping) => mapping.client_id === clientId)
+                    : undefined;
+                  const discountCategoryId = String(item.meta_json?.discount_category_id || selectedMaterial?.discount_category_id || '');
+                  const discountCategoryName = discountCategoryId ? discountCategoryMap[discountCategoryId]?.name : null;
 
                   // ── Section header / subtotal rows: full-width structural row ──
                   if (isHeaderRow || isSubtotalRow) {
@@ -1351,11 +1319,15 @@ export function InvoiceItemsEditor({
                     );
                   }
 
+                  const makeField = register(`items.${index}.meta_json.make` as const);
+                  const variantField = register(`items.${index}.meta_json.variant` as const);
+
                   return (
                     <SortableRow
                       key={field.id}
                       id={field.id}
                       index={index}
+                    rowStyle={{ background: selectedIds[field.id] ? SURFACE_LOW : item.is_override ? ERROR_BG : SURFACE_LOWEST, fontFamily: INTER }}
                       onFocus={() => {
                         if (mode === 'lot') return;
                         if (index === fields.length - 1) {
@@ -1380,143 +1352,7 @@ export function InvoiceItemsEditor({
                       <td style={{ padding: '4px', textAlign: 'center' }}>
                         <span style={{ fontSize: '11px', color: '#737373' }}>{index + 1}</span>
                       </td>
-                      {mode === 'itemized' && (
-                    <td style={{ padding: '4px', position: 'relative' }}>
-                      <input
-                        ref={(el) => { inputRefs.current[index] = el; }}
-                        type="text"
-                        value={getSelectedMaterialName(index)}
-                        onChange={(e) => handleSearchChange(index, e.target.value)}
-                        onFocus={(e) => {
-                          setOpenDropdowns({ ...openDropdowns, [index]: true });
-                          e.currentTarget.style.borderColor = '#d4d4d4';
-                        }}
-                        onClick={() => handleInputClick(index)}
-                        onKeyDown={(e) => handleKeyDown(index, e)}
-                        onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
-                        placeholder=""
-                        style={{
-                          width: '100%',
-                          padding: '4px 6px',
-                          border: '1px solid transparent',
-                          borderRadius: '2px',
-                          fontSize: '11px',
-                          background: 'transparent',
-                        }}
-                      />
-                      {openDropdowns[index] && (
-                        <div
-                          ref={(el) => { dropdownRefs.current[index] = el; }}
-                          style={{
-                            position: 'fixed',
-                            background: 'white',
-                            border: '1px solid #d4d4d4',
-                            borderRadius: '4px',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                            zIndex: 9999,
-                            maxHeight: '200px',
-                            overflowY: 'auto',
-                            minWidth: '200px'
-                          }}
-                        >
-                          {getFilteredMaterials(index).map((material, idx) => (
-                            <div
-                              key={material.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleMaterialSelect(index, material.id);
-                              }}
-                              style={{
-                                padding: '8px 12px',
-                                cursor: 'pointer',
-                                fontSize: '11px',
-                                borderBottom: '1px solid #f3f4f6',
-                                background: selectedIndices[index] === idx ? '#f5f5f5' : 'white'
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                            >
-                              {material.name}
-                            </div>
-                          ))}
-                          {getFilteredMaterials(index).length === 0 && (
-                            <div style={{ padding: '8px 12px', fontSize: '11px', color: '#737373' }}>
-                              No materials found
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  )}
-                  {mode !== 'itemized' && (
-                    <td style={{ padding: '4px', position: 'relative' }}>
-                      <input
-                        ref={(el) => { inputRefs.current[index] = el; }}
-                        type="text"
-                        value={getSelectedMaterialName(index)}
-                        onChange={(e) => handleSearchChange(index, e.target.value)}
-                        onFocus={(e) => {
-                          setOpenDropdowns({ ...openDropdowns, [index]: true });
-                          e.currentTarget.style.borderColor = '#d4d4d4';
-                        }}
-                        onClick={() => handleInputClick(index)}
-                        onKeyDown={(e) => handleKeyDown(index, e)}
-                        onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
-                        placeholder=""
-                        style={{
-                          width: '100%',
-                          padding: '4px 6px',
-                          border: '1px solid transparent',
-                          borderRadius: '2px',
-                          fontSize: '11px',
-                          background: 'transparent',
-                        }}
-                      />
-                      {openDropdowns[index] && (
-                        <div
-                          ref={(el) => { dropdownRefs.current[index] = el; }}
-                          style={{
-                            position: 'fixed',
-                            background: 'white',
-                            border: '1px solid #d4d4d4',
-                            borderRadius: '4px',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                            zIndex: 9999,
-                            maxHeight: '200px',
-                            overflowY: 'auto',
-                            minWidth: '200px'
-                          }}
-                        >
-                          {getFilteredMaterials(index).map((material, idx) => (
-                            <div
-                              key={material.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleMaterialSelect(index, material.id);
-                              }}
-                              style={{
-                                padding: '8px 12px',
-                                cursor: 'pointer',
-                                fontSize: '11px',
-                                borderBottom: '1px solid #f3f4f6',
-                                background: selectedIndices[index] === idx ? '#f5f5f5' : 'white'
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                            >
-                              {material.name}
-                            </div>
-                          ))}
-                          {getFilteredMaterials(index).length === 0 && (
-                            <div style={{ padding: '8px 12px', fontSize: '11px', color: '#737373' }}>
-                              No materials found
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  )}
-                  <td style={{ padding: '4px', display: visibleCols.hsn ? undefined : 'none' }}>
+                      <td style={{ padding: '4px', display: visibleCols.hsn ? undefined : 'none' }}>
                     <input
                       {...register(`items.${index}.hsn_code`)}
                       placeholder="9987"
@@ -1533,66 +1369,83 @@ export function InvoiceItemsEditor({
                       onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
                   </td>
-                  <td style={{ padding: '4px' }}>
-                    <input
-                      {...register(`items.${index}.description`)}
-                      placeholder="Item description"
-                      onKeyDown={(e) => {
-                        if ((e.key === 'Delete' || e.key === 'Backspace') && mode === 'itemized') {
-                          e.preventDefault();
-                          if (setValue) {
-                            setValue(`items.${index}.meta_json.material_id`, '', { shouldDirty: true });
-                            setValue(`items.${index}.description`, '', { shouldDirty: true });
-                            setValue(`items.${index}.hsn_code`, '', { shouldDirty: true });
-                            setSearchTerms({ ...searchTerms, [index]: '' });
-                          }
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '4px 6px',
-                        border: '1px solid transparent',
-                        borderRadius: '2px',
-                        fontSize: '11px',
-                        background: 'transparent'
-                      }}
-                      onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
-                      onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
-                    />
-                    {(() => {
-                      const materialId = item.meta_json?.material_id as string | undefined;
-                      const dcId = materialId
-                        ? (productOptions.find((m) => m.id === materialId)?.discount_category_id ?? null)
-                        : null;
-                      const dcName = dcId ? discountCategoryMap[dcId]?.name : null;
-                      if (!dcName) return null;
-                      return (
+                  <td className="col-item" style={{ padding: '4px 8px', position: 'relative', verticalAlign: 'middle' }}>
+                    <div style={{ position: 'relative', marginBottom: '4px' }}>
+                      <input
+                        ref={(el) => { inputRefs.current[index] = el; }}
+                        type="text"
+                        value={getSelectedMaterialName(index)}
+                        onChange={(e) => handleSearchChange(index, e.target.value)}
+                        onFocus={(e) => {
+                          setOpenDropdowns({ ...openDropdowns, [index]: true });
+                          e.currentTarget.style.borderColor = '#d4d4d4';
+                        }}
+                        onClick={() => handleInputClick(index)}
+                        onKeyDown={(e) => handleKeyDown(index, e)}
+                        onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                        placeholder="Search material"
+                        title="Select material"
+                        style={{ width: '100%', padding: '4px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '11px', background: 'transparent', fontWeight: 600 }}
+                      />
+                      {openDropdowns[index] && (
                         <div
-                          title={`Discount category: ${dcName}`}
-                          style={{
-                            display: 'inline-block',
-                            marginTop: '2px',
-                            padding: '1px 6px',
-                            fontSize: '10px',
-                            fontWeight: 600,
-                            letterSpacing: '0.04em',
-                            color: '#00476E',
-                            background: '#CCE5FF',
-                            borderRadius: '4px',
-                            lineHeight: 1.4,
-                            whiteSpace: 'nowrap',
-                          }}
+                          ref={(el) => { dropdownRefs.current[index] = el; }}
+                          style={{ position: 'fixed', background: 'white', border: '1px solid #d4d4d4', borderRadius: '4px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 9999, maxHeight: '200px', overflowY: 'auto', minWidth: '200px' }}
                         >
-                          {dcName}
+                          {getFilteredMaterials(index).map((material, idx) => (
+                            <div
+                              key={material.id}
+                              onClick={(e) => { e.stopPropagation(); handleMaterialSelect(index, material.id); }}
+                              style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '11px', borderBottom: '1px solid #f3f4f6', background: selectedIndices[index] === idx ? '#f5f5f5' : 'white' }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                            >
+                              {material.name}
+                            </div>
+                          ))}
+                          {getFilteredMaterials(index).length === 0 && (
+                            <div style={{ padding: '8px 12px', fontSize: '11px', color: '#737373' }}>No materials found</div>
+                          )}
                         </div>
-                      );
-                    })()}
+                      )}
+                    </div>
+                    {(materialId || item.description) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', minWidth: 0 }}>
+                        {discountCategoryName && (
+                          <div
+                            title={`Discount category: ${discountCategoryName}`}
+                            style={{ padding: '1px 6px', fontSize: '10px', fontFamily: INTER, fontWeight: 600, letterSpacing: '0.04em', color: '#00476E', background: '#CCE5FF', borderRadius: '4px', lineHeight: '1.4', whiteSpace: 'nowrap', flexShrink: 0 }}
+                          >
+                            {discountCategoryName}
+                          </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0, marginTop: '-4px', fontFamily: INTER }}>
+                          <InlineDescriptionCell
+                            materialName=""
+                            description={item.description === selectedMaterial?.name ? '' : item.description}
+                            onSave={(description) => setValue?.(`items.${index}.description`, description, { shouldDirty: true })}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </td>
+                  {visibleCols.clientPartNo && (
+                    <td style={{ padding: '4px', fontSize: '12px', color: INK_MUTED, textAlign: 'center' }}>
+                      {clientMapping?.client_part_no || '-'}
+                    </td>
+                  )}
+                  {visibleCols.clientDescription && (
+                    <td style={{ padding: '4px', fontSize: '12px', color: INK_MUTED }}>
+                      {clientMapping?.client_description || '-'}
+                    </td>
+                  )}
                   <td style={{ padding: '4px', position: 'relative', display: visibleCols.make ? undefined : 'none' }}>
                     <input
-                      ref={(el) => { makeInputRefs.current[index] = el; }}
-                      {...register(`items.${index}.meta_json.make` as const)}
-                      placeholder="-"
+                      {...makeField}
+                      ref={(el) => { makeField.ref(el); makeInputRefs.current[index] = el; }}
+                      value={String(item.meta_json?.make ?? '')}
+                      placeholder="No Make"
+                      readOnly
                       onClick={() => {
                         const materialId = items[index]?.meta_json?.material_id as string | undefined;
                         if (materialId) {
@@ -1601,14 +1454,20 @@ export function InvoiceItemsEditor({
                       }}
                       style={{
                         width: '100%',
-                        padding: '4px 20px 4px 6px',
+                        padding: '3px 8px',
                         border: '1px solid transparent',
-                        borderRadius: '2px',
+                        borderRadius: '4px',
                         fontSize: '11px',
-                        background: 'transparent',
+                        fontFamily: INTER,
+                        color: item.meta_json?.make ? INK : '#94a3b8',
+                        fontWeight: item.meta_json?.make ? 500 : 400,
+                        background: item.meta_json?.make ? '#E5EEFF' : '#fff',
                         textAlign: 'left',
+                        minHeight: '24px',
                         cursor: 'pointer'
                       }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = BORDER_STRONG; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; }}
                       onFocus={(e) => {
                         e.currentTarget.style.borderColor = '#d4d4d4';
                         const materialId = items[index]?.meta_json?.material_id as string | undefined;
@@ -1625,8 +1484,8 @@ export function InvoiceItemsEditor({
                           position: 'fixed',
                           background: 'white',
                           border: '1px solid #d4d4d4',
-                          borderRadius: '4px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                           zIndex: 9999,
                           maxHeight: '200px',
                           overflowY: 'auto',
@@ -1648,29 +1507,30 @@ export function InvoiceItemsEditor({
                               <div
                                 onClick={() => handleMakeSelect(index, '')}
                                 style={{
-                                  padding: '8px 12px',
+                                  padding: '6px 12px',
                                   cursor: 'pointer',
                                   fontSize: '11px',
+                                  fontFamily: INTER,
                                   borderBottom: '1px solid #f3f4f6',
-                                  fontStyle: 'italic',
-                                  color: '#737373'
+                                  color: '#94a3b8'
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                                onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
                                 onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                               >
-                                -- No Make --
+                                No Make
                               </div>
                               {makes.map((make, idx) => (
                                 <div
                                   key={idx}
                                   onClick={() => handleMakeSelect(index, make)}
                                   style={{
-                                    padding: '8px 12px',
+                                    padding: '6px 12px',
                                     cursor: 'pointer',
                                     fontSize: '11px',
+                                    fontFamily: INTER,
                                     borderBottom: '1px solid #f3f4f6'
                                   }}
-                                  onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = '#eff6ff'}
                                   onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                                 >
                                   {make}
@@ -1684,9 +1544,11 @@ export function InvoiceItemsEditor({
                   </td>
                   <td style={{ padding: '4px', position: 'relative', display: visibleCols.variant ? undefined : 'none' }}>
                     <input
-                      ref={(el) => { variantInputRefs.current[index] = el; }}
-                      {...register(`items.${index}.meta_json.variant` as const)}
-                      placeholder="-"
+                      {...variantField}
+                      ref={(el) => { variantField.ref(el); variantInputRefs.current[index] = el; }}
+                      value={String(item.meta_json?.variant ?? variantOptions.find((variant) => variant.id === item.meta_json?.variant_id)?.variant_name ?? '')}
+                      placeholder="No Variant"
+                      readOnly
                       onClick={() => {
                         const materialId = items[index]?.meta_json?.material_id as string | undefined;
                         if (materialId) {
@@ -1695,14 +1557,20 @@ export function InvoiceItemsEditor({
                       }}
                       style={{
                         width: '100%',
-                        padding: '4px 20px 4px 6px',
+                        padding: '4px 8px',
                         border: '1px solid transparent',
-                        borderRadius: '2px',
+                        borderRadius: '4px',
                         fontSize: '11px',
-                        background: 'transparent',
+                        fontFamily: INTER,
+                        color: item.meta_json?.variant ? INK_MUTED : '#94a3b8',
+                        fontWeight: item.meta_json?.variant ? 500 : 400,
+                        background: '#fff',
                         textAlign: 'left',
+                        minHeight: '28px',
                         cursor: 'pointer'
                       }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = BORDER_STRONG; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; }}
                       onFocus={(e) => {
                         e.currentTarget.style.borderColor = '#d4d4d4';
                         const materialId = items[index]?.meta_json?.material_id as string | undefined;
@@ -1719,8 +1587,8 @@ export function InvoiceItemsEditor({
                           position: 'fixed',
                           background: 'white',
                           border: '1px solid #d4d4d4',
-                          borderRadius: '4px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                           zIndex: 9999,
                           maxHeight: '200px',
                           overflowY: 'auto',
@@ -1742,33 +1610,33 @@ export function InvoiceItemsEditor({
                               <div
                                 onClick={() => handleVariantSelect(index, { variant_name: '', variant_id: null, make: '' })}
                                 style={{
-                                  padding: '8px 12px',
+                                  padding: '6px 12px',
                                   cursor: 'pointer',
                                   fontSize: '11px',
+                                  fontFamily: INTER,
                                   borderBottom: '1px solid #f3f4f6',
-                                  fontStyle: 'italic',
-                                  color: '#737373'
+                                  color: '#94a3b8'
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                                onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
                                 onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                               >
-                                -- No Variant --
+                                No Variant
                               </div>
                               {variants.map((variant, idx) => (
                                 <div
                                   key={idx}
                                   onClick={() => handleVariantSelect(index, variant)}
                                   style={{
-                                    padding: '8px 12px',
+                                    padding: '6px 12px',
                                     cursor: 'pointer',
                                     fontSize: '11px',
+                                    fontFamily: INTER,
                                     borderBottom: '1px solid #f3f4f6'
                                   }}
-                                  onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = '#eff6ff'}
                                   onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
                                 >
                                   {variant.variant_name || variant.make || 'Standard'}
-                                  {variant.sale_price ? ` (₹${variant.sale_price})` : ''}
                                 </div>
                               ))}
                             </>
@@ -2147,19 +2015,9 @@ export function InvoiceItemsEditor({
                   }}>
                     {formatCurrency(amount)}
                   </td>
-                  <td style={{ padding: '4px', whiteSpace: 'nowrap' }}>
-                    {insert && mode !== 'lot' && (
-                      <button type="button" title="Insert row below" onClick={() => insertRowBelow(index)} style={miniActionStyle}>
-                        <Plus size={14} />
-                      </button>
-                    )}
-                    {insert && mode !== 'lot' && (
-                      <button type="button" title="Duplicate row" onClick={() => duplicateRow(index)} style={miniActionStyle}>
-                        <Copy size={14} />
-                      </button>
-                    )}
+                  <td style={{ padding: '4px', whiteSpace: 'nowrap', position: 'sticky', right: 0, zIndex: 2, background: selectedIds[field.id] ? SURFACE_LOW : item.is_override ? ERROR_BG : SURFACE_LOWEST, boxShadow: 'inset 1px 0 0 #CBD5E1', minWidth: '100px' }}>
                     <span style={{ position: 'relative', display: 'inline-flex' }}>
-                      <button type="button" title="Move to S.No" onClick={() => setMoveToDialog({ fieldId: field.id, value: '', error: '' })} style={miniActionStyle}>
+                      <button type="button" title="Move to S.No" onClick={() => setMoveToDialog({ fieldId: field.id, value: '', error: '' })} style={{ ...miniActionStyle, padding: '6px', color: INK_MUTED, borderRadius: '4px' }}>
                         <ArrowUpDown size={14} />
                       </button>
                       {moveToDialog?.fieldId === field.id && (
@@ -2182,24 +2040,34 @@ export function InvoiceItemsEditor({
                         </div>
                       )}
                     </span>
+                    {insert && mode !== 'lot' && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button type="button" title="Row actions" style={{ ...miniActionStyle, padding: '6px', color: INK_MUTED, borderRadius: '4px' }}>
+                            <MoreHorizontal size={14} />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" style={{ fontFamily: INTER, minWidth: '180px' }}>
+                          <DropdownMenuItem onSelect={() => insertRowBelow(index)} style={{ fontSize: '12px', cursor: 'pointer' }}>
+                            <Plus size={13} /> Add new row
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => insert(index + 1, createEmptyItem({ description: 'New Section', qty: 0, rate: 0, amount: 0, is_header: true }))} style={{ fontSize: '12px', cursor: 'pointer' }}>
+                            <Heading size={13} /> Add section header
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => duplicateRow(index)} style={{ fontSize: '12px', cursor: 'pointer' }}>
+                            <Copy size={13} /> Duplicate row
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                     {mode !== 'lot' && fields.length > 1 ? (
-                      <Button variant="default" size="default" type="button" onClick={() => { remove(index); setSelectedIds({}); }}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '4px',
-                          border: 'none',
-                          background: 'transparent',
-                          color: '#dc2626',
-                          cursor: 'pointer',
-                          borderRadius: '2px',
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      <button type="button" className="btn-delete-v2" title="Delete entire row" onClick={() => { remove(index); setSelectedIds({}); }}
+                        style={{ ...miniActionStyle, padding: '6px', color: INK_FAINT, borderRadius: '4px' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = '#E11D48'; e.currentTarget.style.background = '#FFF1F2'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = INK_FAINT; e.currentTarget.style.background = 'transparent'; }}
                       >
-                        <X size={14} />
-                      </Button>
+                        <Trash2 size={14} />
+                      </button>
                     ) : null}
                   </td>
                 </SortableRow>

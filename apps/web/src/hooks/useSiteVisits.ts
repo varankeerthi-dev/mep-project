@@ -31,33 +31,54 @@ export function useSiteVisits(options?: UseSiteVisitsOptions) {
   });
 }
 
-export function useVisitPurposes() {
-  const { organisation } = useAuth();
+export function useVisitTypes() {
+  const { organisation, user } = useAuth();
 
   return useQuery({
-    queryKey: ['visit-purposes', organisation?.id],
+    queryKey: ['visit-types', organisation?.id],
     queryFn: async () => {
-      if (!organisation?.id) return [];
+      const defaultTypes = [
+        'Survey',
+        'Installation',
+        'Maintenance',
+        'Inspection',
+        'Repair',
+        'Handover',
+        'Consultation',
+        'Other',
+      ];
 
-      const { data, error } = await supabase
-        .from('visit_purposes')
-        .select('id, name, organisation_id')
-        .or(`organisation_id.eq.${organisation.id},organisation_id.is.null`)
-        .order('name');
-      
-      if (error) {
-        return [
-          { id: '1', name: 'Measurement' },
-          { id: '2', name: 'Complaint' },
-          { id: '3', name: 'Friendly Call' },
-          { id: '4', name: 'Bill Submission' },
-          { id: '5', name: 'Meeting' }
-        ];
+      let orgId = organisation?.id;
+      if (!orgId && user?.id) {
+        const { data: member } = await supabase
+          .from('org_members')
+          .select('organisation_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        orgId = member?.organisation_id || null;
       }
-      return data || [];
+
+      let query = supabase.from('visit_types').select('id, name, organisation_id');
+      if (orgId) {
+        query = query.or(`organisation_id.eq.${orgId},organisation_id.is.null`);
+      }
+
+      const { data, error } = await query.order('name');
+
+      if (error || !data || data.length === 0) {
+        return defaultTypes.map((name) => ({ id: name, name }));
+      }
+
+      const names = new Set(data.map((d: any) => d.name));
+      const merged = [...data];
+      for (const dt of defaultTypes) {
+        if (!names.has(dt)) {
+          merged.push({ id: dt, name: dt, organisation_id: null });
+        }
+      }
+      return merged.sort((a, b) => a.name.localeCompare(b.name));
     },
-    enabled: !!organisation?.id,
-    staleTime: 10 * 60 * 1000,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -155,22 +176,35 @@ export function useUpdateSiteVisit() {
   });
 }
 
-export function useAddPurpose() {
+export function useAddVisitType() {
   const queryClient = useQueryClient();
-  const { organisation } = useAuth();
+  const { organisation, user } = useAuth();
 
   return useMutation({
     mutationFn: async (name: string) => {
-      if (!organisation?.id) throw new Error('Organisation context required');
+      const trimmed = name.trim();
+      if (!trimmed) throw new Error('Category name cannot be empty');
+
+      let orgId = organisation?.id;
+      if (!orgId && user?.id) {
+        const { data: member } = await supabase
+          .from('org_members')
+          .select('organisation_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        orgId = member?.organisation_id || null;
+      }
+
       const { data, error } = await supabase
-        .from('visit_purposes')
-        .insert([{ name, organisation_id: organisation.id }])
+        .from('visit_types')
+        .insert([{ name: trimmed, organisation_id: orgId }])
         .select();
+
       if (error) throw error;
-      return data[0];
+      return data?.[0] || { id: trimmed, name: trimmed };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visit-purposes', organisation?.id] });
+      queryClient.invalidateQueries({ queryKey: ['visit-types'] });
     },
   });
 }

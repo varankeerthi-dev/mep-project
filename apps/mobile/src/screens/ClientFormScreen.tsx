@@ -177,11 +177,21 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
       if (!orgId) throw new Error('No organisation');
 
       const { client_type, ...insertData } = form;
+      const sanitizedData = {
+        ...insertData,
+        name: form.client_name.trim(),
+        client_name: form.client_name.trim(),
+        gst_treatment: form.gst_treatment?.trim() || null,
+        msme_register_type: form.msme_register_type?.trim() || null,
+        msme_number: form.msme_number?.trim() || null,
+        contact: form.contact?.trim() || null,
+        email: form.email?.trim() || null,
+      };
 
       if (editMode) {
         const { error } = await supabase
           .from('clients')
-          .update({ ...insertData, updated_at: new Date().toISOString() })
+          .update({ ...sanitizedData, updated_at: new Date().toISOString() })
           .eq('id', clientData.id)
           .eq('organisation_id', orgId);
         if (error) throw error;
@@ -189,13 +199,20 @@ export const ClientFormScreen: React.FC<ClientFormScreenProps> = ({ onBack, clie
         const clientId = 'CLT-' + Date.now().toString().slice(-6);
         const { error } = await supabase
           .from('clients')
-          .insert({ ...insertData, client_id: clientId, organisation_id: orgId });
+          .insert({ ...sanitizedData, client_id: clientId, organisation_id: orgId });
         if (error) throw error;
       }
       setSaveMsg(editMode ? 'Client updated!' : 'Client created!');
       setTimeout(onBack, 800);
     } catch (err: any) {
-      setSaveMsg('Error: ' + (err?.message || err));
+      const msg = err?.message || String(err);
+      if (msg.includes('check_gst_treatment')) {
+        setSaveMsg('Please choose GST treatment');
+      } else if (msg.includes('check_msme_register_type')) {
+        setSaveMsg('Please choose a valid MSME type');
+      } else {
+        setSaveMsg('Error: ' + msg);
+      }
     } finally {
       setSaving(false);
     }

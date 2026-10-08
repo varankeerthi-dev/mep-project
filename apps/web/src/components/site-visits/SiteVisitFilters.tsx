@@ -6,6 +6,7 @@ import {
   VISIT_DENSITY,
   type VisitTableDensity,
 } from './siteVisitLabels';
+import { STATUS_FILTER_OPTIONS } from './types';
 
 export interface SiteVisitFiltersProps {
   activeTab: string;
@@ -71,10 +72,9 @@ export const SiteVisitFilters: React.FC<SiteVisitFiltersProps> = ({
           className="h-[26px] w-[150px] rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
           <option value="all">{SITE_VISIT_LABELS.toolbar.allStatuses}</option>
-          <option value="scheduled">{SITE_VISIT_LABELS.status.scheduled}</option>
-          <option value="in_progress">{SITE_VISIT_LABELS.status.inProgress}</option>
-          <option value="completed">{SITE_VISIT_LABELS.status.completed}</option>
-          <option value="cancelled">{SITE_VISIT_LABELS.status.cancelled}</option>
+          {STATUS_FILTER_OPTIONS.filter((o) => o.id !== 'all').map((option) => (
+            <option key={option.id} value={option.id}>{option.label}</option>
+          ))}
         </select>
       </div>
 

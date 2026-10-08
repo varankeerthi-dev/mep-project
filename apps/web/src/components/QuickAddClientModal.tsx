@@ -25,6 +25,7 @@ interface QuickAddClientModalProps {
 export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClientModalProps) {
   const queryClient = useQueryClient();
   const { organisation, user } = useAuth();
+  const [errorField, setErrorField] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     client_name: '',
     client_type: '',
@@ -42,14 +43,36 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
       if (!organisation?.id) {
         throw new Error('Active organisation session not found. Please refresh and try again.');
       }
-      const { client_type, phone, ...rest } = newClient;
+      const {
+        client_name,
+        client_type,
+        contact_person,
+        phone,
+        email,
+        city,
+        msme_register_type,
+        msme_number,
+        gst_treatment,
+        ...rest
+      } = newClient;
+
+      const trimmedName = client_name?.trim();
+      if (!trimmedName) throw new Error('Client name is required');
+
       const { data, error } = await supabase
         .from('clients')
         .insert([{
           ...rest,
-          client_type: client_type || 'Business',
-          contact: phone,
-          name: newClient.client_name,
+          client_type: client_type?.trim() || 'Business',
+          contact: phone?.trim() || null,
+          name: trimmedName,
+          client_name: trimmedName,
+          contact_person: contact_person?.trim() || null,
+          email: email?.trim() || null,
+          city: city?.trim() || null,
+          gst_treatment: gst_treatment?.trim() || null,
+          msme_register_type: msme_register_type?.trim() || null,
+          msme_number: msme_number?.trim() || null,
           party_type: 'client',
           client_id: `CLT-${Date.now().toString().slice(-6)}`,
           organisation_id: organisation.id,
@@ -66,6 +89,7 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
         queryClient.invalidateQueries({ queryKey: ['clients', organisation.id] });
       }
       toast.success('Client onboarded successfully');
+      setErrorField(null);
       setFormData({
         client_name: '',
         client_type: '',
@@ -81,13 +105,32 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
       onClose();
     },
     onError: (error: any) => {
-      toast.error(`Error adding client: ${error.message}`);
+      const msg = error?.message || '';
+      if (msg.includes('check_gst_treatment')) {
+        toast.error('Please choose GST treatment');
+        setErrorField('gst_treatment');
+      } else if (msg.includes('check_msme_register_type')) {
+        toast.error('Please choose a valid MSME type');
+        setErrorField('msme_register_type');
+      } else {
+        toast.error(`Error adding client: ${msg}`);
+      }
     }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.client_name) return;
+    if (!formData.client_name?.trim()) {
+      toast.error('Please enter client name');
+      setErrorField('client_name');
+      return;
+    }
+    if (!formData.gst_treatment?.trim()) {
+      toast.error('Please choose GST treatment');
+      setErrorField('gst_treatment');
+      return;
+    }
+    setErrorField(null);
     addClientMutation.mutate(formData);
   };
 
@@ -222,14 +265,23 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
 
             <div className="group">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
-                GST Treatment
+                GST Treatment <span className="text-rose-500">*</span>
               </label>
               <select
+                required
                 value={formData.gst_treatment}
-                onChange={(e) => setFormData({ ...formData, gst_treatment: e.target.value })}
-                className="w-full h-[38px] bg-[#F8F9FA] border border-zinc-200 rounded-md px-3 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-[#185FA5] focus:bg-white transition-all"
+                onChange={(e) => {
+                  setFormData({ ...formData, gst_treatment: e.target.value });
+                  if (errorField === 'gst_treatment') setErrorField(null);
+                }}
+                className={cn(
+                  "w-full h-[38px] bg-[#F8F9FA] border rounded-md px-3 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:bg-white transition-all",
+                  errorField === 'gst_treatment'
+                    ? "border-rose-400 ring-1 ring-rose-200 focus:border-rose-500"
+                    : "border-zinc-200 focus:border-[#185FA5]"
+                )}
               >
-                <option value="">Select GST Treatment</option>
+                <option value="">Choose GST Treatment</option>
                 <option value="Registered Business Regular">Registered Business Regular</option>
                 <option value="Registered Business Composition">Registered Business Composition</option>
                 <option value="Unregistered Business">Unregistered Business</option>
@@ -241,6 +293,9 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
                 <option value="SEZ Developer">SEZ Developer</option>
                 <option value="Input Service Distributor">Input Service Distributor</option>
               </select>
+              {errorField === 'gst_treatment' && (
+                <p className="text-[11px] text-rose-500 mt-1">Please choose GST treatment</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

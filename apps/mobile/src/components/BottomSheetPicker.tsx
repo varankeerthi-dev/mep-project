@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, ChevronDown, Check } from 'lucide-react';
 
-interface Option {
+export interface Option {
   id: string;
   name: string;
+  subtitle?: string;
 }
 
 interface BottomSheetPickerProps {
@@ -42,7 +43,10 @@ export const BottomSheetPicker: React.FC<BottomSheetPickerProps> = ({
   const filteredOptions = useMemo(() => {
     if (!searchQuery.trim()) return options;
     const query = searchQuery.toLowerCase();
-    return options.filter((opt) => opt.name.toLowerCase().includes(query));
+    return options.filter((opt) => 
+      opt.name.toLowerCase().includes(query) ||
+      (opt.subtitle && opt.subtitle.toLowerCase().includes(query))
+    );
   }, [options, searchQuery]);
 
   const handleSelect = (optionId: string) => {
@@ -64,9 +68,16 @@ export const BottomSheetPicker: React.FC<BottomSheetPickerProps> = ({
         onClick={() => setIsOpen(true)}
         className="w-full px-3 h-10 rounded-xl border border-input bg-card text-xs flex items-center justify-between focus:outline-none focus:ring-1 focus:ring-primary transition-all text-left"
       >
-        <span className={selectedOption ? 'text-foreground font-medium' : 'text-muted-foreground'}>
-          {selectedOption ? selectedOption.name : placeholder}
-        </span>
+        <div className="flex flex-col min-w-0 pr-2">
+          <span className={selectedOption ? 'text-foreground font-medium truncate' : 'text-muted-foreground truncate'}>
+            {selectedOption ? selectedOption.name : placeholder}
+          </span>
+          {selectedOption?.subtitle && (
+            <span className="text-[10px] text-muted-foreground/60 truncate font-normal leading-tight">
+              {selectedOption.subtitle}
+            </span>
+          )}
+        </div>
         <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
       </button>
 
@@ -172,7 +183,14 @@ export const BottomSheetPicker: React.FC<BottomSheetPickerProps> = ({
                               : 'text-foreground hover:bg-muted/50 border border-transparent'
                           }`}
                         >
-                          <span>{opt.name}</span>
+                          <div className="flex flex-col min-w-0 pr-2">
+                            <span className="truncate">{opt.name}</span>
+                            {opt.subtitle && (
+                              <span className="text-[10px] text-muted-foreground/60 font-normal leading-tight mt-0.5 truncate">
+                                {opt.subtitle}
+                              </span>
+                            )}
+                          </div>
                           {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
                         </button>
                       );

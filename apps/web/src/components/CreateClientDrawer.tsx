@@ -398,7 +398,14 @@ export function CreateClientDrawer({ isOpen, onClose, onSuccess }: CreateClientD
       onClose();
     } catch (err: any) {
       console.error('Error creating client:', err);
-      setErrorMessage(err.message || 'Failed to save client profile.');
+      const msg = err?.message || '';
+      if (msg.includes('check_gst_treatment')) {
+        setErrorMessage('Please choose GST treatment');
+      } else if (msg.includes('check_msme_register_type')) {
+        setErrorMessage('Please choose a valid MSME type');
+      } else {
+        setErrorMessage(msg || 'Failed to save client profile.');
+      }
     } finally {
       setSaving(false);
     }

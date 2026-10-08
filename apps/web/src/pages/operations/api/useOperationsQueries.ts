@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '../../../supabase';
 import { formatAppDate } from '@/lib/dateFormat';
+import { useVisitOverview } from './useVisitOverview';
 import {
   NeedsAttentionItem,
   LiveNowSiteCheckIn,
@@ -74,28 +76,17 @@ export const useNeedsAttention = () => {
 };
 
 export const useLiveNow = () => {
-  const siteCheckIns = useQuery({
-    queryKey: ['operations', 'liveNow', 'siteCheckIns'],
-    queryFn: async (): Promise<LiveNowSiteCheckIn[]> => {
-      const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await supabase
-        .from('site_visits')
-        .select('*, user:user_id(full_name), client:client_id(client_name)')
-        .gte('visit_date', today)
-        .limit(10);
-        
-      if (error) return [];
-      return (data || []).map((v: any) => ({
-        id: v.id,
-        name: v.user?.full_name || 'Unknown User',
-        location: v.client?.client_name || 'Site',
-        time: new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        initials: (v.user?.full_name || 'U').substring(0, 2).toUpperCase()
-      }));
-    },
-    staleTime: 30 * 1000,
-    refetchInterval: 30 * 1000,
-  });
+  const overview = useVisitOverview();
+
+  const siteCheckIns = useMemo<LiveNowSiteCheckIn[]>(() =>
+    (overview.data?.today_visits || []).map((v) => ({
+      id: v.id,
+      name: v.user_name || 'Unknown User',
+      location: v.client_name || 'Site',
+      time: new Date(v.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      initials: (v.user_name || 'U').substring(0, 2).toUpperCase()
+    })),
+  [overview.data]);
 
   const manufacturingWIP = useQuery({
     queryKey: ['operations', 'liveNow', 'manufacturingWIP'],
@@ -144,7 +135,11 @@ export const useLiveNow = () => {
     refetchInterval: 60 * 1000,
   });
 
-  return { siteCheckIns, manufacturingWIP, dispatch };
+  return {
+    siteCheckIns: { data: siteCheckIns, isLoading: overview.isLoading },
+    manufacturingWIP,
+    dispatch
+  };
 };
 
 export const useSalesQuotes = () => {
@@ -222,28 +217,19 @@ export const useConfirmedAwaitingPO = () => {
 };
 
 export const useUpcomingEvents = () => {
-  return useQuery({
-    queryKey: ['operations', 'sales', 'upcomingEvents'],
-    queryFn: async (): Promise<UpcomingEvent[]> => {
-      const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await supabase
-        .from('site_visits')
-        .select('*, client:client_id(client_name)')
-        .gt('visit_date', today)
-        .limit(5);
-        
-      if (error) return [];
-      return (data || []).map((v: any) => ({
-        id: v.id,
-        type: 'visit',
-        title: v.client?.client_name || 'Site Visit',
-        meta: v.purpose || 'Follow-up',
-        tag: formatAppDate(v.visit_date)
-      }));
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
-  });
+  const overview = useVisitOverview();
+
+  const data = useMemo<UpcomingEvent[]>(() =>
+    (overview.data?.upcoming_visits || []).map((v) => ({
+      id: v.id,
+      type: 'visit',
+      title: v.client_name || 'Site Visit',
+      meta: v.purpose || 'Follow-up',
+      tag: formatAppDate(v.visit_date)
+    })),
+  [overview.data]);
+
+  return { data, isLoading: overview.isLoading };
 };
 
 export const useProjectActivity = () => {

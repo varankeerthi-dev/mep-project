@@ -228,6 +228,7 @@ export type InvoiceMaterialOption = {
   discount_category_id?: string | null;
   variants: MaterialVariant[];
   material_units?: { unit_name: string; conversion_factor: number }[];
+  mappings?: { client_id: string; client_part_no?: string | null; client_description?: string | null }[];
 };
 
 export type InvoiceSourceOption = {
@@ -271,7 +272,7 @@ export function createEmptyItem(overrides: any = {}): InvoiceEditorFormValues['i
     qty: overrides.qty ?? 1,
     rate: overrides.rate ?? 0,
     amount: overrides.amount ?? 0,
-    discount_percent: overrides.discount_percent ?? 0,
+    discount_percent: overrides.discount_percent ?? Number(meta?.discount_percent ?? 0),
     is_header: overrides.is_header ?? false,
     is_subtotal: overrides.is_subtotal ?? false,
     subtotal_label: overrides.subtotal_label ?? null,
@@ -395,6 +396,7 @@ export function composeInvoiceInput(
     po_date: values.po_date || null,
     source_type: values.source_type,
     source_id: effectiveSourceId,
+    proforma_id: values.source_type === 'proforma' ? values.source_id || null : null,
     template_type: values.template_type,
     mode: values.mode,
     subtotal: totals.subtotal,
@@ -532,6 +534,7 @@ export function getTemplateTypeFromTemplate(
 export function getSourceLabel(value: InvoiceEditorFormValues['source_type']): string {
   if (value === 'quotation') return 'Quotation';
   if (value === 'challan') return 'Delivery Challan';
+  if (value === 'proforma') return 'Proforma';
   if (value === 'direct') return 'Direct';
   return 'Client PO';
 }

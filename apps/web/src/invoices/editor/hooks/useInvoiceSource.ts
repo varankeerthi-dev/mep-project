@@ -46,6 +46,23 @@ async function loadSourceOptions(
     }));
   }
 
+  if ((sourceType as string) === 'proforma') {
+    const { data, error } = await supabase
+      .from('proforma_invoices')
+      .select('id, pi_number, total, created_at, billing_status')
+      .eq('organisation_id', organisationId)
+      .in('status', ['sent', 'accepted'])
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) throw error;
+
+    return (data ?? []).map((row: any) => ({
+      id: String(row.id),
+      label: row.pi_number ?? `Proforma ${String(row.id).slice(0, 6)}`,
+      sublabel: `Total: ₹${formatCurrency(Number(row.total ?? 0))} | ${row.billing_status ?? 'pending'}`,
+    }));
+  }
+
   if (sourceType === 'challan') {
     const { data, error } = await supabase
       .from('delivery_challans')
@@ -62,10 +79,7 @@ async function loadSourceOptions(
     }));
   }
 
-  // PO is the only remaining branch, and it is matched by name rather than
-  // being reached through a catch-all. The previous `if (clientId)` fall-through
-  // served POs for ANY unrecognised source_type, so a proforma selection silently
-  // listed client POs and could attach an unrelated PO to the invoice.
+  // PO branch is matched explicitly rather than by a catch-all.
   if (sourceType === 'po') {
     if (!clientId) return [];
 
@@ -239,7 +253,7 @@ export function useInvoiceSource(params: {
 
       const { data: header, error: headerError } = await supabase
         .from('proforma_invoices')
-        .select('id, proforma_no, grand_total, billing_status')
+        .select('id, pi_number, total, billing_status')
         .eq('id', selectedSourceId)
         .eq('organisation_id', organisationId)
         .single();
@@ -249,14 +263,16 @@ export function useInvoiceSource(params: {
       const { data: items, error: itemsError } = await supabase
         .from('proforma_items')
         .select('*')
-        .eq('proforma_id', selectedSourceId);
+        .eq('proforma_id', selectedSourceId)
+        .eq('organisation_id', organisationId)
+        .order('sort_order', { ascending: true });
 
       if (itemsError) throw itemsError;
 
       return {
         header: {
-          proforma_no: header.proforma_no,
-          grand_total: Number(header.grand_total || 0),
+          proforma_no: header.pi_number,
+          grand_total: Number(header.total || 0),
           billing_status: header.billing_status
         },
         items: items || []

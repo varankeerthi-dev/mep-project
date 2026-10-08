@@ -24,17 +24,42 @@ export const visitStatusMap: Record<string, StatusType> = {
 export const STATUS_FILTER_OPTIONS = [
   { id: 'all', label: SITE_VISIT_LABELS.toolbar.allStatuses },
   { id: 'scheduled', label: SITE_VISIT_LABELS.status.scheduled },
-  { id: 'in_progress', label: SITE_VISIT_LABELS.status.inProgress },
+  { id: 'in_progress', label: SITE_VISIT_LABELS.status.in_progress },
+  { id: 'pending', label: SITE_VISIT_LABELS.status.pending },
   { id: 'completed', label: SITE_VISIT_LABELS.status.completed },
+  { id: 'postponed', label: SITE_VISIT_LABELS.status.postponed },
   { id: 'cancelled', label: SITE_VISIT_LABELS.status.cancelled },
 ];
+
+// ── Time Formatter ─────────────────────────────────────────────────────────────
+/** Formats HH:mm / HH:mm:ss to 12-hour "h:mm A" (e.g., "10:41 PM"). Falls back to created_at if time is empty. */
+export function formatTime12(t?: string | null, createdAt?: string | null): string {
+  let s = (t || '').trim();
+  if (!s && createdAt) {
+    try {
+      const d = parseISO(createdAt);
+      s = format(d, 'HH:mm');
+    } catch {
+      // ignore
+    }
+  }
+  if (!s) return '--:--';
+  if (/am|pm/i.test(s)) return s;
+  const parts = s.split(':');
+  if (parts.length < 2) return s;
+  let h = parseInt(parts[0], 10);
+  if (isNaN(h)) return s;
+  const m = parts[1].padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}
 
 // ── Table Row Type ─────────────────────────────────────────────────────────────
 export interface SiteVisitRow {
   id: string;
   visit_date: string;
   client_name: string;
-  purpose_of_visit: string;
   site_address: string;
   visit_time: string;
   out_time: string;
@@ -62,25 +87,28 @@ export const siteVisitColumns: ColumnDef<SiteVisitRow>[] = [
     ),
   },
   {
-    // Reference §2: Primary Purpose & Sub-Context — flex 2x
-    header: SITE_VISIT_LABELS.table.headers.purpose,
-    accessorKey: 'purpose_of_visit',
-    id: 'purpose',
+    // Visit Type & Engineer/Time sub-context
+    header: 'Visit Type',
+    accessorKey: 'visit_type',
+    id: 'visit_type',
     type: 'text',
     align: 'left',
     minWidth: 260,
-    cell: ({ row }) => (
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate text-[13px] font-medium leading-[18px] text-slate-900">
-          {row.purpose_of_visit || SITE_VISIT_LABELS.table.missingValue}
-        </span>
-        <span className="truncate text-[11px] font-normal leading-4 text-slate-500">
-          {row.engineer
-            ? `${row.engineer}${row.visit_time ? ` · ${row.visit_time}` : ''}`
-            : row.visit_time || SITE_VISIT_LABELS.table.missingValue}
-        </span>
-      </div>
-    ),
+    cell: ({ row }) => {
+      const formattedTime = formatTime12(row.visit_time, row.created_at);
+      return (
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate text-[13px] font-medium leading-[18px] text-slate-900">
+            {row.visit_type || SITE_VISIT_LABELS.table.missingValue}
+          </span>
+          <span className="truncate text-[11px] font-normal leading-4 text-slate-500">
+            {row.engineer
+              ? `${row.engineer}${formattedTime !== '--:--' ? ` · ${formattedTime}` : ''}`
+              : formattedTime !== '--:--' ? formattedTime : SITE_VISIT_LABELS.table.missingValue}
+          </span>
+        </div>
+      );
+    },
   },
   {
     // Reference §2: Client Organization — flex 1.5x
@@ -121,20 +149,22 @@ export const siteVisitColumns: ColumnDef<SiteVisitRow>[] = [
     ),
   },
   {
-    // Reference §2: Scheduled Time — fixed 140px, tabular numerals
+    // Reference §2: Scheduled Time — fixed 150px, tabular numerals
     header: SITE_VISIT_LABELS.table.headers.scheduledTime,
     accessorKey: 'visit_date',
     id: 'dateTime',
     type: 'date',
     align: 'left',
-    width: 140,
+    width: 150,
     cell: ({ row }) => {
       const date = row.visit_date ? format(parseISO(row.visit_date), 'dd MMM yyyy') : SITE_VISIT_LABELS.table.missingValue;
-      const time = row.visit_time || '--:--';
+      const formattedTime = formatTime12(row.visit_time, row.created_at);
       return (
         <div className="flex flex-col tabular-nums">
           <span className="font-mono text-[12px] font-medium leading-[16px] text-slate-900">{date}</span>
-          <span className="font-mono text-[11px] leading-4 text-slate-500">{time}</span>
+          <span className="font-mono text-[11px] font-semibold leading-4 text-primary">
+            {formattedTime}
+          </span>
         </div>
       );
     },
@@ -175,9 +205,9 @@ export const siteVisitColumns: ColumnDef<SiteVisitRow>[] = [
 export interface SiteVisitFormData {
   client_id: string;
   visit_date: string;
-  purpose_of_visit: string;
   visited_by: string;
   engineer: string;
+  employee_id: string;
   visit_time: string;
   out_time: string;
   site_address: string;
@@ -195,6 +225,9 @@ export interface SiteVisitFormData {
   site_contact_person: string;
   site_contact_phone: string;
   site_contact_designation: string;
+  site_contacts?: SiteContact[];
+  instructions_to_site_persons?: string;
+  checklist_items?: SiteChecklistItem[];
   visit_type: string;
   priority: string;
   ppe_requirements: string;
@@ -213,13 +246,30 @@ export interface SiteVisitFormData {
   misc_expense: number | null;
 }
 
+export interface SiteContact {
+  id?: string;
+  name: string;
+  phone: string;
+  designation: string;
+}
+
+export interface SiteChecklistItem {
+  id: string;
+  text: string;
+  completed?: boolean;
+  status?: 'Pass' | 'Fail' | 'Pending' | 'N/A' | 'Yes' | 'No';
+  observation?: string;
+  checked_at?: string;
+  checked_by?: string;
+}
+
 export const initialSiteVisitFormData: SiteVisitFormData = {
   client_id: '',
   visit_date: format(new Date(), 'yyyy-MM-dd'),
-  purpose_of_visit: '',
   visited_by: '',
   engineer: '',
-  visit_time: '',
+  employee_id: '',
+  visit_time: format(new Date(), 'HH:mm'),
   out_time: '',
   site_address: '',
   location_url: '',
@@ -236,6 +286,9 @@ export const initialSiteVisitFormData: SiteVisitFormData = {
   site_contact_person: '',
   site_contact_phone: '',
   site_contact_designation: '',
+  site_contacts: [{ name: '', phone: '', designation: '' }],
+  instructions_to_site_persons: '',
+  checklist_items: [],
   visit_type: 'Survey',
   priority: 'Standard',
   ppe_requirements: '',
@@ -254,7 +307,13 @@ export const initialSiteVisitFormData: SiteVisitFormData = {
   misc_expense: null,
 };
 
-export const getChecklistQuestions = (visitType: string) => {
+export const getChecklistQuestions = (visitType: string, customItems?: Array<{ id?: string; text: string }>) => {
+  if (customItems && customItems.length > 0) {
+    return customItems.map((item, idx) => ({
+      id: item.id || `custom-${idx}`,
+      text: item.text,
+    }));
+  }
   if (visitType === 'Maintenance') {
     return [
       { id: 'm1', text: 'Pressure levels checked and adjusted?' },

@@ -6,6 +6,7 @@ import {
   CeoDashboardHeader,
   CeoPipelineStrip,
   CeoEscalationsSection,
+  CeoVisitsCard,
   CeoProjectPortfolioMatrix,
   CeoManufacturingPulse,
   CeoStageDetailDrawer,
@@ -138,6 +139,14 @@ export default function ProjectOverview() {
                 mode={mode}
                 activeDrawerStage={activeDrawerStage}
                 onSelectStage={setActiveDrawerStage}
+              />
+            </motion.section>
+
+            {/* 2b. Site Visits pulse for the selected horizon */}
+            <motion.section variants={itemVariants}>
+              <CeoVisitsCard
+                visitMetrics={metrics.visitMetrics}
+                onNavigate={(href) => navigate(href)}
               />
             </motion.section>
 

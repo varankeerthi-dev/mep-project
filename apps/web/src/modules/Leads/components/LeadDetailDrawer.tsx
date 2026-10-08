@@ -336,7 +336,7 @@ const ScheduleSiteVisitModal: React.FC<{
         site_address: siteAddress || null,
         engineer: engineer || lead.contact_name || null,
         lead_id: lead.id,
-        status: 'Scheduled',
+        status: 'scheduled',
         organisation_id: (lead as any).organisation_id,
       });
 

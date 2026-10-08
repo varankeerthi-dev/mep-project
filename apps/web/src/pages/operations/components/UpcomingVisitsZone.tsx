@@ -1,5 +1,6 @@
 import React from 'react';
 import { useUpcomingVisits } from '../api/useOperationsQueriesV2';
+import { useHasPermission } from '../../../rbac/hooks';
 
 const CARD_BORDER = '#EEF2F6';
 const CARD_SHADOW = '0 1px 3px rgba(15,23,42,.05), 0 8px 24px rgba(15,23,42,.06)';
@@ -24,6 +25,9 @@ const EmptyState: React.FC<{ icon: React.ReactNode; title: string; sub: string }
 
 export const UpcomingVisitsZone: React.FC = () => {
   const visits = useUpcomingVisits();
+  const { data: canReadVisits, isLoading: rbacLoading } = useHasPermission('site_visits.read');
+
+  if (!rbacLoading && !canReadVisits) return null;
 
   return (
     <div style={{ background: '#fff', border: `1px solid ${CARD_BORDER}`, borderRadius: 12, padding: 20, minHeight: 340, boxShadow: CARD_SHADOW }}>

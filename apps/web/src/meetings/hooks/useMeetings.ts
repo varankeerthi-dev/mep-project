@@ -67,6 +67,7 @@ import type {
   MeetingTemplate,
 } from '../types';
 import { useAuth } from '../../App';
+import { supabase } from '../../supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -158,11 +159,22 @@ export function useCreateMeeting() {
   
   return useMutation({
     mutationFn: async (input: CreateMeetingInput) => {
-      return createMeeting(input);
+      const meeting = await createMeeting(input);
+      if (meeting.id && meeting.site_visit_id) {
+        const { error } = await supabase
+          .from('site_visits')
+          .update({ meeting_id: meeting.id })
+          .eq('id', meeting.site_visit_id);
+        if (error) console.warn('Could not link site visit to meeting:', error.message);
+      }
+      return meeting;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: meetingKeys.lists() });
       queryClient.setQueryData(meetingKeys.detail(data.id), data);
+      if (data.site_visit_id) {
+        queryClient.invalidateQueries({ queryKey: ['site-visits'] });
+      }
       toast.success('Meeting created successfully');
     },
     onError: (error: Error) => {
@@ -177,11 +189,22 @@ export function useUpdateMeeting() {
   
   return useMutation({
     mutationFn: async ({ meetingId, updates }: { meetingId: string; updates: UpdateMeetingInput }) => {
-      return updateMeeting(meetingId, updates);
+      const meeting = await updateMeeting(meetingId, updates);
+      if (updates.site_visit_id) {
+        const { error } = await supabase
+          .from('site_visits')
+          .update({ meeting_id: meetingId })
+          .eq('id', updates.site_visit_id);
+        if (error) console.warn('Could not link site visit to meeting:', error.message);
+      }
+      return meeting;
     },
     onSuccess: (data) => {
       queryClient.setQueryData(meetingKeys.detail(data.id), data);
       queryClient.invalidateQueries({ queryKey: meetingKeys.lists() });
+      if (data.site_visit_id) {
+        queryClient.invalidateQueries({ queryKey: ['site-visits'] });
+      }
       toast.success('Meeting updated successfully');
     },
     onError: (error: Error) => {

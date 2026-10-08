@@ -189,7 +189,7 @@ export function LeadCaptureModal({
               site_contact_person: svContactPerson || contactName.trim() || null,
               site_contact_phone: svContactPhone || contactPhone.trim() || null,
               lead_id: saved.id,
-              status: 'Scheduled',
+              status: 'scheduled',
               organisation_id: organisation?.id,
               created_by: user?.id,
             });

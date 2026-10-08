@@ -9,12 +9,6 @@ export const SITE_VISIT_LABELS = {
     newVisit: 'New Site Visit',
   },
   metrics: {
-    total: 'Total',
-    scheduled: 'Scheduled',
-    inProgress: 'In Progress',
-    criticalPending: 'Critical Pending',
-    completed: 'Completed',
-    cancelled: 'Cancelled',
     activityLog: 'Activity Log',
     quickUpdate: 'Site Visit Update',
   },
@@ -33,7 +27,6 @@ export const SITE_VISIT_LABELS = {
   table: {
     headers: {
       visitId: 'Visit ID',
-      purpose: 'Primary Purpose & Sub-Context',
       client: 'Client Organization',
       location: 'Facility / Location',
       scheduledTime: 'Scheduled Time',
@@ -43,7 +36,6 @@ export const SITE_VISIT_LABELS = {
     emptyTitle: 'No site visits found',
     emptySubtitle: 'Try adjusting your search or filters, or schedule a new visit.',
     emptyAction: 'Schedule Visit',
-    followUpPrefix: 'Follow-up',
     unassigned: 'Unassigned',
     missingValue: '--',
   },
@@ -73,8 +65,7 @@ export const SITE_VISIT_LABELS = {
   },
   drawer: {
     title: 'Site Visit Details',
-    narrativeFallback: 'No visit notes recorded.',
-    followUpIn: 'Follow-up',
+    priority: 'Priority',
     params: {
       title: 'Visit Parameters',
       client: 'Client Account',
@@ -115,7 +106,6 @@ export const SITE_VISIT_LABELS = {
       clientMeeting: 'Client Meeting',
       relatedProject: 'Related Project',
       assignedTo: 'Visited By / Engineer',
-      purposeOfVisit: 'Purpose of Visit',
       status: 'Status',
       projectManager: 'Project Manager',
       visitType: 'Visit Type',

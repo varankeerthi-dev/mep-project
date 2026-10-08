@@ -2,6 +2,7 @@ import React from 'react';
 import { format, parseISO } from 'date-fns';
 import { Eye, Edit2, FileText, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { formatTime12 } from './types';
 
 export interface SiteVisitUpdatesViewProps {
   visits: any[];
@@ -26,7 +27,7 @@ export const SiteVisitUpdatesView: React.FC<SiteVisitUpdatesViewProps> = ({
             <tr className="bg-zinc-50/80 border-b border-zinc-200">
               <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200 w-[120px]">Date</th>
               <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200">Client</th>
-              <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200">Purpose</th>
+              <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200">Visit Type</th>
               <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200 w-[140px]">In / Out</th>
               <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200">Technical Details (Measurements)</th>
               <th className="px-4 py-3 font-semibold text-zinc-700 border-r border-zinc-200">Discussion & Notes</th>
@@ -47,13 +48,13 @@ export const SiteVisitUpdatesView: React.FC<SiteVisitUpdatesViewProps> = ({
                 <td className="px-4 py-[8px] border-r border-zinc-100 align-top text-zinc-600">
                   <div className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                    {v.purpose_of_visit}
+                    {v.visit_type || 'Visit'}
                   </div>
                 </td>
                 <td className="px-4 py-[8px] border-r border-zinc-100 align-top text-zinc-600 font-mono text-[12px]">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-emerald-600">↑ {v.visit_time || '--:--'}</span>
-                    <span className="text-rose-600">↓ {v.out_time || '--:--'}</span>
+                    <span className="text-emerald-600">↑ {formatTime12(v.visit_time, v.created_at)}</span>
+                    <span className="text-rose-600">↓ {v.out_time ? formatTime12(v.out_time) : '--:--'}</span>
                   </div>
                 </td>
                 <td className="px-4 py-[8px] border-r border-zinc-100 align-top text-zinc-600 max-w-[200px]">

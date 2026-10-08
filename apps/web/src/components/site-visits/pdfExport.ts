@@ -73,8 +73,10 @@ export const downloadVisitPDF = async (visit: any, projectManagers?: any[]) => {
     printFieldRight('Visit Date', visit.visit_date ? new Date(visit.visit_date).toLocaleDateString() : 'N/A');
     y += 7;
 
-    // Purpose and Time
-    printField('Purpose', visit.purpose_of_visit);
+    // Purpose and Time (or Instructions)
+    if (visit.purpose_of_visit) {
+      printField('Purpose', visit.purpose_of_visit);
+    }
     printFieldRight('Visit Time', visit.visit_time || 'N/A');
     y += 7;
 
@@ -101,8 +103,14 @@ export const downloadVisitPDF = async (visit: any, projectManagers?: any[]) => {
     y += 7;
 
     // Site Contact details
-    printField('Contact Person', visit.site_contact_person);
-    printFieldRight('Contact Phone', visit.site_contact_phone);
+    if (visit.site_contacts && visit.site_contacts.length > 0) {
+      const firstContact = visit.site_contacts[0];
+      printField('Contact Person', `${firstContact.name || 'N/A'}${firstContact.designation ? ` (${firstContact.designation})` : ''}`);
+      printFieldRight('Contact Phone', firstContact.phone || 'N/A');
+    } else {
+      printField('Contact Person', visit.site_contact_person);
+      printFieldRight('Contact Phone', visit.site_contact_phone);
+    }
     y += 7;
 
     printField('Designation', visit.site_contact_designation);
@@ -117,6 +125,27 @@ export const downloadVisitPDF = async (visit: any, projectManagers?: any[]) => {
     const addressLines = doc.splitTextToSize(visit.site_address || 'N/A', 130);
     doc.text(addressLines, leftColX + 35, y);
     y += (addressLines.length * 5) + 3;
+
+    // Instructions to site persons
+    if (visit.instructions_to_site_persons) {
+      const instLines = doc.splitTextToSize(visit.instructions_to_site_persons, 160);
+      const estInstHeight = 6 + (instLines.length * 4.5) + 4;
+      if (y + estInstHeight > 275) {
+        doc.addPage();
+        y = 25;
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(180, 83, 9); // Amber
+      doc.text('Instructions to Site Persons:', leftColX, y);
+      y += 5;
+      doc.setFont('courier', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(120, 53, 15);
+      doc.text(instLines, leftColX, y);
+      y += (instLines.length * 4.5) + 4;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+    }
 
     // Section 2: Operational Report
     doc.setDrawColor(229, 229, 229);
@@ -162,6 +191,53 @@ export const downloadVisitPDF = async (visit: any, projectManagers?: any[]) => {
     printTextArea('Discussion & Minutes of Meeting', visit.discussion_points);
     printTextArea('Measurements & Dimensions', visit.measurements);
     printTextArea('Actionable Recommendations', visit.recommendations);
+
+    // Section 2.1: Checklist & Observations
+    if (visit.checklist_items && visit.checklist_items.length > 0) {
+      if (y + 20 > 275) {
+        doc.addPage();
+        y = 25;
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(37, 99, 235);
+      doc.text('Checklist Verification & Observations', leftColX, y);
+      y += 6;
+
+      visit.checklist_items.forEach((item: any, idx: number) => {
+        const statusVal = item.status || (item.completed ? 'Pass' : 'Pending');
+        const headerText = `${idx + 1}. ${item.text || 'Item'} [Status: ${statusVal}]`;
+        const lines = doc.splitTextToSize(headerText, 160);
+        let obsLines: string[] = [];
+        let estH = (lines.length * 5) + 2;
+        if (item.observation) {
+          obsLines = doc.splitTextToSize(`Finding / Observation: ${item.observation}`, 152);
+          estH += (obsLines.length * 4.5) + 4;
+        }
+
+        if (y + estH > 275) {
+          doc.addPage();
+          y = 25;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(31, 41, 55);
+        doc.text(lines, leftColX, y);
+        y += (lines.length * 5);
+
+        if (item.observation) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          doc.setTextColor(75, 85, 99);
+          doc.text(obsLines, leftColX + 6, y);
+          y += (obsLines.length * 4.5) + 3;
+        } else {
+          y += 2;
+        }
+      });
+      y += 4;
+    }
 
     // Section 3: Expenses
     const travelExp = visit.travel_expense || 0;

@@ -134,6 +134,23 @@ export interface CeoPipelineMetrics {
     budgetOverrunsCount: number;
     totalEscalations: number;
   };
+  visitMetrics: VisitMetrics;
+}
+
+export interface VisitMetricsItem {
+  id: string;
+  visit_date: string;
+  status: string | null;
+}
+
+export interface VisitMetrics {
+  total: number;
+  pending: number;
+  scheduled: number;
+  inProgress: number;
+  completed: number;
+  cancelled: number;
+  postponed: number;
 }
 
 export function computeDateBoundaries(horizon: DateHorizon, customStart?: string | null, customEnd?: string | null, orgFy = 'FY24-25') {
@@ -458,7 +475,30 @@ export function useCeoDashboardData(orgId: string | undefined, dateRange: DateRa
   const budgetAlertsQuery = useBudgetAlerts(orgId || null);
   const resolveStoppageMutation = useResolveStoppage(orgId);
 
-  // 9. Process Direct Approval Mutation
+  // 9. Site Visits Query (visits scheduled inside the selected date horizon)
+  const visitsQuery = useQuery({
+    queryKey: ['ceo-dashboard', 'visits', orgId, startDate, endDate],
+    enabled: !!orgId,
+    queryFn: async (): Promise<VisitMetricsItem[]> => {
+      const { data, error } = await supabase
+        .from('site_visits')
+        .select('id, visit_date, status')
+        .eq('organisation_id', orgId as string)
+        .gte('visit_date', startDate)
+        .lte('visit_date', endDate)
+        .limit(500);
+
+      if (error) throw error;
+      return (data || []).map((v: any) => ({
+        id: v.id,
+        visit_date: v.visit_date,
+        status: v.status || null,
+      }));
+    },
+    staleTime: 60 * 1000,
+  });
+
+  // 10. Process Direct Approval Mutation
   const processApprovalMutation = useMutation({
     mutationFn: async ({ approvalId, action, comments }: { approvalId: string; action: 'APPROVED' | 'REJECTED'; comments?: string }) => {
       const res = await ApprovalAPI.processApproval(approvalId, {
@@ -490,6 +530,7 @@ export function useCeoDashboardData(orgId: string | undefined, dateRange: DateRa
     const approvals = approvalsQuery.data ?? [];
     const stoppages = openStoppagesQuery.data ?? [];
     const budgetAlerts = budgetAlertsQuery.data ?? [];
+    const visits = visitsQuery.data ?? [];
 
     // Quotes calculations
     const quotesTotal = quotes.reduce((acc, q) => acc + q.grand_total, 0);
@@ -530,6 +571,19 @@ export function useCeoDashboardData(orgId: string | undefined, dateRange: DateRa
     const highPriorityApprovals = approvals.filter((a) => a.priority === 'HIGH' || a.priority === 'URGENT' || (a.amount && a.amount >= 50000)).length;
     const criticalBudgetAlerts = budgetAlerts.filter((b) => b.isOverBudget).length;
 
+    // Site Visits calculations (normalise legacy casing / null statuses)
+    const countVisit = (s: string) =>
+      visits.filter((v) => (v.status || 'pending').toLowerCase() === s).length;
+    const visitMetrics: VisitMetrics = {
+      total: visits.length,
+      pending: countVisit('pending'),
+      scheduled: countVisit('scheduled'),
+      inProgress: countVisit('in_progress'),
+      completed: countVisit('completed'),
+      cancelled: countVisit('cancelled'),
+      postponed: countVisit('postponed'),
+    };
+
     return {
       quotes: {
         totalValue: quotesTotal,
@@ -566,6 +620,7 @@ export function useCeoDashboardData(orgId: string | undefined, dateRange: DateRa
         budgetOverrunsCount: criticalBudgetAlerts,
         totalEscalations: criticalStoppages + highPriorityApprovals + criticalBudgetAlerts,
       },
+      visitMetrics,
     };
   }, [
     quotesQuery.data,
@@ -576,6 +631,7 @@ export function useCeoDashboardData(orgId: string | undefined, dateRange: DateRa
     approvalsQuery.data,
     openStoppagesQuery.data,
     budgetAlertsQuery.data,
+    visitsQuery.data,
   ]);
 
   const isLoading =
@@ -585,7 +641,8 @@ export function useCeoDashboardData(orgId: string | undefined, dateRange: DateRa
     projectsQuery.isLoading ||
     invoicesQuery.isLoading ||
     approvalsQuery.isLoading ||
-    openStoppagesQuery.isLoading;
+    openStoppagesQuery.isLoading ||
+    visitsQuery.isLoading;
 
   return {
     modules: {

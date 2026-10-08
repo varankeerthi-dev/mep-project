@@ -1,6 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { X, Mic } from 'lucide-react';
+import { toast } from 'sonner';
 import { getChecklistQuestions } from './types';
+import { STOPPAGE_CATEGORY_OPTIONS, BLOCKING_PARTY_OPTIONS } from '../../types/siteReportStoppage';
 
 export interface SiteVisitCheckoutModalProps {
   isOpen: boolean;
@@ -36,6 +38,16 @@ export interface SiteVisitCheckoutModalProps {
   setObservationCategory: (cat: string) => void;
   observationTitle: string;
   setObservationTitle: (title: string) => void;
+  stoppageOpen: boolean;
+  setStoppageOpen: (open: boolean) => void;
+  stoppageCategory: string;
+  setStoppageCategory: (c: string) => void;
+  stoppageBlockingParty: string;
+  setStoppageBlockingParty: (p: string) => void;
+  stoppageDescription: string;
+  setStoppageDescription: (d: string) => void;
+  stoppageImpactHours: string;
+  setStoppageImpactHours: (v: string) => void;
   isListening: boolean;
   startListening: () => void;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -74,6 +86,16 @@ export const SiteVisitCheckoutModal: React.FC<SiteVisitCheckoutModalProps> = ({
   setObservationCategory,
   observationTitle,
   setObservationTitle,
+  stoppageOpen,
+  setStoppageOpen,
+  stoppageCategory,
+  setStoppageCategory,
+  stoppageBlockingParty,
+  setStoppageBlockingParty,
+  stoppageDescription,
+  setStoppageDescription,
+  stoppageImpactHours,
+  setStoppageImpactHours,
   isListening,
   startListening,
   canvasRef,
@@ -100,7 +122,7 @@ export const SiteVisitCheckoutModal: React.FC<SiteVisitCheckoutModalProps> = ({
           <div>
             <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Visit Checklist</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {getChecklistQuestions(visit?.visit_type || '').map((q: any) => (
+              {getChecklistQuestions(visit?.visit_type || '', visit?.checklist_items).map((q: any) => (
                 <div key={q.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                   <span style={{ fontSize: '0.875rem', color: '#334155' }}>{q.text}</span>
                   <select
@@ -446,6 +468,76 @@ export const SiteVisitCheckoutModal: React.FC<SiteVisitCheckoutModalProps> = ({
             )}
           </div>
 
+          {/* Work Stoppage Intent Section (Optional) */}
+          <div>
+            <div
+              onClick={() => setStoppageOpen(!stoppageOpen)}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', marginBottom: '0.5rem' }}
+            >
+              <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{stoppageOpen ? 'v' : '>'}</span>
+                Report Work Stoppage (Optional)
+              </h4>
+              {!stoppageOpen && stoppageDescription.trim() && (
+                <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 500 }}>Added</span>
+              )}
+            </div>
+
+            {stoppageOpen && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '0.5rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#475569', marginBottom: '0.375rem' }}>Category *</label>
+                  <select
+                    className="pl-input"
+                    value={stoppageCategory}
+                    onChange={e => setStoppageCategory(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.8125rem' }}
+                  >
+                    {STOPPAGE_CATEGORY_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#475569', marginBottom: '0.375rem' }}>Blocking party *</label>
+                  <select
+                    className="pl-input"
+                    value={stoppageBlockingParty}
+                    onChange={e => setStoppageBlockingParty(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.8125rem' }}
+                  >
+                    {BLOCKING_PARTY_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#475569', marginBottom: '0.375rem' }}>What stopped? *</label>
+                  <textarea
+                    className="pl-input"
+                    rows={2}
+                    placeholder="e.g. Client payment pending, material not delivered..."
+                    value={stoppageDescription}
+                    onChange={e => setStoppageDescription(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.8125rem', resize: 'vertical' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#475569', marginBottom: '0.375rem' }}>Impact (hours)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    className="pl-input"
+                    value={stoppageImpactHours}
+                    onChange={e => setStoppageImpactHours(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.8125rem' }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0' }} />
 
           {/* Client Sign-off Fields */}
@@ -515,7 +607,7 @@ export const SiteVisitCheckoutModal: React.FC<SiteVisitCheckoutModalProps> = ({
             type="button"
             onClick={() => {
               if (!checkoutData.signed_off_by || !checkoutData.signed_off_designation) {
-                alert('Please enter representative name and designation.');
+                toast.error('Please enter representative name and designation.');
                 return;
               }
               onSubmitCheckout(visit);

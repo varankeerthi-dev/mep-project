@@ -1,4 +1,4 @@
-export const invoiceSourceTypes = ['quotation', 'challan', 'po', 'direct'] as const;
+export const invoiceSourceTypes = ['quotation', 'challan', 'po', 'proforma', 'direct'] as const;
 export const invoiceTemplateTypes = ['standard', 'lot', 'client_custom'] as const;
 export const invoiceModes = ['itemized', 'lot'] as const;
 export const invoiceStatuses = ['draft', 'final', 'converted', 'sent', 'paid', 'overdue', 'cancelled', 'partially_paid'] as const;
@@ -35,6 +35,7 @@ export interface InvoiceSourceLine {
   qty: number;
   rate: number;
   amount?: number | null;
+  discount_percent?: number | null;
   tax_percent?: number | null;
   meta_json?: Record<string, unknown> | null;
 }
@@ -82,10 +83,22 @@ export interface PurchaseOrderInvoiceSource {
   materials?: InvoiceSourceMaterial[];
 }
 
+export interface ProformaInvoiceSource {
+  type: 'proforma';
+  header: {
+    id: string;
+    client_id: string;
+    client_state?: string | null;
+    reference?: string | null;
+  };
+  items: InvoiceSourceLine[];
+}
+
 export type InvoiceSourceDocument =
   | QuotationInvoiceSource
   | ChallanInvoiceSource
-  | PurchaseOrderInvoiceSource;
+  | PurchaseOrderInvoiceSource
+  | ProformaInvoiceSource;
 
 export interface InvoiceClientSummary {
   id: string;

@@ -48,6 +48,7 @@ const INVOICE_FIELDS = [
   'po_date',
   'source_type',
   'source_id',
+  'proforma_id',
 ];
 
 const INVOICE_SELECT = `
@@ -61,6 +62,7 @@ const INVOICE_SELECT = `
     po_date,
     source_type,
     source_id,
+    proforma_id,
     template_id,
     template_type,
     mode,
@@ -94,6 +96,7 @@ export const INVOICE_LIST_SELECT = `
   po_date,
   source_type,
   source_id,
+  proforma_id,
   template_id,
   template_type,
   mode,
@@ -231,6 +234,7 @@ function buildInvoicePayload(invoice: Invoice): {
     po_date: invoice.po_date ?? null,
     source_type: invoice.source_type,
     source_id: invoice.source_id,
+    proforma_id: invoice.proforma_id ?? null,
     template_type: invoice.template_type,
     mode: invoice.mode,
     subtotal: totals.subtotal,
@@ -317,6 +321,7 @@ function parseInvoiceRecord(row: any): InvoiceWithRelations {
     template_id: row.template_id ?? null,
     source_type: row.source_type,
     source_id: row.source_id ?? null,
+    proforma_id: row.proforma_id ?? null,
     template_type: row.template_type,
     mode: row.mode,
     subtotal: row.subtotal,
@@ -359,6 +364,7 @@ export function parseInvoiceSummaryRecord(row: any): InvoiceWithRelations {
     template_id: row.template_id ?? null,
     source_type: row.source_type,
     source_id: row.source_id ?? null,
+    proforma_id: row.proforma_id ?? null,
     template_type: row.template_type,
     mode: row.mode,
     subtotal: Number(row.subtotal || 0),
@@ -700,6 +706,56 @@ async function matchMaterialByDescriptionOrHsn(
 }
 
 export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId: string, organisationId: string): Promise<InvoiceSourceDocument> {
+  if (sourceType === 'proforma') {
+    const { data: header, error: headerError } = await supabase
+      .from('proforma_invoices')
+      .select('id, client_id, client_state, pi_number')
+      .eq('id', sourceId)
+      .eq('organisation_id', organisationId)
+      .single();
+    if (headerError) throw headerError;
+
+    const { data: items, error: itemError } = await supabase
+      .from('proforma_items')
+      .select('id, item_id, description, hsn_code, qty, rate, amount, tax_percent, meta_json, unit, variant_id, make, variant')
+      .eq('proforma_id', sourceId)
+      .eq('organisation_id', organisationId)
+      .order('sort_order', { ascending: true });
+    if (itemError) throw itemError;
+
+    return {
+      type: 'proforma',
+      header: {
+        id: header.id,
+        client_id: header.client_id,
+        client_state: header.client_state ?? null,
+        reference: header.pi_number ?? null,
+      },
+      items: (items ?? []).map((item: any) => ({
+        id: item.id,
+        item_id: item.item_id ?? null,
+        product_id: item.item_id ?? null,
+        description: item.description ?? 'Proforma item',
+        hsn_code: item.hsn_code ?? null,
+        qty: Number(item.qty ?? 0),
+        rate: Number(item.rate ?? 0),
+        amount: Number(item.amount ?? roundCurrency(Number(item.qty ?? 0) * Number(item.rate ?? 0))),
+        discount_percent: Number(item.discount_percent ?? 0),
+        tax_percent: Number(item.tax_percent ?? 18),
+        meta_json: {
+          ...(item.meta_json ?? {}),
+          discount_percent: Number(item.discount_percent ?? 0),
+          uom: item.unit ?? item.meta_json?.uom ?? 'Nos',
+          make: item.make ?? item.meta_json?.make ?? null,
+          variant: item.variant ?? item.meta_json?.variant ?? null,
+          variant_id: item.variant_id ?? item.meta_json?.variant_id ?? null,
+          material_id: item.item_id ?? item.meta_json?.material_id ?? null,
+          proforma_item_id: item.id,
+        },
+      })),
+    };
+  }
+
   if (sourceType === 'quotation') {
     const { data: header, error: headerError } = await supabase
       .from('quotation_header')

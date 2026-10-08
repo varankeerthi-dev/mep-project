@@ -13,6 +13,7 @@ interface DateTimePickerProps {
   onTimeChange: (time: string) => void;
   placeholder?: string;
   className?: string;
+  hasError?: boolean;
   /** Earliest selectable date. Defaults to 7 days ago. */
   minDate?: Date;
 }
@@ -45,6 +46,7 @@ export function DateTimePicker({
   onTimeChange,
   placeholder = "Select date & time",
   className,
+  hasError,
   minDate,
 }: DateTimePickerProps) {
   // Default: allow 7 days back
@@ -114,14 +116,25 @@ export function DateTimePicker({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
+  // Initialize time if not set yet
+  React.useEffect(() => {
+    if (!time) {
+      onTimeChange(`${pad(hour)}:${pad(minute)}`);
+    }
+  }, []);
+
   function handleNow() {
     const now = new Date();
     setSelectedDay(now);
     setCalYear(now.getFullYear());
     setCalMonth(now.getMonth());
-    setHour(now.getHours());
-    setMinute(now.getMinutes());
+    const h = now.getHours();
+    const m = now.getMinutes();
+    setHour(h);
+    setMinute(m);
     scrollToSelected();
+    onDateChange(format(now, "yyyy-MM-dd"));
+    onTimeChange(`${pad(h)}:${pad(m)}`);
   }
 
   function handleOk() {
@@ -157,7 +170,10 @@ export function DateTimePicker({
 
   function selectDay(day: number) {
     if (isBeforeMin(day)) return; // guard
-    setSelectedDay(new Date(calYear, calMonth, day));
+    const newDay = new Date(calYear, calMonth, day);
+    setSelectedDay(newDay);
+    onDateChange(format(newDay, "yyyy-MM-dd"));
+    onTimeChange(`${pad(hour)}:${pad(minute)}`);
   }
 
   // Build calendar grid
@@ -194,6 +210,7 @@ export function DateTimePicker({
         className={cn(
           "flex h-9 w-full items-center gap-2 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors text-left",
           "hover:border-ring focus:outline-none focus:ring-1 focus:ring-ring",
+          hasError && "border-destructive ring-1 ring-destructive/30",
           !displayValue && "text-muted-foreground"
         )}
       >
@@ -286,7 +303,10 @@ export function DateTimePicker({
                   <button
                     key={h}
                     type="button"
-                    onClick={() => setHour(h)}
+                    onClick={() => {
+                      setHour(h);
+                      onTimeChange(`${pad(h)}:${pad(minute)}`);
+                    }}
                     className={cn(
                       "w-full h-9 flex items-center justify-center text-sm tabular-nums transition-colors",
                       h === hour
@@ -309,7 +329,10 @@ export function DateTimePicker({
                   <button
                     key={m}
                     type="button"
-                    onClick={() => setMinute(m)}
+                    onClick={() => {
+                      setMinute(m);
+                      onTimeChange(`${pad(hour)}:${pad(m)}`);
+                    }}
                     className={cn(
                       "w-full h-9 flex items-center justify-center text-sm tabular-nums transition-colors",
                       m === minute

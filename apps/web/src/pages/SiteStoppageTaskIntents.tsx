@@ -46,37 +46,14 @@ export const SiteStoppageTaskIntents: React.FC = () => {
     }
   };
 
-  const handleApproveAndCreateTask = async (id: string, description: string) => {
+  const handleApproveAndCreateTask = async (id: string) => {
     try {
-      // 1. Create task in the live tasks table (canonical task store)
-      const { data: orgId } = await supabase.rpc('current_org_id');
-      const { data: taskData, error: taskError } = await supabase
-        .from('tasks')
-        .insert([{
-          organisation_id: (typeof orgId === 'string' ? orgId : null) as string,
-          title: `[Site Stoppage] ${description.slice(0, 80)}`,
-          description: description,
-          status: 'not_started',
-          priority: 'high',
-          created_by: user?.id
-        }])
-        .select()
-        .single();
-
-      const taskId = taskData?.id || null;
-
-      // 2. Update stoppage intent status
-      const { error: updateError } = await supabase
-        .from('site_report_stoppages')
-        .update({
-          task_intent_status: 'approved_task_created',
-          created_task_id: taskId,
-          pm_reviewed_by: user?.id,
-          pm_reviewed_at: new Date().toISOString()
-        })
-        .eq('id', id);
-
-      if (updateError) throw updateError;
+      // Single transaction server-side: creates the task (assigned to the visiting engineer
+      // when resolvable), links it on the intent, and stamps the PM review.
+      const { error: rpcError } = await supabase.rpc('approve_site_stoppage_intent', {
+        p_intent_id: id,
+      });
+      if (rpcError) throw rpcError;
       toast.success('Site Stoppage approved & Task created successfully');
       fetchIntents();
     } catch (err: any) {
@@ -211,7 +188,7 @@ export const SiteStoppageTaskIntents: React.FC = () => {
                       {item.task_intent_status === 'pending_pm_approval' && (
                         <>
                           <button
-                            onClick={() => handleApproveAndCreateTask(item.id, item.description)}
+                            onClick={() => handleApproveAndCreateTask(item.id)}
                             className="inline-flex items-center px-3 py-1.5 border border-emerald-300 text-xs font-medium rounded-md text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
                           >
                             <Check className="w-3.5 h-3.5 mr-1" /> Approve & Create Task

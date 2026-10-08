@@ -1,5 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import { X, Calendar as CalendarIcon, Download, Edit2, Activity } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { cn } from '../../lib/utils';
 import {
@@ -8,6 +9,8 @@ import {
   FALLBACK_STATUS,
   visitToken,
 } from './siteVisitLabels';
+import { formatTime12 } from './types';
+import { useHasPermission } from '../../rbac/hooks';
 
 const DRAWER_SECTION_LABEL_CLASS =
   'text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500';
@@ -48,8 +51,10 @@ export const SiteVisitDetailModal: React.FC<SiteVisitDetailModalProps> = ({
   handleAddToGoogleCalendar,
   handleDownloadIcsFile,
   projectManagers,
-  userRole,
 }) => {
+  const navigate = useNavigate();
+  const { data: canSeeAmounts } = useHasPermission('site_visits.approve');
+
   if (!visit) return null;
 
   return (
@@ -197,7 +202,12 @@ export const SiteVisitDetailModal: React.FC<SiteVisitDetailModalProps> = ({
                 <div className={DRAWER_FIELD_LABEL_CLASS}>{SITE_VISIT_LABELS.drawer.fields.visitDateTime}</div>
                 <div style={{ fontSize: '13px', fontWeight: 500, color: '#171717', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div>
-                    {visit.visit_date ? format(parseISO(visit.visit_date), 'dd MMM yyyy') : SITE_VISIT_LABELS.drawer.values.missingValue} {visit.visit_time ? `@ ${visit.visit_time}` : ''}
+                    {visit.visit_date ? format(parseISO(visit.visit_date), 'dd MMM yyyy') : SITE_VISIT_LABELS.drawer.values.missingValue}
+                    {formatTime12(visit.visit_time, visit.created_at) !== '--:--' && (
+                      <span className="font-semibold text-primary ml-1.5">
+                        @ {formatTime12(visit.visit_time, visit.created_at)}
+                      </span>
+                    )}
                   </div>
                   {visit.visit_date && (
                     <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
@@ -257,11 +267,36 @@ export const SiteVisitDetailModal: React.FC<SiteVisitDetailModalProps> = ({
                       </button>
                     </div>
                   )}
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/meetings/create?site_visit_id=${visit.id}`)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 8px',
+                        border: '1px solid #e9d5ff',
+                        borderRadius: '8px',
+                        background: '#f5f3ff',
+                        color: '#5b21b6',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s',
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.background = '#ede9fe';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.background = '#f5f3ff';
+                      }}
+                    >
+                      <CalendarIcon size={12} />
+                      Schedule Meeting
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className={DRAWER_FIELD_LABEL_CLASS}>{SITE_VISIT_LABELS.drawer.fields.purposeOfVisit}</div>
-                <div style={{ fontSize: '13px', fontWeight: 500, color: '#171717', marginTop: '2px' }}>{visit.purpose_of_visit || SITE_VISIT_LABELS.drawer.values.missingValue}</div>
               </div>
               <div>
                 <div className={DRAWER_FIELD_LABEL_CLASS}>{SITE_VISIT_LABELS.drawer.fields.status}</div>
@@ -321,10 +356,30 @@ export const SiteVisitDetailModal: React.FC<SiteVisitDetailModalProps> = ({
               </div>
               <div style={{ gridColumn: 'span 2' }}>
                 <div className={DRAWER_FIELD_LABEL_CLASS}>{SITE_VISIT_LABELS.drawer.fields.siteContact}</div>
-                <div style={{ fontSize: '13px', fontWeight: 500, color: '#171717', marginTop: '2px' }}>
-                  {visit.site_contact_person ? `${visit.site_contact_person} (${visit.site_contact_designation || SITE_VISIT_LABELS.drawer.values.contactFallback}) - ${visit.site_contact_phone || SITE_VISIT_LABELS.drawer.values.noPhone}` : SITE_VISIT_LABELS.drawer.values.missingValue}
-                </div>
+                {visit.site_contacts && visit.site_contacts.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+                    {visit.site_contacts.map((c: any, i: number) => (
+                      <div key={i} style={{ fontSize: '13px', fontWeight: 500, color: '#171717' }}>
+                        <span style={{ fontWeight: 600 }}>{c.name || 'Unnamed Contact'}</span>
+                        {c.designation && <span style={{ color: '#64748b', fontSize: '12px' }}> ({c.designation})</span>}
+                        {c.phone && <span style={{ color: '#2563eb', fontSize: '12px', marginLeft: '6px' }}>• <a href={`tel:${c.phone}`} style={{ color: 'inherit', textDecoration: 'none' }}>{c.phone}</a></span>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '13px', fontWeight: 500, color: '#171717', marginTop: '2px' }}>
+                    {visit.site_contact_person ? `${visit.site_contact_person} (${visit.site_contact_designation || SITE_VISIT_LABELS.drawer.values.contactFallback}) - ${visit.site_contact_phone || SITE_VISIT_LABELS.drawer.values.noPhone}` : SITE_VISIT_LABELS.drawer.values.missingValue}
+                  </div>
+                )}
               </div>
+              {visit.instructions_to_site_persons && (
+                <div style={{ gridColumn: 'span 2', padding: '10px 12px', background: '#fefce8', border: '1px solid #fef08a', borderRadius: '8px' }}>
+                  <div className={DRAWER_FIELD_LABEL_CLASS} style={{ color: '#854d0e', marginBottom: '4px' }}>INSTRUCTIONS TO SITE PERSONS</div>
+                  <div style={{ fontSize: '12px', color: '#713f12', whiteSpace: 'pre-wrap', lineHeight: 1.6, fontFamily: 'monospace' }}>
+                    {visit.instructions_to_site_persons}
+                  </div>
+                </div>
+              )}
               <div style={{ gridColumn: 'span 2' }}>
                 <div className={DRAWER_FIELD_LABEL_CLASS}>{SITE_VISIT_LABELS.drawer.fields.siteAddress}</div>
                 <div style={{ fontSize: '13px', fontWeight: 500, color: '#171717', marginTop: '2px', whiteSpace: 'pre-wrap' }}>{visit.site_address || '--'}</div>
@@ -501,24 +556,99 @@ export const SiteVisitDetailModal: React.FC<SiteVisitDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Saved Checklist Responses */}
-            {savedChecklist.length > 0 && (
+            {/* Checklist Section: Saved Responses or Planned Checklist Items */}
+            {((savedChecklist && savedChecklist.length > 0) || (visit.checklist_items && visit.checklist_items.length > 0)) && (
               <div style={{ marginTop: '16px' }}>
                 <div className={DRAWER_FIELD_LABEL_CLASS} style={{ marginBottom: '8px' }}>{SITE_VISIT_LABELS.drawer.sections.checklist}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
-                  {savedChecklist.map((item: any, idx: number) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #f3f4f6' }}>
-                      <span style={{ fontSize: '12px', color: '#374151' }}>{item.question_text}</span>
-                      <span style={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        color: item.answer === 'Yes' ? '#047857' : item.answer === 'No' ? '#b91c1c' : '#4b5563',
-                        background: item.answer === 'Yes' ? '#d1fae5' : item.answer === 'No' ? '#fee2e2' : '#f3f4f6',
-                        padding: '2px 6px',
-                        borderRadius: '8px'
-                      }}>{item.answer}</span>
-                    </div>
-                  ))}
+                  {visit.checklist_items && visit.checklist_items.length > 0 ? (
+                    visit.checklist_items.map((item: any, idx: number) => {
+                      const statusVal = item.status || (item.completed ? 'Pass' : 'Pending');
+                      const statusColor =
+                        statusVal === 'Pass' || statusVal === 'Yes'
+                          ? { bg: '#d1fae5', text: '#065f46', border: '#a7f3d0' }
+                          : statusVal === 'Fail' || statusVal === 'No'
+                          ? { bg: '#fee2e2', text: '#991b1b', border: '#fecaca' }
+                          : statusVal === 'N/A'
+                          ? { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' }
+                          : { bg: '#fef3c7', text: '#92400e', border: '#fde68a' };
+
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: '8px 12px',
+                            background: '#f8fafc',
+                            borderRadius: '8px',
+                            border: '1px solid #e2e8f0',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flex: 1 }}>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', minWidth: '18px', marginTop: '1px' }}>
+                                {idx + 1}.
+                              </span>
+                              <span style={{ fontSize: '12px', fontWeight: 500, color: '#1e293b', wordBreak: 'break-word' }}>
+                                {item.text}
+                              </span>
+                            </div>
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                padding: '2px 8px',
+                                borderRadius: '9999px',
+                                background: statusColor.bg,
+                                color: statusColor.text,
+                                border: `1px solid ${statusColor.border}`,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {statusVal}
+                            </span>
+                          </div>
+
+                          {item.observation && (
+                            <div
+                              style={{
+                                marginTop: '4px',
+                                marginLeft: '26px',
+                                padding: '6px 10px',
+                                background: '#ffffff',
+                                borderRadius: '6px',
+                                border: '1px solid #e2e8f0',
+                                borderLeft: '3px solid #3b82f6',
+                                fontSize: '11px',
+                                color: '#334155',
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              <span style={{ fontWeight: 600, color: '#1e293b', marginRight: '4px' }}>Finding / Observation:</span>
+                              {item.observation}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    savedChecklist?.map((item: any, idx: number) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: '#f9fafb', borderRadius: '8px', border: '1px solid #f3f4f6' }}>
+                        <span style={{ fontSize: '12px', color: '#374151' }}>{item.question_text}</span>
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: item.answer === 'Yes' ? '#047857' : item.answer === 'No' ? '#b91c1c' : '#4b5563',
+                          background: item.answer === 'Yes' ? '#d1fae5' : item.answer === 'No' ? '#fee2e2' : '#f3f4f6',
+                          padding: '2px 6px',
+                          borderRadius: '8px'
+                        }}>{item.answer}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -546,7 +676,7 @@ export const SiteVisitDetailModal: React.FC<SiteVisitDetailModalProps> = ({
                       <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569' }}>{SITE_VISIT_LABELS.drawer.values.itemDescription}</th>
                       <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569', width: '80px' }}>{SITE_VISIT_LABELS.drawer.values.unit}</th>
                       <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569', width: '100px', textAlign: 'right' }}>{SITE_VISIT_LABELS.drawer.values.agreedQty}</th>
-                      {['Project Manager', 'Admin'].includes(userRole) && (
+                      {canSeeAmounts && (
                         <>
                           {/* Table Alignment Rule: Monetary/Amount columns must be left-aligned */}
                           <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569', width: '100px', textAlign: 'left' }}>{SITE_VISIT_LABELS.drawer.values.rate}</th>
@@ -565,7 +695,7 @@ export const SiteVisitDetailModal: React.FC<SiteVisitDetailModalProps> = ({
                           <td style={{ padding: '8px 12px', color: '#1e293b', fontWeight: 500 }}>{item.item_name}</td>
                           <td style={{ padding: '8px 12px', color: '#475569' }}>{item.unit}</td>
                           <td style={{ padding: '8px 12px', color: '#1e293b', textAlign: 'right', fontWeight: 600 }}>{qty}</td>
-                          {['Project Manager', 'Admin'].includes(userRole) && (
+                          {canSeeAmounts && (
                             <>
                               <td style={{ padding: '8px 12px', color: '#475569', textAlign: 'left' }}>â‚¹{rate.toFixed(2)}</td>
                               <td style={{ padding: '8px 12px', color: '#16a34a', textAlign: 'left', fontWeight: 600 }}>â‚¹{amount.toFixed(2)}</td>
@@ -574,7 +704,7 @@ export const SiteVisitDetailModal: React.FC<SiteVisitDetailModalProps> = ({
                         </tr>
                       );
                     })}
-                    {['Project Manager', 'Admin'].includes(userRole) && Array.isArray(visitJms.measured_items) && (
+                    {canSeeAmounts && Array.isArray(visitJms.measured_items) && (
                       <tr style={{ background: '#f8fafc', borderTop: '1.5px solid #e5e7eb' }}>
                         <td colSpan={2} style={{ padding: '8px 12px', fontWeight: 700, color: '#1e293b' }}>{SITE_VISIT_LABELS.drawer.values.totalJmsAmount}</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#1e293b' }}>

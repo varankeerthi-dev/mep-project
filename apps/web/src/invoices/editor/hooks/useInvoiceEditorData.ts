@@ -42,13 +42,14 @@ export async function loadClientOptions(organisationId: string): Promise<Invoice
 export async function loadMaterialOptions(organisationId: string): Promise<InvoiceMaterialOption[]> {
   const { data: materialsData, error: materialsError } = await supabase
     .from('materials')
-    .select('id, name, display_name, hsn_code, make, unit, sale_price, material, size, item_classification, discount_category_id, material_units(unit_name, conversion_factor)')
+    .select('id, name, display_name, hsn_code, make, unit, sale_price, material, size, item_classification, discount_category_id, mappings:material_client_mappings(client_id, client_part_no, client_description), material_units(unit_name, conversion_factor)')
     .eq('organisation_id', organisationId);
   if (materialsError) throw materialsError;
 
   const { data: variantPricingData, error: pricingError } = await supabase
     .from('item_variant_pricing')
     .select('item_id, company_variant_id, make, sale_price')
+    .eq('organisation_id', organisationId)
     .in('item_id', (materialsData ?? []).map(m => m.id));
 
   if (pricingError) {
@@ -97,6 +98,7 @@ export async function loadMaterialOptions(organisationId: string): Promise<Invoi
           sale_price: material.sale_price || null,
           item_classification: material.item_classification || null,
           discount_category_id: material.discount_category_id ?? null,
+          mappings: material.mappings || [],
           variants: [],
           material_units: material.material_units || [],
         };
@@ -108,11 +110,13 @@ export async function loadMaterialOptions(organisationId: string): Promise<Invoi
         name: String(material.display_name ?? material.name ?? 'Unnamed material'),
         display_name: material.display_name,
         hsn_code: material.hsn_code ?? null,
-        make: firstVariant.make || null,
+        // Quotation make choices include both pricing-row makes and materials.make.
+        make: material.make || material.material || firstVariant.make || null,
         unit: material.unit || 'nos',
         sale_price: firstVariant.sale_price || null,
         item_classification: material.item_classification || null,
         discount_category_id: material.discount_category_id ?? null,
+        mappings: material.mappings || [],
         variants: materialVariants,
         material_units: material.material_units || [],
       };
@@ -174,7 +178,8 @@ async function loadItemVariantIdsMap(organisationId: string) {
 
   const { data, error } = await supabase
     .from('item_variant_pricing')
-    .select('item_id, company_variant_id, make');
+    .select('item_id, company_variant_id, make')
+    .eq('organisation_id', organisationId);
 
   if (error) throw error;
 

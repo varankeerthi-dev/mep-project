@@ -87,7 +87,7 @@ export const invoiceListTableSchema = createTableSchema({
     .size(130)
     .sheet(),
 
-  /** Maps to `source_type` in the domain model (quotation | challan | po). */
+  /** Maps to `source_type` in the domain model. */
   sourceType: col
     .enum(invoiceSourceTypes)
     .label('Source')

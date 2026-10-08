@@ -34,10 +34,34 @@ export function QuickAddVendorModal({ isOpen, onClose, onSuccess }: QuickAddVend
       const organisationId = await currentOrgId(user.id);
       if (!organisationId) throw new Error('User not associated with any organisation');
 
+      const {
+        company_name,
+        contact_person,
+        phone,
+        email,
+        address,
+        gstin,
+        pan,
+        gst_treatment,
+        msme_register_type,
+        msme_number,
+        ...rest
+      } = newVendor;
+
       const { data, error } = await supabase
         .from('purchase_vendors')
         .insert([{
-          ...newVendor,
+          ...rest,
+          company_name: company_name?.trim(),
+          contact_person: contact_person?.trim() || null,
+          phone: phone?.trim() || null,
+          email: email?.trim() || null,
+          address: address?.trim() || null,
+          gstin: gstin?.trim() || null,
+          pan: pan?.trim() || null,
+          gst_treatment: gst_treatment?.trim() || null,
+          msme_register_type: msme_register_type?.trim() || null,
+          msme_number: msme_number?.trim() || null,
           organisation_id: organisationId,
           vendor_code: `VN-${Date.now()}`,
           status: 'Active',
@@ -67,7 +91,14 @@ export function QuickAddVendorModal({ isOpen, onClose, onSuccess }: QuickAddVend
       onClose();
     },
     onError: (error: any) => {
-      toast.error(`Error adding vendor: ${error.message}`);
+      const msg = error?.message || '';
+      if (msg.includes('check_gst_treatment')) {
+        toast.error('Please choose GST treatment');
+      } else if (msg.includes('check_msme_register_type')) {
+        toast.error('Please choose a valid MSME type');
+      } else {
+        toast.error(`Error adding vendor: ${msg}`);
+      }
     }
   });
 

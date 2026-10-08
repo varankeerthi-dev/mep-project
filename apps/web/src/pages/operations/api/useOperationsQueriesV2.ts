@@ -1,8 +1,10 @@
 // src/pages/operations/api/useOperationsQueriesV2.ts
 
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '../../../supabase';
 import { formatAppDate } from '@/lib/dateFormat';
+import { useVisitOverview } from './useVisitOverview';
 import {
   NeedsAttentionItemV2,
   LiveNowSiteCheckInV2,
@@ -76,29 +78,18 @@ export const useNeedsAttentionV2 = () => {
 };
 
 export const useLiveNowV2 = () => {
-  const siteCheckIns = useQuery({
-    queryKey: ['operationsV2', 'liveNow', 'siteCheckIns'],
-    queryFn: async (): Promise<LiveNowSiteCheckInV2[]> => {
-      const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await supabase
-        .from('site_visits')
-        .select('*, user:user_id(full_name), client:client_id(client_name)')
-        .gte('visit_date', today)
-        .limit(10);
-        
-      if (error) return [];
-      return (data || []).map((v: any) => ({
-        id: v.id,
-        time: new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        engineer: v.user?.full_name || 'Unknown User',
-        siteActivity: `${v.client?.client_name || 'Site'}\n${v.purpose || 'Visit'}`,
-        status: v.status || 'On Site',
-        statusType: 'onsite'
-      }));
-    },
-    staleTime: 30 * 1000,
-    refetchInterval: 30 * 1000,
-  });
+  const overview = useVisitOverview();
+
+  const siteCheckIns = useMemo<LiveNowSiteCheckInV2[]>(() =>
+    (overview.data?.today_visits || []).map((v) => ({
+      id: v.id,
+      time: new Date(v.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      engineer: v.user_name || 'Unknown User',
+      siteActivity: `${v.client_name || 'Site'}\n${v.purpose || 'Visit'}`,
+      status: v.status || 'On Site',
+      statusType: 'onsite' as const
+    })),
+  [overview.data]);
 
   const manufacturingWIP = useQuery({
     queryKey: ['operationsV2', 'liveNow', 'manufacturingWIP'],
@@ -151,7 +142,11 @@ export const useLiveNowV2 = () => {
     refetchInterval: 60 * 1000,
   });
 
-  return { siteCheckIns, manufacturingWIP, dispatch };
+  return {
+    siteCheckIns: { data: siteCheckIns, isLoading: overview.isLoading },
+    manufacturingWIP,
+    dispatch
+  };
 };
 
 export const useSalesQuotesV2 = () => {
@@ -207,40 +202,31 @@ export const useOpenSalesOrdersV2 = () => {
 };
 
 export const useUpcomingVisits = () => {
-  return useQuery({
-    queryKey: ['operationsV2', 'sales', 'upcomingVisits'],
-    queryFn: async (): Promise<UpcomingVisit[]> => {
-      const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await supabase
-        .from('site_visits')
-        .select('*, client:client_id(client_name), user:user_id(full_name)')
-        .gt('visit_date', today)
-        .limit(5);
-        
-      if (error) return [];
-      return (data || []).map((v: any) => {
-        const visitDate = new Date(v.visit_date);
-        const todayDate = new Date();
-        const diffDays = Math.floor((visitDate.getTime() - todayDate.getTime()) / (1000 * 3600 * 24));
-        
-        return {
-          id: v.id,
-          date: visitDate.getDate().toString(),
-          dayOfWeek: visitDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
-          company: v.client?.client_name || 'Site Visit',
-          visitType: v.purpose || 'Follow-up',
-          assignedTo: {
-            name: v.user?.full_name || 'Unassigned',
-            initials: (v.user?.full_name || 'U').substring(0, 2).toUpperCase()
-          },
-          time: new Date(v.visit_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: diffDays === 0 ? 'Today' : diffDays === 1 ? 'Tomorrow' : `${diffDays} days`
-        };
-      });
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
-  });
+  const overview = useVisitOverview();
+
+  const data = useMemo<UpcomingVisit[]>(() =>
+    (overview.data?.upcoming_visits || []).map((v) => {
+      const visitDate = new Date(v.visit_date);
+      const todayDate = new Date();
+      const diffDays = Math.floor((visitDate.getTime() - todayDate.getTime()) / (1000 * 3600 * 24));
+
+      return {
+        id: v.id,
+        date: visitDate.getDate().toString(),
+        dayOfWeek: visitDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+        company: v.client_name || 'Site Visit',
+        visitType: v.purpose || 'Follow-up',
+        assignedTo: {
+          name: v.user_name || 'Unassigned',
+          initials: (v.user_name || 'U').substring(0, 2).toUpperCase()
+        },
+        time: new Date(v.visit_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        status: diffDays === 0 ? 'Today' : diffDays === 1 ? 'Tomorrow' : `${diffDays} days`
+      };
+    }),
+  [overview.data]);
+
+  return { data, isLoading: overview.isLoading };
 };
 
 export const useProjectActivityV2 = () => {

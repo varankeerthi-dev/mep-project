@@ -1,287 +1,136 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
-import { useQuery } from '@tanstack/react-query';
-import { Download, Eye, Loader2, Mail, Plus, Printer, Save, X, FileText, RotateCcw, User, Briefcase } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { AiDocumentParserModal } from '@/components/AiDocumentParserModal';
-import { toast } from 'sonner';
+import { Download, Eye, FileText, Loader2, Mail, Plus, Printer, Save } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '@/supabase';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { AiDocumentParserModal } from '@/components/AiDocumentParserModal';
+import { TermsConditionsDrawer } from '@/components/TermsConditionsDrawer';
 import {
   DocumentActionBar,
-  HeaderFormGrid,
-  HeaderCard,
-  HeaderField,
-  CustomDatePicker,
-  sharedStyles,
+  DocumentEditorShell,
+  DocumentLineItemsSurface,
 } from '@/components/document-editor';
-import { mapInvoiceSourceToDraft, generateInvoiceNumber, loadClientPOs, incrementInvoiceNumber } from '../api';
-import { InvoiceItemsEditor } from '../components/InvoiceItemsEditor';
-import { InvoiceMaterialsEditor } from '../components/InvoiceMaterialsEditor';
-import { InvoiceSummaryFooter } from '../components/InvoiceSummaryFooter';
-import { InvoiceStatusBadge } from '../components/InvoiceStatusBadge';
+import { ArcConfirmationDialog } from '@/components/ArcConfirmationDialog';
 import { DocumentConversionChain } from '../../components/DocumentConversionChain';
 import { RevisionBadge } from '../../components/RevisionBadge';
 import { RevisionHistoryDialog } from '../../components/RevisionHistoryDialog';
 import { RevisionReasonDialog } from '../../components/RevisionReasonDialog';
-import { ArcPricingToggle, ArcPricingStatusBadge } from '@/components/ArcPricingToggle';
-import { ArcConfirmationDialog, type ArcPricingItem } from '@/components/ArcConfirmationDialog';
-import { fetchArcPricingForItems } from '@/lib/arc-pricing';
 import { AddShippingAddressModal } from '../components/AddShippingAddressModal';
+import { InvoiceItemsEditor } from '../components/InvoiceItemsEditor';
+import { InvoiceMaterialsEditor } from '../components/InvoiceMaterialsEditor';
+import { InvoiceStatusBadge } from '../components/InvoiceStatusBadge';
+import { InvoiceSummaryFooter } from '../components/InvoiceSummaryFooter';
 import POLineItemsSelector from '../components/POLineItemsSelector';
-import { updatePoLineItemBilling, extractInvoicePoItems } from '../../lib/poBillingUtils';
 import QuotationLineItemsSelector from '../components/QuotationLineItemsSelector';
 import ProformaLineItemsSelector from '../components/ProformaLineItemsSelector';
-import { useCreateInvoice, useInvoice, useInvoiceTemplates, useUpdateInvoice } from '../hooks';
-import type { InvoiceEditorFormValues, InvoiceClientOption, InvoiceMaterialOption, ClientShippingAddress } from '../ui-utils';
-import { useWarehouses } from '@/hooks/useWarehouses';
-import { useVariants } from '@/hooks/useVariants';
+import { useInvoice } from '../hooks';
+import { getInvoiceTerms } from '../api';
 import {
   InvoiceEditorSchema,
-  type InvoiceSourceOption,
-  DEFAULT_COMPANY_STATE,
   calculateDraftTotals,
-  composeInvoiceInput,
   createEmptyInvoiceFormValues,
   createEmptyItem,
-  createEmptyMaterial,
-  createLotItem,
-  formatDate,
-  formatCurrency,
-  getSourceLabel,
+  flattenInvoiceTermsText,
   getTemplateExtraColumnLabel,
-  getTemplateTypeFromTemplate,
-  invoiceToFormValues,
+  getSourceLabel,
+  type InvoiceEditorFormValues,
 } from '../ui-utils';
-import { useConvertDocument, useConversionStatus, getSourceTableName } from '../../conversions/hooks';
 import type { ConversionType } from '../../conversions/types';
-import { Button } from '@/components/ui/button';
+import { useAiDocumentImport } from '../editor/hooks/useAiDocumentImport';
+import { useInvoiceEditorData } from '../editor/hooks/useInvoiceEditorData';
+import { useInvoiceSource } from '../editor/hooks/useInvoiceSource';
+import { useInvoiceFormSync } from '../editor/hooks/useInvoiceFormSync';
+import { useSaveInvoice } from '../editor/hooks/useSaveInvoice';
+import { InvoiceHeaderCards, fieldErrorMessage } from '../editor/components/InvoiceHeaderCards';
+import { InvoiceImportBanner } from '../editor/components/InvoiceImportBanner';
 
-function queryParam(search: string, key: string) {
-  return new URLSearchParams(search).get(key);
-}
-
-function fieldErrorMessage(error: unknown): string | undefined {
-  if (!error || typeof error !== 'object') return undefined;
-  if ('message' in error && typeof (error as { message?: unknown }).message === 'string') {
-    return (error as { message: string }).message;
-  }
-  return undefined;
-}
-
-async function loadClientOptions(organisationId: string): Promise<InvoiceClientOption[]> {
-  const { data, error } = await supabase.from('clients').select('*').eq('organisation_id', organisationId);
-  if (error) throw error;
-
-  return (data ?? [])
-    .map((client: any) => ({
-      id: String(client.id),
-      name: String(client.name ?? client.client_name ?? 'Unnamed client'),
-      state: client.state ?? null,
-      gst_number: client.gst_number ?? client.gstin ?? null,
-      default_template_id: client.default_template_id ?? null,
-      discount_type: client.discount_type ?? null,
-      standard_pricelist_id: client.standard_pricelist_id ?? null,
-      custom_discounts: client.custom_discounts ?? {},
-      discount_profile_id: client.discount_profile_id ?? null,
-    }))
-    .sort((left, right) => left.name.localeCompare(right.name));
-}
-
-async function loadMaterialOptions(organisationId: string): Promise<InvoiceMaterialOption[]> {
-  const { data: materialsData, error: materialsError } = await supabase.from('materials').select('id, name, display_name, hsn_code, make, unit, sale_price, material, size, item_classification, discount_category_id, material_units(unit_name, conversion_factor)').eq('organisation_id', organisationId);
-  if (materialsError) throw materialsError;
-
-  const { data: variantPricingData, error: pricingError } = await supabase
-    .from('item_variant_pricing')
-    .select('item_id, company_variant_id, make, sale_price')
-    .in('item_id', (materialsData ?? []).map(m => m.id));
-
-  if (pricingError) {
-    console.warn('Failed to fetch variant pricing:', pricingError);
-  }
-
-  const variantIds = Array.from(
-    new Set((variantPricingData ?? []).map((row: any) => row.company_variant_id).filter(Boolean))
-  );
-
-  const variantNameMap: Record<string, string> = {};
-  if (variantIds.length > 0) {
-    const { data: variantRows } = await supabase
-      .from('company_variants')
-      .select('id, variant_name')
-      .in('id', variantIds);
-    (variantRows ?? []).forEach((row: any) => {
-      variantNameMap[row.id] = row.variant_name || '';
-    });
-  }
-
-  const pricingMap: Record<string, { variant_id: string | null; make: string; sale_price: number; variant_name: string | null }[]> = {};
-  (variantPricingData ?? []).forEach((row: any) => {
-    if (!pricingMap[row.item_id]) {
-      pricingMap[row.item_id] = [];
-    }
-    pricingMap[row.item_id].push({
-      variant_id: row.company_variant_id || null,
-      make: row.make || '',
-      sale_price: row.sale_price || 0,
-      variant_name: row.company_variant_id ? (variantNameMap[row.company_variant_id] || null) : null,
-    });
-  });
-
-  console.log('Materials data:', materialsData);
-  console.log('Variant pricing map:', pricingMap);
-
-  return (materialsData ?? [])
-    .map((material: any) => {
-      const materialVariants = pricingMap[material.id] || [];
-      if (materialVariants.length === 0) {
-        return {
-          id: String(material.id),
-          name: String(material.display_name ?? material.name ?? 'Unnamed material'),
-          display_name: material.display_name,
-          hsn_code: material.hsn_code ?? null,
-          make: material.make || material.material || null,
-          unit: material.unit || 'nos',
-          sale_price: material.sale_price || null,
-          item_classification: material.item_classification || null,
-          discount_category_id: material.discount_category_id ?? null,
-          variants: [],
-          material_units: material.material_units || [],
-        };
-      }
-
-      const firstVariant = materialVariants[0];
-      return {
-        id: String(material.id),
-        name: String(material.display_name ?? material.name ?? 'Unnamed material'),
-        display_name: material.display_name,
-        hsn_code: material.hsn_code ?? null,
-        make: firstVariant.make || null,
-        unit: material.unit || 'nos',
-        sale_price: firstVariant.sale_price || null,
-        item_classification: material.item_classification || null,
-        discount_category_id: material.discount_category_id ?? null,
-        variants: materialVariants,
-        material_units: material.material_units || [],
-      };
-    })
-    .sort((left, right) => left.name.localeCompare(right.name));
-}
-
-async function loadClientShippingAddresses(clientId: string, organisationId: string): Promise<ClientShippingAddress[]> {
-  const { data, error } = await supabase
-    .from('client_shipping_addresses')
-    .select('*')
-    .eq('client_id', clientId)
-    .eq('organisation_id', organisationId)
-    .order('is_default', { ascending: false });
-  
-  if (error) throw error;
-
-  return (data ?? []).map((addr: any) => ({
-    id: String(addr.id),
-    address_line1: addr.address_line1,
-    address_line2: addr.address_line2,
-    city: addr.city,
-    state: addr.state,
-    pincode: addr.pincode,
-    contact_person: addr.contact_person,
-    contact_phone: addr.contact_phone,
-    is_default: addr.is_default,
-  }));
-}
-
-async function loadClientDetails(clientId: string, organisationId: string) {
-  const { data, error } = await supabase
-    .from('clients')
-    .select('id, name, gst_number, state, city, address1, address2, pincode, contact, email')
-    .eq('id', clientId)
-    .eq('organisation_id', organisationId)
-    .single();
-  
-  if (error) throw error;
-
-  return data;
-}
-
-async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_type'], organisationId: string, clientId?: string): Promise<InvoiceSourceOption[]> {
-  if (sourceType === 'direct') {
-    return [];
-  }
-
-  if (sourceType === 'quotation') {
-    const { data, error } = await supabase
-      .from('quotation_header')
-      .select('id, quotation_no, reference, date, created_at')
-      .eq('organisation_id', organisationId)
-      .order('created_at', { ascending: false })
-      .limit(100);
-    if (error) throw error;
-
-    return (data ?? []).map((row: any) => ({
-      id: String(row.id),
-      label: row.quotation_no ?? row.reference ?? `Quotation ${String(row.id).slice(0, 6)}`,
-      sublabel: `Issued ${formatDate(row.date ?? row.created_at)}`,
-    }));
-  }
-
-  if (sourceType === 'challan') {
-    const { data, error } = await supabase
-      .from('delivery_challans')
-      .select('id, dc_number, dc_date, client_name, created_at')
-      .eq('organisation_id', organisationId)
-      .order('created_at', { ascending: false })
-      .limit(100);
-    if (error) throw error;
-
-    return (data ?? []).map((row: any) => ({
-      id: String(row.id),
-      label: row.dc_number ?? `DC ${String(row.id).slice(0, 6)}`,
-      sublabel: `${row.client_name ?? 'Unknown client'} - ${formatDate(row.dc_date ?? row.created_at)}`,
-    }));
-  }
-
-  if (clientId) {
-    const { data, error } = await supabase
-      .from('client_purchase_orders')
-      .select('*')
-      .eq('client_id', clientId)
-      .eq('organisation_id', organisationId)
-      .in('status', ['Open', 'Partially Billed'])
-      .gt('po_available_value', 0)
-      .order('po_date', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching client POs:', error);
-      return [];
-    }
-    
-    return (data || []).map((row: any) => ({
-      id: String(row.id),
-      label: row.po_number ?? `PO ${String(row.id).slice(0, 6)}`,
-      sublabel: `Issued ${formatDate(row.po_date ?? row.created_at)} | Total: ₹${formatCurrency(row.po_total_value)} | Available: ₹${formatCurrency(row.po_available_value)}`,
-      po_total_value: Number(row.po_total_value) || 0,
-      po_available_value: Number(row.po_available_value) || 0,
-    }));
-  }
-
-  return [];
-}
-
+/**
+ * InvoiceEditorPage — Modernized Invoice Creator & Editor.
+ *
+ * Thin orchestrator: the DocumentEditorShell layout plus feature hooks
+ * extracted from the V1 editor (data, sources, form sync, save, AI import).
+ */
 export default function InvoiceEditorPage() {
   const { user, organisation } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const invoiceId = queryParam(location.search, 'id');
+  const invoiceId = new URLSearchParams(location.search).get('id') ?? undefined;
   const isEditMode = Boolean(invoiceId);
-  const convertFrom = queryParam(location.search, 'convertFrom') as ConversionType | null;
-  const sourceId = queryParam(location.search, 'sourceId');
-  const isConverting = Boolean(convertFrom && sourceId && !isEditMode);
-  const duplicateFrom = queryParam(location.search, 'from');
+  const convertFrom = new URLSearchParams(location.search).get('convertFrom') as ConversionType | null;
+  const convertSourceId = new URLSearchParams(location.search).get('sourceId');
+  const isConverting = Boolean(convertFrom && convertSourceId && !isEditMode);
+  const duplicateFrom = new URLSearchParams(location.search).get('from');
   const isDuplicating = Boolean(duplicateFrom && !isEditMode);
+
+  // ── Form ──
+  const form = useForm<InvoiceEditorFormValues>({
+    resolver: zodResolver(InvoiceEditorSchema),
+    defaultValues: createEmptyInvoiceFormValues((organisation?.state as string | null | undefined) || null),
+    mode: 'onSubmit',
+  });
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    getValues,
+    formState,
+  } = form;
+
+  const itemsFieldArray = useFieldArray({ control, name: 'items' });
+  const materialsFieldArray = useFieldArray({ control, name: 'materials' });
+
+  const selectedClientId = useWatch({ control, name: 'client_id' });
+  const selectedTemplateId = useWatch({ control, name: 'template_id' });
+  const selectedSourceType = useWatch({ control, name: 'source_type' });
+  const selectedSourceId = useWatch({ control, name: 'source_id' });
+  const selectedMode = useWatch({ control, name: 'mode' });
+  const watchedItems = useWatch({ control, name: 'items' }) ?? [];
+  const watchedMaterials = useWatch({ control, name: 'materials' }) ?? [];
+  const companyState = useWatch({ control, name: 'company_state' }) ?? null;
+  const clientState = useWatch({ control, name: 'client_state' }) ?? null;
+  const selectedShippingAddressId = useWatch({ control, name: 'shipping_address_id' }) ?? null;
+  const defaultWarehouseId = useWatch({ control, name: 'default_warehouse_id' });
+
+  const { errors } = formState;
+
+  // ── Local UI state ──
   const [pdfAction, setPdfAction] = useState<'preview' | 'download' | 'print' | 'email' | null>(null);
+  const [isShippingAddressModalOpen, setIsShippingAddressModalOpen] = useState(false);
+  const [isPOSelectorOpen, setIsPOSelectorOpen] = useState(false);
+  const [isApplyingPOItems, setIsApplyingPOItems] = useState(false);
+  const [isQuotationSelectorOpen, setIsQuotationSelectorOpen] = useState(false);
+  const [isApplyingQuotationItems, setIsApplyingQuotationItems] = useState(false);
+  const [isProformaSelectorOpen, setIsProformaSelectorOpen] = useState(false);
+  const [isApplyingProformaItems, setIsApplyingProformaItems] = useState(false);
+  const [useArcPricing, setUseArcPricing] = useState(false);
+  const [arcPricingConfirmOpen, setArcPricingConfirmOpen] = useState(false);
+  const [, setPendingArcEnabled] = useState(false);
+  const [enableRoundOff, setEnableRoundOff] = useState(false);
+  const [isTermsDrawerOpen, setIsTermsDrawerOpen] = useState(false);
+  const [pendingTermsTemplate, setPendingTermsTemplate] = useState<any>(null);
+
+  // ── Revision Management ──
+  const [invoiceRevisionNo, setInvoiceRevisionNo] = useState(1);
+  const [invoiceRevisionHistory, setInvoiceRevisionHistory] = useState<any[]>([]);
+  const [invoiceRevisionReason, setInvoiceRevisionReason] = useState('');
+  const [invoiceRevisionDialogOpen, setInvoiceRevisionDialogOpen] = useState(false);
+  const [invoiceReasonDialogOpen, setInvoiceReasonDialogOpen] = useState(false);
+  const [, setPendingInvoiceSave] = useState(false);
+
+  // ── Hydration refs ──
+  const loadedInvoiceIdRef = useRef<string>('');
+  const initialSourceKeyRef = useRef<string>('');
+  const hydratedSourceKeyRef = useRef<string>('');
+
+  // ── Existing / duplicate invoice queries ──
+  const existingInvoiceQuery = useInvoice(invoiceId ?? null);
+  const duplicateInvoiceQuery = useInvoice(duplicateFrom ?? null);
 
   const prefetchInvoicePdf = useCallback(() => {
     import('../pdf');
@@ -293,33 +142,162 @@ export default function InvoiceEditorPage() {
     }, 2500);
     return () => clearTimeout(timer);
   }, [prefetchInvoicePdf]);
-  const [isShippingAddressModalOpen, setIsShippingAddressModalOpen] = useState(false);
-  const [isPOSelectorOpen, setIsPOSelectorOpen] = useState(false);
-  const [selectedPOLineItems, setSelectedPOLineItems] = useState<any[]>([]);
-  const [isApplyingPOItems, setIsApplyingPOItems] = useState(false);
-  const [isQuotationSelectorOpen, setIsQuotationSelectorOpen] = useState(false);
-  const [selectedQuotationItems, setSelectedQuotationItems] = useState<any[]>([]);
-  const [isApplyingQuotationItems, setIsApplyingQuotationItems] = useState(false);
-  const [isProformaSelectorOpen, setIsProformaSelectorOpen] = useState(false);
-  const [selectedProformaItems, setSelectedProformaItems] = useState<any[]>([]);
-  const [isApplyingProformaItems, setIsApplyingProformaItems] = useState(false);
-  const [warehousePanelOpen, setWarehousePanelOpen] = useState(false);
 
-  const [useArcPricing, setUseArcPricing] = useState(false);
-  const [arcPricingMap, setArcPricingMap] = useState<Record<string, any>>({});
-  const [arcPricingConfirmOpen, setArcPricingConfirmOpen] = useState(false);
-  const [pendingArcEnabled, setPendingArcEnabled] = useState(false);
+  // ── Feature hooks ──
+  const editorData = useInvoiceEditorData({
+    organisationId: organisation?.id,
+    selectedClientId,
+    selectedShippingAddressId,
+    watchedItems,
+    useArcPricing,
+  });
 
-  // ── Revision Management ──
-  const [invoiceRevisionNo, setInvoiceRevisionNo] = useState(1);
-  const [invoiceRevisionHistory, setInvoiceRevisionHistory] = useState<any[]>([]);
-  const [invoiceRevisionReason, setInvoiceRevisionReason] = useState('');
-  const [invoiceRevisionDialogOpen, setInvoiceRevisionDialogOpen] = useState(false);
-  const [invoiceReasonDialogOpen, setInvoiceReasonDialogOpen] = useState(false);
-  const [pendingInvoiceSave, setPendingInvoiceSave] = useState<boolean>(false);
+  // ── Derived selections & totals ──
+  const clients = editorData.clientsQuery.data ?? [];
+  const selectedClient = useMemo(
+    () => clients.find((client) => client.id === selectedClientId) ?? null,
+    [clients, selectedClientId],
+  );
 
+  const templates = editorData.templatesQuery.data ?? [];
+  const selectedTemplate = useMemo(
+    () => templates.find((template) => template.id === selectedTemplateId) ?? null,
+    [selectedTemplateId, templates],
+  );
+
+  const selectedClientAddress = useMemo(() => {
+    if (selectedClient) {
+      return [selectedClient.address1, selectedClient.address2, selectedClient.city, selectedClient.state, selectedClient.pincode]
+        .filter(Boolean)
+        .join(', ');
+    }
+    return '';
+  }, [selectedClient]);
+
+  const totals = useMemo(
+    () =>
+      calculateDraftTotals({
+        items: watchedItems,
+        company_state: companyState,
+        client_state: clientState,
+      }, enableRoundOff),
+    [companyState, clientState, watchedItems, enableRoundOff],
+  );
+
+  const customColumnLabel = getTemplateExtraColumnLabel(selectedTemplate, watchedItems);
+  const showCustomColumn = getValues('template_type') === 'client_custom';
+
+  const source = useInvoiceSource({
+    organisationId: organisation?.id,
+    organisationState: (organisation?.state as string | null | undefined) ?? null,
+    selectedClientId,
+    selectedSourceType,
+    selectedSourceId,
+    selectedMode,
+    companyState,
+    totals,
+    convertFrom,
+    convertSourceId,
+    isConverting,
+    isEditMode,
+    initialSourceKeyRef,
+    hydratedSourceKeyRef,
+    form,
+    itemsFieldArray,
+    materialsFieldArray,
+  });
+
+  const save = useSaveInvoice({
+    form,
+    invoiceId,
+    isEditMode,
+    organisationId: organisation?.id,
+    organisationName: organisation?.name,
+    totals,
+    watchedItems,
+    poValidation: source.poValidation,
+    selectedSourceType,
+    selectedSourceId,
+    quotationItems: source.quotationDetailsQuery.data?.items ?? [],
+    proformaItems: source.proformaDetailsQuery.data?.items ?? [],
+    conversionInfoRef: source.conversionInfoRef,
+    existingInvoice: existingInvoiceQuery.data,
+    pendingTermsTemplate,
+    revision: {
+      invoiceRevisionNo,
+      invoiceRevisionHistory,
+      invoiceRevisionReason,
+      setInvoiceRevisionNo,
+      setInvoiceRevisionHistory,
+      setInvoiceRevisionReason,
+    },
+  });
+
+  const formSync = useInvoiceFormSync({
+    form,
+    user,
+    isEditMode,
+    isDuplicating,
+    isConverting,
+    existingInvoice: existingInvoiceQuery.data,
+    duplicateInvoice: duplicateInvoiceQuery.data,
+    selectedClient,
+    selectedTemplate,
+    selectedMode,
+    watchedItems,
+    defaultWarehouseId,
+    enableRoundOff,
+    itemsFieldArray,
+    materialsFieldArray,
+    loadedInvoiceIdRef,
+    initialSourceKeyRef,
+    hydratedSourceKeyRef,
+    setHeaderDiscounts: editorData.setHeaderDiscounts,
+    organisationId: organisation?.id,
+    setPendingTermsTemplate,
+    revision: {
+      setInvoiceRevisionNo,
+      setInvoiceRevisionHistory,
+      setInvoiceRevisionReason,
+    },
+  });
+
+  const aiImport = useAiDocumentImport({
+    form,
+    user,
+    materials: editorData.materialsQuery.data ?? [],
+  });
+
+  // ── Terms & Conditions draft state ──
+  const watchedTermsText = useWatch({ control, name: 'terms_text' }) ?? '';
+
+  // ── Load saved terms when editing ──
+  const termsLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!isEditMode || !invoiceId || !organisation?.id || termsLoadedRef.current) return;
+    termsLoadedRef.current = true;
+    getInvoiceTerms(invoiceId, organisation.id)
+      .then((row) => {
+        if (!row?.custom_content) {
+          setPendingTermsTemplate(null);
+          return;
+        }
+        let parsed: any = row.custom_content;
+        if (typeof parsed === 'string') {
+          try { parsed = JSON.parse(parsed); } catch { parsed = { text: parsed }; }
+        }
+        if (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).sections)) {
+          setPendingTermsTemplate(parsed);
+          setValue('terms_template_id', (parsed as any).id ?? row.template_id ?? null, { shouldDirty: false });
+        }
+        setValue('terms_text', flattenInvoiceTermsText(parsed), { shouldDirty: false });
+      })
+      .catch((err) => console.warn('Failed to load invoice terms:', err));
+  }, [isEditMode, invoiceId, organisation?.id, setValue]);
+
+  // ── Source line-item selection handlers ──
   const handlePOSelection = () => {
-    if (selectedSourceType === 'po' && selectedSourceId && poDetailsQuery.data) {
+    if (selectedSourceType === 'po' && selectedSourceId && source.poDetailsQuery.data) {
       setIsPOSelectorOpen(true);
     }
   };
@@ -366,10 +344,9 @@ export default function InvoiceEditorPage() {
           itemsFieldArray.append(item);
         }
       });
-      
-      setSelectedPOLineItems(selectedItems);
+
       setIsPOSelectorOpen(false);
-      
+
       setTimeout(() => {
         setIsApplyingPOItems(false);
         if (document.activeElement instanceof HTMLElement) {
@@ -386,12 +363,8 @@ export default function InvoiceEditorPage() {
     }, 50);
   };
 
-  const handlePOSelectorClose = () => {
-    setIsPOSelectorOpen(false);
-  };
-
   const handleQuotationSelection = () => {
-    if (selectedSourceType === 'quotation' && selectedSourceId && quotationDetailsQuery.data) {
+    if (selectedSourceType === 'quotation' && selectedSourceId && source.quotationDetailsQuery.data) {
       setIsQuotationSelectorOpen(true);
     }
   };
@@ -435,7 +408,6 @@ export default function InvoiceEditorPage() {
         }
       });
 
-      setSelectedQuotationItems(selectedItems);
       setIsQuotationSelectorOpen(false);
 
       setTimeout(() => {
@@ -454,12 +426,8 @@ export default function InvoiceEditorPage() {
     }, 50);
   };
 
-  const handleQuotationSelectorClose = () => {
-    setIsQuotationSelectorOpen(false);
-  };
-
   const handleProformaSelection = () => {
-    if (selectedSourceType === 'proforma' && selectedSourceId && proformaDetailsQuery.data) {
+    if ((selectedSourceType as string) === 'proforma' && selectedSourceId && source.proformaDetailsQuery.data) {
       setIsProformaSelectorOpen(true);
     }
   };
@@ -503,7 +471,6 @@ export default function InvoiceEditorPage() {
         }
       });
 
-      setSelectedProformaItems(selectedItems);
       setIsProformaSelectorOpen(false);
 
       setTimeout(() => {
@@ -522,973 +489,21 @@ export default function InvoiceEditorPage() {
     }, 50);
   };
 
-  const handleProformaSelectorClose = () => {
-    setIsProformaSelectorOpen(false);
-  };
-
-  const form = useForm<InvoiceEditorFormValues>({
-    resolver: zodResolver(InvoiceEditorSchema),
-    defaultValues: createEmptyInvoiceFormValues((organisation?.state as string | null | undefined) || null),
-    mode: 'onSubmit',
-  });
-
-  const {
-    control,
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    getValues,
-    formState,
-  } = form;
-
-  const itemsFieldArray = useFieldArray({ control, name: 'items' });
-  const materialsFieldArray = useFieldArray({ control, name: 'materials' });
-
-  const selectedClientId = useWatch({ control, name: 'client_id' });
-  const selectedTemplateId = useWatch({ control, name: 'template_id' });
-  const selectedSourceType = useWatch({ control, name: 'source_type' });
-  const selectedSourceId = useWatch({ control, name: 'source_id' });
-  const selectedMode = useWatch({ control, name: 'mode' });
-  const watchedItems = useWatch({ control, name: 'items' }) ?? [];
-  const watchedMaterials = useWatch({ control, name: 'materials' }) ?? [];
-  const companyState = useWatch({ control, name: 'company_state' }) ?? DEFAULT_COMPANY_STATE;
-  const clientState = useWatch({ control, name: 'client_state' }) ?? null;
-  const selectedShippingAddressId = useWatch({ control, name: 'shipping_address_id' }) ?? null;
-  const deductStockOnFinalize = useWatch({ control, name: 'deduct_stock_on_finalize' });
-
-  const [enableRoundOff, setEnableRoundOff] = useState(false);
-
-  const [headerDiscounts, setHeaderDiscounts] = useState<Record<string, number>>({});
-
-  const handleHeaderDiscountChange = (variantId: string, newValue: number) => {
-    setHeaderDiscounts(prev => ({ ...prev, [variantId]: newValue }));
-    
-    const items = getValues('items');
-    items.forEach((item, index) => {
-      const itemVariantId = item.meta_json?.variant_id;
-      if (itemVariantId === variantId) {
-        setValue(`items.${index}.discount_percent`, newValue, { shouldDirty: true });
-        
-        const baseRate = Number(item.meta_json?.base_rate || 0);
-        const rateAfterDiscount = baseRate - (baseRate * newValue / 100);
-        const roundedRate = enableRoundOff ? Math.round(rateAfterDiscount) : rateAfterDiscount;
-        
-        setValue(`items.${index}.rate`, roundedRate, { shouldDirty: true });
-        setValue(`items.${index}.meta_json.rate_after_discount`, roundedRate, { shouldDirty: true });
-        
-        const qty = Number(item.qty || 0);
-        const amount = round2(qty * roundedRate);
-        setValue(`items.${index}.amount`, amount, { shouldDirty: true });
-      }
-    });
-  };
-
-  const { errors } = formState;
-
-  const invoiceQuery = useInvoice(invoiceId ?? undefined);
-  const duplicateInvoiceQuery = useInvoice(duplicateFrom ?? undefined);
-  const createInvoice = useCreateInvoice();
-  const updateInvoice = useUpdateInvoice(invoiceId ?? '');
-  const templatesQuery = useInvoiceTemplates();
-  const clientsQuery = useQuery({
-    queryKey: ['invoice-ui', 'clients', organisation?.id],
-    queryFn: () => loadClientOptions(organisation?.id!),
-    enabled: !!organisation?.id,
-    staleTime: 5 * 60 * 1000,
-  });
-  const materialsQuery = useQuery({
-    queryKey: ['invoice-ui', 'materials', organisation?.id],
-    queryFn: () => loadMaterialOptions(organisation?.id!),
-    enabled: !!organisation?.id,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const [isParserOpen, setIsParserOpen] = useState(false);
-  const [activeImportSessionId, setActiveImportSessionId] = useState<string | null>(null);
-  const [preImportHeader, setPreImportHeader] = useState<any>(null);
-
-  const handleImportSuccess = (data: any) => {
-    setPreImportHeader({
-      client_id: form.getValues('client_id'),
-      invoice_date: form.getValues('invoice_date'),
-      invoice_no: form.getValues('invoice_no'),
-      po_number: form.getValues('po_number')
-    });
-
-    if (data.header.party_id) form.setValue('client_id', data.header.party_id);
-    if (data.header.date) form.setValue('invoice_date', data.header.date);
-    if (data.header.reference_number) form.setValue('invoice_no', data.header.reference_number);
-    if (data.header.po_reference) form.setValue('po_number', data.header.po_reference);
-
-    const newItems = data.items.map((item: any, idx: number) => {
-      const matchedMaterial = materialsQuery.data?.find((m: any) => m.id === item.material_id);
-      return {
-        description: item.product_name,
-        hsn_code: item.hsn_code || matchedMaterial?.hsn_code || '',
-        qty: item.qty,
-        rate: item.rate,
-        amount: item.rate * item.qty,
-        discount_percent: 0,
-        meta_json: {
-          tax_percent: item.tax_percent,
-          uom: item.uom,
-          make: '',
-          variant: '',
-          base_rate: item.rate,
-          material_id: item.material_id,
-          variant_id: null,
-          is_service: false,
-          imported_from_import_id: data.reviewSessionId
-        }
-      };
-    });
-
-    const currentItems = form.getValues('items') || [];
-    const filteredCurrent = currentItems.filter(i => i.description || i.meta_json?.material_id);
-    form.setValue('items', [...filteredCurrent, ...newItems]);
-
-    setActiveImportSessionId(data.reviewSessionId);
-  };
-
-  const handleUndoImport = async () => {
-    if (!activeImportSessionId) return;
-    try {
-      const { error } = await supabase
-        .from('document_review_sessions')
-        .update({
-          status: 'ROLLED_BACK',
-          rolled_back_at: new Date().toISOString(),
-          rolled_back_by_user_id: user?.id,
-          rollback_reason: 'User clicked Undo Import banner button'
-        })
-        .eq('id', activeImportSessionId);
-
-      if (error) throw error;
-
-      if (preImportHeader) {
-        if (preImportHeader.client_id !== undefined) form.setValue('client_id', preImportHeader.client_id);
-        if (preImportHeader.invoice_date !== undefined) form.setValue('invoice_date', preImportHeader.invoice_date);
-        if (preImportHeader.invoice_no !== undefined) form.setValue('invoice_no', preImportHeader.invoice_no);
-        if (preImportHeader.po_number !== undefined) form.setValue('po_number', preImportHeader.po_number);
-      }
-
-      const currentItems = form.getValues('items') || [];
-      const remainingItems = currentItems.filter(item => item.meta_json?.imported_from_import_id !== activeImportSessionId);
-      form.setValue('items', remainingItems.length > 0 ? remainingItems : [createLotItem()]);
-
-      setActiveImportSessionId(null);
-      setPreImportHeader(null);
-      toast.success('AI Import undone successfully. Form restored.');
-    } catch (e: any) {
-      toast.error(`Undo failed: ${e.message}`);
-    }
-  };
-
-  const arcPricingQuery = useQuery({
-    queryKey: ['arc-pricing', 'items', selectedClientId, watchedItems],
-    queryFn: async () => {
-      if (!useArcPricing || !selectedClientId) return {};
-      
-      const itemIds = watchedItems
-        .map((item: any) => item.meta_json?.material_id)
-        .filter(Boolean);
-      
-      if (itemIds.length === 0) return {};
-      
-      return fetchArcPricingForItems(selectedClientId, itemIds as string[]);
-    },
-    enabled: useArcPricing && Boolean(selectedClientId) && watchedItems.length > 0,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  useEffect(() => {
-    if (arcPricingQuery.data) {
-      setArcPricingMap(arcPricingQuery.data);
-    }
-  }, [arcPricingQuery.data]);
-
-  const warehousesQuery = useWarehouses();
-  const { data: variantRows = [] } = useVariants();
-
-  useEffect(() => {
-    async function loadDiscounts() {
-      if (!selectedClientId) {
-        setHeaderDiscounts({});
-        return;
-      }
-      
-      const client = clientsQuery.data?.find(c => c.id === selectedClientId);
-      if (!client) return;
-
-      const newDiscounts: Record<string, number> = {};
-      const customDiscounts = client.custom_discounts || {};
-      
-      try {
-        if (client.discount_type === 'Standard' && client.standard_pricelist_id) {
-          const { data: pl } = await supabase
-            .from('standard_discount_pricelists')
-            .select('discount_percent')
-            .eq('id', client.standard_pricelist_id)
-            .single();
-            
-          if (pl) {
-            const flatDisc = parseFloat(pl.discount_percent) || 0;
-            variantRows.forEach((v: any) => {
-              newDiscounts[v.id] = flatDisc;
-            });
-          }
-        } else {
-          let structId = client.discount_profile_id;
-          
-          if (!structId) {
-            const structName = client.discount_type || 'Special';
-            const { data } = await supabase
-              .from('discount_structures')
-              .select('id')
-              .eq('structure_name', structName)
-              .eq('organisation_id', organisation?.id)
-              .maybeSingle();
-            if (data) structId = data.id;
-          }
-          
-          if (structId) {
-            const { data: varSettings } = await supabase
-              .from('discount_variant_settings')
-              .select('variant_id, default_discount_percent')
-              .eq('structure_id', structId)
-              .eq('organisation_id', organisation?.id);
-              
-            varSettings?.forEach((s: any) => {
-              const variantId = s.variant_id;
-              const customDisc = customDiscounts[variantId] !== undefined 
-                ? customDiscounts[variantId] 
-                : (parseFloat(s.default_discount_percent) || 0);
-              newDiscounts[variantId] = customDisc;
-            });
-          }
-        }
-      } catch (err) {
-        console.error('Error loading client discounts:', err);
-      }
-      
-      setHeaderDiscounts(newDiscounts);
-    }
-    
-    loadDiscounts();
-  }, [selectedClientId, clientsQuery.data, variantRows, organisation?.id]);
-
-  const itemVariantIdsMapQuery = useQuery({
-    queryKey: ['invoice-ui', 'item-variant-ids', organisation?.id],
-    queryFn: async () => {
-      if (!organisation?.id) return {};
-
-      const { data: orgMaterials } = await supabase
-        .from('materials')
-        .select('id')
-        .eq('organisation_id', organisation.id);
-      const orgMaterialIds = new Set((orgMaterials ?? []).map((m: any) => m.id));
-
-      const { data, error } = await supabase
-        .from('item_variant_pricing')
-        .select('item_id, company_variant_id, make');
-
-      if (error) throw error;
-
-      const map: Record<string, string[]> = {};
-      const makesMap: Record<string, string[]> = {};
-      (data ?? []).forEach((row: any) => {
-        if (!row?.item_id) return;
-        if (!orgMaterialIds.has(row.item_id)) return;
-
-        if (row.company_variant_id) {
-          if (!map[row.item_id]) map[row.item_id] = [];
-          if (!map[row.item_id].includes(row.company_variant_id)) {
-            map[row.item_id].push(row.company_variant_id);
-          }
-        }
-
-        const make = (row.make || '').trim();
-        if (make) {
-          if (!makesMap[row.item_id]) makesMap[row.item_id] = [];
-          if (!makesMap[row.item_id].includes(make)) {
-            makesMap[row.item_id].push(make);
-          }
-        }
-      });
-      return { variantIdsMap: map, makesMap };
-    },
-    enabled: !!organisation?.id,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const stockQuery = useQuery({
-    queryKey: ['item-stock', organisation?.id],
-    queryFn: async () => {
-      if (!organisation?.id) return [];
-      const { data, error } = await supabase
-        .from('item_stock')
-        .select('item_id, warehouse_id, company_variant_id, current_stock')
-        .eq('organisation_id', organisation.id);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!organisation?.id,
-    staleTime: 2 * 60 * 1000,
-  });
-
-  const shippingAddressesQuery = useQuery({
-    queryKey: ['invoice-ui', 'shipping-addresses', selectedClientId, organisation?.id],
-    queryFn: () => loadClientShippingAddresses(selectedClientId, organisation?.id!),
-    enabled: Boolean(selectedClientId && organisation?.id),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const clientDetailsQuery = useQuery({
-    queryKey: ['invoice-ui', 'client-details', selectedClientId, organisation?.id],
-    queryFn: () => loadClientDetails(selectedClientId, organisation?.id!),
-    enabled: Boolean(selectedClientId && organisation?.id),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const selectedShippingAddress = useMemo(() => {
-    if (selectedShippingAddressId === '' && clientDetailsQuery.data) {
-      const client = clientDetailsQuery.data;
-      return {
-        id: 'same-as-billing',
-        address_line1: client.address1 || '',
-        address_line2: client.address2 || '',
-        city: client.city || '',
-        state: client.state || '',
-        pincode: client.pincode || '',
-        contact_person: client.contact || '',
-        contact_phone: client.email || '',
-        is_default: false,
-      };
-    }
-    
-    if (!selectedShippingAddressId || !shippingAddressesQuery.data) return null;
-    return shippingAddressesQuery.data.find(addr => addr.id === selectedShippingAddressId) || null;
-  }, [selectedShippingAddressId, shippingAddressesQuery.data, clientDetailsQuery.data]);
-
-  const sourceOptionsQuery = useQuery({
-    queryKey: ['invoice-ui', 'sources', selectedSourceType, selectedClientId, organisation?.id],
-    queryFn: () => loadSourceOptions(selectedSourceType, organisation?.id!, selectedClientId),
-    enabled: !!organisation?.id,
-    staleTime: 2 * 60 * 1000,
-  });
-  const sourceDraftQuery = useQuery({
-    queryKey: ['invoice-ui', 'source-draft', selectedSourceType, selectedSourceId, selectedMode, companyState, organisation?.id],
-    queryFn: () =>
-      mapInvoiceSourceToDraft(selectedSourceType, selectedSourceId, organisation?.id!, {
-        companyState: companyState || DEFAULT_COMPANY_STATE,
-        mode: selectedMode,
-      }),
-    enabled: Boolean(selectedSourceType && selectedSourceId && organisation?.id),
-    staleTime: 0,
-  });
-
-  const poDetailsQuery = useQuery({
-    queryKey: ['po-details', selectedSourceId, organisation?.id],
-    queryFn: async () => {
-      if (!selectedSourceId || selectedSourceType !== 'po') return null;
-
-      const { data: header, error: headerError } = await supabase
-        .from('client_purchase_orders')
-        .select('id, po_number, po_total_value, po_utilized_value, po_available_value')
-        .eq('id', selectedSourceId)
-        .eq('organisation_id', organisation?.id)
-        .single();
-
-      if (headerError) throw headerError;
-
-      const { data: lineItems, error: lineItemsError } = await supabase
-        .from('po_line_items')
-        .select('*')
-        .eq('po_id', selectedSourceId)
-        .order('line_order', { ascending: true });
-
-      if (lineItemsError) throw lineItemsError;
-
-      return {
-        header: {
-          po_number: header.po_number,
-          po_total_value: Number(header.po_total_value || 0),
-          po_utilized_value: Number(header.po_utilized_value || 0),
-          po_available_value: Number(header.po_available_value || 0)
-        },
-        lineItems: lineItems || []
-      };
-    },
-    enabled: Boolean(selectedSourceId && selectedSourceType === 'po' && organisation?.id),
-    staleTime: 0,
-  });
-
-  const quotationDetailsQuery = useQuery({
-    queryKey: ['quotation-details', selectedSourceId, organisation?.id],
-    queryFn: async () => {
-      if (!selectedSourceId || selectedSourceType !== 'quotation') return null;
-
-      const { data: header, error: headerError } = await supabase
-        .from('quotation_header')
-        .select('id, quotation_no, grand_total, status')
-        .eq('id', selectedSourceId)
-        .eq('organisation_id', organisation?.id)
-        .single();
-
-      if (headerError) throw headerError;
-
-      const { data: items, error: itemsError } = await supabase
-        .from('quotation_items')
-        .select('*')
-        .eq('quotation_id', selectedSourceId);
-
-      if (itemsError) throw itemsError;
-
-      return {
-        header: {
-          quotation_no: header.quotation_no,
-          grand_total: Number(header.grand_total || 0),
-          status: header.status
-        },
-        items: items || []
-      };
-    },
-    enabled: Boolean(selectedSourceId && selectedSourceType === 'quotation' && organisation?.id),
-    staleTime: 2 * 60 * 1000,
-  });
-
-  const proformaDetailsQuery = useQuery({
-    queryKey: ['proforma-details', selectedSourceId, organisation?.id],
-    queryFn: async () => {
-      if (!selectedSourceId || selectedSourceType !== 'proforma') return null;
-
-      const { data: header, error: headerError } = await supabase
-        .from('proforma_invoices')
-        .select('id, proforma_no, grand_total, billing_status')
-        .eq('id', selectedSourceId)
-        .eq('organisation_id', organisation?.id)
-        .single();
-
-      if (headerError) throw headerError;
-
-      const { data: items, error: itemsError } = await supabase
-        .from('proforma_items')
-        .select('*')
-        .eq('proforma_id', selectedSourceId);
-
-      if (itemsError) throw itemsError;
-
-      return {
-        header: {
-          proforma_no: header.proforma_no,
-          grand_total: Number(header.grand_total || 0),
-          billing_status: header.billing_status
-        },
-        items: items || []
-      };
-    },
-    enabled: Boolean(selectedSourceId && selectedSourceType === 'proforma' && organisation?.id),
-    staleTime: 0,
-  });
-
-  const initialSourceKeyRef = useRef<string>('');
-  const hydratedSourceKeyRef = useRef<string>('');
-  const loadedInvoiceIdRef = useRef<string>('');
-  const conversionInfoRef = useRef<{ type: ConversionType; sourceId: string } | null>(null);
-
-  const lastItemsSnapshotRef = useRef<string>('');
-  const conversionAppliedRef = useRef(false);
-
-  const conversionQuery = useConvertDocument(convertFrom!, sourceId!);
-
-  const discountCategoriesQuery = useQuery({
-    queryKey: ['invoice-ui', 'discount-categories', organisation?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('discount_categories')
-        .select('id, name, default_discount_percent, min_discount_percent, max_discount_percent')
-        .or(`organisation_id.eq.${organisation?.id},organisation_id.is.null`)
-        .eq('is_active', true)
-        .order('name');
-      if (error) throw error;
-      return data ?? [];
-    },
-    enabled: !!organisation?.id,
-    staleTime: 5 * 60 * 1000,
-  });
-  const discountCategoryMap = useMemo(() => {
-    const map: Record<string, {
-      name?: string | null;
-      default_discount_percent?: number | string | null;
-      min_discount_percent?: number | string | null;
-      max_discount_percent?: number | string | null;
-    }> = {};
-    (discountCategoriesQuery.data ?? []).forEach((c: any) => {
-      map[String(c.id)] = {
-        name: c.name ?? null,
-        default_discount_percent: c.default_discount_percent ?? null,
-        min_discount_percent: c.min_discount_percent ?? null,
-        max_discount_percent: c.max_discount_percent ?? null,
-      };
-    });
-    return map;
-  }, [discountCategoriesQuery.data]);
-
-  const clients = clientsQuery.data ?? [];
-  const selectedClient = useMemo(
-    () => clients.find((client) => client.id === selectedClientId) ?? null,
-    [clients, selectedClientId],
-  );
-
-  const templates = templatesQuery.data ?? [];
-  const selectedTemplate = useMemo(
-    () => templates.find((template) => template.id === selectedTemplateId) ?? null,
-    [selectedTemplateId, templates],
-  );
-
-  const totals = useMemo(
-    () =>
-      calculateDraftTotals({
-        items: watchedItems,
-        company_state: companyState,
-        client_state: clientState,
-      }, enableRoundOff),
-    [companyState, clientState, watchedItems, enableRoundOff],
-  );
-
-  const poValidation = useMemo(() => {
-    if (selectedSourceType !== 'po' || !selectedSourceId) return { isValid: true, message: '' };
-    
-    const selectedPO = sourceOptionsQuery.data?.find(po => po.id === selectedSourceId);
-    if (!selectedPO) return { isValid: true, message: '' };
-    
-    const poTotalValue = selectedPO.po_total_value || 0;
-    const invoiceTotalValue = totals.total || 0;
-    
-    if (invoiceTotalValue > poTotalValue) {
-      return {
-        isValid: false,
-        message: `Invoice total (₹${formatCurrency(invoiceTotalValue)}) cannot exceed PO total (₹${formatCurrency(poTotalValue)})`
-      };
-    }
-    
-    return { isValid: true, message: '' };
-  }, [selectedSourceType, selectedSourceId, sourceOptionsQuery.data, totals.total]);
-
-  useEffect(() => {
-    const snapshot = JSON.stringify(watchedItems.map((i: any) => ({ q: i.qty, r: i.rate, a: i.amount })));
-    if (snapshot === lastItemsSnapshotRef.current) return;
-    lastItemsSnapshotRef.current = snapshot;
-
-    watchedItems.forEach((item, index) => {
-      const amount = Number(((Number(item.qty) || 0) * (Number(item.rate) || 0)).toFixed(2));
-      if ((item.amount ?? 0) !== amount) {
-        setValue(`items.${index}.amount`, amount, {
-          shouldDirty: false,
-          shouldValidate: false,
-        });
-      }
-    });
-  }, [setValue, watchedItems]);
-
-  useEffect(() => {
-    if (!isEditMode && !isDuplicating && !isConverting && user?.user_metadata?.full_name) {
-      setValue('prepared_by', user.user_metadata.full_name);
-    }
-  }, [isEditMode, isDuplicating, isConverting, user, setValue]);
-
-  useEffect(() => {
-    if (!invoiceQuery.data || loadedInvoiceIdRef.current === invoiceQuery.data.id) return;
-
-    loadedInvoiceIdRef.current = invoiceQuery.data.id ?? '';
-    reset(invoiceToFormValues(invoiceQuery.data));
-    setInvoiceRevisionNo(invoiceQuery.data.revision_no ?? 1);
-    setInvoiceRevisionHistory(invoiceQuery.data.revision_history ?? []);
-    setInvoiceRevisionReason(invoiceQuery.data.revision_reason ?? '');
-    initialSourceKeyRef.current = `${invoiceQuery.data.source_type}:${invoiceQuery.data.source_id}`;
-    hydratedSourceKeyRef.current = `${invoiceQuery.data.source_type}:${invoiceQuery.data.source_id}:${invoiceQuery.data.mode}`;
-  }, [invoiceQuery.data, reset]);
-
-  useEffect(() => {
-    if (!isConverting || !conversionQuery.data) return;
-    if (conversionAppliedRef.current) return;
-    conversionAppliedRef.current = true;
-
-    conversionInfoRef.current = {
-      type: convertFrom!,
-      sourceId: sourceId!,
-    };
-
-    const convertedData = conversionQuery.data.data as any;
-
-    setValue('client_id', convertedData.client_id, {
-      shouldDirty: true,
-      shouldValidate: false,
-    });
-    setValue('source_type', convertedData.source_type, {
-      shouldDirty: true,
-      shouldValidate: false,
-    });
-    setValue('source_id', convertedData.source_id, {
-      shouldDirty: true,
-      shouldValidate: false,
-    });
-    setValue('template_type', convertedData.template_type, {
-      shouldDirty: true,
-      shouldValidate: false,
-    });
-    setValue('mode', convertedData.mode, {
-      shouldDirty: true,
-      shouldValidate: false,
-    });
-    setValue('invoice_date', convertedData.invoice_date, {
-      shouldDirty: true,
-      shouldValidate: false,
-    });
-    setValue('po_number', convertedData.po_number || null, {
-      shouldDirty: true,
-      shouldValidate: false,
-    });
-    setValue('po_date', convertedData.po_date || null, {
-      shouldDirty: true,
-      shouldValidate: false,
-    });
-    setValue('remarks', convertedData.remarks || '', {
-      shouldDirty: true,
-      shouldValidate: false,
-    });
-    setValue('company_state', convertedData.company_state || organisation?.state || DEFAULT_COMPANY_STATE, {
-      shouldDirty: false,
-      shouldValidate: false,
-    });
-    setValue('client_state', convertedData.client_state || null, {
-      shouldDirty: false,
-      shouldValidate: false,
-    });
-
-    if (convertedData.items && convertedData.items.length > 0) {
-      itemsFieldArray.replace(convertedData.items.map((item: any) => createEmptyItem(item)));
-    }
-
-    if (convertedData.materials && convertedData.materials.length > 0) {
-      materialsFieldArray.replace(convertedData.materials.map((material: any) => createEmptyMaterial(material)));
-    }
-  }, [isConverting, conversionQuery.data, convertFrom, sourceId, setValue, itemsFieldArray, materialsFieldArray, organisation?.state]);
-
-  useEffect(() => {
-    if (!isDuplicating || !duplicateInvoiceQuery.data) return;
-
-    const sourceInvoice = duplicateInvoiceQuery.data;
-    const duplicatedFormValues = invoiceToFormValues(sourceInvoice);
-
-    duplicatedFormValues.invoice_no = '';
-    duplicatedFormValues.status = 'draft';
-
-    reset({
-      ...duplicatedFormValues,
-      invoice_no: '',
-      status: 'draft',
-      invoice_date: new Date().toISOString().split('T')[0],
-    });
-  }, [isDuplicating, duplicateInvoiceQuery.data, reset]);
-
-  useEffect(() => {
-    if (!selectedClient) return;
-
-    setValue('client_state', selectedClient.state ?? null, {
-      shouldDirty: false,
-      shouldValidate: false,
-    });
-
-    if (!getValues('template_id') && selectedClient.default_template_id) {
-      setValue('template_id', selectedClient.default_template_id, {
-        shouldDirty: false,
-        shouldValidate: false,
-      });
-    }
-  }, [getValues, selectedClient, setValue]);
-
-  useEffect(() => {
-    const templateType = getTemplateTypeFromTemplate(selectedTemplate);
-    if (!templateType) return;
-
-    if (getValues('template_type') !== templateType) {
-      setValue('template_type', templateType, {
-        shouldDirty: true,
-        shouldValidate: false,
-      });
-    }
-
-    if (templateType === 'lot' && getValues('mode') !== 'lot') {
-      setValue('mode', 'lot', {
-        shouldDirty: true,
-        shouldValidate: false,
-      });
-    }
-  }, [getValues, selectedTemplate, setValue]);
-
-  useEffect(() => {
-    if (selectedMode === 'lot') {
-      const currentItems = getValues('items');
-      if (currentItems.length !== 1) {
-        const firstDescription = currentItems[0]?.description?.trim() || 'As per PO';
-        itemsFieldArray.replace([createLotItem(firstDescription)]);
-      }
+  // ── Draft save (with revision-reason gate on edit) ──
+  const handleSaveAsDraft = handleSubmit(async (values) => {
+    if (isEditMode && invoiceId) {
+      setPendingInvoiceSave(true);
+      setInvoiceReasonDialogOpen(true);
       return;
     }
 
-    if (getValues('items').length === 0) {
-      itemsFieldArray.replace([createEmptyItem()]);
-    }
-
-    if (getValues('materials').length > 0) {
-      materialsFieldArray.replace([]);
-    }
-  }, [getValues, itemsFieldArray, materialsFieldArray, selectedMode]);
-
-  useEffect(() => {
-    if (!sourceDraftQuery.data || !selectedSourceId) return;
-
-    if (isConverting) return;
-
-    const key = `${selectedSourceType}:${selectedSourceId}:${selectedMode}`;
-    const isInitialEditSource = isEditMode && `${selectedSourceType}:${selectedSourceId}` === initialSourceKeyRef.current;
-
-    if (hydratedSourceKeyRef.current === key || isInitialEditSource) return;
-
-    hydratedSourceKeyRef.current = key;
-
-    setValue('client_id', sourceDraftQuery.data.client_id, {
-      shouldDirty: true,
-      shouldValidate: false,
-    });
-    setValue('client_state', sourceDraftQuery.data.client_state ?? null, {
-      shouldDirty: false,
-      shouldValidate: false,
-    });
-    setValue('mode', sourceDraftQuery.data.mode, {
-      shouldDirty: true,
-      shouldValidate: false,
-    });
-    setValue('template_type', sourceDraftQuery.data.template_type, {
-      shouldDirty: true,
-      shouldValidate: false,
-    });
-
-    itemsFieldArray.replace(sourceDraftQuery.data.items.map((item) => createEmptyItem(item)));
-    materialsFieldArray.replace(sourceDraftQuery.data.materials.map((material) => createEmptyMaterial(material)));
-  }, [
-    isEditMode,
-    itemsFieldArray,
-    materialsFieldArray,
-    selectedMode,
-    selectedSourceId,
-    selectedSourceType,
-    setValue,
-    sourceDraftQuery.data,
-  ]);
-
-
-  const customColumnLabel = getTemplateExtraColumnLabel(selectedTemplate, watchedItems);
-  const showCustomColumn = getValues('template_type') === 'client_custom';
-  const isSaving = createInvoice.isPending || updateInvoice.isPending;
-
-  const defaultWarehouseId = useWatch({ control, name: 'default_warehouse_id' });
-  useEffect(() => {
-    const defaultWh = defaultWarehouseId;
-    if (!defaultWh) return;
-    
-    watchedItems.forEach((item: any, idx: number) => {
-      if (item.meta_json?.material_id && !item.meta_json?.warehouse_id) {
-        setValue(`items.${idx}.meta_json.warehouse_id`, defaultWh);
-      }
-    });
-  }, [defaultWarehouseId, watchedItems, setValue]);
-
-  console.log('InvoiceEditorPage - fields:', itemsFieldArray.fields.length, 'watchedItems:', watchedItems.length);
-
-  const onSubmit = handleSubmit(async (values) => {
-    let invoiceNo = values.invoice_no;
-    let seriesId: string | null = null;
-
-    form.clearErrors('root');
-
-    if (!poValidation.isValid) {
-      form.setError('root', {
-        type: 'validation',
-        message: poValidation.message,
-      });
-      return;
-    }
-
-    console.log('Form values before validation:', values);
-    console.log('Items being validated:', values.items);
-
-    const invalidItems = values.items.filter((item, index) => {
-      if ((item as any).is_header || (item as any).is_subtotal) return false;
-      const rate = Number(item.rate);
-      const qty = Number(item.qty);
-      const isValid = !isNaN(rate) && rate >= 0 && !isNaN(qty) && qty > 0;
-      console.log(`Item ${index}: rate=${rate}, qty=${qty}, valid=${isValid}`);
-      return !isValid;
-    });
-
-    if (invalidItems.length > 0) {
-      console.log('Invalid items found:', invalidItems);
-      form.setError('root', {
-        type: 'validation',
-        message: 'Please ensure all items have valid quantity (greater than 0) and rate (not negative).',
-      });
-      return;
-    }
-
-    if (!isEditMode && !invoiceNo && organisation?.id) {
-      const result = await generateInvoiceNumber(organisation.id);
-      invoiceNo = result.invoiceNo;
-      seriesId = result.seriesId;
-    }
-
-    const payload = composeInvoiceInput({
-      ...values,
-      invoice_no: invoiceNo || null,
-      status: 'final',
-    }, totals);
-
-    if (values.mode === 'lot' && (payload.materials ?? []).length === 0) {
-      form.setError('materials', {
-        type: 'manual',
-        message: 'Add at least one material row for lot invoices.',
-      });
-      return;
-    }
-
-    try {
-      let newInvoiceId: string | null = null;
-      if (isEditMode && invoiceId) {
-        // Log the edit if it's already final
-        if (invoiceQuery.data?.status === 'final') {
-          try {
-            await supabase.from('follow_up_activity_log').insert({
-              organisation_id: organisation?.id,
-              event_type: 'invoice_edited',
-              tab_source: 'invoice',
-              title: 'Finalized Invoice Edited',
-              description: `Invoice ${invoiceQuery.data.invoice_no} was updated after finalization. Total changed from ${formatCurrency(invoiceQuery.data.total)} to ${formatCurrency(payload.total)}.`,
-              actor_name: organisation?.name || 'Authorized User',
-              reference_id: invoiceId,
-              reference_label: invoiceQuery.data.invoice_no,
-              metadata: {
-                action: 'EDIT_FINALIZED',
-                old_total: invoiceQuery.data.total,
-                new_total: payload.total,
-                edit_timestamp: new Date().toISOString()
-              }
-            });
-          } catch (logError) {
-            console.warn('Failed to log invoice edit:', logError);
-          }
-        }
-        await updateInvoice.mutateAsync(payload);
-      } else {
-        const result = await createInvoice.mutateAsync(payload);
-        newInvoiceId = result.id;
-        if (seriesId && organisation?.id) {
-          incrementInvoiceNumber(seriesId, organisation.id).then();
-        }
-      }
-
-      if (conversionInfoRef.current && newInvoiceId) {
-        const { type, sourceId } = conversionInfoRef.current;
-        const { status } = useConversionStatus(type);
-        const tableName = getSourceTableName(type);
-
-        await supabase
-          .from(tableName)
-          .update({
-            status,
-            converted_to_id: newInvoiceId,
-            converted_to_type: 'invoice',
-          })
-          .eq('id', sourceId);
-      }
-
-      if (selectedSourceType === 'quotation' && selectedSourceId && newInvoiceId) {
-        const allQuotationItems = quotationDetailsQuery.data?.items || [];
-        const billedItems = values.items.filter(item => item.meta_json?.quotation_item_id);
-
-        const newStatus = billedItems.length === allQuotationItems.length ? 'converted' : 'partially converted';
-
-        await supabase
-          .from('quotation_header')
-          .update({
-            conversion_status: newStatus,
-            status: newStatus === 'converted' ? 'Converted' : 'Partially Converted'
-          })
-          .eq('id', selectedSourceId);
-
-        await supabase
-          .from('invoices')
-          .update({ quotation_id: selectedSourceId })
-          .eq('id', newInvoiceId);
-      }
-
-      if (selectedSourceType === 'proforma' && selectedSourceId && newInvoiceId) {
-        const allProformaItems = proformaDetailsQuery.data?.items || [];
-        const billedItems = values.items.filter(item => item.meta_json?.proforma_item_id);
-
-        const newStatus = billedItems.length === allProformaItems.length ? 'fully billed' : 'partially billed';
-
-        await supabase
-          .from('proforma_invoices')
-          .update({
-            billing_status: newStatus
-          })
-          .eq('id', selectedSourceId);
-
-        await supabase
-          .from('invoices')
-          .update({ proforma_id: selectedSourceId })
-          .eq('id', newInvoiceId);
-      }
-
-      // Update PO line item billing after successful save (first creation only)
-      if (newInvoiceId) {
-        try {
-          const poItems = extractInvoicePoItems(values.items);
-          if (poItems.length > 0) {
-            await updatePoLineItemBilling({
-              organisationId: organisation?.id!,
-              sourceType: 'invoice',
-              sourceId: newInvoiceId,
-              items: poItems,
-            });
-          }
-        } catch (billingError) {
-          console.error('Failed to update PO billing:', billingError);
-        }
-      }
-
-      navigate('/invoices');
-    } catch (error) {
-      console.error('Failed to save invoice:', error);
-      alert('Failed to save invoice: ' + (error as Error).message);
-    }
-  }, (errors) => {
-    console.error('Form validation errors found:', Object.keys(errors));
-    
-    if (errors.items || errors.client_id || errors.root) {
-      form.setError('root', {
-        type: 'validation',
-        message: 'Please fix validation errors before saving.',
-      });
-    }
+    await save.executeInvoiceDraftSave(values);
   });
 
+  // ── PDF actions ──
   const handlePreviewPdf = async () => {
     if (!invoiceId) {
-      alert('Please save the invoice first before previewing.');
+      toast.error('Please save the invoice first before previewing.');
       return;
     }
 
@@ -1496,9 +511,8 @@ export default function InvoiceEditorPage() {
     try {
       const { previewInvoicePDF } = await import('../pdf');
       await previewInvoicePDF(invoiceId);
-    } catch (error) {
-      console.error('Failed to preview PDF:', error);
-      alert('Failed to preview PDF: ' + (error as Error).message);
+    } catch (error: any) {
+      toast.error(`Failed to preview PDF: ${error.message}`);
     } finally {
       setPdfAction(null);
     }
@@ -1506,7 +520,7 @@ export default function InvoiceEditorPage() {
 
   const handleDownloadPdf = async () => {
     if (!invoiceId) {
-      alert('Please save the invoice first before downloading.');
+      toast.error('Please save the invoice first before downloading.');
       return;
     }
 
@@ -1514,9 +528,8 @@ export default function InvoiceEditorPage() {
     try {
       const { downloadInvoicePDF } = await import('../pdf');
       await downloadInvoicePDF(invoiceId);
-    } catch (error) {
-      console.error('Failed to download PDF:', error);
-      alert('Failed to download PDF: ' + (error as Error).message);
+    } catch (error: any) {
+      toast.error(`Failed to download PDF: ${error.message}`);
     } finally {
       setPdfAction(null);
     }
@@ -1524,7 +537,7 @@ export default function InvoiceEditorPage() {
 
   const handlePrintPdf = async () => {
     if (!invoiceId) {
-      alert('Please save the invoice first before printing.');
+      toast.error('Please save the invoice first before printing.');
       return;
     }
 
@@ -1532,104 +545,35 @@ export default function InvoiceEditorPage() {
     try {
       const { printInvoicePDF } = await import('../pdf');
       await printInvoicePDF(invoiceId);
-    } catch (error) {
-      console.error('Failed to print PDF:', error);
-      alert('Failed to print PDF: ' + (error as Error).message);
+    } catch (error: any) {
+      toast.error(`Failed to print PDF: ${error.message}`);
     } finally {
       setPdfAction(null);
     }
   };
 
-  // ── Revision Management: Save current invoice revision snapshot before bumping ──
-  const saveInvoiceCurrentRevision = useCallback(async (reason: string): Promise<boolean> => {
-    if (!invoiceId || !organisation?.id) return false;
-    const currentRevNo = invoiceRevisionNo || 1;
-    const newRevNo = currentRevNo + 1;
-    const revisionSnapshot = {
-      revision_no: currentRevNo,
-      saved_at: new Date().toISOString(),
-      reason: reason || '',
-      items: watchedItems.map(item => ({ ...item })),
-      header: {
-        subtotal: totals.subtotal,
-        total: totals.total,
-        cgst: totals.cgst,
-        sgst: totals.sgst,
-        igst: totals.igst,
-      },
-    };
-    const newHistory = [...(invoiceRevisionHistory || []), revisionSnapshot];
-    try {
-      const { error } = await supabase
-        .from('invoices')
-        .update({
-          revision_no: newRevNo,
-          revision_history: newHistory,
-          revision_reason: reason || invoiceRevisionReason,
-        })
-        .eq('id', invoiceId);
-      if (error) throw error;
-      setInvoiceRevisionNo(newRevNo);
-      setInvoiceRevisionHistory(newHistory);
-      setInvoiceRevisionReason(reason || invoiceRevisionReason);
-      return true;
-    } catch (err) {
-      console.error('Error saving invoice revision:', err);
-      return false;
-    }
-  }, [invoiceId, organisation?.id, invoiceRevisionNo, invoiceRevisionHistory, invoiceRevisionReason, watchedItems, totals]);
-
-  const handleSaveAsDraft = handleSubmit(async (values) => {
-    // For existing invoices, ask for revision reason before proceeding
-    if (isEditMode && invoiceId) {
-      setPendingInvoiceSave(true);
-      setInvoiceReasonDialogOpen(true);
+  const handleEmailPdf = async () => {
+    if (!invoiceId) {
+      toast.error('Please save the invoice first before emailing.');
       return;
     }
-
-    await executeInvoiceDraftSave(values);
-  });
-
-  const executeInvoiceDraftSave = async (values: any) => {
-    const payload = composeInvoiceInput({
-      ...values,
-      invoice_no: null,
-      status: 'draft',
-    }, totals);
-
-    try {
-      if (isEditMode && invoiceId) {
-        await updateInvoice.mutateAsync(payload);
-      } else {
-        await createInvoice.mutateAsync(payload);
-      }
-      navigate('/invoices');
-    } catch (error) {
-      console.error('Failed to save draft:', error);
-      alert('Failed to save draft: ' + (error as Error).message);
-    }
-  };
-
-  const handleEmailPdf = async () => {
-    if (!invoiceId) return;
 
     setPdfAction('email');
     try {
       const { emailInvoicePDF } = await import('../pdf');
       await emailInvoicePDF(invoiceId);
-    } catch (error) {
-      console.error('Failed to email PDF:', error);
-      alert('Failed to email PDF: ' + (error as Error).message);
+    } catch (error: any) {
+      toast.error(`Failed to email PDF: ${error.message}`);
     } finally {
       setPdfAction(null);
     }
   };
 
-  if ((isEditMode && invoiceQuery.isLoading) || (isDuplicating && duplicateInvoiceQuery.isLoading)) {
+  if ((isEditMode && existingInvoiceQuery.isLoading) || (isDuplicating && duplicateInvoiceQuery.isLoading)) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', color: '#525252' }}>
-          <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={20} />
+          <Loader2 size={20} className="animate-spin" />
           {isDuplicating ? 'Loading invoice for duplication...' : 'Loading invoice...'}
         </div>
       </div>
@@ -1637,402 +581,207 @@ export default function InvoiceEditorPage() {
   }
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
-      <DocumentActionBar
-        title={isEditMode ? `Edit ${invoiceQuery.data?.invoice_no || 'Invoice'}` : isDuplicating ? 'Create Invoice from Existing' : 'New Invoice'}
-        statusBadge={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <InvoiceStatusBadge status={getValues('status')} />
-            <RevisionBadge revisionNo={invoiceRevisionNo} onClick={() => setInvoiceRevisionDialogOpen(true)} />
-          </div>
-        }
-        fixed={{ top: 32, left: 220 }}
-        leftActions={
-          <>
-            <Button variant="outline" size="icon-xs" type="button" onClick={() => setIsParserOpen(true)} title="Import PDF/Image">
-              <FileText size={14} />
-            </Button>
-            {invoiceId && (
-              <DocumentConversionChain documentType="invoice" documentId={invoiceId} />
-            )}
-          </>
-        }
-        rightActions={
-          <>
-            <Button
-              variant="outline"
-              size="icon-xs"
-              type="button"
-              onMouseEnter={prefetchInvoicePdf}
-              onFocus={prefetchInvoicePdf}
-              onClick={handlePreviewPdf}
-              disabled={!isEditMode || pdfAction !== null}
-              title={pdfAction === 'preview' ? 'Preparing PDF...' : 'Preview PDF'}
-            >
-              {pdfAction === 'preview' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Eye size={14} />}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-xs"
-              type="button"
-              onMouseEnter={prefetchInvoicePdf}
-              onFocus={prefetchInvoicePdf}
-              onClick={handleDownloadPdf}
-              disabled={!isEditMode || pdfAction !== null}
-              title={pdfAction === 'download' ? 'Preparing PDF...' : 'Download PDF'}
-            >
-              {pdfAction === 'download' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Download size={14} />}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-xs"
-              type="button"
-              onMouseEnter={prefetchInvoicePdf}
-              onFocus={prefetchInvoicePdf}
-              onClick={handlePrintPdf}
-              disabled={!isEditMode || pdfAction !== null}
-              title={pdfAction === 'print' ? 'Preparing PDF...' : 'Print'}
-            >
-              {pdfAction === 'print' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Printer size={14} />}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-xs"
-              type="button"
-              onMouseEnter={prefetchInvoicePdf}
-              onFocus={prefetchInvoicePdf}
-              onClick={handleEmailPdf}
-              disabled={!isEditMode || pdfAction !== null}
-              title={pdfAction === 'email' ? 'Preparing PDF...' : 'Email'}
-            >
-              {pdfAction === 'email' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Mail size={14} />}
-            </Button>
-            <Button variant="secondary" size="sm" type="button" onClick={() => navigate('/invoices')}>Cancel</Button>
-            <Button variant="default" size="sm" type="button" onClick={() => document.getElementById('invoice-form')?.requestSubmit()} disabled={isSaving}>
-              {isSaving ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Save size={14} />}
-              {isEditMode ? 'Update' : 'Create'}
-            </Button>
-          </>
-        }
-      />
-
-      <form id="invoice-form" onSubmit={onSubmit} style={{ marginBottom: '16px' }}>
-        {activeImportSessionId && (
-          <div className="bg-indigo-900/40 border border-indigo-800/60 text-indigo-200 px-6 py-3 rounded-lg flex items-center justify-between text-xs font-semibold mb-4 animate-in slide-in-from-top">
-            <div className="flex items-center gap-2">
-              <span className="bg-indigo-50/20 text-indigo-300 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">AI Imported</span>
-              <span>All line items and header values were filled using the AI Document Parser.</span>
+    <DocumentEditorShell
+      actionBar={
+        <DocumentActionBar
+          title={isEditMode ? `Edit ${existingInvoiceQuery.data?.invoice_no || 'Invoice'}` : isDuplicating ? 'Create Invoice from Existing' : 'New Invoice'}
+          statusBadge={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <InvoiceStatusBadge status={getValues('status') as any} />
+              <RevisionBadge revisionNo={invoiceRevisionNo} onClick={() => setInvoiceRevisionDialogOpen(true)} />
             </div>
-            <Button variant="default" size="sm" type="button" onClick={handleUndoImport} >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Undo Import
-            </Button>
-          </div>
-        )}
+          }
+          fixed={{ top: 32, left: 220 }}
+          leftActions={
+            <>
+              <Button variant="outline" size="icon-xs" type="button" onClick={() => aiImport.setIsParserOpen(true)} title="Import PDF/Image">
+                <FileText size={14} />
+              </Button>
+              {invoiceId && (
+                <DocumentConversionChain documentType="invoice" documentId={invoiceId} />
+              )}
+            </>
+          }
+          rightActions={
+            <>
+              <Button variant="outline" size="icon-xs" type="button" onMouseEnter={prefetchInvoicePdf} onFocus={prefetchInvoicePdf} onClick={handlePreviewPdf} disabled={!isEditMode || pdfAction !== null} title={pdfAction === 'preview' ? 'Preparing PDF...' : 'Preview PDF'}>
+                {pdfAction === 'preview' ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}
+              </Button>
+              <Button variant="outline" size="icon-xs" type="button" onMouseEnter={prefetchInvoicePdf} onFocus={prefetchInvoicePdf} onClick={handleDownloadPdf} disabled={!isEditMode || pdfAction !== null} title={pdfAction === 'download' ? 'Preparing PDF...' : 'Download PDF'}>
+                {pdfAction === 'download' ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              </Button>
+              <Button variant="outline" size="icon-xs" type="button" onMouseEnter={prefetchInvoicePdf} onFocus={prefetchInvoicePdf} onClick={handlePrintPdf} disabled={!isEditMode || pdfAction !== null} title={pdfAction === 'print' ? 'Preparing PDF...' : 'Print'}>
+                {pdfAction === 'print' ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+              </Button>
+              <Button variant="outline" size="icon-xs" type="button" onMouseEnter={prefetchInvoicePdf} onFocus={prefetchInvoicePdf} onClick={handleEmailPdf} disabled={!isEditMode || pdfAction !== null} title={pdfAction === 'email' ? 'Preparing PDF...' : 'Email'}>
+                {pdfAction === 'email' ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+              </Button>
+              <Button variant="outline" size="sm" type="button" onClick={() => navigate('/invoices')} disabled={save.isSaving}>
+                Cancel
+              </Button>
+              <Button variant="secondary" size="sm" type="button" onClick={handleSaveAsDraft} disabled={save.isSaving}>
+                {save.isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Save as Draft
+              </Button>
+              <Button size="sm" type="button" onClick={() => (document.getElementById('invoice-form') as HTMLFormElement | null)?.requestSubmit()} disabled={save.isSaving}>
+                {save.isSaving ? <Loader2 size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
+                {isEditMode ? 'Update Invoice' : 'Create Invoice'}
+              </Button>
+            </>
+          }
+        />
+      }
+    >
+      <form id="invoice-form" onSubmit={save.onSubmit}>
+        <InvoiceImportBanner
+          visible={Boolean(aiImport.activeImportSessionId)}
+          onUndo={aiImport.handleUndoImport}
+        />
 
-        {/* Conversion Chain Breadcrumb */}
-        {invoiceId && (
-          <div style={{ marginBottom: '12px' }}>
-            <DocumentConversionChain documentType="invoice" documentId={invoiceId} />
-          </div>
-        )}
-
-        <HeaderFormGrid columns={3}>
-          {/* Card 1: Client */}
-          <HeaderCard icon={<User size={14} style={{ color: '#2563eb' }} />} title="Client">
-            <HeaderField label="Client" required labelWidth="90px">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <select
-                  {...register('client_id')}
-                  style={{
-                    width: '100%',
-                    padding: sharedStyles.inputStyle.padding,
-                    fontSize: sharedStyles.inputStyle.fontSize,
-                    border: '1px solid #d4d4d4',
-                    borderRadius: '4px',
-                    background: '#fff',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="">Select client</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>{client.name}</option>
-                  ))}
-                </select>
-                {errors.client_id && (
-                  <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: 500 }}>
-                    {errors.client_id.message}
-                  </span>
-                )}
-              </div>
-            </HeaderField>
-            <HeaderField label="Source" labelWidth="90px">
-              <select
-                {...register('source_type')}
-                style={{
-                  width: '100%',
-                  padding: sharedStyles.inputStyle.padding,
-                  fontSize: sharedStyles.inputStyle.fontSize,
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  background: '#fff',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="direct">Direct</option>
-                <option value="quotation">Quotation</option>
-                <option value="challan">Challan</option>
-                <option value="po">PO</option>
-                <option value="proforma">Proforma</option>
-              </select>
-            </HeaderField>
-            {selectedClientId && (
-              <HeaderField label="" labelWidth="90px" last>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <ArcPricingToggle
-                    clientId={selectedClientId}
-                    enabled={useArcPricing}
-                    onChange={(enabled) => {
-                      if (enabled && watchedItems.length > 0) {
-                        setArcPricingConfirmOpen(true);
-                      } else {
-                        setUseArcPricing(enabled);
-                        if (!enabled) setArcPricingMap({});
-                      }
-                    }}
-                  />
-                  <ArcPricingStatusBadge
-                    totalItems={watchedItems.length}
-                    itemsWithArcRate={Object.values(arcPricingMap).filter(Boolean).length}
-                    itemsWithoutArcRate={watchedItems.length - Object.values(arcPricingMap).filter(Boolean).length}
-                  />
-                </div>
-              </HeaderField>
-            )}
-          </HeaderCard>
-
-          {/* Card 2: Document */}
-          <HeaderCard icon={<FileText size={14} style={{ color: '#2563eb' }} />} title="Document">
-            <HeaderField label="Invoice No" labelWidth="90px">
-              <div style={{ ...sharedStyles.staticFieldStyle, background: '#f3f4f6' }}>
-                {getValues('invoice_no') || 'Auto-generating...'}
-              </div>
-            </HeaderField>
-            <HeaderField label="Date" labelWidth="90px">
-              <CustomDatePicker
-                value={watch('invoice_date') || ''}
-                onChange={(val) => setValue('invoice_date', val, { shouldDirty: true })}
-                inputStyle={sharedStyles.inputStyle}
-              />
-            </HeaderField>
-            {errors.invoice_date && (
-              <div style={{ paddingLeft: '90px', marginTop: '-6px', marginBottom: '6px' }}>
-                <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: 500 }}>{errors.invoice_date.message}</span>
-              </div>
-            )}
-            <HeaderField label="Due Date" labelWidth="90px">
-              <CustomDatePicker
-                value={watch('due_date') || ''}
-                onChange={(val) => setValue('due_date', val, { shouldDirty: true })}
-                inputStyle={sharedStyles.inputStyle}
-              />
-            </HeaderField>
-            <HeaderField label="Template" labelWidth="90px">
-              <select
-                {...register('template_id')}
-                style={{
-                  width: '100%',
-                  padding: sharedStyles.inputStyle.padding,
-                  fontSize: sharedStyles.inputStyle.fontSize,
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  background: '#fff',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="">Select template</option>
-                {templates.map((template) => (
-                  <option key={template.id} value={template.id}>{template.name}</option>
-                ))}
-              </select>
-            </HeaderField>
-            <HeaderField label="Prepared By" labelWidth="90px" last>
-              <input
-                type="text"
-                {...register('prepared_by')}
-                placeholder="Name"
-                style={{ ...sharedStyles.inputStyle, width: '100%', border: '1px solid #d4d4d4', borderRadius: '4px', background: '#fff' }}
-              />
-            </HeaderField>
-          </HeaderCard>
-
-          {/* Card 3: Project & Pricing */}
-          <HeaderCard icon={<Briefcase size={14} style={{ color: '#2563eb' }} />} title="Project & Pricing">
-            <HeaderField label="Mode" labelWidth="90px">
-              <select
-                {...register('mode')}
-                style={{
-                  width: '100%',
-                  padding: sharedStyles.inputStyle.padding,
-                  fontSize: sharedStyles.inputStyle.fontSize,
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  background: '#fff',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="itemized">Itemized</option>
-                <option value="lot">Lot</option>
-              </select>
-            </HeaderField>
-            <HeaderField label="Warehouse" labelWidth="90px">
-              <select
-                {...register('default_warehouse_id')}
-                style={{
-                  width: '100%',
-                  padding: sharedStyles.inputStyle.padding,
-                  fontSize: sharedStyles.inputStyle.fontSize,
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  background: '#fff',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="">Select warehouse</option>
-                {warehousesQuery.data?.map((warehouse: any) => (
-                  <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
-                ))}
-              </select>
-            </HeaderField>
-            <HeaderField label="PO Number" labelWidth="90px">
-              <input
-                type="text"
-                {...register('po_number')}
-                placeholder="PO number"
-                style={{ ...sharedStyles.inputStyle, width: '100%', border: '1px solid #d4d4d4', borderRadius: '4px', background: '#fff' }}
-              />
-            </HeaderField>
-            <HeaderField label="PO Date" labelWidth="90px">
-              <CustomDatePicker
-                value={watch('po_date') || ''}
-                onChange={(val) => setValue('po_date', val, { shouldDirty: true })}
-                inputStyle={sharedStyles.inputStyle}
-              />
-            </HeaderField>
-            <HeaderField label="Discounts" labelWidth="90px" last>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {variantRows.length > 0 ? variantRows.map((variant: any) => (
-                  <div key={variant.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #e5e5e5', background: '#fff', borderRadius: '4px', height: '30px' }}>
-                    <div style={{ padding: '0 6px', flex: 1, borderLeft: '2px solid #3b82f6', height: '100%', display: 'flex', alignItems: 'center' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: '#1d4ed8' }}>
-                        {variant.variant_name}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', height: '100%', borderLeft: '1px solid #e5e5e5' }}>
-                      <input
-                        type="number"
-                        style={{ width: '48px', padding: '0 4px', textAlign: 'right', fontSize: '10px', fontWeight: 700, color: '#1d4ed8', border: 'none', background: 'transparent', height: '100%', outline: 'none' }}
-                        value={headerDiscounts[variant.id] || 0}
-                        onChange={(e) => {
-                          const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                          setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
-                        }}
-                        onBlur={(e) => {
-                          const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                          handleHeaderDiscountChange(variant.id, val);
-                        }}
-                        min="0" max="100" step="0.01"
-                      />
-                      <span style={{ padding: '0 4px', fontSize: '10px', fontWeight: 700, color: '#2563eb', borderLeft: '1px solid #e5e5e5', height: '100%', display: 'flex', alignItems: 'center' }}>%</span>
-                    </div>
-                  </div>
-                )) : (
-                  <div style={{ fontSize: '10px', color: '#737373', fontStyle: 'italic', padding: '4px' }}>
-                    No categories
-                  </div>
-                )}
-              </div>
-            </HeaderField>
-          </HeaderCard>
-        </HeaderFormGrid>
+        <InvoiceHeaderCards
+          form={form}
+          errors={errors as Record<string, any>}
+          clients={clients}
+          selectedClient={selectedClient}
+          selectedClientAddress={selectedClientAddress}
+          selectedClientState={selectedClient?.state}
+          templates={templates.map((t) => ({ id: t.id, name: t.name }))}
+          warehouses={editorData.warehousesQuery.data ?? []}
+          variantRows={editorData.variantRows}
+          shippingAddresses={editorData.shippingAddressesQuery.data ?? []}
+          invoiceNo={getValues('invoice_no')}
+          disableShipping={!selectedClientId}
+          headerDiscounts={editorData.headerDiscounts}
+          onDiscountInputChange={(variantId, value) => editorData.setHeaderDiscounts(prev => ({ ...prev, [variantId]: value }))}
+          onHeaderDiscountChange={formSync.handleHeaderDiscountChange}
+          arcPricing={{
+            enabled: useArcPricing,
+            map: editorData.arcPricingMap,
+            totalItems: watchedItems.length,
+            clientId: selectedClientId,
+            onToggle: (enabled) => {
+              if (enabled && watchedItems.length > 0) {
+                setPendingArcEnabled(true);
+                setArcPricingConfirmOpen(true);
+              } else {
+                setUseArcPricing(enabled);
+                setPendingArcEnabled(false);
+                if (!enabled) editorData.setArcPricingMap({});
+              }
+            },
+          }}
+          onOpenAddShipping={() => setIsShippingAddressModalOpen(true)}
+        />
 
         {selectedSourceType !== 'direct' && (
-          <div style={{ marginBottom: '12px' }}>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>
-                {getSourceLabel(selectedSourceType)}:
-              </label>
-              <select
-                {...register('source_id')}
-                style={{
-                  flex: 1,
-                  padding: '6px 10px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  color: '#171717',
-                  background: '#fff',
-                  cursor: 'pointer'
-                }}
+          <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>
+              {getSourceLabel(selectedSourceType)}:
+            </label>
+            <select
+              {...register('source_id')}
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '12px',
+                color: '#171717',
+                background: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="">Select {getSourceLabel(selectedSourceType)}</option>
+              {(source.sourcesQuery.data ?? []).map((option) => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+            {(selectedSourceType === 'po' || selectedSourceType === 'quotation' || (selectedSourceType as string) === 'proforma') && selectedSourceId && (
+              <Button
+                variant="default"
+                size="sm"
+                type="button"
+                onClick={selectedSourceType === 'po' ? handlePOSelection : selectedSourceType === 'quotation' ? handleQuotationSelection : handleProformaSelection}
               >
-                <option value="">Select {getSourceLabel(selectedSourceType)}</option>
-                {sourceOptionsQuery.data?.map((option) => (
-                  <option key={option.id} value={option.id}>{option.label}</option>
-                ))}
-              </select>
-              {(selectedSourceType === 'po' || selectedSourceType === 'quotation' || selectedSourceType === 'proforma') && selectedSourceId && (
-                <Button variant="default" size="sm" type="button" onClick={selectedSourceType === 'po' ? handlePOSelection : selectedSourceType === 'quotation' ? handleQuotationSelection : handleProformaSelection}>
-                  Select Lines
-                </Button>
-              )}
-            </div>
-            {sourceDraftQuery.isLoading && (
+                Select Lines
+              </Button>
+            )}
+            {source.sourceDraftQuery.isLoading && (
               <span style={{ fontSize: '11px', color: '#737373' }}>Loading {getSourceLabel(selectedSourceType)} details...</span>
             )}
           </div>
         )}
 
         {errors.root && (
-          <div style={{
-            padding: '12px',
-            marginBottom: '16px',
-            border: '1px solid #dc2626',
-            borderRadius: '4px',
-            background: '#fef2f2',
-            color: '#dc2626',
-            fontSize: '13px'
-          }}>
+          <div
+            style={{
+              padding: '12px',
+              marginBottom: '16px',
+              border: '1px solid #dc2626',
+              borderRadius: '4px',
+              background: '#fef2f2',
+              color: '#dc2626',
+              fontSize: '13px',
+            }}
+          >
             {errors.root.message}
           </div>
         )}
 
-        <InvoiceItemsEditor
-          fields={itemsFieldArray.fields}
-          items={watchedItems}
-          register={register}
+        <DocumentLineItemsSurface
+          title="Line Items"
+          actions={
+            <>
+              <button type="button" className="h-8 px-3 text-xs font-bold border border-zinc-300 hover:bg-zinc-50 text-zinc-600 flex items-center transition-all bg-white" onClick={() => itemsFieldArray.append(createEmptyItem({ description: 'New Section', qty: 0, rate: 0, amount: 0, is_header: true }))}>
+                <Plus size={12} className="mr-1" /> Add Section Header
+              </button>
+              <button type="button" className="h-8 px-3 text-xs font-bold border border-zinc-300 hover:bg-zinc-50 text-zinc-600 flex items-center transition-all bg-white" onClick={() => itemsFieldArray.append(createEmptyItem({ description: 'Sub-total:', qty: 0, rate: 0, amount: 0, is_subtotal: true, subtotal_label: 'Sub-total:' }))}>
+                <Plus size={12} className="mr-1" /> Add Sub-total Row
+              </button>
+              <button type="button" className="h-8 px-3 text-xs font-bold border border-zinc-300 hover:bg-zinc-50 text-zinc-600 flex items-center transition-all bg-white" onClick={() => itemsFieldArray.append(createEmptyItem())}>
+                <Plus size={12} className="mr-1" /> Add Materials
+              </button>
+              <button
+                type="button"
+                className="h-8 px-3 text-xs font-bold border border-zinc-300 hover:bg-zinc-50 text-zinc-600 flex items-center transition-all bg-white"
+                onClick={handlePOSelection}
+                disabled={selectedSourceType !== 'po' || !selectedSourceId || !source.poDetailsQuery.data}
+                title="Select multiple lines from the selected purchase order"
+              >
+                <Plus size={12} className="mr-1" /> Add Multiple Items
+              </button>
+            </>
+          }
+        >
+          <InvoiceItemsEditor
+            fields={itemsFieldArray.fields}
+            items={watchedItems}
+            register={register}
           append={itemsFieldArray.append}
           insert={itemsFieldArray.insert}
           remove={itemsFieldArray.remove}
           move={itemsFieldArray.move}
-          mode={selectedMode}
-          showCustomColumn={showCustomColumn}
-          extraColumnLabel={customColumnLabel}
-          error={fieldErrorMessage(errors.items)}
-          productOptions={materialsQuery.data ?? []}
-          setValue={setValue}
-          formState={formState}
-          isApplyingPOItems={isApplyingPOItems}
-          warehouses={warehousesQuery.data ?? []}
-          stockRows={stockQuery.data ?? []}
-          defaultWarehouseId={defaultWarehouseId}
-          variantOptions={variantRows.map((v: any) => ({ id: String(v.id), variant_name: String(v.variant_name || '') }))}
-          itemVariantIdsMap={itemVariantIdsMapQuery.data?.variantIdsMap ?? {}}
-          itemMakesMap={itemVariantIdsMapQuery.data?.makesMap ?? {}}
-          useArcPricing={useArcPricing}
-          arcPricingMap={arcPricingMap}
-          headerDiscounts={headerDiscounts}
-          discountCategoryMap={discountCategoryMap}
-        />
+            mode={selectedMode}
+            clientId={selectedClientId || undefined}
+            showCustomColumn={showCustomColumn}
+            extraColumnLabel={customColumnLabel}
+            error={fieldErrorMessage(errors.items)}
+            productOptions={editorData.materialsQuery.data ?? []}
+            setValue={setValue}
+            formState={formState}
+            isApplyingPOItems={isApplyingPOItems}
+            warehouses={editorData.warehousesQuery.data ?? []}
+            stockRows={editorData.stockQuery.data ?? []}
+            defaultWarehouseId={defaultWarehouseId}
+            variantOptions={editorData.variantRows.map((v: any) => ({ id: String(v.id), variant_name: String(v.variant_name || '') }))}
+            itemVariantIdsMap={editorData.itemVariantIdsMapQuery.data?.variantIdsMap ?? {}}
+            itemMakesMap={editorData.itemVariantIdsMapQuery.data?.makesMap ?? {}}
+            useArcPricing={useArcPricing}
+            arcPricingMap={editorData.arcPricingMap}
+            headerDiscounts={editorData.headerDiscounts}
+            discountCategoryMap={editorData.discountCategoryMap}
+          />
+        </DocumentLineItemsSurface>
 
         {selectedMode === 'lot' && (
           <div style={{ marginTop: '16px' }}>
@@ -2041,87 +790,15 @@ export default function InvoiceEditorPage() {
               register={register}
               append={materialsFieldArray.append}
               remove={materialsFieldArray.remove}
-              materials={watch('materials')}
-              productOptions={materialsQuery.data ?? []}
+              materials={watchedMaterials}
+              productOptions={editorData.materialsQuery.data ?? []}
               setValue={setValue}
               watch={watch}
-              warehouses={warehousesQuery.data ?? []}
+              warehouses={editorData.warehousesQuery.data ?? []}
               defaultWarehouseId={defaultWarehouseId}
             />
           </div>
         )}
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '12px',
-          marginTop: '16px',
-          padding: '12px',
-          background: '#f5f5f5',
-          borderRadius: '4px',
-          border: '1px solid #e5e5e5'
-        }}>
-          <div>
-            <div style={{
-              fontSize: '10px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.03em',
-              color: '#737373',
-              marginBottom: '2px'
-            }}>
-              Client State
-            </div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#171717' }}>
-              {clientState || 'Pending'}
-            </div>
-          </div>
-          <div>
-            <div style={{
-              fontSize: '10px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.03em',
-              color: '#737373',
-              marginBottom: '2px'
-            }}>
-              Template Type
-            </div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#171717', textTransform: 'capitalize' }}>
-              {getValues('template_type').replace('_', ' ')}
-            </div>
-          </div>
-          <div>
-            <div style={{
-              fontSize: '10px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.03em',
-              color: '#737373',
-              marginBottom: '2px'
-            }}>
-              Source
-            </div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#171717' }}>
-              {getSourceLabel(selectedSourceType)}
-            </div>
-          </div>
-          <div>
-            <div style={{
-              fontSize: '10px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.03em',
-              color: '#737373',
-              marginBottom: '2px'
-            }}>
-              Materials
-            </div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#171717' }}>
-              {watchedMaterials.length}
-            </div>
-          </div>
-        </div>
 
         <InvoiceSummaryFooter
           subtotal={totals.subtotal}
@@ -2136,32 +813,81 @@ export default function InvoiceEditorPage() {
           enableRoundOff={enableRoundOff}
           onToggleRoundOff={() => setEnableRoundOff(!enableRoundOff)}
         />
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
+          <label style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>
+            Authorized Signatory:
+          </label>
+          <select
+            {...register('authorized_signatory_id')}
+            style={{
+              minWidth: '220px',
+              padding: '6px 10px',
+              border: '1px solid #d4d4d4',
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: '#171717',
+              background: '#fff',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="">Select Signatory...</option>
+            {((organisation as any)?.signatures || []).map((sig: any) => (
+              <option key={String(sig.id)} value={String(sig.id)}>{sig.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+              Notes & Remarks:
+            </label>
+            <textarea
+              {...register('remarks')}
+              rows={4}
+              placeholder="Enter internal notes or additional instructions..."
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '12px',
+                color: '#171717',
+                background: '#fff',
+                resize: 'vertical',
+              }}
+            />
+          </div>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>
+                Terms & Conditions:
+              </label>
+              <Button variant="outline" size="sm" type="button" onClick={() => setIsTermsDrawerOpen(true)}>
+                {watchedTermsText ? 'Edit' : 'Add'}
+              </Button>
+            </div>
+            <textarea
+              {...register('terms_text')}
+              rows={4}
+              placeholder="Type terms & conditions here, or use the drawer to add from a template..."
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '12px',
+                color: '#171717',
+                background: '#fff',
+                resize: 'vertical',
+              }}
+            />
+          </div>
+        </div>
       </form>
 
-      <div style={{
-        position: 'sticky',
-        bottom: '0',
-        left: '0',
-        right: '0',
-        background: '#fff',
-        borderTop: '1px solid #e5e5e5',
-        padding: '16px',
-        marginTop: '16px',
-        display: 'flex',
-        gap: '12px',
-        justifyContent: 'flex-end',
-        zIndex: 100
-      }}>
-        <Button variant="outline" size="sm" type="button" onClick={handleSaveAsDraft} disabled={isSaving} >
-          {isSaving ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Save size={14} />}
-          Save as Draft
-        </Button>
-        <Button variant="default" size="icon-xs" type="button" onClick={onSubmit} disabled={isSaving} >
-          {isSaving ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Save size={14} />}
-          {isEditMode ? 'Save' : 'Create'}
-        </Button>
-      </div>
-
+      {/* ── Modals & Selectors ── */}
       <ArcConfirmationDialog
         open={arcPricingConfirmOpen}
         onClose={() => {
@@ -2172,7 +898,7 @@ export default function InvoiceEditorPage() {
           setUseArcPricing(true);
           setArcPricingConfirmOpen(false);
         }}
-        onApplySelected={(itemIds) => {
+        onApplySelected={(_itemIds) => {
           setUseArcPricing(true);
           setArcPricingConfirmOpen(false);
         }}
@@ -2180,8 +906,8 @@ export default function InvoiceEditorPage() {
           id: item.id || `item-${index}`,
           description: item.meta_json?.material_name || item.description || `Item ${index + 1}`,
           currentRate: Number(item.rate) || 0,
-          arcRate: arcPricingMap[item.meta_json?.material_id]?.[0]?.arc_rate || null,
-          hasArcRate: Boolean(arcPricingMap[item.meta_json?.material_id]?.length > 0),
+          arcRate: editorData.arcPricingMap[item.meta_json?.material_id]?.[0]?.arc_rate || null,
+          hasArcRate: Boolean(editorData.arcPricingMap[item.meta_json?.material_id]?.length > 0),
           variantId: item.meta_json?.variant_id,
           materialId: item.meta_json?.material_id,
         }))}
@@ -2193,52 +919,53 @@ export default function InvoiceEditorPage() {
           onClose={() => setIsShippingAddressModalOpen(false)}
           clientId={selectedClientId}
           onSuccess={() => {
-            shippingAddressesQuery.refetch();
+            editorData.shippingAddressesQuery.refetch();
           }}
         />
       )}
 
-      {isPOSelectorOpen && poDetailsQuery.data && (
+      {isPOSelectorOpen && source.poDetailsQuery.data && (
         <POLineItemsSelector
           isOpen={isPOSelectorOpen}
-          onClose={handlePOSelectorClose}
-          poHeader={poDetailsQuery.data.header}
-          lineItems={poDetailsQuery.data.lineItems}
+          onClose={() => setIsPOSelectorOpen(false)}
+          poHeader={source.poDetailsQuery.data.header}
+          lineItems={source.poDetailsQuery.data.lineItems}
           onApply={handlePOLineItemsApply}
         />
       )}
 
-      {isQuotationSelectorOpen && quotationDetailsQuery.data && (
+      {isQuotationSelectorOpen && source.quotationDetailsQuery.data && (
         <QuotationLineItemsSelector
           isOpen={isQuotationSelectorOpen}
-          onClose={handleQuotationSelectorClose}
-          quotationHeader={quotationDetailsQuery.data.header}
-          items={quotationDetailsQuery.data.items}
+          onClose={() => setIsQuotationSelectorOpen(false)}
+          quotationHeader={source.quotationDetailsQuery.data.header}
+          items={source.quotationDetailsQuery.data.items}
           onApply={handleQuotationItemsApply}
         />
       )}
 
-      {isProformaSelectorOpen && proformaDetailsQuery.data && (
+      {isProformaSelectorOpen && source.proformaDetailsQuery.data && (
         <ProformaLineItemsSelector
           isOpen={isProformaSelectorOpen}
-          onClose={handleProformaSelectorClose}
-          proformaHeader={proformaDetailsQuery.data.header}
-          items={proformaDetailsQuery.data.items}
+          onClose={() => setIsProformaSelectorOpen(false)}
+          proformaHeader={source.proformaDetailsQuery.data.header}
+          items={source.proformaDetailsQuery.data.items}
           onApply={handleProformaItemsApply}
         />
       )}
+
       {/* AI Document Parser Modal */}
       <AiDocumentParserModal
-        isOpen={isParserOpen}
-        onClose={() => setIsParserOpen(false)}
+        isOpen={aiImport.isParserOpen}
+        onClose={() => aiImport.setIsParserOpen(false)}
         documentType="Invoice"
         currentHeaderValues={{
           party_id: selectedClientId,
-          party_name: clientsQuery.data?.find((c: any) => c.id === selectedClientId)?.name || '',
-          date: form.getValues('invoice_date'),
-          reference_number: form.getValues('invoice_no')
+          party_name: clients.find((c) => c.id === selectedClientId)?.name || '',
+          date: getValues('invoice_date'),
+          reference_number: getValues('invoice_no')
         }}
-        onImport={handleImportSuccess}
+        onImport={aiImport.handleImportSuccess}
       />
 
       {/* Revision Reason Dialog */}
@@ -2251,11 +978,11 @@ export default function InvoiceEditorPage() {
         onConfirm={async (reason) => {
           setInvoiceRevisionReason(reason);
           setInvoiceReasonDialogOpen(false);
-          await saveInvoiceCurrentRevision(reason);
+          await save.saveInvoiceCurrentRevision(reason);
           setPendingInvoiceSave(false);
           // Re-trigger the save after revision snapshot
           const values = getValues();
-          executeInvoiceDraftSave(values);
+          save.executeInvoiceDraftSave(values);
         }}
         currentRevisionNo={invoiceRevisionNo}
         documentNumber={getValues('invoice_no') || 'INV-0001'}
@@ -2270,6 +997,18 @@ export default function InvoiceEditorPage() {
         currentTotal={totals?.total || 0}
         documentNumber={getValues('invoice_no') || 'INV-0001'}
       />
-    </div>
+
+      {/* Terms & Conditions Drawer */}
+      <TermsConditionsDrawer
+        isOpen={isTermsDrawerOpen}
+        onClose={() => setIsTermsDrawerOpen(false)}
+        initialTemplate={pendingTermsTemplate}
+        onSave={(terms) => {
+          setPendingTermsTemplate(terms);
+          setValue('terms_text', flattenInvoiceTermsText(terms), { shouldDirty: true });
+          setValue('terms_template_id', terms?.id ?? null, { shouldDirty: true });
+        }}
+      />
+    </DocumentEditorShell>
   );
 }

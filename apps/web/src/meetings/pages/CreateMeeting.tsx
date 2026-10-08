@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback, memo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Upload, X, Plus, Calendar } from 'lucide-react';
 import { useAuth } from '../../App';
 import {
@@ -64,6 +64,7 @@ export const CreateMeeting = memo(function CreateMeeting({
 }: CreateMeetingProps) {
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const id = meetingId || params.id;
   const isEditMode = !!id;
   
@@ -126,16 +127,17 @@ export const CreateMeeting = memo(function CreateMeeting({
     }
   }, [projectId, isEditMode]);
   
-  // Set site visit from props
+  // Set site visit from props or URL (/meetings/create?site_visit_id=...)
   useEffect(() => {
-    if (siteVisitId) {
+    const svId = siteVisitId || searchParams.get('site_visit_id') || undefined;
+    if (svId) {
       setFormData(prev => ({
         ...prev,
         is_site_visit_meeting: true,
-        site_visit_id: siteVisitId,
+        site_visit_id: svId,
       }));
     }
-  }, [siteVisitId]);
+  }, [siteVisitId, searchParams]);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

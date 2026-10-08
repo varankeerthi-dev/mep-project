@@ -274,6 +274,25 @@ export function mapSourceToInvoice(source: InvoiceSourceDocument, options: Invoi
     );
   }
 
+  if (source.type === 'proforma') {
+    items = source.items.map((item) =>
+      InvoiceItemSchema.parse({
+        description: item.description,
+        hsn_code: item.hsn_code ?? null,
+        qty: item.qty,
+        rate: item.rate,
+        amount: item.amount ?? roundCurrency(item.qty * item.rate),
+        meta_json: {
+          ...(item.meta_json ?? {}),
+          tax_percent: item.tax_percent ?? defaultTaxPercent,
+          base_rate: item.rate,
+          discount_percent: item.discount_percent ?? 0,
+          proforma_item_id: item.id ?? null,
+        },
+      }),
+    );
+  }
+
   if (source.type === 'challan') {
     if (mode === 'lot') {
       const totalAmount = source.items.reduce((sum, item) => sum + (item.amount ?? roundCurrency(item.qty * item.rate)), 0);
@@ -355,6 +374,7 @@ export function mapSourceToInvoice(source: InvoiceSourceDocument, options: Invoi
     client_id: source.header.client_id,
     source_type: source.type,
     source_id: source.header.id,
+    proforma_id: source.type === 'proforma' ? source.header.id : null,
     template_type: templateType,
     mode,
     subtotal: totals.subtotal,

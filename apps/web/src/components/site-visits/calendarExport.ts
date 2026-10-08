@@ -42,8 +42,8 @@ export const handleAddToGoogleCalendar = (visit: any) => {
   }
 
   const clientName = visit.clients?.client_name || 'N/A';
-  const purpose = visit.purpose_of_visit || 'Site Visit';
-  const title = `Site Visit: ${purpose} - ${clientName}`;
+  const visitType = visit.visit_type || 'General';
+  const title = `Site Visit: ${visitType} - ${clientName}`;
 
   const engineerName = visit.engineer || visit.visited_by || 'N/A';
   const contactPerson = visit.site_contact_person
@@ -53,7 +53,7 @@ export const handleAddToGoogleCalendar = (visit: any) => {
 
   const details = [
     `Client: ${clientName}`,
-    `Purpose: ${purpose}`,
+    `Visit Type: ${visitType}`,
     `Engineer/Visited By: ${engineerName}`,
     `Site Contact: ${contactPerson}`,
     notes ? `Discussion/Notes:\n${notes}` : ''
@@ -75,8 +75,8 @@ export const handleDownloadIcsFile = (visit: any) => {
   let dtend = '';
 
   const clientName = visit.clients?.client_name || 'N/A';
-  const purpose = visit.purpose_of_visit || 'Site Visit';
-  const title = `Site Visit: ${purpose} - ${clientName}`;
+  const visitType = visit.visit_type || 'General';
+  const title = `Site Visit: ${visitType} - ${clientName}`;
 
   const engineerName = visit.engineer || visit.visited_by || 'N/A';
   const contactPerson = visit.site_contact_person
@@ -86,7 +86,7 @@ export const handleDownloadIcsFile = (visit: any) => {
 
   const details = [
     `Client: ${clientName}`,
-    `Purpose: ${purpose}`,
+    `Visit Type: ${visitType}`,
     `Engineer/Visited By: ${engineerName}`,
     `Site Contact: ${contactPerson}`,
     notes ? `Discussion/Notes:\n${notes}` : ''

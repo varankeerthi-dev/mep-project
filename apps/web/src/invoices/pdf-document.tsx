@@ -263,12 +263,17 @@ function getSourceReference(data: InvoicePdfData): string {
     return stringValue(data.source.header.challan_number ?? data.source.header.po_no ?? data.source.header.id);
   }
 
+  if (data.source.type === 'proforma') {
+    return stringValue(data.source.header.reference ?? data.source.header.id);
+  }
+
   return stringValue(data.source.header.po_number ?? data.source.header.id);
 }
 
 function getSourceLabel(data: InvoicePdfData): string {
   if (data.invoice.source_type === 'quotation') return 'Quotation Ref';
   if (data.invoice.source_type === 'challan') return 'Challan Ref';
+  if (data.invoice.source_type === 'proforma') return 'Proforma Ref';
   return 'PO Ref';
 }
 

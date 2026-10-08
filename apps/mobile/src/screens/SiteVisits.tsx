@@ -2,6 +2,20 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { z } from 'zod';
 import { BottomSheetPicker } from '../components/BottomSheetPicker';
+
+// Input mask for phone: strips characters that cannot belong to a phone number as
+// the user types, so invalid text never enters the field. Returns null when the
+// whole change must be rejected (e.g. more than 15 digits).
+const sanitizePhoneInput = (raw: string): string | null => {
+  let v = raw.replace(/[^\d\s()+-]/g, ''); // only digits, spaces, + ( ), -
+  const hasLeadingPlus = v.startsWith('+');
+  v = v.replace(/\+/g, '');
+  if (hasLeadingPlus) v = '+' + v; // '+' only once, at the start
+  const digits = v.replace(/\D/g, '');
+  const maxAllowed = hasLeadingPlus || digits.startsWith('91') ? 12 : 10;
+  if (digits.length > maxAllowed) return null; // reject keystroke/paste beyond length
+  return v;
+};
 import {
   MapPin,
   Calendar as CalendarIcon,
@@ -21,11 +35,15 @@ import {
   LogOut,
   Info,
   CalendarCheck,
-  DollarSign,
+  IndianRupee,
   Briefcase,
   AlertTriangle,
   Cloud,
   RefreshCw,
+  Trash2,
+  ListChecks,
+  FileText,
+  Phone,
 } from 'lucide-react';
 
 // ---------- Types ----------
@@ -39,7 +57,8 @@ interface SiteVisitItem {
   engineer?: string;
   site_address?: string;
   measurements?: string | null;
-  purpose?: string;
+  purpose?: string | null;
+  purpose_of_visit?: string | null;
   discussion?: string | null;
   next_step?: string | null;
   follow_up_date?: string | null;
@@ -55,7 +74,18 @@ interface SiteVisitItem {
   site_contact_person?: string | null;
   site_contact_phone?: string | null;
   site_contact_designation?: string | null;
-  visit_type?: 'Survey'|'Installation'|'Maintenance'|'Inspection'|'Repair'|'Handover'|'Consultation'|'Other' | null;
+  site_contacts?: Array<{ name: string; phone: string; designation: string }>;
+  instructions_to_site_persons?: string | null;
+  checklist_items?: Array<{
+    id: string;
+    text: string;
+    completed?: boolean;
+    status?: 'Pass' | 'Fail' | 'Pending' | 'N/A' | 'Yes' | 'No';
+    observation?: string;
+    checked_at?: string;
+    checked_by?: string;
+  }>;
+  visit_type?: string | null;
   priority?: 'Standard'|'Urgent'|'Emergency' | null;
   ppe_requirements?: string | null;
   is_chargeable?: boolean | null;
@@ -92,6 +122,8 @@ interface UserProfile {
   id: string;
   full_name: string;
   email: string;
+  designation?: string | null;
+  employee_code?: string | null;
 }
 
 interface SiteVisitsProps {
@@ -125,23 +157,41 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
   postponed:   { label: 'Postponed',       bg: 'bg-purple-50',     text: 'text-purple-600' },
 };
 
-const VISIT_PURPOSES = [
-  'Measurement',
-  'Complaint',
-  'Friendly Call',
-  'Bill Submission',
-  'Meeting',
-  'Site Survey',
-  'Installation Check',
-  'Maintenance Visit',
+const DEFAULT_VISIT_TYPES = [
+  'Survey',
+  'Installation',
+  'Maintenance',
+  'Inspection',
   'Repair',
   'Handover',
   'Consultation',
-  'Other'
-];
+  'Other',
+].map(name => ({ id: name, name }));
 
-const VISIT_TYPES = ['Survey', 'Installation', 'Maintenance', 'Inspection', 'Repair', 'Handover', 'Consultation', 'Other'];
 const PRIORITIES = ['Standard', 'Urgent', 'Emergency'];
+
+const getMobileDefaultChecklist = (visitType: string) => {
+  if (visitType === 'Maintenance') {
+    return [
+      'Pressure levels checked and adjusted',
+      'Lube / oil levels verified',
+      'Filters cleaned / replaced',
+      'Any signs of leakages detected',
+    ];
+  } else if (visitType === 'Inspection') {
+    return [
+      'Structural integrity check completed',
+      'Electrical connections inspected',
+      'Safety signs and instructions visible',
+    ];
+  } else {
+    return [
+      'Site survey and measurements completed',
+      'Safety instructions followed',
+      'Site clean and cleared',
+    ];
+  }
+};
 
 // ---------- Section Collapse Component ----------
 const Section: React.FC<{
@@ -227,8 +277,8 @@ const DEMO_CLIENTS: ClientItem[] = [
 ];
 
 const DEMO_USERS: UserProfile[] = [
-  { id: 'demo-u1', full_name: 'Demo Engineer', email: 'engineer@mep.com' },
-  { id: 'demo-u2', full_name: 'Demo Supervisor', email: 'supervisor@mep.com' },
+  { id: 'demo-u1', full_name: 'Demo Engineer', email: 'engineer@mep.com', designation: 'Senior MEP Engineer', employee_code: 'EMP-001' },
+  { id: 'demo-u2', full_name: 'Demo Supervisor', email: 'supervisor@mep.com', designation: 'Site Supervisor', employee_code: 'EMP-002' },
 ];
 
 // =============================================
@@ -251,6 +301,12 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
   const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null); // 'YYYY-MM-DD'
   const [calendarExpanded, setCalendarExpanded] = useState(true);
 
+  // Visit Types State
+  const [visitTypesList, setVisitTypesList] = useState<Array<{ id: string; name: string }>>(DEFAULT_VISIT_TYPES);
+  const [isAddVisitTypeModalOpen, setIsAddVisitTypeModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+
   // Schedule Form State
   const blankScheduleForm = () => ({
     client_id: '',
@@ -258,8 +314,7 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
     project_id: '',
     project_manager_id: '',
     visit_date: new Date().toISOString().split('T')[0],
-    visit_time: '',
-    purpose: '',
+    visit_time: new Date().toTimeString().split(' ')[0].substring(0, 5),
     visited_by: '',
     engineer: '',
     site_address: '',
@@ -268,7 +323,10 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
     site_contact_person: '',
     site_contact_phone: '',
     site_contact_designation: '',
-    visit_type: 'Survey' as 'Survey'|'Installation'|'Maintenance'|'Inspection'|'Repair'|'Handover'|'Consultation'|'Other',
+    site_contacts: [{ name: '', phone: '', designation: '' }] as Array<{ name: string; phone: string; designation: string }>,
+    instructions_to_site_persons: '',
+    checklist_items: [] as Array<{ id: string; text: string; completed?: boolean }>,
+    visit_type: 'Survey',
     priority: 'Standard' as 'Standard'|'Urgent'|'Emergency',
     ppe_requirements: '',
     is_chargeable: false,
@@ -284,7 +342,7 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
     visit_time: '',
     in_time: '',
     out_time: new Date().toTimeString().split(' ')[0].substring(0, 5),
-    purpose: '',
+    visit_type: 'Survey',
     visited_by: '',
     engineer: '',
     site_address: '',
@@ -314,15 +372,113 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
     site_contact_person: '',
     site_contact_phone: '',
     site_contact_designation: '',
-    visit_type: 'Survey' as 'Survey'|'Installation'|'Maintenance'|'Inspection'|'Repair'|'Handover'|'Consultation'|'Other',
     priority: 'Standard' as 'Standard'|'Urgent'|'Emergency',
     ppe_requirements: '',
     is_chargeable: false,
     access_restrictions: '',
+    instructions_to_site_persons: '',
+    checklist_items: [] as Array<{
+      id: string;
+      text: string;
+      completed?: boolean;
+      status?: 'Pass' | 'Fail' | 'Pending' | 'N/A' | 'Yes' | 'No';
+      observation?: string;
+      checked_at?: string;
+      checked_by?: string;
+    }>,
   });
 
   const [scheduleForm, setScheduleForm] = useState(blankScheduleForm());
   const [updateForm, setUpdateForm] = useState(blankUpdateForm());
+  const [newChecklistText, setNewChecklistText] = useState('');
+  const [newUpdateChecklistText, setNewUpdateChecklistText] = useState('');
+
+  const handleAddScheduleContact = () => {
+    setScheduleForm(f => ({
+      ...f,
+      site_contacts: [...(f.site_contacts || []), { name: '', phone: '', designation: '' }],
+    }));
+  };
+
+  const handleRemoveScheduleContact = (index: number) => {
+    setScheduleForm(f => {
+      const updated = [...(f.site_contacts || [])];
+      updated.splice(index, 1);
+      return {
+        ...f,
+        site_contacts: updated.length > 0 ? updated : [{ name: '', phone: '', designation: '' }],
+      };
+    });
+  };
+
+  const handleScheduleContactChange = (index: number, field: 'name' | 'phone' | 'designation', val: string) => {
+    if (field === 'phone') {
+      const sanitized = sanitizePhoneInput(val);
+      if (sanitized === null) return; // reject the keystroke/paste
+      val = sanitized;
+    }
+    setScheduleForm(f => {
+      const updated = [...(f.site_contacts || [])];
+      if (!updated[index]) updated[index] = { name: '', phone: '', designation: '' };
+      updated[index] = { ...updated[index], [field]: val };
+      return {
+        ...f,
+        site_contacts: updated,
+        ...(index === 0 ? {
+          site_contact_person: field === 'name' ? val : f.site_contact_person,
+          site_contact_phone: field === 'phone' ? val : f.site_contact_phone,
+          site_contact_designation: field === 'designation' ? val : f.site_contact_designation,
+        } : {}),
+      };
+    });
+  };
+
+  const handleAddInstructionPoint = () => {
+    setScheduleForm(f => {
+      const text = f.instructions_to_site_persons || '';
+      const lines = text.split('\n').filter(l => l.trim().length > 0);
+      const nextNum = lines.length + 1;
+      const addition = text ? (text.endsWith('\n') ? `${nextNum}. ` : `\n${nextNum}. `) : `${nextNum}. `;
+      return {
+        ...f,
+        instructions_to_site_persons: text + addition,
+      };
+    });
+  };
+
+  const handleAddChecklistItem = () => {
+    if (!newChecklistText.trim()) return;
+    const newItem = {
+      id: `chk-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      text: newChecklistText.trim(),
+      completed: false,
+    };
+    setScheduleForm(f => ({
+      ...f,
+      checklist_items: [...(f.checklist_items || []), newItem],
+    }));
+    setNewChecklistText('');
+  };
+
+  const handleRemoveChecklistItem = (id: string) => {
+    setScheduleForm(f => ({
+      ...f,
+      checklist_items: (f.checklist_items || []).filter(item => item.id !== id),
+    }));
+  };
+
+  const handleLoadDefaultChecklist = () => {
+    const defaults = getMobileDefaultChecklist(scheduleForm.visit_type || 'Survey');
+    const items = defaults.map((text, idx) => ({
+      id: `def-${idx}-${Date.now()}`,
+      text,
+      completed: false,
+    }));
+    setScheduleForm(f => ({
+      ...f,
+      checklist_items: [...(f.checklist_items || []), ...items],
+    }));
+  };
 
   const prefillUpdateForm = (visit: SiteVisitItem) => {
     setUpdateForm({
@@ -332,7 +488,7 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
       visit_time: visit.visit_time || '',
       in_time: visit.in_time || '',
       out_time: visit.out_time || new Date().toTimeString().split(' ')[0].substring(0, 5),
-      purpose: visit.purpose || '',
+      visit_type: visit.visit_type || 'Survey',
       visited_by: visit.visited_by || '',
       engineer: visit.engineer || '',
       site_address: visit.site_address || '',
@@ -362,37 +518,130 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
       site_contact_person: visit.site_contact_person || '',
       site_contact_phone: visit.site_contact_phone || '',
       site_contact_designation: visit.site_contact_designation || '',
-      visit_type: (visit.visit_type || 'Survey') as any,
       priority: (visit.priority || 'Standard') as any,
       ppe_requirements: visit.ppe_requirements || '',
       is_chargeable: !!visit.is_chargeable,
       access_restrictions: visit.access_restrictions || '',
+      instructions_to_site_persons: visit.instructions_to_site_persons || '',
+      checklist_items: Array.isArray(visit.checklist_items)
+        ? visit.checklist_items.map((it: any, idx: number) => ({
+            id: it.id || `chk-${idx}-${Date.now()}`,
+            text: it.text || '',
+            completed: !!it.completed || it.status === 'Pass',
+            status: (it.status || (it.completed ? 'Pass' : 'Pending')) as any,
+            observation: it.observation || '',
+            checked_at: it.checked_at,
+            checked_by: it.checked_by,
+          }))
+        : [],
+    });
+  };
+
+  const handleToggleUpdateChecklistItem = (index: number) => {
+    setUpdateForm(f => {
+      const items = [...(f.checklist_items || [])];
+      const cur = items[index];
+      if (!cur) return f;
+      const isCurrentlyDone = !!(cur.completed || cur.status === 'Pass');
+      const nextCompleted = !isCurrentlyDone;
+      items[index] = {
+        ...cur,
+        completed: nextCompleted,
+        status: nextCompleted ? 'Pass' : 'Pending',
+        checked_at: nextCompleted ? new Date().toISOString() : undefined,
+      };
+      return { ...f, checklist_items: items };
+    });
+  };
+
+  const handleSetUpdateItemStatus = (index: number, status: 'Pass' | 'Fail' | 'N/A') => {
+    setUpdateForm(f => {
+      const items = [...(f.checklist_items || [])];
+      const cur = items[index];
+      if (!cur) return f;
+      items[index] = {
+        ...cur,
+        status,
+        completed: status === 'Pass',
+        checked_at: new Date().toISOString(),
+      };
+      return { ...f, checklist_items: items };
+    });
+  };
+
+  const handleUpdateItemObservationChange = (index: number, observation: string) => {
+    setUpdateForm(f => {
+      const items = [...(f.checklist_items || [])];
+      if (!items[index]) return f;
+      items[index] = { ...items[index], observation };
+      return { ...f, checklist_items: items };
+    });
+  };
+
+  const handleAddUpdateChecklistItem = () => {
+    if (!newUpdateChecklistText.trim()) return;
+    const newItem = {
+      id: `chk-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      text: newUpdateChecklistText.trim(),
+      completed: true,
+      status: 'Pass' as const,
+      observation: '',
+      checked_at: new Date().toISOString(),
+    };
+    setUpdateForm(f => ({
+      ...f,
+      checklist_items: [...(f.checklist_items || []), newItem],
+    }));
+    setNewUpdateChecklistText('');
+  };
+
+  const handleRemoveUpdateChecklistItem = (index: number) => {
+    setUpdateForm(f => {
+      const items = [...(f.checklist_items || [])];
+      items.splice(index, 1);
+      return { ...f, checklist_items: items };
     });
   };
 
   // Zod schemas for validation
+  // Phone: optional, but if filled must be 10 digits
+  const phoneSchema = z
+    .string()
+    .trim()
+    .refine(
+      (val) => {
+        if (!val) return true;
+        const digits = val.replace(/\D/g, '');
+        const localDigits = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+        return localDigits.length === 10;
+      },
+      { message: 'Phone number must be a 10-digit number' }
+    );
+
   const scheduleSchema = z.object({
     client_id: z.string().min(1, 'Client is required'),
     project_id: z.string().optional(),
     visit_date: z.string().min(1, 'Visit date is required'),
-    purpose: z.string().min(1, 'Purpose of visit is required'),
     visited_by: z.string().min(1, 'Person visiting is required'),
-    visit_type: z.enum(['Survey','Installation','Maintenance','Inspection','Repair','Handover','Consultation','Other']),
+    visit_type: z.string().optional().default('Survey'),
     priority: z.enum(['Standard','Urgent','Emergency']),
     project_manager_id: z.string().optional().nullable(),
     site_contact_person: z.string().optional().nullable(),
-    site_contact_phone: z.string().optional().nullable(),
+    site_contact_phone: phoneSchema.optional().nullable(),
     site_contact_designation: z.string().optional().nullable(),
     ppe_requirements: z.string().optional().nullable(),
     is_chargeable: z.boolean().optional(),
     access_restrictions: z.string().optional().nullable(),
+    site_contacts: z.array(z.object({
+      name: z.string().optional(),
+      phone: phoneSchema.optional(),
+      designation: z.string().optional(),
+    })).optional(),
+    instructions_to_site_persons: z.string().optional().nullable(),
+    checklist_items: z.array(z.any()).optional(),
   });
 
   const updateSchema = z.object({
-    client_id: z.string().min(1, 'Client is required'),
-    visit_date: z.string().min(1, 'Visit date is required'),
-    purpose: z.string().min(1, 'Purpose of visit is required'),
-    visited_by: z.string().min(1, 'Person visiting is required'),
     status: z.enum(['pending', 'scheduled', 'in_progress', 'completed', 'cancelled', 'postponed']),
     postponed_reason: z.string().optional().nullable(),
   });
@@ -426,7 +675,7 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
       const orgId = memberData?.organisation_id;
       if (!orgId) return;
 
-      const [visitsRes, projectsRes, clientsRes, usersRes] = await Promise.all([
+      const [visitsRes, projectsRes, clientsRes, usersRes, visitTypesRes] = await Promise.all([
         supabase
           .from('site_visits')
           .select('*')
@@ -444,7 +693,11 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
           .order('client_name'),
         supabase
           .from('employees')
-          .select('id, name, work_email')
+          .select('id, name, work_email, designation, employee_code')
+          .order('name'),
+        supabase
+          .from('visit_types')
+          .select('id, name')
           .order('name'),
       ]);
 
@@ -465,8 +718,13 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
       setEngineers((usersRes.data || []).map((e: any) => ({
         id: e.id,
         full_name: e.name,
-        email: e.work_email
+        email: e.work_email,
+        designation: e.designation,
+        employee_code: e.employee_code,
       })));
+      if (visitTypesRes?.data && visitTypesRes.data.length > 0) {
+        setVisitTypesList(visitTypesRes.data);
+      }
     } catch (e) {
       console.error('fetchData error:', e);
     } finally {
@@ -516,6 +774,54 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
   }, [visits]);
 
   // ---- Actions ----
+  const handleAddCategory = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setIsAddingCategory(true);
+    try {
+      if (isDemo) {
+        const newCat = { id: trimmed, name: trimmed };
+        setVisitTypesList(prev => [...prev.filter(x => x.name !== trimmed), newCat]);
+        setScheduleForm(f => ({ ...f, visit_type: trimmed }));
+        setUpdateForm(f => ({ ...f, visit_type: trimmed }));
+        setIsAddVisitTypeModalOpen(false);
+        setNewCategoryName('');
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      let orgId: string | null = null;
+      if (user) {
+        const { data: memberData } = await supabase
+          .from('org_members')
+          .select('organisation_id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle();
+        orgId = memberData?.organisation_id || null;
+      }
+
+      const { data, error } = await supabase
+        .from('visit_types')
+        .insert({ name: trimmed, organisation_id: orgId })
+        .select('id, name')
+        .single();
+
+      if (error) throw error;
+
+      const newCat = data ? { id: data.id, name: data.name } : { id: trimmed, name: trimmed };
+      setVisitTypesList(prev => [...prev.filter(x => x.name !== trimmed), newCat]);
+      setScheduleForm(f => ({ ...f, visit_type: trimmed }));
+      setUpdateForm(f => ({ ...f, visit_type: trimmed }));
+      setIsAddVisitTypeModalOpen(false);
+      setNewCategoryName('');
+    } catch (err: any) {
+      alert('Failed to add category: ' + (err?.message || err));
+    } finally {
+      setIsAddingCategory(false);
+    }
+  };
+
   const handleScheduleVisit = async (isDraft = false) => {
     // Set status to pending if draft, else scheduled
     const statusVal: 'pending' | 'scheduled' = isDraft ? 'pending' : 'scheduled';
@@ -533,7 +839,8 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
         project_id: scheduleForm.project_id || null,
         visit_date: scheduleForm.visit_date,
         visit_time: scheduleForm.visit_time || null,
-        purpose: scheduleForm.purpose,
+        purpose: null,
+        purpose_of_visit: null,
         visited_by: scheduleForm.visited_by,
         engineer: scheduleForm.engineer || scheduleForm.visited_by,
         site_address: scheduleForm.site_address,
@@ -541,10 +848,13 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
         // Extended fields
         po_wo_contract: scheduleForm.po_wo_contract || null,
         project_manager_id: scheduleForm.project_manager_id || null,
-        site_contact_person: scheduleForm.site_contact_person || null,
-        site_contact_phone: scheduleForm.site_contact_phone || null,
-        site_contact_designation: scheduleForm.site_contact_designation || null,
-        visit_type: scheduleForm.visit_type,
+        site_contact_person: (scheduleForm.site_contacts?.[0]?.name) || scheduleForm.site_contact_person || null,
+        site_contact_phone: (scheduleForm.site_contacts?.[0]?.phone) || scheduleForm.site_contact_phone || null,
+        site_contact_designation: (scheduleForm.site_contacts?.[0]?.designation) || scheduleForm.site_contact_designation || null,
+        site_contacts: scheduleForm.site_contacts || [],
+        instructions_to_site_persons: scheduleForm.instructions_to_site_persons || '',
+        checklist_items: scheduleForm.checklist_items || [],
+        visit_type: scheduleForm.visit_type || 'Survey',
         priority: scheduleForm.priority,
         ppe_requirements: scheduleForm.ppe_requirements || null,
         is_chargeable: scheduleForm.is_chargeable,
@@ -631,7 +941,8 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
         visit_time: updateForm.visit_time || null,
         in_time: updateForm.in_time || null,
         out_time: updateForm.out_time || null,
-        purpose: updateForm.purpose,
+        purpose: null,
+        purpose_of_visit: null,
         visited_by: updateForm.visited_by,
         engineer: updateForm.engineer || updateForm.visited_by,
         site_address: updateForm.site_address || null,
@@ -662,11 +973,12 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
         site_contact_person: updateForm.site_contact_person || null,
         site_contact_phone: updateForm.site_contact_phone || null,
         site_contact_designation: updateForm.site_contact_designation || null,
-        visit_type: updateForm.visit_type || null,
+        visit_type: updateForm.visit_type || 'Survey',
         priority: updateForm.priority || null,
         ppe_requirements: updateForm.ppe_requirements || null,
         is_chargeable: updateForm.is_chargeable,
         access_restrictions: updateForm.access_restrictions || null,
+        checklist_items: updateForm.checklist_items || [],
       };
 
       if (isDemo) {
@@ -891,11 +1203,13 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
                     <div className="flex items-center gap-4 mt-3">
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <CalendarIcon className="h-3 w-3" />
-                        <span className="text-[10px] font-medium">{formatDateDMY(v.visit_date)}</span>
+                        <span className="text-[10px] font-medium">
+                          {formatDateDMY(v.visit_date)}{v.visit_time ? ` · ${v.visit_time}` : ''}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Info className="h-3 w-3" />
-                        <span className="text-[10px] font-semibold text-primary">{v.purpose || 'Visit'}</span>
+                        <span className="text-[10px] font-semibold text-primary">{v.visit_type || 'Visit'}</span>
                       </div>
                       {v.visited_by && (
                         <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -984,8 +1298,7 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
         <div className="max-w-lg mx-auto px-4 pt-4 space-y-3">
           {/* Quick Info */}
           <Section title="Visit Details" icon={<Info className="h-4 w-4" />}>
-            <FieldRow label="Purpose" value={v.purpose} accent="text-primary font-semibold" />
-            <FieldRow label="Visit Type" value={v.visit_type} />
+            <FieldRow label="Visit Type" value={v.visit_type} accent="text-primary font-semibold" />
             <FieldRow label="Priority" value={v.priority} accent={v.priority === 'Emergency' ? 'text-red-500 font-bold' : v.priority === 'Urgent' ? 'text-amber-500 font-semibold' : ''} />
             <FieldRow label="Chargeable to Client" value={v.is_chargeable ? 'Yes' : 'No'} accent={v.is_chargeable ? 'text-green-600 font-bold' : ''} />
             <FieldRow label="Project" value={v.project_name} />
@@ -997,11 +1310,84 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
 
           {/* Site Contact Info */}
           <Section title="Site Contact Info" icon={<Briefcase className="h-4 w-4" />}>
-            <FieldRow label="Contact Person" value={v.site_contact_person} />
-            <FieldRow label="Contact Phone" value={v.site_contact_phone} />
-            <FieldRow label="Designation" value={v.site_contact_designation} />
-            <FieldRow label="PO/WO Contract" value={v.po_wo_contract} />
+            {v.site_contacts && v.site_contacts.length > 0 ? (
+              <div className="space-y-2">
+                {v.site_contacts.map((c, idx) => (
+                  <div key={idx} className="p-2.5 rounded-xl bg-secondary/30 border border-border/40 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-foreground">{c.name || `Contact #${idx + 1}`}</span>
+                      {c.designation && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-secondary text-muted-foreground font-medium">
+                          {c.designation}
+                        </span>
+                      )}
+                    </div>
+                    {c.phone && (
+                      <a href={`tel:${c.phone}`} className="inline-flex items-center gap-1.5 text-primary text-xs font-semibold">
+                        <Phone className="h-3 w-3" />
+                        {c.phone}
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                <FieldRow label="Contact Person" value={v.site_contact_person} />
+                <FieldRow label="Contact Phone" value={v.site_contact_phone} />
+                <FieldRow label="Designation" value={v.site_contact_designation} />
+              </>
+            )}
+            {v.po_wo_contract && <FieldRow label="PO/WO Contract" value={v.po_wo_contract} />}
           </Section>
+
+          {/* Instructions to Site Persons */}
+          {v.instructions_to_site_persons && (
+            <Section title="Instructions to Site Persons" icon={<FileText className="h-4 w-4" />} accent="text-amber-600">
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-foreground whitespace-pre-wrap leading-relaxed font-mono">
+                {v.instructions_to_site_persons}
+              </div>
+            </Section>
+          )}
+
+          {/* Site Visit Checklist */}
+          {v.checklist_items && v.checklist_items.length > 0 && (
+            <Section title="Site Visit Checklist & Observations" icon={<ListChecks className="h-4 w-4" />} accent="text-purple-600">
+              <div className="space-y-2">
+                {v.checklist_items.map((item, idx) => {
+                  const statusVal = item.status || (item.completed ? 'Pass' : 'Pending');
+                  const badgeColor =
+                    statusVal === 'Pass' || statusVal === 'Yes'
+                      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                      : statusVal === 'Fail' || statusVal === 'No'
+                      ? 'bg-destructive/10 text-destructive border-destructive/20'
+                      : statusVal === 'N/A'
+                      ? 'bg-secondary text-muted-foreground border-border'
+                      : 'bg-amber-500/10 text-amber-600 border-amber-500/20';
+
+                  return (
+                    <div key={item.id || idx} className="p-2.5 rounded-xl bg-secondary/30 border border-border/40 text-xs space-y-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                          <span className="text-[10px] font-bold text-muted-foreground mt-0.5 shrink-0">{idx + 1}.</span>
+                          <span className="text-foreground font-medium break-words">{item.text}</span>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${badgeColor}`}>
+                          {statusVal}
+                        </span>
+                      </div>
+                      {item.observation && (
+                        <div className="ml-5 p-2 rounded-lg bg-card/70 border border-border/60 text-[11px] text-muted-foreground leading-relaxed">
+                          <span className="font-semibold text-foreground mr-1">Observation:</span>
+                          {item.observation}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Section>
+          )}
 
           {/* Access & Safety */}
           <Section title="Safety & Access" icon={<AlertTriangle className="h-4 w-4" />}>
@@ -1086,7 +1472,7 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
               </Section>
 
               {/* Expenses Section */}
-              <Section title="Travel & Expense Claims" icon={<DollarSign className="h-4 w-4" />} accent="text-blue-600">
+              <Section title="Travel & Expense Claims" icon={<IndianRupee className="h-4 w-4" />} accent="text-blue-600">
                 <FieldRow label="Travel Expense" value={v.travel_expense ? `₹${v.travel_expense}` : '—'} />
                 <FieldRow label="Accommodation Expense" value={v.accommodation_expense ? `₹${v.accommodation_expense}` : '—'} />
                 <FieldRow label="Misc. Expense" value={v.misc_expense ? `₹${v.misc_expense}` : '—'} />
@@ -1116,7 +1502,7 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
             {v.status === 'in_progress' && (
               <button
                 type="button"
-                onClick={() => { setUpdateForm(blankUpdateForm()); setView('update'); }}
+                onClick={() => { prefillUpdateForm(v); setView('update'); }}
                 className="w-full h-11 bg-amber-500 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform"
               >
                 <LogOut className="h-4 w-4" />
@@ -1165,12 +1551,265 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-lg mx-auto px-4 pt-5 pb-4 space-y-4">
             
-            {/* Status & Options Block */}
+            {/* 1. Context Summary Card (Read-Only) */}
+            <div className="glass-card rounded-2xl p-4 space-y-2.5 border border-primary/20 bg-primary/5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="text-sm font-bold text-foreground block truncate">
+                    {selectedVisit.client || 'Client'}
+                  </span>
+                  {selectedVisit.project_name && (
+                    <span className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5 font-medium truncate">
+                      <Briefcase className="h-3 w-3 shrink-0" /> {selectedVisit.project_name}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
+                  {selectedVisit.visit_type || updateForm.visit_type || 'Survey'}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground pt-1.5 border-t border-border/40">
+                <span className="flex items-center gap-1">
+                  <CalendarIcon className="h-3 w-3 shrink-0" /> {formatDateDMY(selectedVisit.visit_date)}
+                </span>
+                {selectedVisit.engineer && (
+                  <span className="flex items-center gap-1">
+                    <User className="h-3 w-3 shrink-0" /> {selectedVisit.engineer}
+                  </span>
+                )}
+                {selectedVisit.site_address && (
+                  <span className="flex items-center gap-1 truncate max-w-[220px]" title={selectedVisit.site_address}>
+                    <MapPin className="h-3 w-3 shrink-0" /> {selectedVisit.site_address}
+                  </span>
+                )}
+              </div>
+              {selectedVisit.location_url && (
+                <div className="pt-0.5">
+                  <a
+                    href={selectedVisit.location_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary underline"
+                  >
+                    View Site on Google Maps
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Instructions to Site Persons (Reference Card) */}
+            {selectedVisit.instructions_to_site_persons && (
+              <div className="glass-card rounded-2xl p-4 space-y-2 border border-amber-500/30 bg-amber-500/10">
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold text-xs uppercase tracking-wider">
+                  <FileText className="h-4 w-4 shrink-0" />
+                  Instructions to Site Persons
+                </div>
+                <div className="text-xs text-amber-900 dark:text-amber-100 whitespace-pre-wrap font-mono leading-relaxed bg-card/70 p-3 rounded-xl border border-amber-500/20">
+                  {selectedVisit.instructions_to_site_persons}
+                </div>
+              </div>
+            )}
+
+            {/* 3. Site Visit Checklist & Observations */}
+            <div className="glass-card rounded-2xl p-4 space-y-3 border border-border/40">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ListChecks className="h-4 w-4 text-primary shrink-0" />
+                  <h2 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                    Checklist & Observations
+                  </h2>
+                </div>
+                {(updateForm.checklist_items || []).length > 0 && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                    Verified {(updateForm.checklist_items || []).filter(i => i.completed || i.status === 'Pass').length} / {(updateForm.checklist_items || []).length}
+                  </span>
+                )}
+              </div>
+
+              {(updateForm.checklist_items || []).length === 0 ? (
+                <p className="text-xs text-muted-foreground italic py-2 text-center bg-secondary/30 rounded-xl">
+                  No planned checklist items for this visit. You can add on-site findings below.
+                </p>
+              ) : (
+                <div className="space-y-2.5 pt-1">
+                  {(updateForm.checklist_items || []).map((item, idx) => {
+                    const isChecked = item.completed || item.status === 'Pass';
+                    return (
+                      <div
+                        key={item.id || idx}
+                        className={`p-3 rounded-xl border transition-all space-y-2 ${
+                          isChecked
+                            ? 'border-emerald-500/30 bg-emerald-500/5'
+                            : item.status === 'Fail'
+                            ? 'border-destructive/30 bg-destructive/5'
+                            : 'border-border/60 bg-secondary/20'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <label className="flex items-start gap-2 text-left flex-1 min-w-0 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={!!isChecked}
+                              onChange={() => handleToggleUpdateChecklistItem(idx)}
+                              className="h-4 w-4 rounded accent-emerald-600 cursor-pointer mt-0.5 shrink-0"
+                            />
+                            <span className="text-xs font-semibold text-foreground break-words flex-1">
+                              {idx + 1}. {item.text}
+                            </span>
+                          </label>
+
+                          {/* Status Toggle Buttons */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleSetUpdateItemStatus(idx, 'Pass')}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors ${
+                                item.status === 'Pass'
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20'
+                              }`}
+                            >
+                              Pass
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSetUpdateItemStatus(idx, 'Fail')}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors ${
+                                item.status === 'Fail'
+                                  ? 'bg-destructive text-destructive-foreground'
+                                  : 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                              }`}
+                            >
+                              Fail
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSetUpdateItemStatus(idx, 'N/A')}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors ${
+                                item.status === 'N/A'
+                                  ? 'bg-slate-700 text-white'
+                                  : 'bg-secondary text-muted-foreground'
+                              }`}
+                            >
+                              N/A
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveUpdateChecklistItem(idx)}
+                              className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              title="Remove item"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Observation Input */}
+                        <div className="pt-0.5">
+                          <input
+                            type="text"
+                            value={item.observation || ''}
+                            onChange={e => handleUpdateItemObservationChange(idx, e.target.value)}
+                            placeholder="Finding / observation note on site..."
+                            className="w-full h-9 rounded-lg border border-input bg-background/90 px-2.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/40"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Add On-site Check / Finding */}
+              <div className="pt-2 border-t border-border/40 space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                  Add Additional On-Site Check / Finding
+                </span>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newUpdateChecklistText}
+                    onChange={e => setNewUpdateChecklistText(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddUpdateChecklistItem();
+                      }
+                    }}
+                    placeholder="e.g. Verified booster pump pressure..."
+                    className="flex-1 h-10 rounded-xl border border-input bg-background px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddUpdateChecklistItem}
+                    className="h-10 px-3 bg-primary text-primary-foreground text-xs font-semibold rounded-xl flex items-center justify-center active:scale-95 transition-transform"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Follow-up actions (directly below Checklist) */}
+            <div className="glass-card rounded-2xl p-4 space-y-3 border border-border/40">
+              <h2 className="text-xs font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-2 text-purple-600">
+                <CalendarIcon className="h-4 w-4" />
+                Follow-Up Actions
+              </h2>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Next Step Action</label>
+                <select
+                  value={updateForm.next_step}
+                  onChange={e => setUpdateForm(f => ({ ...f, next_step: e.target.value }))}
+                  className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <option value="">Select next action...</option>
+                  <option value="Quote to be Sent">Quote to be Sent</option>
+                  <option value="Follow up call">Follow up call</option>
+                  <option value="Second Visit">Second Visit</option>
+                  <option value="Order Confirmation">Order Confirmation</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Follow-Up Date (Optional)</label>
+                <input
+                  type="date"
+                  value={updateForm.follow_up_date}
+                  onChange={e => setUpdateForm(f => ({ ...f, follow_up_date: e.target.value }))}
+                  className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+            </div>
+
+            {/* 4. Execution Timing & Status Block */}
             <div className="glass-card rounded-2xl p-4 space-y-3 border border-border/40">
               <h2 className="text-xs font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-2 text-primary">
-                <Info className="h-4 w-4" />
-                Status & Meetings
+                <Clock className="h-4 w-4" />
+                Timing & Status
               </h2>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">In Time</label>
+                  <input
+                    type="time"
+                    value={updateForm.in_time}
+                    onChange={e => setUpdateForm(f => ({ ...f, in_time: e.target.value }))}
+                    className="w-full h-11 rounded-xl border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Out Time</label>
+                  <input
+                    type="time"
+                    value={updateForm.out_time}
+                    onChange={e => setUpdateForm(f => ({ ...f, out_time: e.target.value }))}
+                    className="w-full h-11 rounded-xl border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+              </div>
 
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Status *</label>
@@ -1178,12 +1817,12 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
                   label="Select Status"
                   placeholder="Select status..."
                   options={[
-                    { id: 'pending', name: 'Draft / Pending' },
-                    { id: 'scheduled', name: 'Scheduled' },
-                    { id: 'in_progress', name: 'In Progress' },
                     { id: 'completed', name: 'Completed' },
-                    { id: 'cancelled', name: 'Cancelled' },
+                    { id: 'in_progress', name: 'In Progress' },
+                    { id: 'scheduled', name: 'Scheduled' },
                     { id: 'postponed', name: 'Postponed' },
+                    { id: 'cancelled', name: 'Cancelled' },
+                    { id: 'pending', name: 'Draft / Pending' },
                   ]}
                   value={updateForm.status}
                   onChange={val => setUpdateForm(f => ({ ...f, status: val as any }))}
@@ -1214,112 +1853,6 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
                   checked={updateForm.is_client_meeting}
                   onChange={e => setUpdateForm(f => ({ ...f, is_client_meeting: e.target.checked }))}
                   className="h-5 w-5 accent-primary cursor-pointer"
-                />
-              </div>
-            </div>
-
-            {/* General Info Block */}
-            <div className="glass-card rounded-2xl p-4 space-y-3 border border-border/40">
-              <h2 className="text-xs font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-2 text-purple-600">
-                <User className="h-4 w-4" />
-                General Visit Information
-              </h2>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Client *</label>
-                <BottomSheetPicker
-                  label="Select Client"
-                  placeholder="Select client..."
-                  options={clients.map(c => ({ id: c.id, name: c.client_name }))}
-                  value={updateForm.client_id}
-                  onChange={val => {
-                    setUpdateForm(f => ({ ...f, client_id: val, project_id: '' }));
-                  }}
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Project</label>
-                <BottomSheetPicker
-                  label="Select Project"
-                  placeholder={updateForm.client_id ? "Select project..." : "Select client first"}
-                  options={projects.filter(p => p.client_id === updateForm.client_id).map(p => ({ id: p.id, name: p.project_code ? `${p.project_name} (${p.project_code})` : p.project_name }))}
-                  value={updateForm.project_id}
-                  onChange={val => setUpdateForm(f => ({ ...f, project_id: val }))}
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-1">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Visit Date *</label>
-                  <input
-                    type="date"
-                    value={updateForm.visit_date}
-                    onChange={e => setUpdateForm(f => ({ ...f, visit_date: e.target.value }))}
-                    className="w-full h-11 rounded-xl border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                </div>
-                <div className="col-span-1">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">In Time</label>
-                  <input
-                    type="time"
-                    value={updateForm.in_time}
-                    onChange={e => setUpdateForm(f => ({ ...f, in_time: e.target.value }))}
-                    className="w-full h-11 rounded-xl border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                </div>
-                <div className="col-span-1">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Out Time</label>
-                  <input
-                    type="time"
-                    value={updateForm.out_time}
-                    onChange={e => setUpdateForm(f => ({ ...f, out_time: e.target.value }))}
-                    className="w-full h-11 rounded-xl border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Purpose *</label>
-                <BottomSheetPicker
-                  label="Select Purpose"
-                  placeholder="Select purpose..."
-                  options={VISIT_PURPOSES.map(p => ({ id: p, name: p }))}
-                  value={updateForm.purpose}
-                  onChange={val => setUpdateForm(f => ({ ...f, purpose: val }))}
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Visited By *</label>
-                <BottomSheetPicker
-                  label="Select Visited By"
-                  placeholder="Select person..."
-                  options={engineers.map(e => ({ id: e.full_name, name: e.full_name }))}
-                  value={updateForm.visited_by}
-                  onChange={val => setUpdateForm(f => ({ ...f, visited_by: val, engineer: val }))}
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Site Address (Optional)</label>
-                <textarea
-                  value={updateForm.site_address}
-                  onChange={e => setUpdateForm(f => ({ ...f, site_address: e.target.value }))}
-                  rows={2}
-                  placeholder="Physical site location..."
-                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Google Maps URL (Optional)</label>
-                <input
-                  type="url"
-                  value={updateForm.location_url}
-                  onChange={e => setUpdateForm(f => ({ ...f, location_url: e.target.value }))}
-                  placeholder="https://maps.google.com/..."
-                  className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
             </div>
@@ -1432,8 +1965,8 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
 
             {/* Expenses Block */}
             <div className="glass-card rounded-2xl p-4 space-y-3 border border-border/40">
-              <h2 className="text-xs font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-2 text-blue-600">
-                <DollarSign className="h-4 w-4" />
+              <h2 className="text-xs font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-2 text-emerald-600">
+                <IndianRupee className="h-4 w-4" />
                 Expenses Incurred
               </h2>
 
@@ -1470,41 +2003,62 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Follow up actions */}
-            <div className="glass-card rounded-2xl p-4 space-y-3 border border-border/40">
-              <h2 className="text-xs font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-2 text-purple-600">
-                <CalendarIcon className="h-4 w-4" />
-                Follow-Up Actions
-              </h2>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Next Step Action</label>
-                <select
-                  value={updateForm.next_step}
-                  onChange={e => setUpdateForm(f => ({ ...f, next_step: e.target.value }))}
-                  className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+        {/* Add Visit Type Category Modal */}
+        {isAddVisitTypeModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4">
+            <div className="bg-card w-full max-w-sm rounded-2xl p-5 border border-border shadow-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-foreground">Add Visit Type Category</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddVisitTypeModalOpen(false);
+                    setNewCategoryName('');
+                  }}
+                  className="p-1 rounded-lg text-muted-foreground hover:bg-secondary"
                 >
-                  <option value="">Select next action...</option>
-                  <option value="Quote to be Sent">Quote to be Sent</option>
-                  <option value="Follow up call">Follow up call</option>
-                  <option value="Second Visit">Second Visit</option>
-                  <option value="Order Confirmation">Order Confirmation</option>
-                </select>
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Follow-Up Date (Optional)</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                  Category Name *
+                </label>
                 <input
-                  type="date"
-                  value={updateForm.follow_up_date}
-                  onChange={e => setUpdateForm(f => ({ ...f, follow_up_date: e.target.value }))}
-                  className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="e.g. Warranty Check, Quality Audit"
+                  className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+                  autoFocus
                 />
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddVisitTypeModalOpen(false);
+                    setNewCategoryName('');
+                  }}
+                  className="px-3 py-2 text-xs font-semibold rounded-xl text-muted-foreground hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!newCategoryName.trim() || isAddingCategory}
+                  onClick={() => handleAddCategory(newCategoryName)}
+                  className="px-4 py-2 text-xs font-semibold rounded-xl bg-primary text-primary-foreground disabled:opacity-50"
+                >
+                  {isAddingCategory ? 'Saving...' : 'Save Category'}
+                </button>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }
@@ -1588,6 +2142,39 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
               />
             </div>
 
+            {/* VISIT TYPE SELECT (BELOW PROJECT) */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Visit Type *</label>
+                <button
+                  type="button"
+                  onClick={() => setIsAddVisitTypeModalOpen(true)}
+                  className="text-[10px] font-semibold text-primary active:opacity-70"
+                >
+                  + Add Category
+                </button>
+              </div>
+              <BottomSheetPicker
+                label="Select Visit Type"
+                placeholder="Select visit type..."
+                options={[
+                  ...visitTypesList.map(t => ({ id: t.name, name: t.name })),
+                  ...(scheduleForm.visit_type && !visitTypesList.some(t => t.name === scheduleForm.visit_type)
+                    ? [{ id: scheduleForm.visit_type, name: scheduleForm.visit_type }]
+                    : []),
+                  { id: '__ADD_NEW__', name: '+ Add New Category...' },
+                ]}
+                value={scheduleForm.visit_type}
+                onChange={val => {
+                  if (val === '__ADD_NEW__') {
+                    setIsAddVisitTypeModalOpen(true);
+                  } else {
+                    setScheduleForm(f => ({ ...f, visit_type: val }));
+                  }
+                }}
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Visit Date *</label>
@@ -1610,25 +2197,17 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
               </div>
             </div>
 
-            {/* Purpose */}
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Purpose of Visit *</label>
-              <BottomSheetPicker
-                label="Select Purpose"
-                placeholder="Select purpose..."
-                options={VISIT_PURPOSES.map(p => ({ id: p, name: p }))}
-                value={scheduleForm.purpose}
-                onChange={val => setScheduleForm(f => ({ ...f, purpose: val }))}
-              />
-            </div>
-
             {/* Assigned to / Visited By */}
             <div>
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Assigned To / Visited By *</label>
               <BottomSheetPicker
                 label="Select Person"
                 placeholder="Select person..."
-                options={engineers.map(e => ({ id: e.full_name, name: e.full_name }))}
+                options={engineers.map(e => ({
+                  id: e.full_name,
+                  name: e.full_name,
+                  subtitle: [e.designation, e.employee_code].filter(Boolean).join(' • ') || undefined,
+                }))}
                 value={scheduleForm.visited_by}
                 onChange={val => setScheduleForm(f => ({ ...f, visited_by: val, engineer: val }))}
               />
@@ -1642,28 +2221,15 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
               Visit Specifications
             </h2>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Visit Type *</label>
-                <BottomSheetPicker
-                  label="Select Visit Type"
-                  placeholder="Select..."
-                  options={VISIT_TYPES.map(t => ({ id: t, name: t }))}
-                  value={scheduleForm.visit_type}
-                  onChange={val => setScheduleForm(f => ({ ...f, visit_type: val as any }))}
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Priority *</label>
-                <BottomSheetPicker
-                  label="Select Priority"
-                  placeholder="Select..."
-                  options={PRIORITIES.map(p => ({ id: p, name: p }))}
-                  value={scheduleForm.priority}
-                  onChange={val => setScheduleForm(f => ({ ...f, priority: val as any }))}
-                />
-              </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Priority *</label>
+              <BottomSheetPicker
+                label="Select Priority"
+                placeholder="Select..."
+                options={PRIORITIES.map(p => ({ id: p, name: p }))}
+                value={scheduleForm.priority}
+                onChange={val => setScheduleForm(f => ({ ...f, priority: val as any }))}
+              />
             </div>
 
             {/* Chargeable Toggle */}
@@ -1686,7 +2252,11 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
               <BottomSheetPicker
                 label="Select Project Manager"
                 placeholder="Select PM..."
-                options={engineers.map(e => ({ id: e.id, name: e.full_name }))}
+                options={engineers.map(e => ({
+                  id: e.id,
+                  name: e.full_name,
+                  subtitle: [e.designation, e.employee_code].filter(Boolean).join(' • ') || undefined,
+                }))}
                 value={scheduleForm.project_manager_id}
                 onChange={val => setScheduleForm(f => ({ ...f, project_manager_id: val }))}
               />
@@ -1704,47 +2274,179 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
             </div>
           </div>
 
-          {/* Site contact info */}
+          {/* Site Contact Info */}
           <div className="glass-card rounded-2xl p-4 space-y-3 border border-border/40">
-            <h2 className="text-xs font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-2 text-purple-600">
-              <MapPin className="h-4 w-4" />
-              Site Contact Info
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-2 text-purple-600">
+                <Briefcase className="h-4 w-4" />
+                Site Contact Info
+              </h2>
+              <button
+                type="button"
+                onClick={handleAddScheduleContact}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 transition-transform"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Contact
+              </button>
+            </div>
 
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Contact Person Name</label>
+            <div className="space-y-3">
+              {(scheduleForm.site_contacts || []).map((contact, idx) => (
+                <div key={idx} className="p-3 rounded-xl bg-secondary/30 border border-border/40 space-y-2.5 relative">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-foreground">
+                      Contact #{idx + 1}
+                    </span>
+                    {(scheduleForm.site_contacts || []).length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveScheduleContact(idx)}
+                        className="p-1 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="Remove contact"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                      Contact Person Name
+                    </label>
+                    <input
+                      type="text"
+                      value={contact.name}
+                      onChange={e => handleScheduleContactChange(idx, 'name', e.target.value)}
+                      placeholder="e.g. Rajesh Kumar"
+                      className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={contact.phone}
+                        onChange={e => handleScheduleContactChange(idx, 'phone', e.target.value)}
+                        placeholder="10-digit mobile"
+                        maxLength={14}
+                        className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                        Designation
+                      </label>
+                      <input
+                        type="text"
+                        value={contact.designation}
+                        onChange={e => handleScheduleContactChange(idx, 'designation', e.target.value)}
+                        placeholder="e.g. Site Engg"
+                        className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Instructions to Site Persons */}
+          <div className="glass-card rounded-2xl p-4 space-y-3 border border-border/40">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-2 text-amber-600">
+                <FileText className="h-4 w-4" />
+                Instructions to Site Persons
+              </h2>
+              <button
+                type="button"
+                onClick={handleAddInstructionPoint}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 active:scale-95 transition-transform"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Point
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Reminders, previous history, or instructions formatted with 1. 2. 3. points.
+            </p>
+            <textarea
+              value={scheduleForm.instructions_to_site_persons || ''}
+              onChange={e => setScheduleForm(f => ({ ...f, instructions_to_site_persons: e.target.value }))}
+              rows={4}
+              placeholder="1. Check power supply before entering plant&#10;2. Coordinate with security for gate pass&#10;3. Verify earthing pit"
+              className="w-full rounded-xl border border-input bg-background p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none font-mono"
+            />
+          </div>
+
+          {/* Add Checklist */}
+          <div className="glass-card rounded-2xl p-4 space-y-3 border border-border/40">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-2 text-indigo-600">
+                <ListChecks className="h-4 w-4" />
+                Site Visit Checklist
+              </h2>
+              <button
+                type="button"
+                onClick={handleLoadDefaultChecklist}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 active:scale-95 transition-transform"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Default Items
+              </button>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground">
+              Add checklist items for visiting engineers to verify and check off on site.
+            </p>
+
+            <div className="flex gap-2">
               <input
                 type="text"
-                value={scheduleForm.site_contact_person}
-                onChange={e => setScheduleForm(f => ({ ...f, site_contact_person: e.target.value }))}
-                placeholder="Full name of site contact"
-                className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                value={newChecklistText}
+                onChange={e => setNewChecklistText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddChecklistItem();
+                  }
+                }}
+                placeholder="Add checklist item..."
+                className="flex-1 h-10 rounded-xl border border-input bg-background px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
+              <button
+                type="button"
+                onClick={handleAddChecklistItem}
+                className="h-10 px-3 bg-primary text-primary-foreground text-xs font-semibold rounded-xl flex items-center justify-center active:scale-95 transition-transform"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Contact Phone</label>
-                <input
-                  type="tel"
-                  value={scheduleForm.site_contact_phone}
-                  onChange={e => setScheduleForm(f => ({ ...f, site_contact_phone: e.target.value }))}
-                  placeholder="Phone number"
-                  className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
+            {(scheduleForm.checklist_items || []).length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                {(scheduleForm.checklist_items || []).map((item, idx) => (
+                  <div
+                    key={item.id || idx}
+                    className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-secondary/30 border border-border/40 text-xs"
+                  >
+                    <span className="text-[10px] font-bold text-muted-foreground shrink-0">{idx + 1}.</span>
+                    <span className="flex-1 text-foreground break-words">{item.text}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveChecklistItem(item.id)}
+                      className="p-1 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
               </div>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">Designation</label>
-                <input
-                  type="text"
-                  value={scheduleForm.site_contact_designation}
-                  onChange={e => setScheduleForm(f => ({ ...f, site_contact_designation: e.target.value }))}
-                  placeholder="e.g. Site Engineer"
-                  className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Access & PPE */}
@@ -1808,6 +2510,60 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
           </div>
         </div>
       </div>
+
+      {/* Add Visit Type Category Modal */}
+      {isAddVisitTypeModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-sm rounded-2xl p-5 border border-border shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-foreground">Add Visit Type Category</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddVisitTypeModalOpen(false);
+                  setNewCategoryName('');
+                }}
+                className="p-1 rounded-lg text-muted-foreground hover:bg-secondary"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                Category Name *
+              </label>
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="e.g. Warranty Check, Quality Audit"
+                className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+                autoFocus
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddVisitTypeModalOpen(false);
+                  setNewCategoryName('');
+                }}
+                className="px-3 py-2 text-xs font-semibold rounded-xl text-muted-foreground hover:bg-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!newCategoryName.trim() || isAddingCategory}
+                onClick={() => handleAddCategory(newCategoryName)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-primary text-primary-foreground disabled:opacity-50"
+              >
+                {isAddingCategory ? 'Saving...' : 'Save Category'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1842,7 +2598,7 @@ export const SiteVisits: React.FC<SiteVisitsProps> = ({ isDemo = false }) => {
               placeholder="-- Select a visit to update --"
               options={activeVisits.map(v => ({
                 id: v.id,
-                name: `${formatDateDMY(v.visit_date)} - ${v.client || 'Client'} (${v.purpose || 'Visit'})`
+                name: `${formatDateDMY(v.visit_date)} - ${v.client || 'Client'} (${v.visit_type || 'Visit'})`
               }))}
               value=""
               onChange={val => {

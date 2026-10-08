@@ -662,6 +662,7 @@ export function ClientCommunication() {
             visit_date: issueSiteVisitDate,
             purpose_of_visit: `[Issue] ${data.subject || 'Issue follow-up'} — ${data.call_brief?.slice(0, 200) || ''}`,
             organisation_id: organisation?.id,
+            status: 'scheduled',
             created_at: new Date().toISOString(),
           })
           .select('id')
@@ -874,6 +875,7 @@ export function ClientCommunication() {
       const { error } = await supabase.from('site_visits').insert({
         ...data,
         organisation_id: organisation?.id,
+        status: 'scheduled',
       });
       if (error) throw error;
     },

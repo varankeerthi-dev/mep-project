@@ -292,7 +292,8 @@ export function useSaveInvoice(params: {
           .eq('id', newInvoiceId);
       }
 
-      if ((selectedSourceType as string) === 'proforma' && selectedSourceId && newInvoiceId) {
+      const savedInvoiceId = newInvoiceId ?? (isEditMode ? invoiceId : null);
+      if (selectedSourceType === 'proforma' && selectedSourceId && savedInvoiceId) {
         const allProformaItems = proformaItems || [];
         const billedItems = values.items.filter(item => item.meta_json?.proforma_item_id);
 
@@ -308,7 +309,7 @@ export function useSaveInvoice(params: {
         await supabase
           .from('invoices')
           .update({ proforma_id: selectedSourceId })
-          .eq('id', newInvoiceId);
+          .eq('id', savedInvoiceId);
       }
 
       // Update PO line item billing after successful save (first creation only)

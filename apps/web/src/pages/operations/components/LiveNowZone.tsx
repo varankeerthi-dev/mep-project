@@ -4,6 +4,7 @@ import { useLiveNow } from '../api/useOperationsQueries';
 import { ProgressBar } from './shared/ProgressBar';
 import { StatusBadge } from './shared/StatusBadge';
 import { IconChip } from './shared/IconChip';
+import { useHasPermission } from '../../../rbac/hooks';
 
 const emptyMessages = [
   'All done bro! ✨',
@@ -14,6 +15,7 @@ const emptyMessages = [
 
 export const LiveNowZone: React.FC = () => {
   const { siteCheckIns, manufacturingWIP, dispatch } = useLiveNow();
+  const { data: canReadVisits, isLoading: rbacLoading } = useHasPermission('site_visits.read');
   const emptyMsg = emptyMessages[Math.floor(Math.random() * emptyMessages.length)];
 
   return (
@@ -28,6 +30,7 @@ export const LiveNowZone: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Site Check-ins */}
+        {(rbacLoading || canReadVisits) && (
         <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] shadow-[var(--shadow)] overflow-hidden flex flex-col ops-card">
           <div className="p-4 border-b border-[var(--border)] flex items-center gap-3 bg-white">
             <IconChip icon={<Activity />} type="info" />
@@ -55,6 +58,7 @@ export const LiveNowZone: React.FC = () => {
             )}
           </div>
         </div>
+        )}
 
         {/* Manufacturing WIP */}
         <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] shadow-[var(--shadow)] overflow-hidden flex flex-col ops-card">

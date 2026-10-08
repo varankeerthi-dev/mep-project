@@ -1,6 +1,7 @@
 export * from './CeoDashboardHeader';
 export * from './CeoPipelineStrip';
 export * from './CeoEscalationsSection';
+export * from './CeoVisitsCard';
 export * from './CeoProjectPortfolioMatrix';
 export * from './CeoManufacturingPulse';
 export * from './CeoStageDetailDrawer';

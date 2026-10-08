@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLiveNowV2 } from '../api/useOperationsQueriesV2';
 import { ProgressBar } from './shared/ProgressBar';
+import { useHasPermission } from '../../../rbac/hooks';
 
 const CARD_BORDER = '#EEF2F6';
 const ROW_BG = '#F1F5F9';
@@ -26,6 +27,7 @@ const EmptyState: React.FC<{ icon: React.ReactNode; title: string; sub: string }
 
 export const LiveNowZone: React.FC = () => {
   const { siteCheckIns, manufacturingWIP, dispatch } = useLiveNowV2();
+  const { data: canReadVisits, isLoading: rbacLoading } = useHasPermission('site_visits.read');
 
   return (
     <section>
@@ -43,6 +45,7 @@ export const LiveNowZone: React.FC = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
         {/* Site Check-ins */}
+        {(rbacLoading || canReadVisits) && (
         <div style={{ background: '#fff', border: `1px solid ${CARD_BORDER}`, borderRadius: 12, padding: 20, minHeight: 300, boxShadow: CARD_SHADOW }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, minHeight: 68 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -104,6 +107,7 @@ export const LiveNowZone: React.FC = () => {
           </table>
           <ViewAllLink href="/site-visits" label="View all site check-ins →" />
         </div>
+        )}
 
         {/* Manufacturing WIP */}
         <div style={{ background: '#fff', border: `1px solid ${CARD_BORDER}`, borderRadius: 12, padding: 20, minHeight: 300, boxShadow: CARD_SHADOW }}>

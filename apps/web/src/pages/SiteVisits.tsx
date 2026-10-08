@@ -7,14 +7,15 @@ import { useAuth } from '../App';
 import {
   useSiteVisits,
   useClients,
-  useVisitPurposes,
+  useVisitTypes,
   useProjectManagers,
   useAddSiteVisit,
   useUpdateSiteVisit,
-  useAddPurpose,
+  useAddVisitType,
 } from '../hooks/useSiteVisits';
 import { useProjects } from '../hooks/useProjects';
-import { siteVisitScheduleSchema } from '../lib/validations/siteVisit';
+import { useEmployees } from '../hooks/useEmployees';
+import { siteVisitScheduleSchema, siteVisitIntentSchema } from '../lib/validations/siteVisit';
 import { toast } from '@/lib/logger';
 import { format } from 'date-fns';
 import { Eye, Pencil, Trash2, Download } from 'lucide-react';
@@ -33,7 +34,7 @@ import {
   SiteVisitCalendar,
   SiteVisitUpdatesView,
   SiteVisitDeleteDialog,
-  SiteVisitAddPurposeModal,
+  SiteVisitAddVisitTypeModal,
   SiteVisitActivityModal,
   SiteVisitCheckoutModal,
   SiteVisitQuickUpdateModal,
@@ -45,6 +46,7 @@ import {
   downloadVisitPDF,
   handleAddToGoogleCalendar,
   handleDownloadIcsFile,
+  useSiteVisitFormStore,
 } from '../components/site-visits';
 
 const getSiteVisitRowActions = (
@@ -72,13 +74,13 @@ export function SiteVisits() {
     return currentMember?.role || '';
   }, [organisations, organisation]);
 
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('all');
   const [viewMode, setViewMode] = useState<'table' | 'calendar' | 'updates'>('table');
-  // Table density (reference §3) — compact is the default baseline
+  // Table density (reference section 3)  -  compact is the default baseline
   const [density, setDensity] = useState<VisitTableDensity>('compact');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
-  const [isAddPurposeModalOpen, setIsAddPurposeModalOpen] = useState(false);
+  const [isAddVisitTypeModalOpen, setIsAddVisitTypeModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedVisit, setSelectedVisit] = useState<any | null>(null);
   const [visitToDelete, setVisitToDelete] = useState<any | null>(null);
@@ -102,10 +104,17 @@ export function SiteVisits() {
   const [observationTitle, setObservationTitle] = useState('');
   const [isListening, setIsListening] = useState(false);
 
+  // Work stoppage intent (created via RPC at checkout, reviewed on the task-intents page)
+  const [stoppageOpen, setStoppageOpen] = useState(false);
+  const [stoppageCategory, setStoppageCategory] = useState('other');
+  const [stoppageBlockingParty, setStoppageBlockingParty] = useState('unknown');
+  const [stoppageDescription, setStoppageDescription] = useState('');
+  const [stoppageImpactHours, setStoppageImpactHours] = useState('');
+
   const startListening = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Voice input is not supported in this browser. Please use Chrome/Safari.');
+      toast.error('Voice input is not supported in this browser. Please use Chrome/Safari.');
       return;
     }
     const recognition = new SpeechRecognition();
@@ -257,6 +266,17 @@ export function SiteVisits() {
       answer: checklistAnswers[q.id] || 'N/A',
     }));
 
+    // Replace any previous checkout responses so repeat checkouts don't duplicate rows
+    const { error: deleteError } = await supabase
+      .from('visit_checklist_responses')
+      .delete()
+      .eq('organisation_id', organisation.id)
+      .eq('site_visit_id', visitId);
+
+    if (deleteError) {
+      console.warn('Error clearing previous checklist responses:', deleteError);
+    }
+
     const { error } = await supabase.from('visit_checklist_responses').insert([
       {
         organisation_id: organisation.id,
@@ -345,7 +365,7 @@ export function SiteVisits() {
 
     const timeNow = new Date().toISOString();
 
-    const saveCheckIn = async (lat: number | null, lng: number | null, status: string) => {
+    const saveCheckIn = async (lat: number | null, lng: number | null, status: string, locationDenied = false) => {
       try {
         const { error } = await supabase
           .from('site_visits')
@@ -362,7 +382,11 @@ export function SiteVisits() {
         const updatedVisit = { ...visit, check_in_lat: lat, check_in_lng: lng, check_in_time: timeNow, status };
         setVisitToView(updatedVisit);
         queryClient.invalidateQueries({ queryKey: ['site-visits'] });
-        toast.success('Successfully checked in!');
+        if (locationDenied) {
+          toast.warning('Checked in without location â€” location permission denied.');
+        } else {
+          toast.success('Successfully checked in!');
+        }
       } catch (err: any) {
         toast.error('Error during check-in: ' + err.message);
       }
@@ -375,12 +399,12 @@ export function SiteVisits() {
         },
         (error) => {
           console.warn('Geolocation error:', error);
-          saveCheckIn(null, null, 'Location Denied');
+          saveCheckIn(null, null, 'in_progress', true);
         },
         { enableHighAccuracy: true, timeout: 5000 }
       );
     } else {
-      saveCheckIn(null, null, 'Location Denied');
+      saveCheckIn(null, null, 'in_progress', true);
     }
   };
 
@@ -465,6 +489,31 @@ export function SiteVisits() {
           if (tcError) throw tcError;
         }
 
+        // Record a work stoppage intent for PM review. Non-fatal: the visit is already
+        // checked out at this point, so a failure here must not surface as a checkout error.
+        if (stoppageOpen && stoppageDescription.trim().length >= 3) {
+          const parsedIntent = siteVisitIntentSchema.safeParse({
+            description: stoppageDescription,
+            category: stoppageCategory,
+            blocking_party: stoppageBlockingParty,
+            impact_hours: Number(stoppageImpactHours) || 0,
+          });
+          if (parsedIntent.success) {
+            const { error: intentError } = await supabase.rpc('create_site_visit_intent', {
+              p_visit_id: visit.id,
+              p_description: parsedIntent.data.description,
+              p_category: parsedIntent.data.category,
+              p_blocking_party: parsedIntent.data.blocking_party,
+              p_impact_hours: parsedIntent.data.impact_hours,
+            });
+            if (intentError) {
+              toast.warning(`Visit completed, but the stoppage intent failed: ${intentError.message}`);
+            }
+          } else {
+            toast.warning('Visit completed, but the stoppage details were invalid.');
+          }
+        }
+
         const updatedVisit = {
           ...visit,
           check_out_lat: lat,
@@ -509,13 +558,21 @@ export function SiteVisits() {
 
   const [formData, setFormData] = useState<SiteVisitFormData>(initialSiteVisitFormData);
 
+  // Single write path: keep page state and the zustand form store in sync so
+  // submitVisit (which reads the store whenever it is open) never sees stale data.
+  const setFormDataSynced: React.Dispatch<React.SetStateAction<SiteVisitFormData>> = useCallback((action) => {
+    setFormData((prev) => {
+      const next = typeof action === 'function' ? (action as (p: SiteVisitFormData) => SiteVisitFormData)(prev) : action;
+      const store = useSiteVisitFormStore.getState();
+      if (store.isOpen) store.setMultipleFields(next);
+      return next;
+    });
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [projectFilter] = useState('all');
-  const [engineerFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [updatesPage] = useState(1);
   const itemsPerPage = 15;
 
   const [hiddenColumnIds, setHiddenColumnIds] = useState<string[]>([]);
@@ -524,17 +581,29 @@ export function SiteVisits() {
 
   const { data: visits, isLoading: isLoadingVisits } = useSiteVisits();
   const { data: clients } = useClients();
-  const { data: purposes } = useVisitPurposes();
+  const { data: visitTypes } = useVisitTypes();
   const { data: projectManagers } = useProjectManagers();
   const { data: projects } = useProjects();
+  const { data: employees } = useEmployees();
 
-  const addPurposeMutation = useAddPurpose();
+  const addVisitTypeMutation = useAddVisitType();
   const addVisitMutation = useAddSiteVisit();
   const updateVisitMutation = useUpdateSiteVisit();
 
   const resetForm = () => {
     setFormData(initialSiteVisitFormData);
     setSelectedVisit(null);
+    useSiteVisitFormStore.getState().resetForm();
+  };
+
+  const handleOpenNewVisit = (defaultValues?: Partial<SiteVisitFormData>) => {
+    useSiteVisitFormStore.getState().openCreateModal(defaultValues);
+    setFormData({
+      ...initialSiteVisitFormData,
+      ...defaultValues,
+    });
+    setSelectedVisit(null);
+    setIsFormOpen(true);
   };
 
   const logSiteVisitActivity = async (visitId: string, eventType: string, title: string, description: string = '') => {
@@ -566,6 +635,7 @@ export function SiteVisits() {
       setIsUpdateModalOpen(false);
       setSelectedVisit(null);
       resetForm();
+      useSiteVisitFormStore.getState().closeModal();
       toast.success('Site visit saved successfully');
 
       const visitId = returnedData?.id || variables?.id;
@@ -633,22 +703,33 @@ export function SiteVisits() {
       return;
     }
 
-    const result = siteVisitScheduleSchema.safeParse(formData);
-    if (!result.success) {
-      const firstError = result.error.errors[0];
-      toast.error(firstError?.message || 'Please fix the form errors before submitting.');
+    const storeState = useSiteVisitFormStore.getState();
+    const effectiveFormData = storeState.isOpen ? storeState.formData : formData;
+
+    const isValid = storeState.validate();
+    if (!isValid) {
+      const firstError = Object.values(storeState.errors)[0];
+      toast.error(firstError || 'Please fix the form errors before submitting.');
       return;
     }
 
+    const firstContact = effectiveFormData.site_contacts?.[0];
     const visitData = {
-      ...formData,
-      status: isDraft ? 'pending' : formData.status,
+      ...effectiveFormData,
+      status: isDraft ? 'pending' : effectiveFormData.status,
       organisation_id: organisation.id,
       created_by: user?.id,
-      follow_up_date: formData.follow_up_date || null,
-      client_id: formData.client_id || null,
-      project_id: formData.project_id || null,
-      project_manager_id: formData.project_manager_id || null,
+      follow_up_date: effectiveFormData.follow_up_date || null,
+      client_id: effectiveFormData.client_id || null,
+      project_id: effectiveFormData.project_id || null,
+      project_manager_id: effectiveFormData.project_manager_id || null,
+      employee_id: effectiveFormData.employee_id || null,
+      site_contact_person: firstContact?.name || effectiveFormData.site_contact_person || '',
+      site_contact_phone: firstContact?.phone || effectiveFormData.site_contact_phone || '',
+      site_contact_designation: firstContact?.designation || effectiveFormData.site_contact_designation || '',
+      site_contacts: effectiveFormData.site_contacts || [],
+      instructions_to_site_persons: effectiveFormData.instructions_to_site_persons || '',
+      checklist_items: effectiveFormData.checklist_items || [],
     };
 
     if (selectedVisit) {
@@ -669,12 +750,13 @@ export function SiteVisits() {
 
   const handleEditVisit = (visit: any) => {
     setSelectedVisit(visit);
+    useSiteVisitFormStore.getState().openEditModal(visit);
     setFormData({
       client_id: visit.client_id || '',
       visit_date: visit.visit_date || format(new Date(), 'yyyy-MM-dd'),
-      purpose_of_visit: visit.purpose_of_visit || '',
       visited_by: visit.visited_by || '',
       engineer: visit.engineer || '',
+      employee_id: visit.employee_id || '',
       visit_time: visit.visit_time || '',
       out_time: visit.out_time || '',
       site_address: visit.site_address || '',
@@ -692,6 +774,13 @@ export function SiteVisits() {
       site_contact_person: visit.site_contact_person || '',
       site_contact_phone: visit.site_contact_phone || '',
       site_contact_designation: visit.site_contact_designation || '',
+      site_contacts: (visit.site_contacts && visit.site_contacts.length > 0)
+        ? visit.site_contacts
+        : (visit.site_contact_person
+            ? [{ name: visit.site_contact_person, phone: visit.site_contact_phone || '', designation: visit.site_contact_designation || '' }]
+            : [{ name: '', phone: '', designation: '' }]),
+      instructions_to_site_persons: visit.instructions_to_site_persons || '',
+      checklist_items: visit.checklist_items || [],
       visit_type: visit.visit_type || 'Survey',
       priority: visit.priority || 'Standard',
       ppe_requirements: visit.ppe_requirements || '',
@@ -746,46 +835,15 @@ export function SiteVisits() {
         if (!clientMatch && !engineerMatch && !locationMatch) return false;
       }
 
-      if (projectFilter !== 'all' && v.client_id !== projectFilter) return false;
-
-      if (engineerFilter !== 'all') {
-        const engineer = v.engineer || v.visited_by;
-        if (engineer !== engineerFilter) return false;
-      }
-
       return true;
     });
-  }, [visits, statusFilter, deferredSearchQuery, projectFilter, engineerFilter]);
-
-  // Calculate stats
-  const stats = useMemo(() => {
-    if (!visits) return { total: 0, scheduled: 0, in_progress: 0, completed: 0, cancelled: 0, criticalPending: 0 };
-    return {
-      total: visits.length,
-      scheduled: visits.filter((v: any) => v.status === 'scheduled').length,
-      in_progress: visits.filter((v: any) => v.status === 'in_progress').length,
-      completed: visits.filter((v: any) => v.status === 'completed').length,
-      cancelled: visits.filter((v: any) => v.status === 'cancelled').length,
-      // Critical pending: unresolved visits flagged for PM escalation or denied location
-      criticalPending: visits.filter(
-        (v: any) =>
-          v.requires_pm_escalation === true ||
-          v.status === 'pending' ||
-          v.verification_status === 'Location Denied'
-      ).length,
-    };
-  }, [visits]);
+  }, [visits, statusFilter, deferredSearchQuery]);
 
   // Paginated items
   const paginatedVisits = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredVisits.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredVisits, currentPage, itemsPerPage]);
-
-  const paginatedUpdates = useMemo(() => {
-    const startIndex = (updatesPage - 1) * itemsPerPage;
-    return filteredVisits.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredVisits, updatesPage, itemsPerPage]);
 
   // Filter projects by selected client
   const filteredProjects = useMemo(() => {
@@ -794,7 +852,7 @@ export function SiteVisits() {
   }, [formData.client_id, projects]);
 
   const handleClientChange = (value: string) => {
-    setFormData({ ...formData, client_id: value, project_id: '' });
+    setFormDataSynced((prev) => ({ ...prev, client_id: value, project_id: '' }));
   };
 
   // URL search params handling
@@ -804,13 +862,11 @@ export function SiteVisits() {
     const clientId = searchParams.get('clientId');
 
     if (scheduleNew === 'true') {
-      setFormData((prev) => ({
-        ...prev,
+      handleOpenNewVisit({
         client_id: clientId || '',
         project_id: projectId || '',
         visit_type: 'Maintenance',
-      }));
-      setIsFormOpen(true);
+      });
 
       setSearchParams(
         (prev) => {
@@ -842,7 +898,7 @@ export function SiteVisits() {
           fetchGlobalActivity();
         }}
         onOpenQuickUpdate={() => setIsUpdateModalOpen(true)}
-        onOpenNewVisit={() => setIsFormOpen(true)}
+        onOpenNewVisit={() => handleOpenNewVisit()}
       />
 
       {/* Subtab & Filters */}
@@ -916,11 +972,11 @@ export function SiteVisits() {
               ]}
               hiddenColumnIds={hiddenColumnIds}
               onColumnVisibilityChange={setHiddenColumnIds}
-              mandatoryColumnIds={['purpose', 'client']}
+              mandatoryColumnIds={['visit_type', 'client']}
               emptyTitle={SITE_VISIT_LABELS.table.emptyTitle}
               emptySubtitle={SITE_VISIT_LABELS.table.emptySubtitle}
               emptyActionLabel={SITE_VISIT_LABELS.table.emptyAction}
-              onEmptyAction={() => setIsFormOpen(true)}
+              onEmptyAction={() => handleOpenNewVisit()}
               footer={
                 <SiteVisitStickyFooter
                   selectedCount={selectedVisits.length}
@@ -940,8 +996,7 @@ export function SiteVisits() {
             visits={filteredVisits || []}
             onDateClick={(date) => {
               setSelectedDate(date);
-              setIsFormOpen(true);
-              setFormData((prev) => ({ ...prev, visit_date: format(date, 'yyyy-MM-dd') }));
+              handleOpenNewVisit({ visit_date: format(date, 'yyyy-MM-dd') });
             }}
             onVisitClick={(visit) => setVisitToView(visit)}
           />
@@ -950,7 +1005,7 @@ export function SiteVisits() {
         {/* Updates View */}
         {viewMode === 'updates' && (
           <SiteVisitUpdatesView
-            visits={paginatedUpdates}
+            visits={filteredVisits}
             onEdit={handleEditVisit}
             onDelete={handleDeleteVisit}
             onView={(v) => setVisitToView(v)}
@@ -976,14 +1031,15 @@ export function SiteVisits() {
         }}
         selectedVisit={selectedVisit}
         formData={formData}
-        setFormData={setFormData}
+        setFormData={setFormDataSynced}
         clients={clients || []}
         filteredProjects={filteredProjects || []}
-        purposes={purposes || []}
+        visitTypes={visitTypes || []}
         projectManagers={projectManagers || []}
+        employees={employees || []}
         handleClientChange={handleClientChange}
         onOpenAddClient={() => setIsAddClientModalOpen(true)}
-        onOpenAddPurpose={() => setIsAddPurposeModalOpen(true)}
+        onOpenAddVisitType={() => setIsAddVisitTypeModalOpen(true)}
         onSubmit={handleFormSubmit}
         onSaveDraft={handleSaveDraft}
         isSaving={saveVisit.isPending}
@@ -999,13 +1055,9 @@ export function SiteVisits() {
         selectedVisit={selectedVisit}
         onSelectVisit={handleEditVisit}
         visits={visits || []}
-        clients={clients || []}
-        filteredProjects={filteredProjects || []}
-        purposes={purposes || []}
+        employees={employees || []}
         formData={formData}
-        setFormData={setFormData}
-        handleClientChange={handleClientChange}
-        onOpenAddPurposeModal={() => setIsAddPurposeModalOpen(true)}
+        setFormData={setFormDataSynced}
         onSubmit={handleFormSubmit}
         isSubmitting={saveVisit.isPending}
       />
@@ -1032,6 +1084,11 @@ export function SiteVisits() {
           setObservationOpen(false);
           setObservationCategory('');
           setObservationTitle('');
+          setStoppageOpen(false);
+          setStoppageCategory('other');
+          setStoppageBlockingParty('unknown');
+          setStoppageDescription('');
+          setStoppageImpactHours('');
           setIsCheckoutModalOpen(true);
         }}
         savedChecklist={savedChecklist}
@@ -1074,6 +1131,16 @@ export function SiteVisits() {
         setObservationCategory={setObservationCategory}
         observationTitle={observationTitle}
         setObservationTitle={setObservationTitle}
+        stoppageOpen={stoppageOpen}
+        setStoppageOpen={setStoppageOpen}
+        stoppageCategory={stoppageCategory}
+        setStoppageCategory={setStoppageCategory}
+        stoppageBlockingParty={stoppageBlockingParty}
+        setStoppageBlockingParty={setStoppageBlockingParty}
+        stoppageDescription={stoppageDescription}
+        setStoppageDescription={setStoppageDescription}
+        stoppageImpactHours={stoppageImpactHours}
+        setStoppageImpactHours={setStoppageImpactHours}
         isListening={isListening}
         startListening={startListening}
         canvasRef={canvasRef}
@@ -1092,19 +1159,28 @@ export function SiteVisits() {
         logs={globalActivityLogs}
       />
 
-      {/* Add Purpose Modal */}
-      <SiteVisitAddPurposeModal
-        isOpen={isAddPurposeModalOpen}
-        onClose={() => setIsAddPurposeModalOpen(false)}
+      {/* Add Visit Type Category Modal */}
+      <SiteVisitAddVisitTypeModal
+        isOpen={isAddVisitTypeModalOpen}
+        onClose={() => setIsAddVisitTypeModalOpen(false)}
         onSave={(name) => {
-          addPurposeMutation.mutate(name, {
-            onSuccess: () => {
-              setIsAddPurposeModalOpen(false);
-              setFormData((prev) => ({ ...prev, purpose_of_visit: name }));
+          addVisitTypeMutation.mutate(name, {
+            onSuccess: (savedItem: any) => {
+              setIsAddVisitTypeModalOpen(false);
+              setFormDataSynced((prev) => ({ ...prev, visit_type: name }));
+              queryClient.setQueryData(['visit-types', organisation?.id], (old: any) => {
+                if (!Array.isArray(old)) return [{ id: name, name }];
+                if (old.some((item: any) => (item.name || item) === name)) return old;
+                return [...old, { id: savedItem?.id || name, name }];
+              });
+              toast.success('Category added and selected');
+            },
+            onError: (err: any) => {
+              toast.error('Failed to add category: ' + (err?.message || err));
             },
           });
         }}
-        isSaving={addPurposeMutation.isPending}
+        isSaving={addVisitTypeMutation.isPending}
       />
 
       {/* Quick Add Client Modal */}
@@ -1113,7 +1189,7 @@ export function SiteVisits() {
           isOpen={isAddClientModalOpen}
           onClose={() => setIsAddClientModalOpen(false)}
           onSuccess={(client: any) => {
-            setFormData((prev) => ({ ...prev, client_id: client.id }));
+            setFormDataSynced((prev) => ({ ...prev, client_id: client.id }));
           }}
         />
       )}

@@ -7,6 +7,7 @@ import {
 } from '../api/useOperationsQueries';
 import { StatusBadge } from './shared/StatusBadge';
 import { formatCurrency } from '../utils';
+import { useHasPermission } from '../../../rbac/hooks';
 
 const emptyMessages = [
   'All done bro! ✨',
@@ -21,6 +22,7 @@ export const SalesZone: React.FC = () => {
   const openOrders = useOpenSalesOrders();
   const awaitingPO = useConfirmedAwaitingPO();
   const upcoming = useUpcomingEvents();
+  const { data: canReadVisits, isLoading: rbacLoading } = useHasPermission('site_visits.read');
   const emptyMsg = emptyMessages[Math.floor(Math.random() * emptyMessages.length)];
 
   return (
@@ -132,6 +134,7 @@ export const SalesZone: React.FC = () => {
       </div>
 
       {/* Upcoming visits & production */}
+      {(rbacLoading || canReadVisits) && (
       <div className="mt-5 bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] shadow-[var(--shadow)] overflow-hidden ops-card">
         <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-white">
           <h3 className="text-[15px] font-semibold text-[var(--ink)]">Upcoming Visits &amp; Production (Next 7 Days)</h3>
@@ -162,6 +165,7 @@ export const SalesZone: React.FC = () => {
           </table>
         </div>
       </div>
+      )}
     </section>
   );
 };
