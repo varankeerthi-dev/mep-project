@@ -130,8 +130,10 @@ export function DocumentListShell(props: DocumentListShellProps) {
 
   const visibleCols = columns.filter((c) => visibleIds.includes(c.id));
   const compactRows = rowDensity === 'compact';
-  const cellPy = compactRows ? 'py-[6px]' : 'py-3';
+  const cellPy = compactRows ? 'py-[4px]' : 'py-3';
   const cellPx = compactRows ? 'px-3' : 'px-6';
+  const cellText = compactRows ? 'text-xs' : 'text-sm';
+  const headText = compactRows ? 'text-xs' : 'text-[13px]';
   const allSelected = rows.length > 0 && rows.every((r, i) => selectedIds.has(getRowId(r, i)));
   const showBulk = bulkBar && selectedIds.size >= (bulkBar.threshold ?? 2);
 
@@ -398,8 +400,10 @@ export function DocumentListShell(props: DocumentListShellProps) {
                     key={col.id}
                     style={{ width: col.width }}
                     className={cn(
-                      'sticky top-0 z-10 h-[36px] align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200',
+                      'sticky top-0 z-10 align-middle font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200',
+                      compactRows ? 'h-[30px]' : 'h-[36px]',
                       cellPx,
+                      headText,
                       col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
                     )}
                   >
@@ -491,7 +495,8 @@ export function DocumentListShell(props: DocumentListShellProps) {
                           <td
                             key={col.id}
                             className={cn(
-                              'align-middle text-sm border-t border-zinc-200/70',
+                              'align-middle border-t border-zinc-200/70',
+                              cellText,
                               cellPx,
                               cellPy,
                               col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left',
