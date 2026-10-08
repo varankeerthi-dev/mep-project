@@ -209,6 +209,18 @@ export default function QuotationList() {
         template = (data || []).find((t: any) => t.organisation_id) || (data || [])[0] || null;
       }
 
+      if (!template) {
+        // Last resort: any quotation template at all (covers deleted-template
+        // references and orgs with no default configured).
+        const { data } = await supabase
+          .from('document_templates')
+          .select('*')
+          .eq('document_type', 'Quotation')
+          .limit(1)
+          .maybeSingle();
+        template = data || null;
+      }
+
       if (!template) return null;
 
       let doc: any = null;
@@ -426,15 +438,20 @@ export default function QuotationList() {
     setPreviewLoadingId(quotationId);
     setPreviewQuotationNo(quotationNo);
     setPreviewQuotationId(quotationId);
-    const pdfBytes = await generateSinglePdfUint8Array(quotationId);
-    if (pdfBytes) {
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
-      setPdfPreviewUrl(url);
-      setShowPdfPreviewModal(true);
-    } else {
-      alert('Error generating PDF preview');
+    try {
+      const pdfBytes = await generateSinglePdfUint8Array(quotationId);
+      if (pdfBytes) {
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+        setPdfPreviewUrl(url);
+        setShowPdfPreviewModal(true);
+      } else {
+        alert('No usable quotation template found. Set a default in Settings → Templates → Quotations.');
+      }
+    } catch (err: any) {
+      console.error('Error generating PDF preview:', err);
+      alert('Error generating PDF preview: ' + (err?.message || err));
     }
     setPreviewLoading(false);
     setPreviewLoadingId(null);
