@@ -12,7 +12,7 @@ import { duplicateQuotation } from '../api';
 import { DocumentListShell, type ShellColumn } from '../components/document/DocumentListShell';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Calendar } from '../components/ui/Calendar';
-import { Filter as FilterIcon, X as ClearIcon, User as UserIcon, Calendar as CalendarIcon } from 'lucide-react';
+import { Filter as FilterIcon, X as ClearIcon, User as UserIcon, Calendar as CalendarIcon, ArrowUpDown as SortIcon } from 'lucide-react';
 import {
 
   Download as DownloadIcon,
@@ -87,6 +87,7 @@ export default function QuotationList() {
   const [itemsPerPage] = useState(20);
   const [showColumnCustomizer, setShowColumnCustomizer] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
+  const [sortField, setSortField] = useState<'date' | 'customer' | 'created'>('date');
   const [returnComment, setReturnComment] = useState<{ open: boolean; quotationId: string | null; comment: string; loading: boolean }>({ open: false, quotationId: null, comment: '', loading: false });
   const [selectedHistoryQuotation, setSelectedHistoryQuotation] = useState<any | null>(null);
   const [selectedCompareQuotation, setSelectedCompareQuotation] = useState<any | null>(null);
@@ -533,15 +534,30 @@ export default function QuotationList() {
     });
 
     if (sortOrder) {
+      const dir = sortOrder === 'asc' ? 1 : -1;
       items.sort((a: any, b: any) => {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+        if (sortField === 'customer') {
+          return dir * String(a.client?.client_name || '').localeCompare(String(b.client?.client_name || ''));
+        }
+        if (sortField === 'created') {
+          return dir * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        }
+        return dir * (new Date(a.date).getTime() - new Date(b.date).getTime());
       });
     }
 
     return items;
-  }, [quotations, searchTerm, sortOrder, fromDate, toDate, createdByFilter]);
+  }, [quotations, searchTerm, sortOrder, sortField, fromDate, toDate, createdByFilter]);
+
+  const sortOptions: { key: string; label: string; field: 'date' | 'customer' | 'created'; dir: 'asc' | 'desc' }[] = [
+    { key: 'cust-az', label: 'Customer A–Z', field: 'customer', dir: 'asc' },
+    { key: 'cust-za', label: 'Customer Z–A', field: 'customer', dir: 'desc' },
+    { key: 'date-new', label: 'Date newest', field: 'date', dir: 'desc' },
+    { key: 'date-old', label: 'Date oldest', field: 'date', dir: 'asc' },
+    { key: 'created-new', label: 'Created newest', field: 'created', dir: 'desc' },
+    { key: 'created-old', label: 'Created oldest', field: 'created', dir: 'asc' },
+  ];
+  const activeSortKey = sortOrder ? sortOptions.find(o => o.field === sortField && o.dir === sortOrder)?.key || null : null;
 
   const fmtShort = (d: Date | undefined) => (d ? formatDateTable(d) : '');
 
@@ -572,7 +588,7 @@ export default function QuotationList() {
   const [customOpen, setCustomOpen] = useState(false);
 
   const [filterOpen, setFilterOpen] = useState(false);
-  const [hoverMenu, setHoverMenu] = useState<'creator' | 'date' | null>(null);
+  const [hoverMenu, setHoverMenu] = useState<'creator' | 'date' | 'sort' | null>(null);
 
   const hasCreator = createdByFilter !== 'All';
   const hasDates = !!(fromDate || toDate);
@@ -586,7 +602,7 @@ export default function QuotationList() {
   };
 
   const menuRow = (
-    key: 'creator' | 'date',
+    key: 'creator' | 'date' | 'sort',
     icon: React.ReactNode,
     label: string,
     hint: string,
@@ -631,6 +647,8 @@ export default function QuotationList() {
                 createdByFilter === 'All' ? 'All' : createdByFilter, hasCreator)}
               {menuRow('date', <CalendarIcon className="w-4 h-4" />, 'By date',
                 activePreset ? (datePresets.find(p => p.key === activePreset)?.label || '') : (hasDates ? `${fmtShort(fromDate)} → ${fmtShort(toDate)}` : 'All time'), hasDates)}
+              {menuRow('sort', <SortIcon className="w-4 h-4" />, 'Sort by',
+                sortOrder ? (sortOptions.find(o => o.key === activeSortKey)?.label || '') : 'None', !!sortOrder)}
               {hasFilters && (
                 <button
                   type="button"
@@ -657,6 +675,33 @@ export default function QuotationList() {
                     {createdByFilter === name && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
                   </button>
                 ))}
+              </div>
+            )}
+            {hoverMenu === 'sort' && (
+              <div className="w-48 border-l border-zinc-100 pl-1" onMouseEnter={() => setHoverMenu('sort')}>
+                {sortOptions.map(o => (
+                  <button
+                    key={o.key}
+                    type="button"
+                    onClick={() => { setSortField(o.field); setSortOrder(o.dir); }}
+                    className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-xs transition-colors ${
+                      activeSortKey === o.key ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'
+                    }`}
+                  >
+                    {o.label}
+                    {activeSortKey === o.key && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                  </button>
+                ))}
+                {sortOrder && (
+                  <button
+                    type="button"
+                    onClick={() => setSortOrder(null)}
+                    className="flex w-full items-center justify-center gap-2 rounded px-2 py-1.5 text-xs text-zinc-500 hover:bg-zinc-50 transition-colors"
+                  >
+                    <ClearIcon className="w-3.5 h-3.5" />
+                    Clear sort
+                  </button>
+                )}
               </div>
             )}
             {hoverMenu === 'date' && (
@@ -735,6 +780,7 @@ export default function QuotationList() {
   }, [filteredQuotations, currentPage, itemsPerPage]);
 
   const toggleSort = () => {
+    setSortField('date');
     if (sortOrder === null) setSortOrder('desc');
     else if (sortOrder === 'desc') setSortOrder('asc');
     else setSortOrder(null);
