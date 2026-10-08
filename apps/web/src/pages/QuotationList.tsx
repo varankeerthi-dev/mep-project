@@ -12,7 +12,7 @@ import { duplicateQuotation } from '../api';
 import { DocumentListShell, type ShellColumn } from '../components/document/DocumentListShell';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Calendar } from '../components/ui/Calendar';
-import { Filter as FilterIcon, X as ClearIcon, User as UserIcon } from 'lucide-react';
+import { Filter as FilterIcon, X as ClearIcon, User as UserIcon, Calendar as CalendarIcon } from 'lucide-react';
 import {
 
   Download as DownloadIcon,
@@ -571,104 +571,145 @@ export default function QuotationList() {
   const activePreset = datePresets.find(p => sameDay(p.from, fromDate) && sameDay(p.to, toDate))?.key || null;
   const [customOpen, setCustomOpen] = useState(false);
 
-  const dateFilterTitle = fromDate || toDate
-    ? `Dates: ${fromDate ? fmtShort(fromDate) : '…'} → ${toDate ? fmtShort(toDate) : '…'}`
-    : 'Filter by date';
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [hoverMenu, setHoverMenu] = useState<'creator' | 'date' | null>(null);
 
-  const [createdByOpen, setCreatedByOpen] = useState(false);
+  const hasCreator = createdByFilter !== 'All';
+  const hasDates = !!(fromDate || toDate);
+  const hasFilters = hasCreator || hasDates;
+
+  const clearFilters = () => {
+    setCreatedByFilter('All');
+    setFromDate(undefined);
+    setToDate(undefined);
+    setCustomOpen(false);
+  };
+
+  const menuRow = (
+    key: 'creator' | 'date',
+    icon: React.ReactNode,
+    label: string,
+    hint: string,
+    active: boolean,
+  ) => (
+    <button
+      key={key}
+      type="button"
+      onMouseEnter={() => setHoverMenu(key)}
+      onClick={() => setHoverMenu(key)}
+      className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs transition-colors ${
+        hoverMenu === key || active ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'
+      }`}
+    >
+      {icon}
+      <span className="flex-1 text-left font-medium">{label}</span>
+      <span className="text-[11px] text-zinc-400 truncate max-w-[110px]">{hint}</span>
+      {active && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
+      <span className="text-zinc-300">›</span>
+    </button>
+  );
 
   const dateFilterExtra = (
     <div className="flex items-center gap-2">
-      <Popover open={createdByOpen} onOpenChange={setCreatedByOpen}>
+      <Popover open={filterOpen} onOpenChange={(open) => { setFilterOpen(open); if (!open) { setHoverMenu(null); setCustomOpen(false); } }}>
         <PopoverTrigger asChild>
           <button
             type="button"
-            title={createdByFilter === 'All' ? 'Filter by creator' : `Created by ${createdByFilter}`}
-            className={`relative h-[26px] px-2 flex items-center gap-1.5 rounded-md text-sm font-medium transition-colors ${
-              createdByFilter !== 'All' ? 'text-blue-600 bg-blue-50' : 'text-zinc-600 hover:bg-zinc-100'
-            }`}
-          >
-            <UserIcon className="w-4 h-4" />
-            <span className="max-w-[110px] truncate">{createdByFilter === 'All' ? 'Creator' : createdByFilter}</span>
-            {(createdByFilter !== 'All') && <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-48 p-1" align="start">
-          {creatorOptions.map(name => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => { setCreatedByFilter(name); setCreatedByOpen(false); }}
-              className={`flex w-full items-center justify-between rounded px-2 py-1 text-xs transition-colors ${
-                createdByFilter === name ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'
-              }`}
-            >
-              <span className="truncate">{name === 'All' ? 'All creators' : name}</span>
-              {createdByFilter === name && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
-            </button>
-          ))}
-        </PopoverContent>
-      </Popover>
-      <Popover onOpenChange={(open) => { if (!open) setCustomOpen(false); }}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            title={dateFilterTitle}
+            title={hasFilters ? 'Filters active — click to edit' : 'Filter quotations'}
             className={`relative h-[26px] w-[26px] flex items-center justify-center rounded-md transition-colors ${
-              (fromDate || toDate) ? 'text-blue-600 bg-blue-50' : 'text-zinc-600 hover:bg-zinc-100'
+              hasFilters ? 'text-blue-600 bg-blue-50' : 'text-zinc-600 hover:bg-zinc-100'
             }`}
           >
             <FilterIcon className="w-4 h-4" />
-            {(fromDate || toDate) && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-600" />}
+            {hasFilters && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-600" />}
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-56 p-1" align="start">
-          {datePresets.map(p => (
-            <button
-              key={p.key}
-              type="button"
-              onClick={() => { setFromDate(p.from); setToDate(p.to); setCustomOpen(false); }}
-              className={`flex w-full items-center justify-between rounded px-2 py-1 text-xs transition-colors ${
-                activePreset === p.key ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'
-              }`}
-            >
-              {p.label}
-              {activePreset === p.key && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setCustomOpen(v => !v)}
-            className={`flex w-full items-center justify-between rounded px-2 py-1 text-xs transition-colors ${
-              customOpen || (activePreset === null && (fromDate || toDate)) ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'
-            }`}
-          >
-            Custom
-            <span className="text-[11px] text-zinc-400">single or range</span>
-          </button>
-          {customOpen && (
-            <div className="border-t border-zinc-100 mt-1 pt-1 flex justify-center">
-              <Calendar
-                mode="range"
-                selected={fromDate ? { from: fromDate, to: toDate } : undefined}
-                onSelect={(range: any) => {
-                  setFromDate(range?.from);
-                  setToDate(range?.to);
-                }}
-                initialFocus
-              />
+        <PopoverContent className="w-auto p-1" align="start">
+          <div className="flex items-start gap-1">
+            <div className="w-52">
+              {menuRow('creator', <UserIcon className="w-4 h-4" />, 'By creator',
+                createdByFilter === 'All' ? 'All' : createdByFilter, hasCreator)}
+              {menuRow('date', <CalendarIcon className="w-4 h-4" />, 'By date',
+                activePreset ? (datePresets.find(p => p.key === activePreset)?.label || '') : (hasDates ? `${fmtShort(fromDate)} → ${fmtShort(toDate)}` : 'All time'), hasDates)}
+              {hasFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="flex w-full items-center justify-center gap-2 rounded px-2 py-1.5 mt-1 text-xs text-zinc-500 hover:bg-zinc-50 transition-colors border-t border-zinc-100"
+                >
+                  <ClearIcon className="w-3.5 h-3.5" />
+                  Clear all
+                </button>
+              )}
             </div>
-          )}
-          {(fromDate || toDate) && (
-            <button
-              type="button"
-              onClick={() => { setFromDate(undefined); setToDate(undefined); setCustomOpen(false); }}
-              className="flex w-full items-center justify-center gap-2 rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-50 transition-colors"
-            >
-              <ClearIcon className="w-3.5 h-3.5" />
-              Clear dates
-            </button>
-          )}
+            {hoverMenu === 'creator' && (
+              <div className="w-48 border-l border-zinc-100 pl-1 max-h-64 overflow-y-auto" onMouseEnter={() => setHoverMenu('creator')}>
+                {creatorOptions.map(name => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => setCreatedByFilter(name)}
+                    className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-xs transition-colors ${
+                      createdByFilter === name ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'
+                    }`}
+                  >
+                    <span className="truncate">{name === 'All' ? 'All creators' : name}</span>
+                    {createdByFilter === name && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            )}
+            {hoverMenu === 'date' && (
+              <div className="w-60 border-l border-zinc-100 pl-1" onMouseEnter={() => setHoverMenu('date')}>
+                {datePresets.map(p => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => { setFromDate(p.from); setToDate(p.to); setCustomOpen(false); }}
+                    className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-xs transition-colors ${
+                      activePreset === p.key ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'
+                    }`}
+                  >
+                    {p.label}
+                    {activePreset === p.key && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setCustomOpen(v => !v)}
+                  className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-xs transition-colors ${
+                    customOpen || (activePreset === null && hasDates) ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'
+                  }`}
+                >
+                  Custom
+                  <span className="text-[11px] text-zinc-400">single or range</span>
+                </button>
+                {customOpen && (
+                  <div className="border-t border-zinc-100 mt-1 pt-1 flex justify-center">
+                    <Calendar
+                      mode="range"
+                      selected={fromDate ? { from: fromDate, to: toDate } : undefined}
+                      onSelect={(range: any) => {
+                        setFromDate(range?.from);
+                        setToDate(range?.to);
+                      }}
+                      initialFocus
+                    />
+                  </div>
+                )}
+                {hasDates && (
+                  <button
+                    type="button"
+                    onClick={() => { setFromDate(undefined); setToDate(undefined); setCustomOpen(false); }}
+                    className="flex w-full items-center justify-center gap-2 rounded px-2 py-1.5 text-xs text-zinc-500 hover:bg-zinc-50 transition-colors"
+                  >
+                    <ClearIcon className="w-3.5 h-3.5" />
+                    Clear dates
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </PopoverContent>
       </Popover>
     </div>
