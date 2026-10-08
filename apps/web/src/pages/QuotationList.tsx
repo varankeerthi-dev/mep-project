@@ -459,38 +459,112 @@ export default function QuotationList() {
     setPreviewLoadingId(null);
   };
 
+  // Debounced search so each keystroke doesn't refetch.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  const fromStr = fromDate ? fromDate.toISOString().slice(0, 10) : null;
+  const toStr = toDate ? toDate.toISOString().slice(0, 10) : null;
+
   const quotationsQuery = useQuery({
-    queryKey: ['quotations', statusFilter, organisation?.id],
+    queryKey: ['quotations', statusFilter, debouncedSearch, fromStr, toStr, createdByFilter, sortField, sortOrder, currentPage, organisation?.id],
     queryFn: async () => {
-      let query = supabase
+      // Client-name search resolves to ids first (join filter without !inner semantics).
+      let clientIds: string[] | null = null;
+      const q = debouncedSearch.trim();
+      if (q) {
+        const { data: matchedClients } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('organisation_id', organisation?.id)
+          .ilike('client_name', `%${q}%`)
+          .limit(200);
+        clientIds = (matchedClients || []).map((c: any) => c.id);
+      }
+
+      // Creator filter needs the inner embed; otherwise keep the left join.
+      const useCreatorFilter = createdByFilter !== 'All';
+      let query: any = supabase
         .from('quotation_header')
         .select(`
-          *, 
-          client:clients(id, client_name, gstin, state), 
+          *,
+          client:clients(id, client_name, gstin, state),
           project:projects(id, project_name),
-          creator:user_profiles(full_name)
-        `)
-        .eq('organisation_id', organisation?.id)
-        .order('created_at', { ascending: false });
+          ${useCreatorFilter ? 'creator:user_profiles!inner(full_name)' : 'creator:user_profiles(full_name)'}
+        `, { count: 'exact' })
+        .eq('organisation_id', organisation?.id);
 
-      if (statusFilter !== 'All') query = query.eq('status', toDbStatus(statusFilter));
+      if (statusFilter === 'Expired') {
+        // Expired is computed (Draft + past valid_till) — express server-side.
+        const today = new Date().toISOString().split('T')[0];
+        query = query.eq('status', 'Draft').lt('valid_till', today).not('valid_till', 'is', null);
+      } else if (statusFilter !== 'All') {
+        query = query.eq('status', toDbStatus(statusFilter));
+      }
+      if (q) {
+        if (clientIds && clientIds.length > 0) {
+          query = query.or(`quotation_no.ilike.%${q}%,client_id.in.(${clientIds.join(',')})`);
+        } else {
+          query = query.ilike('quotation_no', `%${q}%`);
+        }
+      }
+      if (fromStr) query = query.gte('date', fromStr);
+      if (toStr) query = query.lte('date', toStr);
+      if (useCreatorFilter) query = query.eq('creator.full_name', createdByFilter);
 
-      const data = await timedSupabaseQuery(query, 'Quotation list');
+      const ascending = sortOrder !== 'desc';
+      if (sortField === 'customer') {
+        query = query.order('client_name', { referencedTable: 'client', ascending, nullsFirst: false });
+      } else if (sortField === 'created') {
+        query = query.order('created_at', { ascending });
+      } else {
+        query = query.order('date', { ascending });
+      }
+
+      const start = (currentPage - 1) * itemsPerPage;
+      query = query.range(start, start + itemsPerPage - 1);
+
+      const { data, count, error } = await query;
+      if (error) throw error;
       const today = new Date().toISOString().split('T')[0];
-
-      return (data || []).map((q: any) =>
-        q.status === 'Draft' && q.valid_till && q.valid_till < today
-          ? { ...q, status: 'Expired' }
-          : q
+      const rows = (data || []).map((r: any) =>
+        r.status === 'Draft' && r.valid_till && r.valid_till < today
+          ? { ...r, status: 'Expired' }
+          : r
       );
+      return { rows, total: count ?? rows.length };
     },
     enabled: !!organisation?.id,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
+    placeholderData: (prev: any) => prev,
   });
 
-  const quotations = quotationsQuery.data || [];
+  const quotations = quotationsQuery.data?.rows || [];
+  const serverTotal = quotationsQuery.data?.total || 0;
   const loading = quotationsQuery.isPending && !quotationsQuery.data;
+
+  // Creator names for the filter (id + name only — cheap, cached).
+  const creatorNamesQuery = useQuery({
+    queryKey: ['quotationCreatorNames', organisation?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('quotation_header')
+        .select('creator:user_profiles(full_name)')
+        .eq('organisation_id', organisation?.id)
+        .limit(5000);
+      if (error) throw error;
+      const names = new Set<string>();
+      (data || []).forEach((r: any) => { if (r.creator?.full_name) names.add(r.creator.full_name); });
+      return ['All', ...Array.from(names).sort()];
+    },
+    enabled: !!organisation?.id,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
 
   // Quotation ids that have at least one invoice linked (dedicated Invoiced badge).
   const invoicedQuery = useQuery({
@@ -529,44 +603,9 @@ export default function QuotationList() {
   });
   const lostIds: Set<string> = lostQuery.data || new Set();
 
-  const creatorOptions = useMemo(() => {
-    const names = new Set<string>();
-    quotations.forEach((qt: any) => {
-      const n = qt.creator?.full_name || qt.prepared_by;
-      if (n) names.add(n);
-    });
-    return ['All', ...Array.from(names).sort()];
-  }, [quotations]);
-
-  const filteredQuotations = useMemo(() => {
-    const q = searchTerm.toLowerCase();
-    const fromStr = fromDate ? fromDate.toISOString().slice(0, 10) : null;
-    const toStr = toDate ? toDate.toISOString().slice(0, 10) : null;
-    const items = quotations.filter((qt: any) => {
-      if (!(qt.quotation_no?.toLowerCase().includes(q) ||
-        qt.client?.client_name?.toLowerCase().includes(q))) return false;
-      const d = String(qt.date || '').slice(0, 10);
-      if (fromStr && d < fromStr) return false;
-      if (toStr && d > toStr) return false;
-      if (createdByFilter !== 'All' && (qt.creator?.full_name || qt.prepared_by) !== createdByFilter) return false;
-      return true;
-    });
-
-    if (sortOrder) {
-      const dir = sortOrder === 'asc' ? 1 : -1;
-      items.sort((a: any, b: any) => {
-        if (sortField === 'customer') {
-          return dir * String(a.client?.client_name || '').localeCompare(String(b.client?.client_name || ''));
-        }
-        if (sortField === 'created') {
-          return dir * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        }
-        return dir * (new Date(a.date).getTime() - new Date(b.date).getTime());
-      });
-    }
-
-    return items;
-  }, [quotations, searchTerm, sortOrder, sortField, fromDate, toDate, createdByFilter]);
+  const creatorOptions: string[] = creatorNamesQuery.data || ['All'];
+  // Server already filtered/sorted/paginated — rows render as-is.
+  const filteredQuotations = quotations;
 
   const sortOptions: { key: string; label: string; field: 'date' | 'customer' | 'created'; dir: 'asc' | 'desc' }[] = [
     { key: 'cust-az', label: 'Customer A–Z', field: 'customer', dir: 'asc' },
@@ -779,24 +818,24 @@ export default function QuotationList() {
     </div>
   );
 
-  // Pagination calculations (header stats/total-value removed from display)
+  // Server paginates + counts; the page rows render as-is (20 rows max in memory).
   const paginationData = useMemo(() => {
-    const totalItems = filteredQuotations.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const currentItems = filteredQuotations.slice(startIndex, endIndex);
+    const totalItems = serverTotal;
+    const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+    const safePage = Math.min(currentPage, totalPages);
+    const startIndex = (safePage - 1) * itemsPerPage;
+    const endIndex = startIndex + filteredQuotations.length;
 
     return {
       totalItems,
       totalPages,
       startIndex,
       endIndex,
-      currentItems,
-      hasNextPage: currentPage < totalPages,
-      hasPrevPage: currentPage > 1
+      currentItems: filteredQuotations,
+      hasNextPage: safePage < totalPages,
+      hasPrevPage: safePage > 1
     };
-  }, [filteredQuotations, currentPage, itemsPerPage]);
+  }, [filteredQuotations, serverTotal, currentPage, itemsPerPage]);
 
   const toggleSort = () => {
     setSortField('date');
@@ -952,15 +991,36 @@ export default function QuotationList() {
     return null;
   };
 
+  // Revision history is fetched on demand (list rows exclude the heavy JSON).
+  const openHistoryModal = async (q: any) => {
+    const { data } = await supabase
+      .from('quotation_header')
+      .select('id, quotation_no, revision_no, grand_total, revision_history')
+      .eq('id', q.id)
+      .single();
+    setSelectedHistoryQuotation({ ...q, ...(data || {}) });
+  };
+  const openCompareModal = async (q: any) => {
+    const { data } = await supabase
+      .from('quotation_header')
+      .select('id, quotation_no, revision_no, grand_total, revision_history')
+      .eq('id', q.id)
+      .single();
+    const history = (data as any)?.revision_history || [];
+    if (history.length === 0) {
+      alert('No revisions recorded for this quotation yet.');
+      return;
+    }
+    setSelectedCompareQuotation({ ...q, ...(data || {}) });
+  };
+
   const quoteRowMenuItems = (q: any) => {
     const items: any[] = [
       { label: 'View Details', icon: EyeIcon, onClick: () => navigate(`/quotation/view?id=${q.id}`) },
       { label: 'Download PDF', icon: DownloadIcon, onClick: () => downloadQuotationPDF(q.id) },
-      { label: `Revision History ${q.revision_history?.length ? `(${q.revision_history.length})` : ''}`, icon: RotateCcw, onClick: () => setSelectedHistoryQuotation(q) },
+      { label: 'Revision History', icon: RotateCcw, onClick: () => openHistoryModal(q) },
+      { label: 'Compare Revisions (Excel View)', icon: Table2, tone: 'blue', onClick: () => openCompareModal(q) },
     ];
-    if (q.revision_history?.length > 0) {
-      items.push({ label: 'Compare Revisions (Excel View)', icon: Table2, tone: 'blue', onClick: () => setSelectedCompareQuotation(q) });
-    }
     items.push(
       { label: 'Convert to Invoice', dividerBefore: true, onClick: () => navigate(`/invoices/create?convertFrom=quotation-to-invoice&sourceId=${q.id}`) },
       { label: 'Convert to Proforma', onClick: () => navigate(`/proforma-invoices/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`) },
