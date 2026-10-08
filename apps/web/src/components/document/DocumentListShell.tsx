@@ -55,6 +55,9 @@ interface DocumentListShellProps {
   actionsInHeader?: boolean;
   // Compact rows: 32px body rows. Opt-in; default density unchanged.
   rowDensity?: 'comfortable' | 'compact';
+  // Hide the selection checkbox column (and bulk bar). For lists with their
+  // own selection mode toggle. Default shows selection.
+  hideSelection?: boolean;
   // Extra filter controls rendered inline with the sub-tabs/status group.
   filterExtra?: React.ReactNode;
   columns: ShellColumn[];
@@ -94,7 +97,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
     search, onSearch, searchPlaceholder,
     subTabs, activeSubTab, onSubTab,
     statusOptions, statusFilter, onStatusFilter, statusLabel, statusFilterStyle,
-    onCreate, createLabel, createButton, headerExtra, actionsInHeader, rowDensity, filterExtra,
+    onCreate, createLabel, createButton, headerExtra, actionsInHeader, rowDensity, filterExtra, hideSelection,
     columns, visibleIds, onVisibleChange, columnStorageKey, showColumnCustomizer, columnCustomizer,
     rows, getRowId, selectedIds, onToggleSelect, onToggleSelectAll, onClearSelection,
     onRowClick, renderCell, eyeButton, rowActions, rowMenuItems,
@@ -135,7 +138,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
   const cellText = compactRows ? 'text-xs' : 'text-sm';
   const headText = compactRows ? 'text-xs' : 'text-[13px]';
   const allSelected = rows.length > 0 && rows.every((r, i) => selectedIds.has(getRowId(r, i)));
-  const showBulk = bulkBar && selectedIds.size >= (bulkBar.threshold ?? 2);
+  const showBulk = !hideSelection && bulkBar && selectedIds.size >= (bulkBar.threshold ?? 2);
 
   const toggleColumn = (id: string) => {
     const col = columns.find((c) => c.id === id);
@@ -387,6 +390,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
           <table className="w-full border-separate border-spacing-0">
             <thead className="z-10">
               <tr>
+                {!hideSelection && (
                 <th className={cn('sticky top-0 z-10 h-[36px] text-center align-middle bg-white border-b border-zinc-200', compactRows ? 'px-2 w-[36px]' : 'px-4 w-[50px]')}>
                   <input
                     type="checkbox"
@@ -395,6 +399,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
                     className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
                   />
                 </th>
+                )}
                 {visibleCols.map((col) => (
                   <th
                     key={col.id}
@@ -435,13 +440,13 @@ export function DocumentListShell(props: DocumentListShellProps) {
             <tbody className="bg-white">
               {loading ? (
                 <tr>
-                  <td colSpan={visibleCols.length + 3} className="px-5 py-16 text-center text-sm text-zinc-500">
+                  <td colSpan={visibleCols.length + (hideSelection ? 2 : 3)} className="px-5 py-16 text-center text-sm text-zinc-500">
                     {loadingText || 'Loading...'}
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleCols.length + 3} className="px-5 py-16 text-center text-sm text-zinc-500">
+                  <td colSpan={visibleCols.length + (hideSelection ? 2 : 3)} className="px-5 py-16 text-center text-sm text-zinc-500">
                     {emptyTitle || 'No records found'}
                     {emptyHint ? <div className="text-xs text-zinc-400 mt-1">{emptyHint}</div> : null}
                   </td>
@@ -479,6 +484,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
                           }
                         }}
                       >
+                        {!hideSelection && (
                         <td className={cn('align-middle text-center border-t border-zinc-200/70', compactRows ? 'px-2' : 'px-4', cellPy)}>
                           <input
                             type="checkbox"
@@ -491,6 +497,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
                             className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
                           />
                         </td>
+                        )}
                         {visibleCols.map((col) => (
                           <td
                             key={col.id}

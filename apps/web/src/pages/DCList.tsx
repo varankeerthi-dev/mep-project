@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import DOMPurify from 'dompurify';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../App';
 import { useOrganisationSettings } from '../hooks/useOrganisationSettings';
-import { motion, AnimatePresence } from 'framer-motion';
+import { DocumentListShell, type ShellColumn, type ShellMenuItem } from '../components/document/DocumentListShell';
 import { fetchDeliveryChallans, deleteDeliveryChallan, cancelDeliveryChallan } from '../api';
 import { supabase } from '../supabase';
 import { format } from 'date-fns';
 import { generateZohoTemplate } from './ZohoTemplate';
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useProjects } from '../hooks/useProjects';
 import { validateDCsSameClient } from '../conversions/api';
 import type { MultiDCQuotationMode } from '../conversions/types';
@@ -18,20 +18,12 @@ import {
   Eye as EyeIcon,
   FileText as PictureAsPdfIcon,
   Trash2 as Trash2Icon,
-  Filter as FilterListIcon,
   Edit as EditIcon,
   ArrowRightLeft as SwapHorizIcon,
   X as CloseIcon,
   FileText,
-  Search as SearchIcon,
-  MoreHorizontal as MoreHorizontalIcon,
-  ChevronDown as ChevronDownIcon,
   CheckSquare as CheckSquareIcon,
-  ArrowUpDown as ArrowUpDownIcon,
-  ArrowUp as ArrowUpIcon,
-  ArrowDown as ArrowDownIcon,
 } from 'lucide-react';
-import { cn } from '../lib/utils';
 import { formatDate, formatCurrency } from '../utils/formatters';
 
 const DC_STATUSES = ['All', 'Active', 'Not Sent', 'Quoted', 'Cancelled'];
@@ -69,20 +61,14 @@ export default function DCList() {
   const navigate = useNavigate();
   const { organisation } = useAuth();
   const queryClient = useQueryClient();
-  const menuRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const columnCustomizerRef = useRef<HTMLDivElement>(null);
-  
+
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [convertDC, setConvertDC] = useState<any | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showPrintMenu, setShowPrintMenu] = useState(false);
   const [printMenuDC, setPrintMenuDC] = useState<any | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [showColumnCustomizer, setShowColumnCustomizer] = useState(false);
-  
+
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem('dc_list_columns');
     return saved ? JSON.parse(saved) : ['date', 'dc_number', 'client', 'amount', 'status'];
@@ -92,8 +78,7 @@ export default function DCList() {
     () => Array.from(new Set([...MANDATORY_COLUMNS, ...visibleColumns])),
     [visibleColumns]
   );
-  const [tempVisibleColumns, setVisibleColumnsTemp] = useState<string[]>(visibleColumns);
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   // PRD merge §6.1: unified Type filter. Accepts ?type=billable|non-billable (legacy /nb-dc redirects).
@@ -118,59 +103,7 @@ export default function DCList() {
   const [showModeModal, setShowModeModal] = useState(false);
   const [multiDCError, setMultiDCError] = useState('');
 
-  useEffect(() => {
-    if (!openMenuId) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpenMenuId(null);
-      }
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpenMenuId(null);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [openMenuId]);
 
-  useEffect(() => {
-    if (!showStatusDropdown) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowStatusDropdown(false);
-      }
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowStatusDropdown(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [showStatusDropdown]);
-
-  useEffect(() => {
-    if (!showColumnCustomizer) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (columnCustomizerRef.current && !columnCustomizerRef.current.contains(event.target as Node)) {
-        setShowColumnCustomizer(false);
-      }
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowColumnCustomizer(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [showColumnCustomizer]);
 
   // Reset to first page when search or status/type filter changes
   useEffect(() => {
@@ -664,7 +597,6 @@ export default function DCList() {
     if (confirm(confirmMsg)) {
       try {
         await deleteMutation.mutateAsync(id);
-        setOpenMenuId(null);
       } catch (error: any) {
         console.error('Error deleting DC:', error);
         alert('Error deleting Delivery Challan: ' + (error?.message || error));
@@ -678,7 +610,6 @@ export default function DCList() {
     try {
       await cancelDeliveryChallan(id, reason || undefined);
       queryClient.invalidateQueries({ queryKey: ['deliveryChallans'] });
-      setOpenMenuId(null);
     } catch (error: any) {
       console.error('Error cancelling DC:', error);
       alert('Error cancelling Delivery Challan: ' + (error?.message || error));
@@ -798,643 +729,226 @@ export default function DCList() {
     return items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
   };
 
-  const getStatusClass = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'active': return 'bg-emerald-100 text-emerald-700 font-bold';
-      case 'quoted': return 'bg-blue-100 text-blue-700 font-bold';
-      case 'not sent': return 'bg-amber-100 text-amber-700 font-bold';
-      case 'cancelled': return 'bg-rose-100 text-rose-700 font-bold';
-      default: return 'bg-zinc-100 text-zinc-700 font-bold';
+  // ── Shared-shell adapters (single list standard) ──
+  const dcShellColumns: ShellColumn[] = ALL_COLUMNS.map(col => ({
+    id: col.id,
+    label: col.label,
+    width: col.width,
+    mandatory: MANDATORY_COLUMNS.includes(col.id),
+    // Project table rule: monetary columns stay left-aligned.
+    align: 'left' as const,
+  }));
+
+  const renderDCCell = (col: ShellColumn, dc: any) => {
+    if (col.id === 'date') return (
+      <span className="font-medium text-zinc-900 whitespace-nowrap">{formatDate(dc.dc_date)}</span>
+    );
+    if (col.id === 'dc_number') return (
+      <span className="font-medium text-zinc-900 whitespace-nowrap">{dc.dc_number}</span>
+    );
+    if (col.id === 'type') {
+      const nb = isNonBillableDc(dc);
+      return (
+        <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-full border ${
+          nb ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+        }`}>
+          {nb ? 'NB-DC' : 'DC'}
+        </span>
+      );
     }
+    if (col.id === 'project') return (
+      <div className="max-w-[180px] truncate" title={dc.project?.project_name || '-'}>
+        {dc.project?.project_name || '-'}
+      </div>
+    );
+    if (col.id === 'client') return (
+      <div className="max-w-[350px] truncate" title={dc.client_name || '-'}>
+        {dc.client_name || '-'}
+      </div>
+    );
+    if (col.id === 'amount') return (
+      <span className="font-semibold tabular-nums whitespace-nowrap">
+        {formatCurrency(calculateTotal(dc.items))}
+      </span>
+    );
+    if (col.id === 'status') return (
+      <span className="flex items-center gap-2">
+        <span className="text-sm font-medium" style={{ color: getStatusColor(dc.status).color }}>
+          {dc.status || 'Active'}
+        </span>
+        {dc.conversion_status === 'quoted' && (
+          <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+            Quoted
+          </span>
+        )}
+      </span>
+    );
+    return null;
   };
+
+  const dcRowMenuItems = (dc: any): ShellMenuItem[] => {
+    const nbConvertBlocked = isNonBillableDc(dc) && !allowNbConvert;
+    const items: ShellMenuItem[] = [
+      { label: 'View Details', icon: EyeIcon, onClick: () => navigate(`/dc/view/${dc.id}`) },
+      { label: 'Download PDF', icon: PictureAsPdfIcon, onClick: () => { setPrintMenuDC(dc); setShowPrintMenu(true); } },
+    ];
+    items.push({
+      label: nbConvertBlocked ? 'Convert to Quotation (off in Settings)' : 'Convert to Quotation',
+      icon: SwapHorizIcon,
+      onClick: () => {
+        if (nbConvertBlocked) return;
+        setConvertDC(dc);
+        setShowConvertModal(true);
+      },
+    });
+    items.push(
+      { label: 'Convert to Proforma', icon: SwapHorizIcon, onClick: () => navigate(`/proforma-invoices/create?convertFrom=dc-to-proforma&sourceId=${dc.id}`) },
+      { label: 'Convert to Invoice', icon: SwapHorizIcon, onClick: () => navigate(`/invoices/create?convertFrom=dc-to-invoice&sourceId=${dc.id}`) },
+    );
+    if (String(dc.status || '').toUpperCase() !== 'CANCELLED') {
+      items.push({ label: 'Cancel DC', icon: CloseIcon, tone: 'amber', onClick: () => handleCancelDC(dc.id, dc.dc_number) });
+    }
+    items.push(
+      { label: 'Edit', icon: EditIcon, onClick: () => navigate(`/dc/edit/${dc.id}`) },
+      { label: 'Delete', icon: Trash2Icon, danger: true, onClick: () => handleDelete(dc.id, dc.dc_number, dc.status) },
+    );
+    return items;
+  };
+
+  const renderDCBulkBar = (ids: Set<string>, clear: () => void) => (
+    <>
+      <button
+        onClick={selectAllVisible}
+        className="text-xs font-bold uppercase tracking-wider text-zinc-300 hover:text-white transition-colors px-3 py-2"
+      >
+        {ids.size === paginationData.currentItems.length ? 'Deselect All' : 'Select All Visible'}
+      </button>
+      {multiDCError && <span className="text-xs text-red-400 mr-2">{multiDCError}</span>}
+      <button
+        onClick={handleMultiDCConvert}
+        disabled={ids.size < 2 || (selectedHasNonBillable && !allowNbConvert)}
+        title={selectedHasNonBillable && !allowNbConvert ? 'Selection includes Non-Billable DC(s) — enable conversion in Settings → General & Config → Delivery Challan' : undefined}
+        className={`text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 transition-all active:scale-[0.98] ${
+          ids.size >= 2 && !(selectedHasNonBillable && !allowNbConvert)
+            ? 'bg-white text-zinc-900 hover:bg-zinc-100'
+            : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+        }`}
+      >
+        Convert to Quotation
+      </button>
+      <button
+        onClick={async () => { await handleBulkDelete(); clear(); }}
+        className="text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 transition-all active:scale-[0.98] bg-red-600 text-white hover:bg-red-500"
+      >
+        Delete Selected
+      </button>
+    </>
+  );
+
+  const dcTypeFilterNode = (
+    <div className="flex items-center gap-1 bg-zinc-100 rounded-md p-0.5">
+      {DC_TYPES.map((t) => (
+        <button
+          key={t}
+          onClick={() => {
+            setTypeFilter(t);
+            setSearchParams(t === 'All' ? {} : { type: t === 'Billable' ? 'billable' : 'non-billable' }, { replace: true });
+          }}
+          className={`h-[24px] px-3 text-xs font-medium rounded transition-colors ${
+            typeFilter === t ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
+          }`}
+        >
+          {t === 'Non-Billable' ? 'Non-Billable' : t}
+        </button>
+      ))}
+    </div>
+  );
+
+  const dcCreateButton = (
+    <button
+      onClick={() => navigate('/dc/create')}
+      className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
+      style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+    >
+      <PlusIcon className="w-4 h-4 mr-2" />
+      Create DC
+    </button>
+  );
+
+  const dcMultiToggle = (
+    <button
+      onClick={toggleMultiSelectMode}
+      className={`inline-flex items-center justify-center text-sm font-medium rounded-lg border transition-colors active:scale-[0.98] ${
+        multiSelectMode
+          ? 'text-white bg-indigo-600 hover:bg-indigo-700 border-indigo-600 animate-fade-in'
+          : 'text-zinc-700 bg-white border-zinc-200 hover:bg-zinc-100'
+      }`}
+      style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+    >
+      <CheckSquareIcon className="w-4 h-4 mr-2" />
+      {multiSelectMode ? 'Cancel Selection' : 'Multi-Select'}
+    </button>
+  );
 
   return (
     <div className="flex flex-col h-full bg-white animate-fade-in">
-      {/* Sticky Bulk Action Bar */}
-      <AnimatePresence>
-        {multiSelectMode && selectedDCIds.size > 0 && (
-          <motion.div
-            initial={{ y: -50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -50, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="sticky top-0 z-[120] w-full bg-zinc-900 text-white px-6 py-[12px] flex items-center justify-between shadow-2xl"
-          >
-            <div>
-              <h2 className="text-sm font-semibold">Bulk Actions</h2>
-              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">
-                {selectedDCIds.size} DC(s) Selected
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <button
-                onClick={selectAllVisible}
-                className="text-xs font-bold uppercase tracking-wider text-zinc-300 hover:text-white transition-colors px-3 py-2"
-              >
-                {selectedDCIds.size === paginationData.currentItems.length ? 'Deselect All' : 'Select All Visible'}
-              </button>
-              
-              {multiDCError && <span className="text-xs text-red-400 mr-2">{multiDCError}</span>}
-
-              <button
-                onClick={handleMultiDCConvert}
-                disabled={selectedDCIds.size < 2 || (selectedHasNonBillable && !allowNbConvert)}
-                title={selectedHasNonBillable && !allowNbConvert ? 'Selection includes Non-Billable DC(s) — enable conversion in Settings → General & Config → Delivery Challan' : undefined}
-                className={`text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 transition-all active:scale-[0.98] ${
-                  selectedDCIds.size >= 2 && !(selectedHasNonBillable && !allowNbConvert)
-                    ? 'bg-white text-zinc-900 hover:bg-zinc-100'
-                    : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                }`}
-              >
-                Convert to Quotation
-              </button>
-
-              <button
-                onClick={handleBulkDelete}
-                className="text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 transition-all active:scale-[0.98] bg-red-600 text-white hover:bg-red-500"
-              >
-                Delete Selected
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-base font-medium text-zinc-900">Delivery Challans</h1>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-              {paginationData.totalItems}
-            </span>
-          </div>
-          
-          <div className="h-4 w-px bg-zinc-200" />
-          
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mx-1">Active</span>
-              <span className="text-xs font-medium text-emerald-700 mx-1">{stats.active}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mx-1">Quoted</span>
-              <span className="text-xs font-medium text-blue-700 mx-1">{stats.quoted}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider mx-1">Cancelled</span>
-              <span className="text-xs font-medium text-rose-700 mx-1">{stats.cancelled}</span>
-            </div>
-          </div>
-          
-          <div className="h-4 w-px bg-zinc-200" />
-          
+      <DocumentListShell
+        title="Delivery Challans"
+        count={paginationData.totalItems}
+        stats={[
+          { label: 'Active', value: stats.active, labelClass: 'text-emerald-600', valueClass: 'text-emerald-700' },
+          { label: 'Quoted', value: stats.quoted, labelClass: 'text-blue-600', valueClass: 'text-blue-700' },
+          { label: 'Cancelled', value: stats.cancelled, labelClass: 'text-rose-600', valueClass: 'text-rose-700' },
+        ]}
+        totalValue={{ label: 'Total Value', value: formatCurrency(totalValue) }}
+        search={searchTerm}
+        onSearch={setSearchTerm}
+        searchPlaceholder="Search challans..."
+        statusOptions={DC_STATUSES}
+        statusFilter={statusFilter}
+        onStatusFilter={setStatusFilter}
+        sort={{ value: sortOrder, onToggle: toggleSort, columnId: 'date' }}
+        columns={dcShellColumns}
+        visibleIds={effectiveVisibleColumns}
+        onVisibleChange={(ids) => {
+          const merged = Array.from(new Set([...MANDATORY_COLUMNS, ...ids]));
+          setVisibleColumns(merged);
+          try { localStorage.setItem('dc_list_columns', JSON.stringify(merged)); } catch { /* ignore */ }
+        }}
+        columnStorageKey="dc_list_columns"
+        filterExtra={
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider mx-1">Total Value</span>
-            <span className="text-sm font-medium text-zinc-900 mx-1">{formatCurrency(totalValue)}</span>
+            {dcTypeFilterNode}
+            {dcMultiToggle}
           </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search challans..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Sub-tab & Filter Row */}
-      <div 
-        className="flex items-center justify-between px-6 border-b border-zinc-100 bg-zinc-50/50"
-        style={{ paddingTop: '15px', paddingBottom: '15px' }}
-      >
-        <div className="flex items-center gap-2">
-          {/* PRD merge §6.1: unified Type filter */}
-          <div className="flex items-center gap-1 bg-zinc-100 rounded-md p-0.5">
-            {DC_TYPES.map((t) => (
-              <button
-                key={t}
-                onClick={() => {
-                  setTypeFilter(t);
-                  setSearchParams(t === 'All' ? {} : { type: t === 'Billable' ? 'billable' : 'non-billable' }, { replace: true });
-                }}
-                className={`h-[24px] px-3 text-xs font-medium rounded transition-colors ${
-                  typeFilter === t ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
-                }`}
-              >
-                {t === 'Non-Billable' ? 'Non-Billable' : t}
-              </button>
-            ))}
-          </div>
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-              className="w-[150px] h-[26px] flex items-center justify-center gap-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
-            >
-              {statusFilter === 'All' ? 'All Statuses' : statusFilter}
-              <ChevronDownIcon className="w-4 h-4" />
-            </button>
-            {showStatusDropdown && (
-              <div className="absolute left-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-zinc-200 rounded-lg shadow-lg py-1">
-                {DC_STATUSES.map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => {
-                      setStatusFilter(status);
-                      setShowStatusDropdown(false);
-                    }}
-                    className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
-                      statusFilter === status
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'text-zinc-700 hover:bg-zinc-50'
-                    }`}
-                  >
-                    {status === 'All' ? 'All Statuses' : status}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-[10px]">
-          <button
-            onClick={() => navigate('/dc/create')}
-            className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
-            style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
-          >
-            <PlusIcon className="w-4 h-4 mr-2" />
-            Create DC
-          </button>
-          
-          <button
-            onClick={toggleMultiSelectMode}
-            className={`inline-flex items-center justify-center text-sm font-medium rounded-lg border transition-colors active:scale-[0.98] ${
-              multiSelectMode
-                ? 'text-white bg-indigo-600 hover:bg-indigo-700 border-indigo-600 animate-fade-in'
-                : 'text-zinc-700 bg-white border-zinc-200 hover:bg-zinc-100'
-            }`}
-            style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
-          >
-            <CheckSquareIcon className="w-4 h-4 mr-2" />
-            {multiSelectMode ? 'Cancel Selection' : 'Multi-Select'}
-          </button>
-
-          {/* Column Customizer */}
-          <div className="relative" ref={columnCustomizerRef}>
-            <button
-              onClick={() => setShowColumnCustomizer(!showColumnCustomizer)}
-              className="inline-flex items-center justify-center text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 transition-colors active:scale-[0.98]"
-              style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
-            >
-              Columns
-            </button>
-            {showColumnCustomizer && (
-              <div className="absolute right-0 top-full mt-2 z-[110] w-64 bg-white border border-zinc-200 rounded-xl shadow-2xl p-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="mb-4">
-                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Visible Columns</h3>
-                  <div className="space-y-[10px]">
-                    {ALL_COLUMNS.map((col) => {
-                      const isMandatory = MANDATORY_COLUMNS.includes(col.id);
-                      return (
-                        <label
-                          key={col.id}
-                          className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
-                            isMandatory ? 'opacity-50 cursor-not-allowed' : 'hover:bg-zinc-50 cursor-pointer'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={tempVisibleColumns.includes(col.id)}
-                            disabled={isMandatory}
-                            onChange={(e) => {
-                              if (isMandatory) return;
-                              if (e.target.checked) {
-                                setVisibleColumnsTemp([...tempVisibleColumns, col.id]);
-                              } else {
-                                setVisibleColumnsTemp(tempVisibleColumns.filter(id => id !== col.id));
-                              }
-                            }}
-                            className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          <span className="text-sm font-medium text-zinc-700">{col.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 pt-4 border-t border-zinc-100">
-                  <button
-                    onClick={() => {
-                      const merged = Array.from(new Set([...MANDATORY_COLUMNS, ...tempVisibleColumns]));
-                      setVisibleColumns(merged);
-                      localStorage.setItem('dc_list_columns', JSON.stringify(merged));
-                      setShowColumnCustomizer(false);
-                    }}
-                    className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-colors active:scale-[0.98]"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => {
-                      setVisibleColumnsTemp(visibleColumns);
-                      setShowColumnCustomizer(false);
-                    }}
-                    className="flex-1 px-3 py-1.5 bg-zinc-100 text-zinc-600 text-xs font-medium rounded-lg hover:bg-zinc-200 transition-colors active:scale-[0.98]"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="flex-1 overflow-auto">
-        <div className="min-w-full">
-          <table className="w-full border-separate border-spacing-0">
-            <thead className="z-10">
-              <tr>
-                {multiSelectMode && (
-                  <th className="sticky top-0 z-10 h-[36px] px-4 text-center align-middle w-[50px] bg-white border-b border-zinc-200">
-                    <input
-                      type="checkbox"
-                      checked={selectedDCIds.size === paginationData.currentItems.length && paginationData.currentItems.length > 0}
-                      onChange={selectAllVisible}
-                      className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                  </th>
-                )}
-                {ALL_COLUMNS.filter(col => effectiveVisibleColumns.includes(col.id)).map(col => (
-                  <th 
-                    key={col.id}
-                    style={{ width: col.width }}
-                    className={`sticky top-0 z-10 h-[36px] px-6 pl-1 align-middle text-[13px] font-semibold text-zinc-700 tracking-tight bg-white border-b border-zinc-200 ${
-                      col.id === 'amount' ? 'text-right' : 'text-left'
-                    }`}
-                  >
-                    {col.id === 'date' ? (
-                      <button 
-                        onClick={toggleSort}
-                        className="flex items-center gap-2 hover:text-zinc-900 transition-colors group"
-                      >
-                        {col.label}
-                        <div className="flex flex-col">
-                          {!sortOrder && <ArrowUpDownIcon className="w-3 h-3 text-zinc-300 group-hover:text-zinc-400" />}
-                          {sortOrder === 'asc' && <ArrowUpIcon className="w-3 h-3 text-indigo-600" />}
-                          {sortOrder === 'desc' && <ArrowDownIcon className="w-3 h-3 text-indigo-600" />}
-                        </div>
-                      </button>
-                    ) : col.label}
-                  </th>
-                ))}
-                <th className="sticky top-0 z-10 h-[36px] px-6 pl-1 text-center align-middle text-[13px] font-semibold text-zinc-700 tracking-tight w-[70px] bg-white border-b border-zinc-200">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white">
-              {loading ? (
-                <tr>
-                  <td colSpan={effectiveVisibleColumns.length + (multiSelectMode ? 2 : 1)} className="px-5 py-16 text-center text-sm text-zinc-500">
-                    Loading delivery challans...
-                  </td>
-                </tr>
-              ) : paginationData.currentItems.length === 0 ? (
-                <tr>
-                  <td colSpan={effectiveVisibleColumns.length + (multiSelectMode ? 2 : 1)} className="px-5 py-16 text-center text-sm text-zinc-500">
-                    No delivery challans found
-                  </td>
-                </tr>
-              ) : (
-                <AnimatePresence mode="popLayout">
-                  {paginationData.currentItems.map((dc: any, index) => (
-                    <motion.tr
-                      key={dc.id}
-                      layout
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ 
-                        type: "spring", 
-                        stiffness: 400, 
-                        damping: 30,
-                        opacity: { duration: 0.2 }
-                      }}
-                      className={`cursor-pointer transition-all duration-200 border-l-2 border-transparent hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm group relative ${
-                        openMenuId === dc.id ? 'z-50' : 'z-0'
-                      } ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'
-                      } ${selectedDCIds.has(dc.id) ? 'bg-indigo-50/50 border-l-blue-600' : ''}`}
-                      onClick={() => {
-                        if (multiSelectMode) {
-                          toggleDCSelection(dc.id);
-                        } else {
-                          navigate(`/dc/view/${dc.id}`);
-                        }
-                      }}
-                    >
-                      {multiSelectMode && (
-                        <td className="px-4 py-[26px] align-middle text-center border-t border-zinc-200/70">
-                          <input
-                            type="checkbox"
-                            checked={selectedDCIds.has(dc.id)}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              toggleDCSelection(dc.id);
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
-                          />
-                        </td>
-                      )}
-                      
-                      {ALL_COLUMNS.filter(col => effectiveVisibleColumns.includes(col.id)).map(col => {
-                        if (col.id === 'date') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
-                            {formatDate(dc.dc_date)}
-                          </td>
-                        );
-                        if (col.id === 'dc_number') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap border-t border-zinc-200/70">
-                            {dc.dc_number}
-                          </td>
-                        );
-                        // PRD merge §6.1: Type badge — DC (indigo) vs NB-DC (amber).
-                        if (col.id === 'type') {
-                          const nb = isNonBillableDc(dc);
-                          return (
-                            <td key={col.id} className="px-6 py-[26px] align-middle whitespace-nowrap border-t border-zinc-200/70">
-                              <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-full border ${
-                                nb ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-indigo-100 text-indigo-700 border-indigo-200'
-                              }`}>
-                                {nb ? 'NB-DC' : 'DC'}
-                              </span>
-                            </td>
-                          );
-                        }
-                        if (col.id === 'project') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
-                            <div className="max-w-[180px] truncate" title={dc.project?.project_name || '-'}>
-                              {dc.project?.project_name || '-'}
-                            </div>
-                          </td>
-                        );
-                        if (col.id === 'client') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm text-zinc-800 border-t border-zinc-200/70">
-                            <div className="max-w-[350px] truncate" title={dc.client_name || '-'}>
-                              {dc.client_name || '-'}
-                            </div>
-                          </td>
-                        );
-                        if (col.id === 'amount') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-sm font-medium text-zinc-900 whitespace-nowrap tabular-nums border-t border-zinc-200/70">
-                            <div className="text-right font-semibold">
-                              {formatCurrency(calculateTotal(dc.items))}
-                            </div>
-                          </td>
-                        );
-                        if (col.id === 'status') return (
-                          <td key={col.id} className="px-6 py-[26px] align-middle text-left whitespace-nowrap border-t border-zinc-200/70">
-                            <div className="flex items-center gap-2">
-                              <span 
-                                className="text-sm font-medium"
-                                style={{ color: getStatusColor(dc.status).color }}
-                              >
-                                {dc.status || 'Active'}
-                              </span>
-                              {dc.conversion_status === 'quoted' && (
-                                <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700 border border-blue-200">
-                                  Quoted
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        );
-                        return null;
-                      })}
-
-                      <td className="px-5 pl-1 py-[26px] align-middle text-center border-t border-zinc-200/70">
-                        <div className="relative inline-block" ref={openMenuId === dc.id ? menuRef : null}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenMenuId(openMenuId === dc.id ? null : dc.id);
-                            }}
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors active:scale-[0.98]"
-                          >
-                            <MoreHorizontalIcon className="w-4 h-4 text-zinc-500" />
-                          </button>
-                          {openMenuId === dc.id && (
-                            <div 
-                              className={`absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${
-                                index >= paginationData.currentItems.length - 3 && index > 3 ? 'bottom-full mb-1' : 'top-full mt-1'
-                              }`}
-                            >
-                              {/* Section 1: Read actions */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuId(null);
-                                  navigate(`/dc/view/${dc.id}`);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                                style={{ padding: '6px' }}
-                              >
-                                <EyeIcon className="w-3.5 h-3.5" />
-                                View Details
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPrintMenuDC(dc);
-                                  setShowPrintMenu(true);
-                                  setOpenMenuId(null);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                                style={{ padding: '6px' }}
-                              >
-                                <PictureAsPdfIcon className="w-3.5 h-3.5" />
-                                Download PDF
-                              </button>
-
-                              <div className="my-1 border-t border-zinc-100" />
-
-                              {/* Section 2: Convert actions */}
-                              {/* PRD §6.4: NB rows convert only when the settings toggle is ON. */}
-                              <button
-                                disabled={isNonBillableDc(dc) && !allowNbConvert}
-                                title={isNonBillableDc(dc) && !allowNbConvert ? 'Disabled in Settings → General & Config → Delivery Challan' : undefined}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (isNonBillableDc(dc) && !allowNbConvert) return;
-                                  setConvertDC(dc);
-                                  setShowConvertModal(true);
-                                  setOpenMenuId(null);
-                                }}
-                                className={`flex w-full items-center gap-2 rounded-md px-2 text-[12px] transition-all active:scale-[0.98] ${
-                                  isNonBillableDc(dc) && !allowNbConvert
-                                    ? 'text-zinc-300 cursor-not-allowed'
-                                    : 'text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700'
-                                }`}
-                                style={{ padding: '6px' }}
-                              >
-                                <SwapHorizIcon className="w-3.5 h-3.5" />
-                                Convert to Quotation
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuId(null);
-                                  navigate(`/proforma-invoices/create?convertFrom=dc-to-proforma&sourceId=${dc.id}`);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                                style={{ padding: '6px' }}
-                              >
-                                <SwapHorizIcon className="w-3.5 h-3.5" />
-                                Convert to Proforma
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuId(null);
-                                  navigate(`/invoices/create?convertFrom=dc-to-invoice&sourceId=${dc.id}`);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-emerald-50 hover:text-emerald-700 active:scale-[0.98]"
-                                style={{ padding: '6px' }}
-                              >
-                                <SwapHorizIcon className="w-3.5 h-3.5" />
-                                Convert to Invoice
-                              </button>
-
-                              <div className="my-1 border-t border-zinc-100" />
-
-                              {/* Section 3: Modify actions */}
-                              {String(dc.status || '').toUpperCase() !== 'CANCELLED' && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleCancelDC(dc.id, dc.dc_number);
-                                  }}
-                                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-amber-600 transition-all hover:bg-amber-50 hover:text-amber-700 active:scale-[0.98]"
-                                  style={{ padding: '6px' }}
-                                >
-                                  <CloseIcon className="w-3.5 h-3.5" />
-                                  Cancel DC
-                                </button>
-                              )}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuId(null);
-                                  navigate(`/dc/edit/${dc.id}`);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                                style={{ padding: '6px' }}
-                              >
-                                <EditIcon className="w-3.5 h-3.5" />
-                                Edit
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuId(null);
-                                  handleDelete(dc.id, dc.dc_number, dc.status);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600 active:scale-[0.98]"
-                                style={{ padding: '6px' }}
-                              >
-                                <Trash2Icon className="w-3.5 h-3.5" />
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </AnimatePresence>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      {/* Pagination Controls */}
-      {paginationData.totalPages > 1 && (
-        <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
-          <div className="text-sm font-medium text-zinc-600">
-            Showing {paginationData.startIndex + 1} to {Math.min(paginationData.endIndex, paginationData.totalItems)} of {paginationData.totalItems} delivery challans
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Previous Button */}
-            <button
-              onClick={() => setCurrentPage(currentPage - 1)}
-              disabled={!paginationData.hasPrevPage}
-              className={`h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors ${
-                paginationData.hasPrevPage
-                  ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
-                  : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
-              }`}
-            >
-              Previous
-            </button>
-            
-            {/* Page Numbers */}
-            <div className="flex items-center gap-1.5">
-              {Array.from({ length: Math.min(5, paginationData.totalPages) }, (_, i) => {
-                let pageNum;
-                if (paginationData.totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= paginationData.totalPages - 2) {
-                  pageNum = paginationData.totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`h-[32px] min-w-[32px] px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                      currentPage === pageNum
-                        ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm'
-                        : 'text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-            
-            {/* Next Button */}
-            <button
-              onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={!paginationData.hasNextPage}
-              className={`h-[32px] min-w-[80px] text-sm font-medium rounded-md transition-colors ${
-                paginationData.hasNextPage
-                  ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
-                  : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
-              }`}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
-
+        }
+        createButton={dcCreateButton}
+        hideSelection={!multiSelectMode}
+        rowDensity="compact"
+        rows={paginationData.currentItems}
+        getRowId={(dc) => dc.id}
+        selectedIds={selectedDCIds}
+        onToggleSelect={toggleDCSelection}
+        onToggleSelectAll={selectAllVisible}
+        onClearSelection={() => setSelectedDCIds(new Set())}
+        onRowClick={(dc) => {
+          if (multiSelectMode) toggleDCSelection(dc.id);
+          else navigate(`/dc/view/${dc.id}`);
+        }}
+        renderCell={renderDCCell}
+        eyeButton={(dc) => ({ onPreview: () => handlePreview(dc), loading: false })}
+        rowMenuItems={dcRowMenuItems}
+        bulkBar={{ threshold: 1, render: renderDCBulkBar }}
+        pagination={{
+          page: currentPage,
+          totalPages: paginationData.totalPages,
+          onPage: setCurrentPage,
+          totalItems: paginationData.totalItems,
+        }}
+        loading={loading}
+        loadingText="Loading delivery challans..."
+        emptyTitle="No delivery challans found"
+      />
       {/* Convert Modal */}
       {showConvertModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-sm">
