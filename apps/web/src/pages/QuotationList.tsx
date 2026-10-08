@@ -510,6 +510,25 @@ export default function QuotationList() {
   });
   const invoicedIds: Set<string> = invoicedQuery.data || new Set();
 
+  // Quotation ids the follow-up pipeline closed as lost-to-competitor
+  // (header shows these as Rejected; this badge preserves the reason).
+  const lostQuery = useQuery({
+    queryKey: ['lostQuotationIds', organisation?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('follow_up_quotation_tracking')
+        .select('quotation_id')
+        .eq('organisation_id', organisation?.id)
+        .eq('follow_up_status', 'lost_to_competitor');
+      if (error) throw error;
+      return new Set((data || []).map((r: any) => r.quotation_id));
+    },
+    enabled: !!organisation?.id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+  const lostIds: Set<string> = lostQuery.data || new Set();
+
   const creatorOptions = useMemo(() => {
     const names = new Set<string>();
     quotations.forEach((qt: any) => {
@@ -867,6 +886,14 @@ export default function QuotationList() {
             className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 border border-sky-200 w-fit"
           >
             Invoiced
+          </span>
+        )}
+        {lostIds.has(q.id) && (
+          <span
+            title="Follow-up closed this quotation as lost to a competitor"
+            className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 w-fit"
+          >
+            Lost
           </span>
         )}
         {q.approval_status && q.approval_status !== 'none' && (
