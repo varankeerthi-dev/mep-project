@@ -12,7 +12,7 @@ import { duplicateQuotation } from '../api';
 import { DocumentListShell, type ShellColumn } from '../components/document/DocumentListShell';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Calendar } from '../components/ui/Calendar';
-import { Filter as FilterIcon, X as ClearIcon } from 'lucide-react';
+import { Filter as FilterIcon, X as ClearIcon, User as UserIcon } from 'lucide-react';
 import {
 
   Download as DownloadIcon,
@@ -158,7 +158,7 @@ export default function QuotationList() {
   // Reset to first page when search, status or date filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, fromDate, toDate]);
+  }, [searchTerm, statusFilter, fromDate, toDate, createdByFilter]);
 
   const generateSinglePdfUint8Array = async (quotationId: string): Promise<Uint8Array | null> => {
     if (!organisation) return null;
@@ -508,6 +508,16 @@ export default function QuotationList() {
   });
   const invoicedIds: Set<string> = invoicedQuery.data || new Set();
 
+  const [createdByFilter, setCreatedByFilter] = useState('All');
+  const creatorOptions = useMemo(() => {
+    const names = new Set<string>();
+    quotations.forEach((qt: any) => {
+      const n = qt.creator?.full_name || qt.prepared_by;
+      if (n) names.add(n);
+    });
+    return ['All', ...Array.from(names).sort()];
+  }, [quotations]);
+
   const filteredQuotations = useMemo(() => {
     const q = searchTerm.toLowerCase();
     const fromStr = fromDate ? fromDate.toISOString().slice(0, 10) : null;
@@ -518,6 +528,7 @@ export default function QuotationList() {
       const d = String(qt.date || '').slice(0, 10);
       if (fromStr && d < fromStr) return false;
       if (toStr && d > toStr) return false;
+      if (createdByFilter !== 'All' && (qt.creator?.full_name || qt.prepared_by) !== createdByFilter) return false;
       return true;
     });
 
@@ -530,7 +541,7 @@ export default function QuotationList() {
     }
 
     return items;
-  }, [quotations, searchTerm, sortOrder, fromDate, toDate]);
+  }, [quotations, searchTerm, sortOrder, fromDate, toDate, createdByFilter]);
 
   const fmtShort = (d: Date | undefined) => (d ? formatDateTable(d) : '');
 
@@ -564,8 +575,40 @@ export default function QuotationList() {
     ? `Dates: ${fromDate ? fmtShort(fromDate) : '…'} → ${toDate ? fmtShort(toDate) : '…'}`
     : 'Filter by date';
 
+  const [createdByOpen, setCreatedByOpen] = useState(false);
+
   const dateFilterExtra = (
     <div className="flex items-center gap-2">
+      <Popover open={createdByOpen} onOpenChange={setCreatedByOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            title={createdByFilter === 'All' ? 'Filter by creator' : `Created by ${createdByFilter}`}
+            className={`relative h-[26px] px-2 flex items-center gap-1.5 rounded-md text-sm font-medium transition-colors ${
+              createdByFilter !== 'All' ? 'text-blue-600 bg-blue-50' : 'text-zinc-600 hover:bg-zinc-100'
+            }`}
+          >
+            <UserIcon className="w-4 h-4" />
+            <span className="max-w-[110px] truncate">{createdByFilter === 'All' ? 'Creator' : createdByFilter}</span>
+            {(createdByFilter !== 'All') && <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-48 p-1" align="start">
+          {creatorOptions.map(name => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => { setCreatedByFilter(name); setCreatedByOpen(false); }}
+              className={`flex w-full items-center justify-between rounded px-2 py-1 text-xs transition-colors ${
+                createdByFilter === name ? 'bg-indigo-50 text-indigo-700' : 'text-zinc-700 hover:bg-zinc-50'
+              }`}
+            >
+              <span className="truncate">{name === 'All' ? 'All creators' : name}</span>
+              {createdByFilter === name && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />}
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
       <Popover onOpenChange={(open) => { if (!open) setCustomOpen(false); }}>
         <PopoverTrigger asChild>
           <button
