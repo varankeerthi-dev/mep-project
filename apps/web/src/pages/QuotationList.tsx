@@ -371,6 +371,24 @@ export default function QuotationList() {
   const quotations = quotationsQuery.data || [];
   const loading = quotationsQuery.isPending && !quotationsQuery.data;
 
+  // Quotation ids that have at least one invoice linked (dedicated Invoiced badge).
+  const invoicedQuery = useQuery({
+    queryKey: ['invoicedQuotationIds', organisation?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('quotation_id')
+        .eq('organisation_id', organisation?.id)
+        .not('quotation_id', 'is', null);
+      if (error) throw error;
+      return new Set((data || []).map((r: any) => r.quotation_id));
+    },
+    enabled: !!organisation?.id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+  const invoicedIds: Set<string> = invoicedQuery.data || new Set();
+
   const filteredQuotations = useMemo(() => {
     const q = searchTerm.toLowerCase();
     const fromStr = fromDate ? fromDate.toISOString().slice(0, 10) : null;
@@ -546,6 +564,14 @@ export default function QuotationList() {
         >
           {displayStatus(q)}
         </span>
+        {invoicedIds.has(q.id) && (
+          <span
+            title="At least one invoice is linked to this quotation"
+            className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 border border-sky-200 w-fit"
+          >
+            Invoiced
+          </span>
+        )}
         {q.approval_status && q.approval_status !== 'none' && (
           <div className="flex items-center gap-1.5">
             <span
