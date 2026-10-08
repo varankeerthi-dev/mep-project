@@ -9,8 +9,6 @@ import { supabase } from '../supabase';
 import { format } from 'date-fns';
 import { generateZohoTemplate } from './ZohoTemplate';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useProjects } from '../hooks/useProjects';
-import { validateDCsSameClient } from '../conversions/api';
 import type { MultiDCQuotationMode } from '../conversions/types';
 import {
   Truck as LocalShippingIcon,
@@ -133,8 +131,6 @@ export default function DCList() {
     gcTime: 10 * 60 * 1000,
   });
 
-  const projectsQuery = useProjects();
-
   const templatesQuery = useQuery({
     queryKey: ['documentTemplates', 'Delivery Challan'],
     queryFn: async () => {
@@ -216,7 +212,6 @@ export default function DCList() {
     }, 0);
   }, [filteredChallans]);
 
-  const projects = projectsQuery.data || [];
   const templates = templatesQuery.data || [];
 
   const loadDCWithItems = async (dcId: string) => {
