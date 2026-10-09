@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, X, ChevronLeft, ChevronRight, Eye, Pencil, Trash2, FileText, Loader2, Download, XCircle } from 'lucide-react';
+import { Plus, X, Eye, Pencil, Trash2, FileText, Loader2, Download, XCircle } from 'lucide-react';
 import { useCreditNotes, useDeleteCreditNote } from '../../credit-notes/hooks';
 import { CNStatusBadge } from '../../credit-notes/components/StatusBadge';
 import { formatCurrency, formatDate } from '../../credit-notes/ui-utils';
@@ -9,57 +9,9 @@ import type { CreditNote } from '../../credit-notes/types';
 import { useAuth } from '../../App';
 import { generateProGridAdjustmentNotePdf } from '../../pdf/proGridAdjustmentNotePdf';
 import { Button } from '@/components/ui/button';
+import { DocumentListShell, type ShellColumn, type ShellMenuItem } from '../../components/document/DocumentListShell';
 
 const PAGE_SIZE = 25;
-
-const styles = `
-  .cnl-page { padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
-  .cnl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-  .cnl-title { font-size: 22px; font-weight: 700; color: #171717; margin: 0; }
-  .cnl-btn-primary { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: none; border-radius: 6px; background: #2563eb; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
-  .cnl-btn-primary:hover { background: #1d4ed8; }
-  .cnl-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-  .cnl-search-box { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid #d4d4d4; border-radius: 6px; background: #fff; min-width: 240px; }
-  .cnl-search-box input { border: none; outline: none; font-size: 13px; width: 100%; background: transparent; }
-  .cnl-filter-select { padding: 6px 12px; border: 1px solid #d4d4d4; border-radius: 6px; font-size: 13px; background: #fff; cursor: pointer; }
-  .cnl-date-input { padding: 6px 12px; border: 1px solid #d4d4d4; border-radius: 6px; font-size: 13px; background: #fff; }
-  .cnl-btn-reset { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid #d4d4d4; border-radius: 6px; background: #fff; font-size: 12px; color: #525252; cursor: pointer; }
-  .cnl-btn-reset:hover { background: #f5f5f5; }
-  .cnl-table-card { border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; background: #fff; }
-  .cnl-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .cnl-table thead { background: #fafafa; }
-  .cnl-table th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: #737373; border-bottom: 2px solid #e5e5e5; white-space: nowrap; }
-  .cnl-table td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; color: #404040; }
-  .cnl-table tbody tr { cursor: pointer; transition: background 0.1s; }
-  .cnl-table tbody tr:hover { background: #f9fafb; }
-  .cnl-actions-cell { display: flex; align-items: center; gap: 4px; }
-  .cnl-action-btn { display: inline-flex; align-items: center; justify-content: center; padding: 4px; border: none; border-radius: 4px; background: transparent; cursor: pointer; color: #737373; }
-  .cnl-action-btn:hover { background: #f3f4f6; color: #171717; }
-  .cnl-action-btn.delete:hover { background: #fef2f2; color: #dc2626; }
-  .cnl-pagination { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-top: 1px solid #e5e5e5; background: #fafafa; }
-  .cnl-pagination-info { font-size: 12px; color: #737373; }
-  .cnl-pagination-buttons { display: flex; align-items: center; gap: 4px; }
-  .cnl-page-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid #d4d4d4; border-radius: 6px; background: #fff; font-size: 12px; color: #525252; cursor: pointer; }
-  .cnl-page-btn:hover { background: #f5f5f5; }
-  .cnl-page-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; }
-  .cnl-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .cnl-empty { text-align: center; padding: 48px 24px; color: #a3a3a3; }
-  .cnl-empty-icon { margin: 0 auto 12px; opacity: 0.4; }
-  .cnl-empty-text { font-size: 14px; margin-bottom: 4px; color: #737373; }
-  .cnl-empty-sub { font-size: 12px; }
-  .cnl-loading { text-align: center; padding: 48px; color: #a3a3a3; font-size: 14px; }
-`;
-
-let stylesInjected = false;
-function injectStyles() {
-  if (typeof document !== 'undefined' && !stylesInjected) {
-    const el = document.createElement('style');
-    el.id = 'cnl-styles';
-    el.textContent = styles;
-    document.head.appendChild(el);
-    stylesInjected = true;
-  }
-}
 
 export function CreditNoteListPage() {
   const { organisation } = useAuth();
@@ -77,8 +29,6 @@ export function CreditNoteListPage() {
   const [previewCN, setPreviewCN] = useState<CreditNote | null>(null);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-
-  useEffect(() => { injectStyles(); }, []);
 
   const handlePreview = useCallback(async (cn: CreditNote) => {
     setPreviewCN(cn);
@@ -185,26 +135,92 @@ export function CreditNoteListPage() {
     navigate(`/credit-notes/view?id=${id}`);
   };
 
-  const pageNumbers: (number | '...')[] = [];
-  if (totalPages <= 7) {
-    for (let i = 1; i <= totalPages; i++) pageNumbers.push(i);
-  } else {
-    pageNumbers.push(1);
-    if (currentPage > 3) pageNumbers.push('...');
-    const start = Math.max(2, currentPage - 1);
-    const end = Math.min(totalPages - 1, currentPage + 1);
-    for (let i = start; i <= end; i++) pageNumbers.push(i);
-    if (currentPage < totalPages - 2) pageNumbers.push('...');
-    pageNumbers.push(totalPages);
-  }
+  // ── Shared-shell adapters (single list standard) ──
+  const cnShellColumns: ShellColumn[] = [
+    { id: 'cn_number', label: 'CN Number', width: '140px', mandatory: true },
+    { id: 'date', label: 'Date', width: '120px', mandatory: true },
+    { id: 'client', label: 'Client', width: '260px', mandatory: true },
+    { id: 'type', label: 'Type', width: '150px' },
+    { id: 'taxable', label: 'Taxable Amount', width: '130px', align: 'left' },
+    { id: 'tax', label: 'Tax', width: '110px', align: 'left' },
+    { id: 'total', label: 'Total', width: '130px', align: 'left' },
+    { id: 'status', label: 'Status', width: '120px' },
+  ];
+
+  const renderCNCell = (col: ShellColumn, cn: any) => {
+    if (col.id === 'cn_number') return <span className="font-semibold text-zinc-900 whitespace-nowrap">{cn.cn_number}</span>;
+    if (col.id === 'date') return <span className="font-medium text-zinc-900 whitespace-nowrap">{formatDate(cn.cn_date)}</span>;
+    if (col.id === 'client') return <div className="max-w-[220px] truncate" title={cn.client?.name ?? '-'}>{cn.client?.name ?? '—'}</div>;
+    if (col.id === 'type') return <span>{CN_TYPE_LABELS[cn.cn_type as keyof typeof CN_TYPE_LABELS] ?? cn.cn_type}</span>;
+    if (col.id === 'taxable') return <span className="tabular-nums whitespace-nowrap">{formatCurrency(cn.taxable_amount)}</span>;
+    if (col.id === 'tax') {
+      const taxAmount = cn.cgst_amount + cn.sgst_amount + cn.igst_amount;
+      return <span className="tabular-nums whitespace-nowrap">{formatCurrency(taxAmount)}</span>;
+    }
+    if (col.id === 'total') return <span className="font-semibold tabular-nums whitespace-nowrap">{formatCurrency(cn.total_amount)}</span>;
+    if (col.id === 'status') return <CNStatusBadge status={cn.approval_status} />;
+    return null;
+  };
+
+  const cnRowMenuItems = (cn: any): ShellMenuItem[] => [
+    { label: 'Preview', icon: Eye, onClick: () => handlePreview(cn as CreditNote) },
+    { label: 'Edit', icon: Pencil, onClick: () => navigate(`/credit-notes/edit?id=${cn.id}`) },
+    { label: 'Delete', icon: Trash2, danger: true, onClick: () => setDeleteConfirmId(cn.id) },
+  ];
+
+  const cnFilterExtra = (
+    <div className="flex items-center gap-2">
+      <select
+        value={typeFilter}
+        onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}
+        className="h-[26px] text-sm font-medium text-zinc-600 border border-zinc-200 rounded-md px-2 bg-white hover:bg-zinc-50 focus:outline-none"
+      >
+        <option value="All">All Types</option>
+        {Object.entries(CN_TYPE_LABELS).map(([key, label]) => (
+          <option key={key} value={key}>{label as string}</option>
+        ))}
+      </select>
+      <input
+        type="date"
+        value={dateFrom}
+        onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
+        className="h-[26px] text-sm text-zinc-600 border border-zinc-200 rounded-md px-2 bg-white focus:outline-none"
+      />
+      <input
+        type="date"
+        value={dateTo}
+        onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
+        className="h-[26px] text-sm text-zinc-600 border border-zinc-200 rounded-md px-2 bg-white focus:outline-none"
+      />
+      {hasActiveFilters && (
+        <button
+          type="button"
+          onClick={resetFilters}
+          className="h-[26px] px-2 inline-flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 rounded-md transition-colors"
+        >
+          <X size={14} /> Reset
+        </button>
+      )}
+    </div>
+  );
+
+  const cnCreateButton = (
+    <button
+      onClick={() => navigate('/credit-notes/create')}
+      className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
+      style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+    >
+      <Plus size={16} /> New Credit Note
+    </button>
+  );
 
   if (isLoading) {
-    return <div className="cnl-loading">Loading credit notes...</div>;
+    return <div className="text-center p-12 text-zinc-400 text-sm">Loading credit notes...</div>;
   }
 
   if (error) {
     return (
-      <div className="cnl-page">
+      <div className="flex flex-col h-full bg-white">
         <div style={{ textAlign: 'center', padding: '48px', color: '#dc2626' }}>
           Error loading credit notes: {(error as Error).message}
           <Button variant="default" size="sm" onClick={() => refetch()} style={{ marginLeft: '12px', padding: '6px 12px' }}>Retry</Button>
@@ -214,150 +230,43 @@ export function CreditNoteListPage() {
   }
 
   return (
-    <div className="cnl-page">
-      <div className="cnl-header">
-        <h1 className="cnl-title">Credit Notes</h1>
-        <Button variant="default" size="sm" onClick={() => navigate('/credit-notes/create')}>
-          <Plus size={16} />
-          New Credit Note
-        </Button>
-      </div>
-
-      <div className="cnl-toolbar">
-        <div className="cnl-search-box">
-          <Search size={16} style={{ color: '#a3a3a3', flexShrink: 0 }} />
-          <input
-            type="text"
-            placeholder="Search by CN#, client, reason..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-          />
-          {search && (
-            <Button variant="default" size="sm" onClick={() => { setSearch(''); setCurrentPage(1); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#a3a3a3' }}>
-              <X size={14} />
-            </Button>
-          )}
-        </div>
-
-        <select className="cnl-filter-select" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}>
-          <option value="All">All Status</option>
-          <option value="Pending">Pending</option>
-          <option value="Approved">Approved</option>
-          <option value="Rejected">Rejected</option>
-        </select>
-
-        <select className="cnl-filter-select" value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}>
-          <option value="All">All Types</option>
-          {Object.entries(CN_TYPE_LABELS).map(([key, label]) => (
-            <option key={key} value={key}>{label}</option>
-          ))}
-        </select>
-
-        <input className="cnl-date-input" type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }} />
-        <input className="cnl-date-input" type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }} />
-
-        {hasActiveFilters && (
-          <Button variant="default" size="sm" onClick={resetFilters}>
-            <X size={12} />
-            Reset
-          </Button>
-        )}
-      </div>
-
-      <div className="cnl-table-card">
-        {paginatedData.length === 0 ? (
-          <div className="cnl-empty">
-            <div className="cnl-empty-icon">
-              <FileText size={48} />
-            </div>
-            <div className="cnl-empty-text">
-              {creditNotes.length === 0 ? 'No credit notes yet' : 'No matching credit notes'}
-            </div>
-            <div className="cnl-empty-sub">
-              {creditNotes.length === 0 ? 'Click "New Credit Note" to create one' : 'Try adjusting your filters'}
-            </div>
-          </div>
-        ) : (
-          <>
-            <table className="cnl-table">
-              <thead>
-                <tr>
-                  <th>CN Number</th>
-                  <th>Date</th>
-                  <th>Client</th>
-                  <th>Type</th>
-                  <th>Taxable Amount</th>
-                  <th>Tax</th>
-                  <th>Total</th>
-                  <th>Status</th>
-                  <th style={{ width: '100px' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedData.map((cn) => {
-                  const taxAmount = cn.cgst_amount + cn.sgst_amount + cn.igst_amount;
-                  return (
-                    <tr key={cn.id} onClick={() => handleRowClick(cn.id)}>
-                      <td style={{ fontWeight: 600, color: '#171717' }}>{cn.cn_number}</td>
-                      <td>{formatDate(cn.cn_date)}</td>
-                      <td>{cn.client?.name ?? '—'}</td>
-                      <td>{CN_TYPE_LABELS[cn.cn_type as keyof typeof CN_TYPE_LABELS] ?? cn.cn_type}</td>
-                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(cn.taxable_amount)}</td>
-                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#737373' }}>{formatCurrency(taxAmount)}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(cn.total_amount)}</td>
-                      <td><CNStatusBadge status={cn.approval_status} /></td>
-                      <td>
-                        <div className="cnl-actions-cell" onClick={(e) => { e.stopPropagation(); }}>
-                          <Button variant="default" size="icon-xs" title="Preview" onClick={(e) => { e.stopPropagation(); handlePreview(cn as CreditNote); }}>
-                            <Eye size={15} />
-                          </Button>
-                          <Button variant="default" size="sm" title="Edit" onClick={() => navigate(`/credit-notes/edit?id=${cn.id}`)}>
-                            <Pencil size={15} />
-                          </Button>
-                          <Button variant="default" size="icon-xs" title="Delete" onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteConfirmId(cn.id);
-                            }}
-                          >
-                            <Trash2 size={15} />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {totalPages > 1 && (
-              <div className="cnl-pagination">
-                <div className="cnl-pagination-info">
-                  Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredNotes.length)} of {filteredNotes.length}
-                </div>
-                <div className="cnl-pagination-buttons">
-                  <Button variant="default" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
-                    <ChevronLeft size={14} />
-                  </Button>
-                  {pageNumbers.map((pn, idx) =>
-                    pn === '...' ? (
-                      <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#a3a3a3' }}>…</span>
-                    ) : (
-                      <Button variant="default" size="sm" key={pn} className={`cnl-page-btn ${pn === currentPage ? 'active' : ''}`} onClick={() => setCurrentPage(pn)}
-                      >
-                        {pn}
-                      </Button>
-                    )
-                  )}
-                  <Button variant="default" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
-                    <ChevronRight size={14} />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
+    <div className="flex flex-col h-full bg-white">
+      <DocumentListShell
+        title="Credit Notes"
+        count={filteredNotes.length}
+        search={search}
+        onSearch={(v) => { setSearch(v); setCurrentPage(1); }}
+        searchPlaceholder="Search by CN#, client, reason..."
+        statusOptions={['All', 'Pending', 'Approved', 'Rejected']}
+        statusFilter={statusFilter}
+        onStatusFilter={(s) => { setStatusFilter(s); setCurrentPage(1); }}
+        columns={cnShellColumns}
+        visibleIds={cnShellColumns.map(c => c.id)}
+        onVisibleChange={() => {}}
+        filterExtra={cnFilterExtra}
+        createButton={cnCreateButton}
+        hideSelection
+        rowDensity="compact"
+        rows={paginatedData}
+        getRowId={(cn) => cn.id}
+        selectedIds={new Set()}
+        onToggleSelect={() => {}}
+        onToggleSelectAll={() => {}}
+        onRowClick={(cn) => handleRowClick(cn.id)}
+        renderCell={renderCNCell}
+        eyeButton={(cn) => ({ onPreview: () => handlePreview(cn as CreditNote), loading: false })}
+        rowMenuItems={cnRowMenuItems}
+        pagination={{
+          page: currentPage,
+          totalPages,
+          onPage: setCurrentPage,
+          totalItems: filteredNotes.length,
+        }}
+        loading={isLoading}
+        loadingText="Loading credit notes..."
+        emptyTitle={creditNotes.length === 0 ? 'No credit notes yet' : 'No matching credit notes'}
+        emptyHint={creditNotes.length === 0 ? 'Click "New Credit Note" to create one' : 'Try adjusting your filters'}
+      />
       {deleteConfirmId && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', borderRadius: '12px', padding: '24px', maxWidth: '400px', width: '90%' }}>
