@@ -27,8 +27,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Plus, MoreHorizontal, Edit, Copy, Trash2, Receipt,
-  Printer, Download, Loader2, FileText, ChevronLeft, ChevronRight, X, AlertTriangle,
+  Plus, Edit, Copy, Trash2, Receipt,
+  Printer, Download, Loader2, FileText, X, AlertTriangle,
 } from 'lucide-react';
 
 import { supabase } from '../../../supabase';
@@ -38,6 +38,7 @@ import { formatCurrency } from '../../../utils/formatters';
 import { withSessionCheck } from '../../../queryClient';
 import { generatePOPDF, downloadPDF, openPDFPreview } from '../utils/pdfGenerator';
 import { logPoActivity } from './poAudit';
+import { DocumentListShell, type ShellColumn, type ShellMenuItem } from '../../../components/document/DocumentListShell';
 
 const PAGE_SIZE = 25;
 
@@ -96,7 +97,6 @@ export default function PurchaseOrdersListV2() {
   const [vendorFilter, setVendorFilter] = useState<string>('');
   const [page, setPage] = useState(0);
 
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PoListRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [pdfTarget, setPdfTarget] = useState<PoListRow | null>(null);
@@ -104,21 +104,10 @@ export default function PurchaseOrdersListV2() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
 
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
   useEffect(() => {
     const t = setTimeout(() => { setDebouncedSearch(searchTerm); setPage(0); }, 300);
     return () => clearTimeout(t);
   }, [searchTerm]);
-
-  useEffect(() => {
-    if (!openMenuId) return;
-    const onDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenuId(null);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [openMenuId]);
 
   // ---- data ---------------------------------------------------------------
   const { data: vendors = [] } = useQuery({
@@ -210,7 +199,6 @@ export default function PurchaseOrdersListV2() {
   };
 
   const handleDuplicate = async (po: PoListRow) => {
-    setOpenMenuId(null);
     const { data: full, error } = await supabase
       .from('purchase_orders')
       .select('*, items:purchase_order_items(*)')
@@ -427,202 +415,97 @@ export default function PurchaseOrdersListV2() {
     setPdfUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
   }, []);
 
+  // ---- shared-shell adapters (single list standard) -------------------------
+  const poShellColumns: ShellColumn[] = [
+    { id: 'po_number', label: 'PO #', width: '150px', mandatory: true },
+    { id: 'date', label: 'Date', width: '120px', mandatory: true },
+    { id: 'vendor', label: 'Vendor', width: '220px', mandatory: true },
+    { id: 'reference', label: 'Reference', width: '160px' },
+    { id: 'amount', label: 'Amount', width: '140px', align: 'left' },
+    { id: 'status', label: 'Status', width: '150px' },
+  ];
+
+  const renderPOCell = (col: ShellColumn, po: PoListRow) => {
+    if (col.id === 'po_number') return <span className="font-semibold text-zinc-900 whitespace-nowrap">{po.po_number || '—'}</span>;
+    if (col.id === 'date') return <span className="whitespace-nowrap">{po.po_date ? new Date(po.po_date).toLocaleDateString('en-IN') : '—'}</span>;
+    if (col.id === 'vendor') return <div className="max-w-[200px] truncate" title={po.vendor?.company_name || vendorName(po.vendor_id)}>{po.vendor?.company_name || vendorName(po.vendor_id)}</div>;
+    if (col.id === 'reference') return <span className="text-zinc-500">{po.reference_no || '—'}</span>;
+    if (col.id === 'amount') return <span className="font-medium tabular-nums whitespace-nowrap">{formatCurrency(Number(po.total_amount_inr ?? po.total_amount ?? 0))}</span>;
+    if (col.id === 'status') return <StatusBadge status={po.status || po.approval_status || 'Draft'} />;
+    return null;
+  };
+
+  const poRowMenuItems = (po: PoListRow): ShellMenuItem[] => [
+    { label: 'View PDF', icon: FileText, onClick: () => buildPdf(po, 'preview') },
+    { label: 'Download', icon: Download, onClick: () => buildPdf(po, 'download') },
+    { label: 'Print', icon: Printer, onClick: () => buildPdf(po, 'print') },
+    { label: 'Edit PO', icon: Edit, dividerBefore: true, onClick: () => handleEdit(po) },
+    { label: 'Duplicate', icon: Copy, onClick: () => handleDuplicate(po) },
+    { label: 'Convert to Bill', icon: Receipt, onClick: () => navigate(`/purchase/bills?convertFromPoId=${po.id}`) },
+    { label: 'Delete PO', icon: Trash2, danger: true, dividerBefore: true, onClick: () => setDeleteTarget(po) },
+  ];
+
+  const poVendorFilter = (
+    <select
+      value={vendorFilter}
+      onChange={(e) => { setVendorFilter(e.target.value); setPage(0); }}
+      style={{ height: 26, fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', maxWidth: 200 }}
+    >
+      <option value="">All vendors</option>
+      {vendors.map((v: any) => (
+        <option key={v.id} value={v.id}>{v.company_name}</option>
+      ))}
+    </select>
+  );
+
+  const poCreateButton = (
+    <button
+      type="button"
+      onClick={() => navigate('/purchase/orders-v2/new')}
+      className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
+      style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
+    >
+      <Plus size={14} /> New Purchase Order
+    </button>
+  );
+
   // ---- render -------------------------------------------------------------
   return (
-    <div className="flex flex-col h-full">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 px-4 pt-3 pb-3">
-        <div className="relative">
-          <Search size={14} style={{ position: 'absolute', left: 10, top: 11, color: '#9ca3af' }} />
-          <input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search PO number, reference, vendor..."
-            style={{
-              padding: '8px 10px 8px 30px', fontSize: 13, border: '1px solid #e5e7eb',
-              borderRadius: 6, width: 280, outline: 'none',
-            }}
-          />
-        </div>
-
-        <select
-          value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-          style={{ padding: '8px 10px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff' }}
-        >
-          {STATUS_OPTIONS.map(s => (
-            <option key={s || 'all'} value={s}>{s || 'All statuses'}</option>
-          ))}
-        </select>
-
-        <select
-          value={vendorFilter}
-          onChange={(e) => { setVendorFilter(e.target.value); setPage(0); }}
-          style={{ padding: '8px 10px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', maxWidth: 200 }}
-        >
-          <option value="">All vendors</option>
-          {vendors.map((v: any) => (
-            <option key={v.id} value={v.id}>{v.company_name}</option>
-          ))}
-        </select>
-
-        {(statusFilter || vendorFilter || debouncedSearch) && (
-          <button
-            type="button"
-            onClick={() => { setStatusFilter(''); setVendorFilter(''); setSearchTerm(''); setPage(0); }}
-            style={{ padding: '8px 10px', fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}
-          >
-            <X size={12} /> Clear
-          </button>
-        )}
-
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-          {isFetching && !isLoading && (
-            <Loader2 size={13} className="animate-spin" style={{ color: '#9ca3af' }} />
-          )}
-          <span style={{ fontSize: 12, color: '#6b7280' }}>{total} order{total === 1 ? '' : 's'}</span>
-          <button
-            type="button"
-            onClick={() => navigate('/purchase/orders-v2/new')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
-              background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 6,
-              fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            }}
-          >
-            <Plus size={14} /> New Purchase Order
-          </button>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="flex-1 overflow-auto px-4 pb-4">
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-              <tr>
-                {['PO #', 'Date', 'Vendor', 'Reference', 'Amount', 'Status', ''].map((h, i) => (
-                  <th
-                    key={h || i}
-                    style={{
-                      padding: '10px 12px', textAlign: i === 4 ? 'right' : 'left',
-                      fontSize: 10, fontWeight: 700, color: '#6b7280',
-                      textTransform: 'uppercase', letterSpacing: '0.05em',
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>
-                  <Loader2 size={16} className="animate-spin" style={{ margin: '0 auto' }} />
-                </td></tr>
-              ) : rows.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>
-                  {debouncedSearch || statusFilter || vendorFilter
-                    ? 'No purchase orders match these filters.'
-                    : 'No purchase orders yet.'}
-                </td></tr>
-              ) : rows.map((po) => (
-                <tr
-                  key={po.id}
-                  style={{ borderTop: '1px solid #f3f4f6' }}
-                  onDoubleClick={() => handleEdit(po)}
-                >
-                  <td style={{ padding: '10px 12px', fontWeight: 600, color: '#111827' }}>{po.po_number || '—'}</td>
-                  <td style={{ padding: '10px 12px', color: '#6b7280' }}>
-                    {po.po_date ? new Date(po.po_date).toLocaleDateString('en-IN') : '—'}
-                  </td>
-                  <td style={{ padding: '10px 12px', color: '#374151' }}>
-                    {po.vendor?.company_name || vendorName(po.vendor_id)}
-                  </td>
-                  <td style={{ padding: '10px 12px', color: '#6b7280' }}>{po.reference_no || '—'}</td>
-                  <td style={{ padding: '10px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                    {formatCurrency(Number(po.total_amount_inr ?? po.total_amount ?? 0))}
-                  </td>
-                  <td style={{ padding: '10px 12px' }}>
-                    <StatusBadge status={po.status || po.approval_status || 'Draft'} />
-                  </td>
-                  <td style={{ padding: '10px 12px', textAlign: 'right', width: 48 }}>
-                    <div className="relative" ref={openMenuId === po.id ? menuRef : null}>
-                      <button
-                        type="button"
-                        onClick={() => setOpenMenuId(openMenuId === po.id ? null : po.id)}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          width: 28, height: 28, borderRadius: 6, border: 'none',
-                          background: 'transparent', cursor: 'pointer',
-                        }}
-                        aria-label={`Actions for ${po.po_number || 'purchase order'}`}
-                      >
-                        <MoreHorizontal size={16} style={{ color: '#6b7280' }} />
-                      </button>
-                      {openMenuId === po.id && (
-                        <div style={{
-                          position: 'absolute', right: 0, top: '100%', zIndex: 50, minWidth: 190,
-                          background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8,
-                          padding: 4, boxShadow: '0 8px 24px rgba(0,0,0,0.10)', textAlign: 'left',
-                        }}>
-                          <MenuItem icon={<FileText size={13} />} onClick={() => { setOpenMenuId(null); buildPdf(po, 'preview'); }} label="View PDF" />
-                          <MenuItem icon={<Download size={13} />} onClick={() => { setOpenMenuId(null); buildPdf(po, 'download'); }} label="Download" />
-                          <MenuItem icon={<Printer size={13} />} onClick={() => { setOpenMenuId(null); buildPdf(po, 'print'); }} label="Print" />
-                          <Divider />
-                          <MenuItem icon={<Edit size={13} />} onClick={() => { setOpenMenuId(null); handleEdit(po); }} label="Edit PO" />
-                          <MenuItem icon={<Copy size={13} />} onClick={() => handleDuplicate(po)} label="Duplicate" />
-                          <MenuItem icon={<Receipt size={13} />} onClick={() => { setOpenMenuId(null); navigate(`/purchase/bills?convertFromPoId=${po.id}`); }} label="Convert to Bill" />
-                          <Divider />
-                          <MenuItem
-                            icon={<Trash2 size={13} />}
-                            onClick={() => { setOpenMenuId(null); setDeleteTarget(po); }}
-                            label="Delete PO"
-                            danger
-                            disabled={po.status !== 'Draft'}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {pageCount > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 14 }}>
-            <button
-              type="button"
-              disabled={page === 0}
-              onClick={() => setPage(p => Math.max(0, p - 1))}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', fontSize: 12,
-                border: '1px solid #e5e7eb', borderRadius: 6, background: page === 0 ? '#f9fafb' : '#fff',
-                color: page === 0 ? '#9ca3af' : '#374151', cursor: page === 0 ? 'default' : 'pointer',
-              }}
-            >
-              <ChevronLeft size={13} /> Previous
-            </button>
-            <span style={{ fontSize: 12, color: '#6b7280' }}>Page {page + 1} of {pageCount}</span>
-            <button
-              type="button"
-              disabled={page >= pageCount - 1}
-              onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', fontSize: 12,
-                border: '1px solid #e5e7eb', borderRadius: 6, background: page >= pageCount - 1 ? '#f9fafb' : '#fff',
-                color: page >= pageCount - 1 ? '#9ca3af' : '#374151', cursor: page >= pageCount - 1 ? 'default' : 'pointer',
-              }}
-            >
-              Next <ChevronRight size={13} />
-            </button>
-          </div>
-        )}
-      </div>
-
+    <div className="flex flex-col h-full bg-white">
+      <DocumentListShell
+        title="Purchase Orders"
+        count={total}
+        search={searchTerm}
+        onSearch={setSearchTerm}
+        searchPlaceholder="Search PO number, reference, vendor..."
+        statusOptions={STATUS_OPTIONS.map(s => s || 'All')}
+        statusFilter={statusFilter || 'All'}
+        onStatusFilter={(s) => { setStatusFilter(s === 'All' ? '' : s); setPage(0); }}
+        columns={poShellColumns}
+        visibleIds={poShellColumns.map(c => c.id)}
+        onVisibleChange={() => {}}
+        filterExtra={poVendorFilter}
+        createButton={poCreateButton}
+        hideSelection
+        rowDensity="compact"
+        rows={rows}
+        getRowId={(po) => po.id}
+        selectedIds={new Set()}
+        onToggleSelect={() => {}}
+        onToggleSelectAll={() => {}}
+        renderCell={renderPOCell}
+        eyeButton={(po) => ({ onPreview: () => buildPdf(po, 'preview'), loading: pdfTarget?.id === po.id && pdfLoading })}
+        rowMenuItems={poRowMenuItems}
+        pagination={{
+          page: page + 1,
+          totalPages: pageCount,
+          onPage: (pg) => setPage(pg - 1),
+          totalItems: total,
+        }}
+        loading={isLoading}
+        loadingText="Loading purchase orders..."
+        emptyTitle={(debouncedSearch || statusFilter || vendorFilter) ? 'No purchase orders match these filters.' : 'No purchase orders yet.'}
+      />
       {/* Delete confirmation */}
       {deleteTarget && (
         <div
@@ -717,38 +600,4 @@ export default function PurchaseOrdersListV2() {
       )}
     </div>
   );
-}
-
-function MenuItem({
-  icon, label, onClick, danger, disabled,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  danger?: boolean;
-  disabled?: boolean;
-}) {
-  const color = disabled ? '#9ca3af' : danger ? '#dc2626' : '#374151';
-  const hover = disabled ? undefined : danger ? 'background:#fef2f2' : 'background:#eef2ff';
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      style={{
-        display: 'flex', width: '100%', alignItems: 'center', gap: 8,
-        padding: '7px 8px', fontSize: 12, color, background: 'transparent',
-        border: 'none', borderRadius: 6, cursor: disabled ? 'default' : 'pointer',
-        textAlign: 'left',
-      }}
-      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = hover!; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-    >
-      {icon} {label}
-    </button>
-  );
-}
-
-function Divider() {
-  return <div style={{ height: 1, background: '#f3f4f6', margin: '4px 0' }} />;
 }
