@@ -5,16 +5,14 @@ import {
   Search,
   FileEdit,
   X,
-  Eye,
   Loader2,
+  Trash2,
   Warehouse,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Button as ShadcnButton } from '../../../components/ui/button';
-import { Badge } from '../../../components/ui/Badge';
-import { AppTable } from '../../../components/ui/AppTable';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +38,7 @@ import { InlineDescriptionCell } from '../../../components/InlineDescriptionCell
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useDebitNotes, usePurchaseBills, useVendors, useCreateDebitNote, useDeleteDebitNote, useMaterialOptions } from '../hooks/usePurchaseQueries';
 import { adjustCNStock } from '../../../credit-notes/stock-adjustment';
+import { DocumentListShell, type ShellColumn, type ShellMenuItem } from '../../../components/document/DocumentListShell';
 
 const DN_TYPES = ['Purchase Return', 'Rate Difference', 'Discount', 'Rejection', 'Other'];
 
@@ -454,127 +453,143 @@ export const DebitNotes: React.FC = () => {
     }
   };
 
-  const columns = [
-    {
-      id: 'dn_number',
-      header: 'DN #',
-      cell: ({ row }: any) => (
-        <span className="font-semibold text-rose-600">{row.original.dn_number}</span>
-      ),
-    },
-    {
-      id: 'dn_date',
-      header: 'Date',
-      cell: ({ row }: any) => formatDate(row.original.dn_date),
-    },
-    {
-      id: 'bill',
-      header: 'Original Bill',
-      cell: ({ row }: any) => row.original.bill?.bill_number || '-',
-    },
-    {
-      id: 'vendor',
-      header: 'Vendor',
-      cell: ({ row }: any) => row.original.vendor?.company_name || '-',
-    },
-    {
-      id: 'dn_type',
-      header: 'Type',
-      cell: ({ row }: any) => (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 h-5">
-          {row.original.dn_type}
+  // ── Shared-shell adapters (single list standard) ──
+  const dnShellColumns: ShellColumn[] = [
+    { id: 'dn_number', label: 'DN #', width: '140px', mandatory: true },
+    { id: 'dn_date', label: 'Date', width: '120px', mandatory: true },
+    { id: 'bill', label: 'Original Bill', width: '160px' },
+    { id: 'vendor', label: 'Vendor', width: '220px', mandatory: true },
+    { id: 'dn_type', label: 'Type', width: '150px' },
+    { id: 'total_amount', label: 'Amount', width: '130px', align: 'left' },
+    { id: 'approval_status', label: 'Status', width: '120px' },
+  ];
+
+  const renderDNCell = (col: ShellColumn, dn: any) => {
+    if (col.id === 'dn_number') return <span className="font-semibold text-rose-600 whitespace-nowrap">{dn.dn_number}</span>;
+    if (col.id === 'dn_date') return <span className="font-medium text-zinc-900 whitespace-nowrap">{formatDate(dn.dn_date)}</span>;
+    if (col.id === 'bill') return <span>{dn.bill?.bill_number || '-'}</span>;
+    if (col.id === 'vendor') return <div className="max-w-[200px] truncate" title={dn.vendor?.company_name || '-'}>{dn.vendor?.company_name || '-'}</div>;
+    if (col.id === 'dn_type') return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 h-5">
+        {dn.dn_type}
+      </span>
+    );
+    if (col.id === 'total_amount') return (
+      <span className="font-medium text-rose-600 tabular-nums whitespace-nowrap">
+        -₹{Number(dn.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+      </span>
+    );
+    if (col.id === 'approval_status') {
+      const val = dn.approval_status;
+      const colors: any = {
+        Approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        Pending: 'bg-zinc-50 text-zinc-700 border-zinc-200',
+        Rejected: 'bg-red-50 text-red-700 border-red-200',
+      };
+      return (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium h-5 border shadow-none ${colors[val] || colors.Pending}`}>
+          {val}
         </span>
-      ),
-    },
+      );
+    }
+    return null;
+  };
+
+  const dnRowMenuItems = (dn: any): ShellMenuItem[] => [
     {
-      id: 'total_amount',
-      header: 'Amount',
-      cell: ({ row }: any) => (
-        <div className="font-medium text-right text-rose-600">
-          -₹{Number(row.original.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-        </div>
-      ),
-    },
-    {
-      id: 'approval_status',
-      header: 'Status',
-      cell: ({ row }: any) => {
-        const val = row.original.approval_status;
-        const colors: any = {
-          Approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          Pending: 'bg-zinc-50 text-zinc-700 border-zinc-200',
-          Rejected: 'bg-red-50 text-red-700 border-red-200',
-        };
-        return (
-          <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium h-5 border shadow-none', colors[val] || colors.Pending)}>
-            {val}
-          </span>
-        );
+      label: 'Delete', icon: Trash2, danger: true,
+      onClick: async () => {
+        if (!confirm('Delete debit note?')) return;
+        try { await deleteDN.mutateAsync(dn.id); refetch(); }
+        catch { toast.error('Failed to delete debit note'); }
       },
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      cell: ({ row }: any) => (
-        <div className="flex items-center gap-1">
-          <ShadcnButton variant="ghost" size="sm" className="h-8 w-8 p-0 text-zinc-500 hover:bg-zinc-50">
-            <Eye className="h-4 w-4" />
-          </ShadcnButton>
-        </div>
-      ),
     },
   ];
 
+  const renderDNBulkBar = (ids: Set<string>, clear: () => void) => {
+    const rows = dns.filter((r: any) => ids.has(r.id));
+    return (
+      <>
+        <button
+          onClick={() => { setSelectedRows([]); clear(); }}
+          className="text-xs font-bold uppercase tracking-wider text-zinc-300 hover:text-white transition-colors px-3 py-2"
+        >
+          {rows.length} note(s) selected — Clear
+        </button>
+        <button
+          onClick={handleBulkPrint}
+          className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 bg-white text-zinc-900 hover:bg-zinc-100 transition-all active:scale-[0.98]"
+        >
+          Print Selected
+        </button>
+        <button
+          onClick={async () => { await handleBulkDelete(); clear(); }}
+          className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider rounded-lg px-4 py-2 bg-red-600 text-white hover:bg-red-500 transition-all active:scale-[0.98]"
+        >
+          Delete Selected
+        </button>
+      </>
+    );
+  };
+
+  // Shell works with id sets; bulk handlers below need full rows.
+  const selectedIds = useMemo(() => new Set(selectedRows.map((r: any) => r.id)), [selectedRows]);
+  const toggleDNSelect = (id: string) => {
+    setSelectedRows(prev => {
+      const has = prev.some((r: any) => r.id === id);
+      if (has) return prev.filter((r: any) => r.id !== id);
+      const row = dns.find((r: any) => r.id === id);
+      return row ? [...prev, row] : prev;
+    });
+  };
+  const toggleDNSelectAll = () => {
+    setSelectedRows(prev => (prev.length === dns.length && dns.length > 0 ? [] : [...dns]));
+  };
+  const clearDNSelection = () => setSelectedRows([]);
+
+  const dnCreateButton = (
+    <button
+      onClick={handleAdd}
+      className="inline-flex items-center justify-center text-sm font-medium text-white bg-rose-600 rounded-lg hover:bg-rose-700 shadow-sm active:scale-[0.98]"
+      style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
+    >
+      <Plus className="w-4 h-4 mr-1.5" />
+      Create DN
+    </button>
+  );
+
   return (
     <div className="flex flex-col h-full bg-white">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
-        <div className="flex items-center gap-3">
-          <h1 className="text-base font-medium text-zinc-900">Debit Notes</h1>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-            {totalCount}
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-            <input
-              placeholder="Search DN..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 pl-8 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-          </div>
-          <button
-            onClick={handleAdd}
-            className="inline-flex items-center justify-center text-sm font-medium text-white bg-rose-600 rounded-lg hover:bg-rose-700 shadow-sm active:scale-[0.98]"
-            style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 10, paddingRight: 10 }}
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Create DN
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-auto">
-        <AppTable
-          data={dns}
-          columns={columns}
-          loading={isLoading}
-          enableRowSelection={true}
-          onRowSelectionChange={setSelectedRows}
-          manualPagination={true}
-          totalCount={totalCount}
-          pageIndex={pageIndex}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
-          bulkActions={selectedRows.length > 0 ? {
-            selectedCount: selectedRows.length,
-            onPrint: handleBulkPrint,
-            onDelete: handleBulkDelete,
-          } : undefined}
-        />
-      </div>
-
+      <DocumentListShell
+        title="Debit Notes"
+        count={totalCount}
+        search={searchTerm}
+        onSearch={(v) => setSearchTerm(v)}
+        searchPlaceholder="Search DN..."
+        columns={dnShellColumns}
+        visibleIds={dnShellColumns.map(c => c.id)}
+        onVisibleChange={() => {}}
+        createButton={dnCreateButton}
+        rowDensity="compact"
+        rows={dns}
+        getRowId={(dn) => dn.id}
+        selectedIds={selectedIds}
+        onToggleSelect={toggleDNSelect}
+        onToggleSelectAll={toggleDNSelectAll}
+        onClearSelection={clearDNSelection}
+        renderCell={renderDNCell}
+        rowMenuItems={dnRowMenuItems}
+        bulkBar={{ threshold: 1, render: renderDNBulkBar }}
+        pagination={{
+          page: pageIndex + 1,
+          totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
+          onPage: (pg) => handlePageChange(pg - 1),
+          totalItems: totalCount,
+        }}
+        loading={isLoading}
+        loadingText="Loading debit notes..."
+        emptyTitle="No debit notes found"
+      />
       <Dialog open={openDialog} onOpenChange={(open) => {
         if (!open) {
           if (isDirty) {
