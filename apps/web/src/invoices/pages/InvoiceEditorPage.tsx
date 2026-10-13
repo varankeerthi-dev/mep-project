@@ -40,6 +40,7 @@ import {
 } from '../ui-utils';
 import type { ConversionType } from '../../conversions/types';
 import { useAiDocumentImport } from '../editor/hooks/useAiDocumentImport';
+import { useLastDocumentRates } from '../../hooks/useLastDocumentRates';
 import { useInvoiceEditorData } from '../editor/hooks/useInvoiceEditorData';
 import { useInvoiceSource } from '../editor/hooks/useInvoiceSource';
 import { useInvoiceFormSync } from '../editor/hooks/useInvoiceFormSync';
@@ -91,6 +92,11 @@ export default function InvoiceEditorPage() {
   const selectedSourceId = useWatch({ control, name: 'source_id' });
   const selectedMode = useWatch({ control, name: 'mode' });
   const watchedItems = useWatch({ control, name: 'items' }) ?? [];
+  // Historical last-quoted/invoiced base rates for the selected client+items.
+  const { data: invLastRatesMap = {} } = useLastDocumentRates(
+    selectedClientId || null,
+    (watchedItems || []).map((it: any) => it?.meta_json?.material_id).filter(Boolean),
+  );
   const watchedMaterials = useWatch({ control, name: 'materials' }) ?? [];
   const companyState = useWatch({ control, name: 'company_state' }) ?? null;
   const clientState = useWatch({ control, name: 'client_state' }) ?? null;
@@ -780,6 +786,7 @@ export default function InvoiceEditorPage() {
             arcPricingMap={editorData.arcPricingMap}
             headerDiscounts={editorData.headerDiscounts}
             discountCategoryMap={editorData.discountCategoryMap}
+            lastRatesMap={invLastRatesMap}
           />
         </DocumentLineItemsSurface>
 

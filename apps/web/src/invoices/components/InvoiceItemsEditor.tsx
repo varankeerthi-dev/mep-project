@@ -48,6 +48,7 @@ type InvoiceItemsEditorProps = {
   }>;
   hideHeader?: boolean;
   clientId?: string;
+  lastRatesMap?: Record<string, { lastQuoted?: { baseRate: number; docNo: string; date: string }; lastInvoiced?: { baseRate: number; docNo: string; date: string } }>;
 };
 
 function SortableRow({ children, id, index, onFocus, rowStyle }: { children: React.ReactNode; id: string; index: number; onFocus?: (e: React.FocusEvent) => void; rowStyle?: React.CSSProperties }) {
@@ -159,7 +160,10 @@ export function InvoiceItemsEditor({
   discountCategoryMap = {},
   hideHeader = false,
   clientId,
+  lastRatesMap = {},
 }: InvoiceItemsEditorProps) {
+  const getLastRateKey = (materialId?: string | null, variantId?: string | null) =>
+    `${materialId}_${variantId && variantId !== '' ? variantId : 'no_variant'}`;
   const { organisation } = useAuth();
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
   const [openDropdowns, setOpenDropdowns] = useState<Record<number, boolean>>({});
@@ -1905,6 +1909,31 @@ export function InvoiceItemsEditor({
                         }
                       }}
                     />
+                    {(() => {
+                      const meta = items[index]?.meta_json || {};
+                      if (!meta.material_id) return null;
+                      const hist = lastRatesMap[getLastRateKey(meta.material_id, meta.variant_id)];
+                      const last = hist?.lastInvoiced || hist?.lastQuoted;
+                      if (!last || !(last.baseRate > 0)) return null;
+                      return (
+                        <button
+                          type="button"
+                          title={`${hist.lastInvoiced ? 'Invoice' : 'Quote'} #${last.docNo} — click to apply`}
+                          onClick={() => {
+                            if (!setValue) return;
+                            const qty = Number(items[index]?.qty || 0);
+                            const discountPercent = Number(items[index]?.discount_percent || 0);
+                            const rateAfterDiscount = last.baseRate - (last.baseRate * discountPercent / 100);
+                            setValue(`items.${index}.rate`, Math.round(rateAfterDiscount * 100) / 100, { shouldDirty: true });
+                            setValue(`items.${index}.meta_json.base_rate`, last.baseRate, { shouldDirty: true });
+                            setValue(`items.${index}.amount`, Math.round(qty * rateAfterDiscount * 100) / 100, { shouldDirty: true });
+                          }}
+                          style={{ fontSize: '10px', fontWeight: 700, color: '#1e40af', background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: '4px', padding: '0 5px', cursor: 'pointer', marginTop: '2px', whiteSpace: 'nowrap' }}
+                        >
+                          Last: ₹{Number(last.baseRate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </button>
+                      );
+                    })()}
                   </td>
                   {/* ARC Badge column - show badge when using ARC pricing */}
                   <td style={{ padding: '4px', textAlign: 'center', minWidth: '32px' }}>
