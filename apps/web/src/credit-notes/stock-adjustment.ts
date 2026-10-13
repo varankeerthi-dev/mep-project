@@ -14,6 +14,7 @@ export async function adjustCNStock(
   items: Array<{
     material_id?: string;
     warehouse_id?: string;
+    variant_id?: string | null;
     quantity: number;
   }>,
   action: 'restore' | 'deduct'
@@ -25,7 +26,7 @@ export async function adjustCNStock(
 
     const qtyChange = action === 'restore' ? item.quantity : -item.quantity;
 
-    const { data: rpcRes, error: rpcError } = await supabase.rpc('adjust_item_stock', {
+    const baseArgs = {
       p_item_id: item.material_id,
       p_warehouse_id: item.warehouse_id,
       p_quantity_change: qtyChange,
@@ -33,7 +34,25 @@ export async function adjustCNStock(
       p_reference: cnId || 'CREDIT_NOTE',
       p_remarks: `Credit note ${action} for CN ${cnId}`,
       p_project_id: null,
-    });
+    };
+    // Variant-aware restore (server matches NULL↔NULL strictly). Falls back
+    // to the legacy call when the server predates migration 20261009000002.
+    let rpcRes: any = null;
+    let rpcError: any = null;
+    {
+      const r: any = await supabase.rpc('adjust_item_stock', {
+        ...baseArgs,
+        p_variant_id: item.variant_id || null,
+      });
+      rpcRes = r.data;
+      rpcError = r.error;
+      if (rpcError && /variant/i.test(rpcError.message || '')) {
+        console.warn('Server predates variant-aware adjust_item_stock; retrying legacy call.');
+        const r2: any = await supabase.rpc('adjust_item_stock', baseArgs);
+        rpcRes = r2.data;
+        rpcError = r2.error;
+      }
+    }
 
     if (rpcError) {
       console.error('Stock adjustment error via RPC:', rpcError);

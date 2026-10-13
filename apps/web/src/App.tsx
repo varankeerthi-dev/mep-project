@@ -172,7 +172,6 @@ const CreditNoteListPage = lazyAny(() => import('./credit-notes/pages/CreditNote
 const CreditNoteViewPage = lazyAny(() => import('./credit-notes/pages/CreditNoteViewPage').then(m => ({ default: m.CreditNoteViewPage })));
 const CreditNoteEditorPage = lazyAny(() => import('./credit-notes/pages/CreditNoteEditorPage').then(m => ({ default: m.CreditNoteEditorPage })));
 const CreditNoteEditorPageV2 = lazyAny(() => import('./credit-notes/pages/CreditNoteEditorPageV2').then(m => ({ default: m.CreditNoteEditorPageV2 })));
-const InvoiceEditorPageV1Old = lazyAny(() => import('./invoices/pages/InvoiceEditorPageV1Old'));
 const TableDemo = lazyAny(() => import('./pages/TableDemo'));
 const CustomTableDemo = lazyAny(() => import('./pages/CustomTableDemo'));
 
@@ -492,8 +491,8 @@ export default function App() {
       case '/invoices/view': return <InvoiceView />;
       case '/invoices/create': return <InvoiceEditorPage />;
       case '/invoices/edit': return <InvoiceEditorPage />;
-      case '/invoices/create-v1-old': return <InvoiceEditorPageV1Old />;
-      case '/invoices/edit-v1-old': return <InvoiceEditorPageV1Old />;
+      case '/invoices/create-v1-old': return <InvoiceEditorPage />;
+      case '/invoices/edit-v1-old': return <InvoiceEditorPage />;
       case '/proforma-invoices': return <ProformaListPage />;
       case '/proforma-invoices/create': return <ProformaEditorPage />;
       case '/proforma-invoices/edit': return <ProformaEditorPage />;

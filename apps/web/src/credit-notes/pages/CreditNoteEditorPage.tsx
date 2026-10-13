@@ -632,12 +632,38 @@ export function CreditNoteEditorPage() {
         }
       }
 
-      if (status === 'Approved') {
+      // Restore stock only on transition INTO Approved (re-saving an already
+      // approved note must not restore twice — adjust_item_stock has no
+      // idempotency key of its own).
+      const wasApproved = (existingCN as any)?.approval_status === 'Approved';
+      if (status === 'Approved' && !wasApproved) {
+        // Conversion-sourced notes may only return goods from the source
+        // invoice; free material rows belong on standalone credit notes.
+        if (isConversion) {
+          const sourceIds = new Set(
+            ((sourceInvoiceQuery.data as any)?.items || [])
+              .map((si: any) => si.meta_json?.material_id)
+              .filter(Boolean)
+          );
+          const foreign = data.items.filter(
+            (item: any) => item.meta_json?.material_id && !sourceIds.has(item.meta_json.material_id)
+          );
+          if (foreign.length > 0) {
+            throw new Error(
+              `These items are not on the source invoice and cannot be returned through it: ${foreign
+                .map((f: any) => f.description || 'Unnamed item')
+                .slice(0, 3)
+                .join(', ')}${foreign.length > 3 ? ` and ${foreign.length - 3} more` : ''}. ` +
+              'Remove them or create a standalone credit note.'
+            );
+          }
+        }
         const stockItems = data.items
           .filter(item => item.meta_json?.material_id && item.meta_json?.warehouse_id)
           .map(item => ({
             material_id: item.meta_json!.material_id!,
             warehouse_id: item.meta_json!.warehouse_id!,
+            variant_id: item.meta_json!.variant_id || null,
             quantity: item.quantity,
           }));
 
