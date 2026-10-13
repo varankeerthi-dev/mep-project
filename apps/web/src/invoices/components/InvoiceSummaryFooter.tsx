@@ -33,7 +33,7 @@ export function InvoiceSummaryFooter({
   onToggleRoundOff,
 }: InvoiceSummaryFooterProps) {
   return (
-    <div className="sticky bottom-0 z-20 border-t border-zinc-200 bg-white/95 px-5 py-4 backdrop-blur supports-[backdrop-filter]:bg-white/85">
+    <div className="border-t border-zinc-200 bg-white px-5 py-4">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-1">
           <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-400">
