@@ -2730,9 +2730,33 @@ export default function CreateQuotation() {
                   </div>
                 </>
               )}
-              <div className="flex justify-between text-[13px] text-zinc-500">
-                <span>Round Off</span>
-                <span className="font-bold text-zinc-900">{formatCurrency(calculations.roundOff)}</span>
+              <div className="flex justify-between items-center text-[13px] text-zinc-500">
+                <span className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="roundOffToggleSummary"
+                    style={{ width: '14px', height: '14px', cursor: 'pointer' }}
+                    checked={formData.round_off_enabled}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      round_off_enabled: e.target.checked,
+                      round_off: e.target.checked ? 0 : (formData.round_off || 0)
+                    })}
+                  />
+                  <label htmlFor="roundOffToggleSummary" style={{ cursor: 'pointer', userSelect: 'none' }}>Round Off</label>
+                </span>
+                {formData.round_off_enabled ? (
+                  <span className="font-bold text-zinc-900">{formatCurrency(calculations.roundOff)}</span>
+                ) : (
+                  <input
+                    type="number"
+                    className="form-input text-zinc-700"
+                    style={{ width: '100px', textAlign: 'right', height: '28px', padding: '2px 8px', fontSize: '13px' }}
+                    value={formData.round_off ?? 0}
+                    onChange={(e) => setFormData({ ...formData, round_off: e.target.value })}
+                    step="0.01"
+                  />
+                )}
               </div>
               <div className="pt-4 border-t-2 border-zinc-900 flex justify-between items-center">
                 <span className="text-[15px] font-bold text-zinc-900 uppercase">Grand Total</span>
@@ -2815,40 +2839,6 @@ export default function CreateQuotation() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontWeight: 500, color: '#4b5563' }}>Extra Discount Amt</span>
                 <input type="number" className="form-input text-zinc-700" style={{ width: '100px', textAlign: 'right', height: '32px', padding: '4px 8px', fontSize: '13px' }} value={formData.extra_discount_amount} onChange={(e) => setFormData({ ...formData, extra_discount_amount: e.target.value })} min="0" step="0.01" />
-              </div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <input 
-                    type="checkbox" 
-                    id="roundOffToggle"
-                    style={{ width: '14px', height: '14px', cursor: 'pointer' }}
-                    checked={formData.round_off_enabled} 
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      round_off_enabled: e.target.checked,
-                      round_off: e.target.checked ? 0 : (formData.round_off || 0)
-                    })} 
-                  />
-                  <label htmlFor="roundOffToggle" style={{ fontSize: '13px', cursor: 'pointer', userSelect: 'none', fontWeight: 500, color: '#4b5563' }}>Round Off</label>
-                </div>
-                <input 
-                  type="number" 
-                  className="form-input text-zinc-700" 
-                  style={{ 
-                    width: '100px', 
-                    textAlign: 'right', 
-                    height: '32px', 
-                    padding: '4px 8px', 
-                    fontSize: '13px',
-                    backgroundColor: formData.round_off_enabled ? '#f8fafc' : 'white',
-                    color: formData.round_off_enabled ? '#64748b' : '#1e293b'
-                  }} 
-                  value={formData.round_off_enabled ? calculations.roundOff.toFixed(2) : (formData.round_off ?? 0)} 
-                  readOnly={formData.round_off_enabled}
-                  onChange={(e) => !formData.round_off_enabled && setFormData({ ...formData, round_off: e.target.value })} 
-                  step="0.01" 
-                />
               </div>
               
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '10px', borderTop: '2px solid #e5e7eb' }}>
