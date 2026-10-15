@@ -2703,12 +2703,31 @@ export default function CreateQuotation() {
                   <span className="text-red-500 font-bold">- {formatCurrency(calculations.totalItemDiscount)}</span>
                 </div>
               )}
-              {calculations.extraDiscountAmount > 0 && (
-                <div className="flex justify-between text-[13px] text-zinc-500">
-                  <span>Extra Discount ({formData.extra_discount_percent}%)</span>
-                  <span className="text-red-500 font-bold">- {formatCurrency(calculations.extraDiscountAmount)}</span>
-                </div>
-              )}
+              <div className="flex justify-between items-center text-[13px] text-zinc-500">
+                <span>Extra Discount %</span>
+                <input
+                  type="number"
+                  className="form-input text-zinc-700"
+                  style={{ width: '80px', textAlign: 'right', height: '28px', padding: '2px 8px', fontSize: '13px' }}
+                  value={formData.extra_discount_percent}
+                  onChange={(e) => setFormData({ ...formData, extra_discount_percent: e.target.value })}
+                  min="0"
+                  max="100"
+                  step="0.01"
+                />
+              </div>
+              <div className="flex justify-between items-center text-[13px] text-zinc-500">
+                <span>Extra Discount Amt</span>
+                <input
+                  type="number"
+                  className="form-input text-zinc-700"
+                  style={{ width: '100px', textAlign: 'right', height: '28px', padding: '2px 8px', fontSize: '13px' }}
+                  value={formData.extra_discount_amount}
+                  onChange={(e) => setFormData({ ...formData, extra_discount_amount: e.target.value })}
+                  min="0"
+                  step="0.01"
+                />
+              </div>
               <div className="flex justify-between text-[13px] text-zinc-500">
                 <span>Taxable Value</span>
                 <span className="font-bold text-zinc-900">{formatCurrency(calculations.subtotal - calculations.extraDiscountAmount)}</span>
@@ -2830,21 +2849,6 @@ export default function CreateQuotation() {
           <div className="card" style={{ padding: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px' }}>
               <div style={{ fontWeight: 600, fontSize: '11px', color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', paddingBottom: '6px', marginBottom: '4px' }}>Adjustments</div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 500, color: '#4b5563' }}>Extra Discount %</span>
-                <input type="number" className="form-input text-zinc-700" style={{ width: '80px', textAlign: 'right', height: '32px', padding: '4px 8px', fontSize: '13px' }} value={formData.extra_discount_percent} onChange={(e) => setFormData({ ...formData, extra_discount_percent: e.target.value })} min="0" max="100" step="0.01" />
-              </div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 500, color: '#4b5563' }}>Extra Discount Amt</span>
-                <input type="number" className="form-input text-zinc-700" style={{ width: '100px', textAlign: 'right', height: '32px', padding: '4px 8px', fontSize: '13px' }} value={formData.extra_discount_amount} onChange={(e) => setFormData({ ...formData, extra_discount_amount: e.target.value })} min="0" step="0.01" />
-              </div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '10px', borderTop: '2px solid #e5e7eb' }}>
-                <span style={{ fontWeight: 700, color: '#1f2937', fontSize: '13px' }}>Grand Total</span>
-                <span style={{ fontWeight: 800, color: '#185FA5', fontSize: '15px' }}>{formatCurrency(calculations.grandTotal)}</span>
-              </div>
 
               <div style={{ marginTop: '12px', padding: '12px', borderTop: '1px solid #e5e7eb', fontFamily: 'Inter, sans-serif' }}>
                 <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest leading-none mb-2">Authorized Signatory</div>
