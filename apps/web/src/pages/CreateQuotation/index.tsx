@@ -2796,7 +2796,7 @@ export default function CreateQuotation() {
               </div>
               <textarea
                 className="form-input text-zinc-700"
-                style={{ width: '100%', minHeight: '36px', fontSize: '13px', resize: 'none' }}
+                style={{ width: '100%', minHeight: '140px', fontSize: '13px', resize: 'vertical', lineHeight: '1.6' }}
                 placeholder="Type terms & conditions here, or use the drawer to add from a template..."
                 value={formData.terms_text || ''}
                 onChange={(e) => setFormData({ ...formData, terms_text: e.target.value })}
