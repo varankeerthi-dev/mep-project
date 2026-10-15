@@ -42,10 +42,13 @@ export interface LineCalculationResult {
   lineTotal: number;
 }
 
+export type ExtraDiscountTiming = 'before_gst' | 'after_gst';
+
 export interface QuotationTotalsInput {
   items: QuotationItem[];
   extraDiscountPercent: number;
   extraDiscountAmount: number;
+  extraDiscountTiming?: ExtraDiscountTiming;
   roundOffEnabled: boolean;
   roundOff: number;
   state: string;
@@ -56,6 +59,7 @@ export interface QuotationTotalsResult {
   subtotal: number;
   totalItemDiscount: number;
   extraDiscountAmount: number;
+  extraDiscountTiming: ExtraDiscountTiming;
   cgst: number;
   sgst: number;
   igst: number;
@@ -181,15 +185,29 @@ export function calculateQuotationTotals(input: QuotationTotalsInput): Quotation
   const extraDiscountPercentVal = parseFloat(String(input.extraDiscountPercent)) || 0;
   const extraDiscountAmountVal = (afterItemDiscount * extraDiscountPercentVal) / 100;
   const extraDiscountManual = parseFloat(String(input.extraDiscountAmount)) || 0;
+  const extraTotal = extraDiscountAmountVal + extraDiscountManual;
+  const timing: ExtraDiscountTiming = input.extraDiscountTiming === 'before_gst' ? 'before_gst' : 'after_gst';
   const isInterState = !!(
     input.state &&
     input.companyState &&
     input.state.trim().toLowerCase() !== input.companyState.trim().toLowerCase()
   );
+  if (timing === 'before_gst' && extraTotal !== 0 && subtotal > 0) {
+    // Extra discount reduces the taxable base: scale tax proportionally.
+    const factor = Math.max(0, (subtotal - extraTotal) / subtotal);
+    totalTax = Math.round(totalTax * factor * 100) / 100;
+    for (const key of Object.keys(taxGroups)) {
+      const g = taxGroups[key];
+      g.baseAmount = Math.round(g.baseAmount * factor * 100) / 100;
+      g.taxAmount = Math.round(g.taxAmount * factor * 100) / 100;
+      g.sgst = Math.round(g.sgst * factor * 100) / 100;
+      g.cgst = Math.round(g.cgst * factor * 100) / 100;
+    }
+  }
   const cgst = isInterState ? 0 : totalTax / 2;
   const sgst = isInterState ? 0 : totalTax / 2;
   const igst = isInterState ? totalTax : 0;
-  const subtotalAfterDiscounts = afterItemDiscount - extraDiscountAmountVal - extraDiscountManual;
+  const subtotalAfterDiscounts = afterItemDiscount - extraTotal;
   const baseTotal = subtotalAfterDiscounts + totalTax;
   let roundOffValue = 0;
   if (input.roundOffEnabled) {
@@ -203,6 +221,7 @@ export function calculateQuotationTotals(input: QuotationTotalsInput): Quotation
     subtotal,
     totalItemDiscount,
     extraDiscountAmount: extraDiscountAmountVal,
+    extraDiscountTiming: timing,
     cgst,
     sgst,
     igst,

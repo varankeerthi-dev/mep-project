@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import { calculateQuotationTotals, QuotationTotalsInput } from '../utils/quotationCalculations';
+import { calculateQuotationTotals, QuotationTotalsInput, ExtraDiscountTiming } from '../utils/quotationCalculations';
 
 interface UseQuotationCalculationsProps {
   items: any[];
   extraDiscountPercent: number;
   extraDiscountAmount: number;
+  extraDiscountTiming?: ExtraDiscountTiming;
   roundOffEnabled: boolean;
   roundOff: number;
   state: string;
@@ -15,6 +16,7 @@ export function useQuotationCalculations({
   items,
   extraDiscountPercent,
   extraDiscountAmount,
+  extraDiscountTiming,
   roundOffEnabled,
   roundOff,
   state,
@@ -25,11 +27,12 @@ export function useQuotationCalculations({
       items: items as any,
       extraDiscountPercent,
       extraDiscountAmount,
+      extraDiscountTiming,
       roundOffEnabled,
       roundOff,
       state,
       companyState,
     };
     return calculateQuotationTotals(input);
-  }, [items, extraDiscountPercent, extraDiscountAmount, roundOffEnabled, roundOff, state, companyState]);
+  }, [items, extraDiscountPercent, extraDiscountAmount, extraDiscountTiming, roundOffEnabled, roundOff, state, companyState]);
 }

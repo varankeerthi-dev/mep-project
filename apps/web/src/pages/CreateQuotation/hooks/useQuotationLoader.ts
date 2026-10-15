@@ -571,6 +571,7 @@ export function useQuotationLoader({
         prepared_by: data.prepared_by || '',
         extra_discount_percent: data.extra_discount_percent || 0,
         extra_discount_amount: data.extra_discount_amount || 0,
+        extra_discount_timing: data.extra_discount_timing === 'before_gst' ? 'before_gst' : 'after_gst',
         round_off: data.round_off || 0,
         round_off_enabled: true,
         remarks: data.remarks || '',

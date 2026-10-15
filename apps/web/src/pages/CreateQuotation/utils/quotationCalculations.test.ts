@@ -133,6 +133,56 @@ describe('calculateQuotationTotals', () => {
     expect(result.grandTotal).toBeCloseTo(410); // 400 - 50 + 60
   });
 
+  it('defaults extra discount to after-gst (tax unaffected)', () => {
+    const result = calculateQuotationTotals({
+      items: baseItems,
+      extraDiscountPercent: 10,
+      extraDiscountAmount: 0,
+      roundOffEnabled: false,
+      roundOff: 0,
+      state: 'Karnataka',
+      companyState: 'Karnataka',
+    });
+
+    expect(result.extraDiscountTiming).toBe('after_gst');
+    expect(result.totalTax).toBeCloseTo(60);
+    expect(result.grandTotal).toBeCloseTo(420);
+  });
+
+  it('applies extra discount before gst (tax base reduced)', () => {
+    const result = calculateQuotationTotals({
+      items: baseItems,
+      extraDiscountPercent: 10,
+      extraDiscountAmount: 0,
+      extraDiscountTiming: 'before_gst',
+      roundOffEnabled: false,
+      roundOff: 0,
+      state: 'Karnataka',
+      companyState: 'Karnataka',
+    });
+
+    // taxable 360; tax: 180*18% + 180*12% = 32.4 + 21.6 = 54
+    expect(result.totalTax).toBeCloseTo(54);
+    expect(result.grandTotal).toBeCloseTo(414); // 360 + 54
+  });
+
+  it('applies fixed extra discount before gst', () => {
+    const result = calculateQuotationTotals({
+      items: baseItems,
+      extraDiscountPercent: 0,
+      extraDiscountAmount: 50,
+      extraDiscountTiming: 'before_gst',
+      roundOffEnabled: false,
+      roundOff: 0,
+      state: 'Gujarat',
+      companyState: 'Gujarat',
+    });
+
+    // factor 350/400 = 0.875; tax 60*0.875 = 52.5; grand 350 + 52.5
+    expect(result.totalTax).toBeCloseTo(52.5);
+    expect(result.grandTotal).toBeCloseTo(402.5);
+  });
+
   it('switches to IGST for inter-state', () => {
     const result = calculateQuotationTotals({
       items: baseItems,

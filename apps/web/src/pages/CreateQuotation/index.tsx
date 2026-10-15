@@ -223,6 +223,7 @@ export default function CreateQuotation() {
     prepared_by: user?.user_metadata?.full_name || user?.email?.split('@')[0] || '',
     extra_discount_percent: 0,
     extra_discount_amount: 0,
+    extra_discount_timing: 'after_gst',
     round_off: 0,
     remarks: '',
     round_off_enabled: true,
@@ -256,6 +257,7 @@ export default function CreateQuotation() {
     items,
     extraDiscountPercent: formData.extra_discount_percent,
     extraDiscountAmount: formData.extra_discount_amount,
+    extraDiscountTiming: formData.extra_discount_timing === 'before_gst' ? 'before_gst' : 'after_gst',
     roundOffEnabled: formData.round_off_enabled,
     roundOff: formData.round_off,
     state: formData.state,
@@ -679,6 +681,7 @@ export default function CreateQuotation() {
         prepared_by: data.prepared_by || '',
         extra_discount_percent: data.extra_discount_percent || 0,
         extra_discount_amount: data.extra_discount_amount || 0,
+        extra_discount_timing: data.extra_discount_timing === 'before_gst' ? 'before_gst' : 'after_gst',
         round_off: data.round_off || 0,
         round_off_enabled: true,
         remarks: data.remarks || '',
@@ -1826,6 +1829,7 @@ export default function CreateQuotation() {
         total_item_discount: calculations.totalItemDiscount,
         extra_discount_percent: formData.extra_discount_percent,
         extra_discount_amount: formData.extra_discount_amount,
+        extra_discount_timing: formData.extra_discount_timing || 'after_gst',
         total_tax: calculations.totalTax,
         round_off: calculations.roundOff,
         grand_total: calculations.grandTotal,
@@ -2728,9 +2732,39 @@ export default function CreateQuotation() {
                   step="0.01"
                 />
               </div>
+              <div className="flex justify-between items-center text-[13px] text-zinc-500">
+                <span>Apply Extra Discount</span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {([['before_gst', 'Before GST'], ['after_gst', 'After GST']] as const).map(([val, label]) => {
+                    const active = (formData.extra_discount_timing || 'after_gst') === val;
+                    return (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, extra_discount_timing: val })}
+                        style={{
+                          height: '28px', padding: '2px 10px', fontSize: '12px', fontWeight: 600, borderRadius: '6px',
+                          border: active ? '1px solid #185FA5' : '1px solid #d1d5db',
+                          background: active ? '#185FA5' : '#fff',
+                          color: active ? '#fff' : '#4b5563',
+                          cursor: 'pointer', transition: 'all 120ms',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="flex justify-between text-[13px] text-zinc-500">
                 <span>Taxable Value</span>
-                <span className="font-bold text-zinc-900">{formatCurrency(calculations.subtotal - calculations.extraDiscountAmount)}</span>
+                <span className="font-bold text-zinc-900">
+                  {formatCurrency(
+                    calculations.extraDiscountTiming === 'before_gst'
+                      ? calculations.subtotal - calculations.extraDiscountAmount
+                      : calculations.subtotal
+                  )}
+                </span>
               </div>
               {calculations.isInterState ? (
                 <div className="flex justify-between text-[13px] text-zinc-500">

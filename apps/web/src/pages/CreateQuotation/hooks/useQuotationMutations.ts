@@ -355,6 +355,16 @@ export function useQuotationMutations({
       onSetItems(mappedSavedItems);
       onSetOriginalItems(JSON.parse(JSON.stringify(mappedSavedItems)));
 
+      // Column outside RPC signatures — persist timing choice directly.
+      if (quotationId) {
+        const timing = formData.extra_discount_timing === 'before_gst' ? 'before_gst' : 'after_gst';
+        const { error: timingErr } = await supabase
+          .from('quotation_header')
+          .update({ extra_discount_timing: timing })
+          .eq('id', quotationId);
+        if (timingErr) console.warn('extra_discount_timing save failed:', timingErr.message);
+      }
+
       if (!isAutosaveParam) {
         supabase.from('quotation_activity_log').insert({
           organisation_id: organisation.id,
