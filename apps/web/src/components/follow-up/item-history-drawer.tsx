@@ -26,6 +26,7 @@ type ItemHistoryDrawerProps = {
   linkedId: string | undefined;
   itemLabel: string;
   clientName: string;
+  clientId?: string | null;
   followUpStatus?: string;
 };
 
@@ -105,6 +106,7 @@ export function ItemHistoryDrawer({
   linkedId,
   itemLabel,
   clientName,
+  clientId,
   followUpStatus,
 }: ItemHistoryDrawerProps) {
   const { user } = useAuth();
@@ -177,7 +179,7 @@ export function ItemHistoryDrawer({
     </div>
   );
 
-  // fetch clients list to resolve client_id from clientName
+  // fallback only: clients whose id the caller could not supply (PO/DC, procurement)
   const { data: clients = [] } = useQuery({
     queryKey: ['clients', organisationId],
     queryFn: async () => {
@@ -190,7 +192,7 @@ export function ItemHistoryDrawer({
       if (error) throw error;
       return data || [];
     },
-    enabled: !!organisationId && open,
+    enabled: !!organisationId && open && !clientId,
   });
 
   // reset logging state when drawer opens/closes or targets change
@@ -230,14 +232,10 @@ export function ItemHistoryDrawer({
       if (isLead) {
         resolvedLeadId = linkedId || null;
       } else {
-        if (clientName && clients.length > 0) {
-          const matchedClient = clients.find(
-            c => c.client_name.toLowerCase() === clientName.toLowerCase()
-          );
-          if (matchedClient) {
-            resolvedClientId = matchedClient.id;
-          }
-        }
+        resolvedClientId =
+          clientId ??
+          clients.find(c => c.client_name.toLowerCase() === clientName.toLowerCase())?.id ??
+          null;
       }
 
       const dbData = {

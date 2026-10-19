@@ -829,9 +829,15 @@ export default function QuotationView() {
       const res = await ApprovalIntegration.createQuotationApproval(
         quotationId,
         quotation.client?.client_name || quotation.client?.name || 'Client',
-        quotation.quotation_no,
-        Number(quotation.grand_total) || 0
+        quotation.quotation_no
       );
+      if (!res.success) {
+        // The gate is decided server-side now: a failure here means we do not know whether
+        // this quotation needs approval, so it must not look submitted.
+        toast.error('Could not submit for approval', { id: toastId, description: res.error });
+        await quotationQuery.refetch();
+        return;
+      }
       if (res.approvalId) {
         toast.success('Submitted for approval successfully!', { id: toastId });
         await Promise.all([

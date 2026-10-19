@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import * as followUpApi from '../follow-up/api';
 import type { FollowUpListResult } from '../follow-up/api';
@@ -24,6 +25,10 @@ const SOURCE_LIST_KEY = {
 } as const;
 
 const EMPTY_LIST_RESULT = { items: [], total: 0 };
+
+// One dedupe key per in-flight (quotation, from, to) triple, so a double click on the same
+// transition is a replay at the database rather than a second audit row.
+const pendingStageKeys = new Map<string, string>();
 
 export function useFollowupQuotations() {
   const { organisation } = useAuth();
@@ -118,21 +123,40 @@ export function useLogQuotationResponse() {
     mutationFn: async ({
       id,
       response,
-      quotation_no,
-      client_name,
       previousStatus,
+      reason,
     }: {
       id: string;
       response: QuotationResponseOption;
-      quotation_no?: string;
-      client_name?: string;
       previousStatus?: QuotationFollowUpStatus | null;
+      reason: string;
     }) => {
       if (!orgId) throw new Error('No organisation selected');
-      await followUpApi.upsertQuotationResponse(orgId, id, response, {
-        quotation_no: quotation_no || id,
-        client_name: client_name || 'Client',
-      }, previousStatus);
+      if (!previousStatus) {
+        throw new Error('STAGE_CONFLICT: this row has no stage to compare against. Reload the list and try again.');
+      }
+
+      // Two clicks on the same transition share one key, so the second is a server-side replay
+      // instead of a second audit row and a second notification set.
+      const slot = `${id}:${previousStatus}:${response}`;
+      const dedupeKey = pendingStageKeys.get(slot) ?? crypto.randomUUID();
+      pendingStageKeys.set(slot, dedupeKey);
+
+      try {
+        return await followUpApi.changeQuotationStage(id, {
+          expectedStage: previousStatus,
+          nextStage: getTransitionToStatus(response),
+          reason,
+          dedupeKey,
+        });
+      } finally {
+        pendingStageKeys.delete(slot);
+      }
+    },
+    onSuccess: (result) => {
+      if (result.replayed) {
+        toast.info('That change was already recorded.');
+      }
     },
     onMutate: async ({ id, response }) => {
       await qc.cancelQueries({ queryKey: [...FOLLOWUP_KEY, 'quotations', orgId] });
@@ -152,8 +176,12 @@ export function useLogQuotationResponse() {
       );
       return { prev };
     },
-    onError: (_e, _v, ctx) => {
+    onError: (error, _variables, ctx) => {
       if (ctx?.prev) qc.setQueryData([...FOLLOWUP_KEY, 'quotations', orgId], ctx.prev);
+      // The stage rules live in the database now, so its verdict is the only useful message.
+      toast.error('Stage not changed', {
+        description: error instanceof Error ? error.message : String(error),
+      });
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: [...FOLLOWUP_KEY, 'quotations', orgId] });

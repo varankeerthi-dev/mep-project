@@ -11,6 +11,7 @@ export interface PriorityQueueItem {
   source_tab: QueueSourceTab;
   source_id: string;
   reference_label: string;
+  client_id?: string | null;
   client_name: string;
   project_name: string;
   amount: number;
@@ -82,13 +83,15 @@ export type ActivityEventType =
   | 'po_created'
   | 'po_expected_updated'
   | 'po_supplier_call_logged'
-  | 'followup_reassigned';
+  | 'followup_reassigned'
+  | 'followup_priority_changed';
 
 export type EscalationStage = 0 | 1 | 2 | 3 | 4;
 
 export interface QuotationFollowUp {
   id: string;
   quotation_no: string;
+  client_id?: string | null;
   client_name: string;
   project_name: string;
   total_value: number;
@@ -129,6 +132,7 @@ export interface PodcBacklogItem {
 export interface InvoiceFollowUp {
   id: string;
   invoice_no: string;
+  client_id?: string | null;
   client_name: string;
   project_name: string;
   balance_due: number;

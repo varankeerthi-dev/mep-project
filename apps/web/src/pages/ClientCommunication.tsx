@@ -41,6 +41,16 @@ import {
   ArrowLeft,
   Edit,
   Trash2,
+  AlertCircle,
+  Clock,
+  CheckCircle2,
+  Phone,
+  Tag,
+  Briefcase,
+  AlertTriangle,
+  FileText,
+  MapPin,
+  Zap,
 } from 'lucide-react';
 import {
   format,
@@ -373,8 +383,8 @@ export function ClientCommunication() {
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [uploadingAttachments, setUploadingAttachments] = useState(false);
 
-  // Quotation revision workflow
-  const [activeTab, setActiveTab] = useState<'all' | 'my_actions'>('all');
+  // Quotation revision & operational workflow
+  const [activeTab, setActiveTab] = useState<'all' | 'needs_attention' | 'approvals' | 'discussions' | 'site_ops' | 'my_actions'>('all');
   const [orgMembers, setOrgMembers] = useState<any[]>([]);
   const [currentRevisionData, setCurrentRevisionData] = useState<any>(null);
   const [auditTimeline, setAuditTimeline] = useState<any[]>([]);
@@ -671,6 +681,28 @@ export function ClientCommunication() {
         resolvedSiteVisitId = sv?.id || null;
       }
 
+      if ((data.action_intent === 'site_visit' || data.action_intent === 'site_measurement') && data.requested_date && !resolvedSiteVisitId) {
+        try {
+          const { data: sv } = await supabase
+            .from('site_visits')
+            .insert({
+              client_id: data.party_type === 'client' ? data.client_id : null,
+              project_id: data.project_id || null,
+              visit_date: data.requested_date,
+              visit_type: data.action_intent === 'site_measurement' ? 'measurement' : 'inspection',
+              purpose_of_visit: `[${data.action_intent === 'site_measurement' ? 'Measurement' : 'Site Visit'}] ${data.subject || (data.call_brief || '').slice(0, 150)}`,
+              organisation_id: organisation?.id,
+              status: 'scheduled',
+              created_at: new Date().toISOString(),
+            })
+            .select('id')
+            .maybeSingle();
+          if (sv?.id) resolvedSiteVisitId = sv.id;
+        } catch (e) {
+          console.warn('Auto site-visit creation skipped:', e);
+        }
+      }
+
       const dbData = {
         ...data,
         organisation_id: organisation?.id,
@@ -691,6 +723,23 @@ export function ClientCommunication() {
         parent_communication_id: data.parent_communication_id && data.parent_communication_id !== '' ? data.parent_communication_id : null,
         referred_to_partner_id: data.referred_to_partner_id && data.referred_to_partner_id !== '' ? data.referred_to_partner_id : null,
         contacted_contact_id: data.contacted_contact_id && data.contacted_contact_id !== '' ? data.contacted_contact_id : null,
+        // Action Intent & Workflow
+        action_intent: data.action_intent || 'general',
+        requested_discount_percent: data.requested_discount_percent ? Number(data.requested_discount_percent) : null,
+        requested_discount_amount: data.requested_discount_amount ? Number(data.requested_discount_amount) : null,
+        target_quotation_id: data.target_quotation_id || null,
+        variation_type: data.variation_type || null,
+        estimated_variation_cost: data.estimated_variation_cost ? Number(data.estimated_variation_cost) : null,
+        escalation_type: data.escalation_type || null,
+        escalation_severity: data.escalation_severity || 'normal',
+        md_intervention_notes: data.md_intervention_notes || null,
+        manpower_count: data.manpower_count ? parseInt(String(data.manpower_count)) : null,
+        manpower_trade: data.manpower_trade || null,
+        requested_date: data.requested_date || null,
+        required_approver_role: data.required_approver_role || null,
+        approval_status: data.approval_status || 'not_required',
+        needs_discussion: !!data.needs_discussion,
+        discussion_notes: data.discussion_notes || null,
       };
       const { data: result, error } = await supabase
         .from('client_communication')
@@ -870,6 +919,24 @@ export function ClientCommunication() {
     },
   });
 
+  const quickActionMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Record<string, any> }) => {
+      const { error } = await supabase
+        .from('client_communication')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('organisation_id', organisation?.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['client-communications'] });
+      queryClient.invalidateQueries({ queryKey: ['all-follow-ups'] });
+    },
+    onError: (err: any) => {
+      alert(`Action failed: ${err?.message || 'Unknown error'}`);
+    },
+  });
+
   const createSiteVisitMutation = useMutation({
     mutationFn: async (data: any) => {
       const { error } = await supabase.from('site_visits').insert({
@@ -911,6 +978,66 @@ export function ClientCommunication() {
     parent_communication_id: '',
     referred_to_partner_id: '',
     contacted_contact_id: '',
+    // Action Intent & Workflow fields
+    action_intent: 'general',
+    requested_discount_percent: '',
+    requested_discount_amount: '',
+    target_quotation_id: '',
+    variation_type: 'chargeable_vo',
+    estimated_variation_cost: '',
+    escalation_type: 'tool_retention',
+    escalation_severity: 'high',
+    md_intervention_notes: '',
+    manpower_count: '',
+    manpower_trade: 'Electrician',
+    requested_date: '',
+    required_approver_role: 'MD',
+    approval_status: 'not_required',
+    needs_discussion: false,
+    discussion_notes: '',
+  });
+
+  // Quotations of the selected client for discount negotiations
+  const { data: clientQuotations = [] } = useQuery({
+    queryKey: ['client-quotations-lookup', formData.client_id, organisation?.id],
+    queryFn: async () => {
+      if (!formData.client_id || !organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('quotation_header')
+        .select('id, quotation_number, total_amount, status, created_at')
+        .eq('client_id', formData.client_id)
+        .eq('organisation_id', organisation.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) {
+        console.warn('Error fetching client quotations:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!formData.client_id && !!organisation?.id,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Scheduled visits on requested date for live conflict detection
+  const { data: scheduledVisitsForDate = [] } = useQuery({
+    queryKey: ['scheduled-visits-date', formData.requested_date, organisation?.id],
+    queryFn: async () => {
+      if (!formData.requested_date || !organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('site_visits')
+        .select('id, visit_date, visit_time, engineer_name, engineer, purpose_of_visit, site_address, status, client:clients(client_name)')
+        .eq('organisation_id', organisation.id)
+        .eq('visit_date', formData.requested_date)
+        .not('status', 'eq', 'cancelled');
+      if (error) {
+        console.warn('Error fetching scheduled visits:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!formData.requested_date && !!organisation?.id,
+    staleTime: 1000 * 60 * 2,
   });
 
   // Additional client contacts (CFT) for the selected client — used in "Spoke With"
@@ -1116,6 +1243,22 @@ export function ClientCommunication() {
       parent_communication_id: '',
       referred_to_partner_id: '',
       contacted_contact_id: '',
+      action_intent: 'general',
+      requested_discount_percent: '',
+      requested_discount_amount: '',
+      target_quotation_id: '',
+      variation_type: 'chargeable_vo',
+      estimated_variation_cost: '',
+      escalation_type: 'tool_retention',
+      escalation_severity: 'high',
+      md_intervention_notes: '',
+      manpower_count: '',
+      manpower_trade: 'Electrician',
+      requested_date: '',
+      required_approver_role: 'MD',
+      approval_status: 'not_required',
+      needs_discussion: false,
+      discussion_notes: '',
     });
     setRequireSiteVisit(false);
     setIssueSiteVisitDate('');
@@ -1207,9 +1350,73 @@ export function ClientCommunication() {
     });
   };
 
+  const todayStr = toInputDate(new Date());
+
+  const summaryStats = useMemo(() => {
+    let todayCount = 0;
+    let pendingApprovalCount = 0;
+    let needsDiscussionCount = 0;
+    let rolloverAlertCount = 0;
+
+    (communications as any[]).forEach((comm) => {
+      const commDateStr = comm.created_at ? comm.created_at.slice(0, 10) : '';
+      const isFromToday = commDateStr === todayStr;
+
+      if (isFromToday) todayCount++;
+      if (comm.approval_status === 'pending') pendingApprovalCount++;
+      if (comm.needs_discussion && !comm.is_resolved) needsDiscussionCount++;
+
+      const isPastDay = commDateStr && commDateStr < todayStr;
+      const isPendingOrOpen = comm.approval_status === 'pending' || 
+                              comm.needs_discussion || 
+                              (comm.next_action && (comm.status || '').toLowerCase() !== 'resolved' && (comm.status || '').toLowerCase() !== 'closed') ||
+                              (comm.follow_up_date && comm.follow_up_date <= todayStr && (comm.status || '').toLowerCase() !== 'resolved');
+
+      if (isPastDay && isPendingOrOpen) rolloverAlertCount++;
+    });
+
+    return { todayCount, pendingApprovalCount, needsDiscussionCount, rolloverAlertCount };
+  }, [communications, todayStr]);
+
+  const tabFilteredCommunications = useMemo(() => {
+    return (communications as any[]).filter((comm) => {
+      const commDateStr = comm.created_at ? comm.created_at.slice(0, 10) : '';
+
+      if (activeTab === 'my_actions') {
+        const isMy = (comm.assigned_to === currentUserProfileId || comm.call_received_by === currentUserProfileId) &&
+                     (comm.status || '').toLowerCase() !== 'resolved' &&
+                     (comm.status || '').toLowerCase() !== 'closed';
+        return isMy;
+      }
+
+      if (activeTab === 'needs_attention') {
+        const isPastDay = commDateStr && commDateStr < todayStr;
+        const isPendingOrOpen = comm.approval_status === 'pending' || 
+                                comm.needs_discussion || 
+                                (comm.next_action && (comm.status || '').toLowerCase() !== 'resolved' && (comm.status || '').toLowerCase() !== 'closed') ||
+                                (comm.follow_up_date && comm.follow_up_date <= todayStr && (comm.status || '').toLowerCase() !== 'resolved');
+        return isPastDay && isPendingOrOpen;
+      }
+
+      if (activeTab === 'approvals') {
+        return comm.approval_status === 'pending' || (comm.approval_status && comm.approval_status !== 'not_required');
+      }
+
+      if (activeTab === 'discussions') {
+        return !!comm.needs_discussion;
+      }
+
+      if (activeTab === 'site_ops') {
+        return comm.action_intent === 'site_visit' || comm.action_intent === 'site_measurement' || comm.action_intent === 'manpower_request';
+      }
+
+      return true;
+    });
+  }, [communications, activeTab, currentUserProfileId, todayStr]);
+
   // Pagination
-  const totalPages = Math.max(1, Math.ceil(communications.length / PAGE_SIZE));
-  const paginatedComms = communications.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(tabFilteredCommunications.length / PAGE_SIZE));
+  const paginatedComms = tabFilteredCommunications.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const recentPartyComms = useMemo(() => {
     if (!hasPartySelected || !formData.party_type) return [];
@@ -1418,6 +1625,149 @@ export function ClientCommunication() {
             {typeInfo.label}
           </span>
         </td>
+        {/* Action Intent & Approvals */}
+        <td style={{ padding: '12px 10px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', minWidth: '170px' }}>
+          {comm.action_intent && comm.action_intent !== 'general' && (
+            <div style={{ marginBottom: '4px' }}>
+              {comm.action_intent === 'discount_request' && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: 600 }}>
+                  💰 Discount {comm.requested_discount_percent ? `${comm.requested_discount_percent}%` : comm.requested_discount_amount ? `₹${comm.requested_discount_amount}` : 'Requested'}
+                </span>
+              )}
+              {comm.action_intent === 'variation_request' && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', background: '#FFEDD5', color: '#9A3412', fontSize: '11px', fontWeight: 600 }}>
+                  ⚠️ VO: {comm.variation_type === 'goodwill_free' ? 'Goodwill/Free' : 'Chargeable'}
+                </span>
+              )}
+              {comm.action_intent === 'md_escalation' && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', background: '#FEE2E2', color: '#991B1B', fontSize: '11px', fontWeight: 700 }}>
+                  🚨 MD Escalation ({comm.escalation_severity || 'P0'})
+                </span>
+              )}
+              {comm.action_intent === 'manpower_request' && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', background: '#E0E7FF', color: '#3730A3', fontSize: '11px', fontWeight: 600 }}>
+                  👷 {comm.manpower_count || 1} {comm.manpower_trade || 'Tech'}
+                </span>
+              )}
+              {comm.action_intent === 'site_visit' && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', background: '#D1FAE5', color: '#065F46', fontSize: '11px', fontWeight: 600 }}>
+                  🚗 Site Visit {comm.requested_date ? `(${formatFollowUpDate(comm.requested_date)})` : ''}
+                </span>
+              )}
+              {comm.action_intent === 'site_measurement' && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', background: '#CCFBF1', color: '#115E59', fontSize: '11px', fontWeight: 600 }}>
+                  📐 Measurement {comm.requested_date ? `(${formatFollowUpDate(comm.requested_date)})` : ''}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Rollover Alert indicator */}
+          {(() => {
+            const commDateStr = comm.created_at ? comm.created_at.slice(0, 10) : '';
+            const isPast = commDateStr && commDateStr < todayStr;
+            const isPendingOrOpen = comm.approval_status === 'pending' || 
+                                    comm.needs_discussion || 
+                                    (comm.next_action && (comm.status || '').toLowerCase() !== 'resolved' && (comm.status || '').toLowerCase() !== 'closed') ||
+                                    (comm.follow_up_date && comm.follow_up_date <= todayStr && (comm.status || '').toLowerCase() !== 'resolved');
+            if (isPast && isPendingOrOpen) {
+              return (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '1px 6px', background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: '4px', color: '#B91C1C', fontSize: '10px', fontWeight: 600, marginBottom: '4px' }}>
+                  ⚠️ Rolled Over ({formatFollowUpDate(comm.created_at)})
+                </div>
+              );
+            }
+            return null;
+          })()}
+
+          {/* Approval Status & Quick Action Buttons */}
+          {comm.approval_status === 'pending' && (
+            <div style={{ marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#B45309', fontSize: '11px', fontWeight: 600 }}>
+                <Clock size={11} />
+                <span>Pending {comm.required_approver_role || 'Approval'}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    quickActionMutation.mutate({
+                      id: comm.id,
+                      updates: {
+                        approval_status: 'approved',
+                        approved_by: currentUserProfileId,
+                        approved_at: new Date().toISOString(),
+                        approval_notes: 'Approved from communication log',
+                      }
+                    });
+                  }}
+                  disabled={quickActionMutation.isPending}
+                  style={{ padding: '2px 8px', borderRadius: '4px', border: 'none', background: '#059669', color: '#fff', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const reason = window.prompt('Enter rejection reason:');
+                    if (reason !== null) {
+                      quickActionMutation.mutate({
+                        id: comm.id,
+                        updates: {
+                          approval_status: 'rejected',
+                          approval_notes: reason,
+                        }
+                      });
+                    }
+                  }}
+                  disabled={quickActionMutation.isPending}
+                  style={{ padding: '2px 8px', borderRadius: '4px', border: 'none', background: '#DC2626', color: '#fff', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          )}
+
+          {comm.approval_status === 'approved' && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#059669', fontSize: '11px', fontWeight: 600, marginTop: '2px' }}>
+              <CheckCircle2 size={12} />
+              <span>Approved</span>
+            </div>
+          )}
+
+          {comm.approval_status === 'rejected' && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#DC2626', fontSize: '11px', fontWeight: 600, marginTop: '2px' }}>
+              <XCircle size={12} />
+              <span>Rejected</span>
+            </div>
+          )}
+
+          {comm.needs_discussion && (
+            <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ padding: '1px 6px', borderRadius: '4px', background: '#F3E8FF', color: '#7E22CE', fontSize: '10px', fontWeight: 600 }}>
+                💬 Needs Discussion
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  quickActionMutation.mutate({
+                    id: comm.id,
+                    updates: { needs_discussion: false, discussion_notes: 'Marked discussed' }
+                  });
+                }}
+                disabled={quickActionMutation.isPending}
+                style={{ padding: '1px 6px', borderRadius: '4px', border: '1px solid #D8B4FE', background: '#fff', color: '#7E22CE', fontSize: '10px', fontWeight: 600, cursor: 'pointer' }}
+                title="Mark discussed"
+              >
+                Done
+              </button>
+            </div>
+          )}
+        </td>
         {/* Next Action */}
         <td style={{ padding: '16px 12px', borderBottom: '1px solid #E2E8F0', verticalAlign: 'middle', maxWidth: '260px', minWidth: '180px' }}>
           {comm.next_action ? (
@@ -1523,6 +1873,24 @@ export function ClientCommunication() {
                       linked_id: comm.linked_id || '',
                       assigned_to: comm.assigned_to || '',
                       parent_communication_id: comm.parent_communication_id || '',
+                      referred_to_partner_id: comm.referred_to_partner_id || '',
+                      contacted_contact_id: comm.contacted_contact_id || '',
+                      action_intent: comm.action_intent || 'general',
+                      requested_discount_percent: comm.requested_discount_percent !== null && comm.requested_discount_percent !== undefined ? comm.requested_discount_percent : '',
+                      requested_discount_amount: comm.requested_discount_amount !== null && comm.requested_discount_amount !== undefined ? comm.requested_discount_amount : '',
+                      target_quotation_id: comm.target_quotation_id || '',
+                      variation_type: comm.variation_type || 'chargeable_vo',
+                      estimated_variation_cost: comm.estimated_variation_cost !== null && comm.estimated_variation_cost !== undefined ? comm.estimated_variation_cost : '',
+                      escalation_type: comm.escalation_type || 'tool_retention',
+                      escalation_severity: comm.escalation_severity || 'normal',
+                      md_intervention_notes: comm.md_intervention_notes || '',
+                      manpower_count: comm.manpower_count !== null && comm.manpower_count !== undefined ? comm.manpower_count : '',
+                      manpower_trade: comm.manpower_trade || 'Electrician',
+                      requested_date: comm.requested_date || '',
+                      required_approver_role: comm.required_approver_role || 'MD',
+                      approval_status: comm.approval_status || 'not_required',
+                      needs_discussion: !!comm.needs_discussion,
+                      discussion_notes: comm.discussion_notes || '',
                     });
                     setShowCreateModal(true);
                     setOpenMenuId(null);
@@ -1660,31 +2028,169 @@ export function ClientCommunication() {
         </div>
       </div>
 
+      {/* ════ EXECUTIVE SUMMARY KPI CARDS ════ */}
+      <div style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', padding: '14px 24px' }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px' }}>
+          {/* Card 1: Today's Calls */}
+          <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+            <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4F46E5', flexShrink: 0 }}>
+              <MessageSquare size={18} />
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today's Logs</div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>{summaryStats.todayCount} Calls</div>
+              <div style={{ fontSize: '11px', color: '#94A3B8' }}>Logged for {todayLabel}</div>
+            </div>
+          </div>
+
+          {/* Card 2: Approvals Pending */}
+          <div 
+            onClick={() => { setActiveTab('approvals'); setCurrentPage(1); }}
+            style={{ background: summaryStats.pendingApprovalCount > 0 ? '#FFFBEB' : '#fff', border: `1px solid ${summaryStats.pendingApprovalCount > 0 ? '#FDE68A' : '#E2E8F0'}`, borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', transition: 'all 150ms' }}
+          >
+            <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#D97706', flexShrink: 0 }}>
+              <Users size={18} />
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending Approvals</div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: '#92400E', lineHeight: 1.2 }}>{summaryStats.pendingApprovalCount} Items</div>
+              <div style={{ fontSize: '11px', color: '#B45309' }}>Discounts, VOs & Manpower</div>
+            </div>
+          </div>
+
+          {/* Card 3: Needs Discussion */}
+          <div 
+            onClick={() => { setActiveTab('discussions'); setCurrentPage(1); }}
+            style={{ background: summaryStats.needsDiscussionCount > 0 ? '#FAF5FF' : '#fff', border: `1px solid ${summaryStats.needsDiscussionCount > 0 ? '#E9D5FF' : '#E2E8F0'}`, borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', transition: 'all 150ms' }}
+          >
+            <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: '#F3E8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9333EA', flexShrink: 0 }}>
+              <Phone size={18} />
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#7E22CE', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Needs Discussion</div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: '#7E22CE', lineHeight: 1.2 }}>{summaryStats.needsDiscussionCount} Topics</div>
+              <div style={{ fontSize: '11px', color: '#A855F7' }}>Meeting / review required</div>
+            </div>
+          </div>
+
+          {/* Card 4: Rollover & Overdue Alerts */}
+          <div 
+            onClick={() => { setActiveTab('needs_attention'); setCurrentPage(1); }}
+            style={{ background: summaryStats.rolloverAlertCount > 0 ? '#FEF2F2' : '#fff', border: `1px solid ${summaryStats.rolloverAlertCount > 0 ? '#FECACA' : '#E2E8F0'}`, borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', transition: 'all 150ms' }}
+          >
+            <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#DC2626', flexShrink: 0 }}>
+              <AlertCircle size={18} />
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Needs Attention (Rollover)</div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: '#991B1B', lineHeight: 1.2 }}>{summaryStats.rolloverAlertCount} Alerts</div>
+              <div style={{ fontSize: '11px', color: '#B91C1C' }}>Unresolved from previous days</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ════ TAB NAVIGATION ════ */}
       <div style={{ background: '#ffffff', borderBottom: '1px solid #E2E8F0', padding: '0 24px' }}>
-        <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', gap: '0' }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', gap: '4px', overflowX: 'auto' }}>
           <button
             className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveTab('all')}
+            onClick={() => { setActiveTab('all'); setCurrentPage(1); }}
             style={{
-              padding: '10px 20px', fontSize: '13px', fontWeight: activeTab === 'all' ? 600 : 400,
+              padding: '10px 16px', fontSize: '13px', fontWeight: activeTab === 'all' ? 600 : 400,
               color: activeTab === 'all' ? '#4F46E5' : '#64748B',
               borderBottom: activeTab === 'all' ? '2px solid #4F46E5' : '2px solid transparent',
               background: 'none', cursor: 'pointer', borderTop: 'none', borderLeft: 'none', borderRight: 'none',
-              transition: 'all 150ms'
+              transition: 'all 150ms', whiteSpace: 'nowrap'
             }}
-          >All Communications</button>
+          >
+            All Communications ({communications.length})
+          </button>
+
+          <button
+            className={`tab-btn ${activeTab === 'needs_attention' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('needs_attention'); setCurrentPage(1); }}
+            style={{
+              padding: '10px 16px', fontSize: '13px', fontWeight: activeTab === 'needs_attention' ? 600 : 400,
+              color: activeTab === 'needs_attention' ? '#DC2626' : '#64748B',
+              borderBottom: activeTab === 'needs_attention' ? '2px solid #DC2626' : '2px solid transparent',
+              background: 'none', cursor: 'pointer', borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+              transition: 'all 150ms', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap'
+            }}
+          >
+            <span>🚨 Needs Attention</span>
+            {summaryStats.rolloverAlertCount > 0 && (
+              <span style={{ padding: '1px 6px', borderRadius: '10px', background: '#FEE2E2', color: '#DC2626', fontSize: '11px', fontWeight: 700 }}>
+                {summaryStats.rolloverAlertCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            className={`tab-btn ${activeTab === 'approvals' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('approvals'); setCurrentPage(1); }}
+            style={{
+              padding: '10px 16px', fontSize: '13px', fontWeight: activeTab === 'approvals' ? 600 : 400,
+              color: activeTab === 'approvals' ? '#D97706' : '#64748B',
+              borderBottom: activeTab === 'approvals' ? '2px solid #D97706' : '2px solid transparent',
+              background: 'none', cursor: 'pointer', borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+              transition: 'all 150ms', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap'
+            }}
+          >
+            <span>📋 Approvals Queue</span>
+            {summaryStats.pendingApprovalCount > 0 && (
+              <span style={{ padding: '1px 6px', borderRadius: '10px', background: '#FEF3C7', color: '#D97706', fontSize: '11px', fontWeight: 700 }}>
+                {summaryStats.pendingApprovalCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            className={`tab-btn ${activeTab === 'discussions' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('discussions'); setCurrentPage(1); }}
+            style={{
+              padding: '10px 16px', fontSize: '13px', fontWeight: activeTab === 'discussions' ? 600 : 400,
+              color: activeTab === 'discussions' ? '#9333EA' : '#64748B',
+              borderBottom: activeTab === 'discussions' ? '2px solid #9333EA' : '2px solid transparent',
+              background: 'none', cursor: 'pointer', borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+              transition: 'all 150ms', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap'
+            }}
+          >
+            <span>💬 Needs Discussion</span>
+            {summaryStats.needsDiscussionCount > 0 && (
+              <span style={{ padding: '1px 6px', borderRadius: '10px', background: '#F3E8FF', color: '#9333EA', fontSize: '11px', fontWeight: 700 }}>
+                {summaryStats.needsDiscussionCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            className={`tab-btn ${activeTab === 'site_ops' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('site_ops'); setCurrentPage(1); }}
+            style={{
+              padding: '10px 16px', fontSize: '13px', fontWeight: activeTab === 'site_ops' ? 600 : 400,
+              color: activeTab === 'site_ops' ? '#059669' : '#64748B',
+              borderBottom: activeTab === 'site_ops' ? '2px solid #059669' : '2px solid transparent',
+              background: 'none', cursor: 'pointer', borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+              transition: 'all 150ms', whiteSpace: 'nowrap'
+            }}
+          >
+            📅 Site & Manpower
+          </button>
+
           <button
             className={`tab-btn ${activeTab === 'my_actions' ? 'active' : ''}`}
-            onClick={() => setActiveTab('my_actions')}
+            onClick={() => { setActiveTab('my_actions'); setCurrentPage(1); }}
             style={{
-              padding: '10px 20px', fontSize: '13px', fontWeight: activeTab === 'my_actions' ? 600 : 400,
+              padding: '10px 16px', fontSize: '13px', fontWeight: activeTab === 'my_actions' ? 600 : 400,
               color: activeTab === 'my_actions' ? '#4F46E5' : '#64748B',
               borderBottom: activeTab === 'my_actions' ? '2px solid #4F46E5' : '2px solid transparent',
               background: 'none', cursor: 'pointer', borderTop: 'none', borderLeft: 'none', borderRight: 'none',
-              transition: 'all 150ms'
+              transition: 'all 150ms', whiteSpace: 'nowrap'
             }}
-          >My Action Items</button>
+          >
+            My Action Items
+          </button>
         </div>
       </div>
 
@@ -2006,7 +2512,7 @@ export function ClientCommunication() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC' }}>
-                  {['Time ↑', 'Party', 'Subject / Topic', 'Type', 'Next Action', 'Status', 'Assignee', 'Received By', 'Follow Up', ''].map((col, i) => (
+                  {['Time ↑', 'Party', 'Subject / Topic', 'Type', 'Action Intent & Approvals', 'Next Action', 'Status', 'Assignee', 'Received By', 'Follow Up', ''].map((col, i) => (
                     <th
                       key={i}
                       style={{
@@ -2498,6 +3004,22 @@ export function ClientCommunication() {
                     assigned_to: formData.assigned_to || null,
                     parent_communication_id: formData.parent_communication_id || null,
                     contacted_contact_id: formData.contacted_contact_id || null,
+                    action_intent: formData.action_intent || 'general',
+                    requested_discount_percent: formData.requested_discount_percent ? Number(formData.requested_discount_percent) : null,
+                    requested_discount_amount: formData.requested_discount_amount ? Number(formData.requested_discount_amount) : null,
+                    target_quotation_id: formData.target_quotation_id || null,
+                    variation_type: formData.variation_type || null,
+                    estimated_variation_cost: formData.estimated_variation_cost ? Number(formData.estimated_variation_cost) : null,
+                    escalation_type: formData.escalation_type || null,
+                    escalation_severity: formData.escalation_severity || 'normal',
+                    md_intervention_notes: formData.md_intervention_notes || null,
+                    manpower_count: formData.manpower_count ? parseInt(String(formData.manpower_count)) : null,
+                    manpower_trade: formData.manpower_trade || null,
+                    requested_date: formData.requested_date || null,
+                    required_approver_role: formData.required_approver_role || null,
+                    approval_status: formData.approval_status || 'not_required',
+                    needs_discussion: !!formData.needs_discussion,
+                    discussion_notes: formData.discussion_notes || null,
                   };
                   updateMutation.mutate({ id: editingCommunication.id, data: updatedData });
                 } else {
@@ -2699,6 +3221,361 @@ export function ClientCommunication() {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Action Intent & MEP Operational Workflows */}
+              <div style={{ marginBottom: '20px', padding: '16px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Zap size={16} color="#4F46E5" />
+                    <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1E293B' }}>
+                      Operational Intent & Action Workflow
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#4F46E5', background: '#EEF2FF', padding: '2px 8px', borderRadius: '12px' }}>
+                    MEP Command
+                  </span>
+                </div>
+
+                {/* Intent chips */}
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                  {[
+                    { id: 'general', label: 'General Call', icon: Phone },
+                    { id: 'discount_request', label: 'Quotation Discount', icon: Tag },
+                    { id: 'variation_request', label: 'Scope Variation (VO)', icon: FileText },
+                    { id: 'md_escalation', label: 'MD Escalation / Dispute', icon: AlertTriangle },
+                    { id: 'site_visit', label: 'Site Visit / Inspection', icon: CalendarIcon },
+                    { id: 'site_measurement', label: 'Site Measurement', icon: MapPin },
+                    { id: 'manpower_request', label: 'Manpower Supply', icon: Users },
+                  ].map(intent => {
+                    const active = formData.action_intent === intent.id;
+                    const IconComp = intent.icon;
+                    return (
+                      <button
+                        key={intent.id}
+                        type="button"
+                        onClick={() => {
+                          setFormData(f => {
+                            const nextApprover = (intent.id === 'discount_request' || intent.id === 'md_escalation') ? 'MD' : (intent.id === 'variation_request' ? 'project_manager' : f.required_approver_role);
+                            const nextStatus = (intent.id !== 'general' && f.approval_status === 'not_required') ? 'pending' : f.approval_status;
+                            return {
+                              ...f,
+                              action_intent: intent.id,
+                              required_approver_role: nextApprover,
+                              approval_status: nextStatus,
+                            };
+                          });
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          border: active ? '1.5px solid #4F46E5' : '1px solid #CBD5E1',
+                          background: active ? '#EEF2FF' : '#fff',
+                          color: active ? '#4F46E5' : '#475569',
+                          fontSize: '12px',
+                          fontWeight: active ? 700 : 500,
+                          cursor: 'pointer',
+                          transition: 'all 120ms',
+                        }}
+                      >
+                        <IconComp size={13} />
+                        {intent.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Dynamic Sub-panels for selected intent */}
+                {formData.action_intent === 'discount_request' && (
+                  <div style={{ padding: '12px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', marginBottom: '14px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#4F46E5', textTransform: 'uppercase', marginBottom: '8px' }}>
+                      Discount Request Details
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748B', marginBottom: '4px' }}>Target Quotation</label>
+                        <select
+                          value={formData.target_quotation_id}
+                          onChange={e => setFormData(f => ({ ...f, target_quotation_id: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                        >
+                          <option value="">Select client quotation...</option>
+                          {clientQuotations.map((q: any) => (
+                            <option key={q.id} value={q.id}>
+                              {q.quotation_number} (SAR {Number(q.total_amount || 0).toLocaleString()}) - {q.status}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748B', marginBottom: '4px' }}>Requested Discount %</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          placeholder="e.g. 7.5"
+                          value={formData.requested_discount_percent}
+                          onChange={e => setFormData(f => ({ ...f, requested_discount_percent: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748B', marginBottom: '4px' }}>Discount Amount (SAR)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="e.g. 15000"
+                          value={formData.requested_discount_amount}
+                          onChange={e => setFormData(f => ({ ...f, requested_discount_amount: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {formData.action_intent === 'variation_request' && (
+                  <div style={{ padding: '12px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', marginBottom: '14px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#4F46E5', textTransform: 'uppercase', marginBottom: '8px' }}>
+                      Scope Variation / Additional Work
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748B', marginBottom: '4px' }}>Commercial Treatment</label>
+                        <select
+                          value={formData.variation_type}
+                          onChange={e => setFormData(f => ({ ...f, variation_type: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                        >
+                          <option value="chargeable_vo">Billable Variation Order (Client Invoiced)</option>
+                          <option value="goodwill_foc">Goodwill / FOC (Client Relationship Concession)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748B', marginBottom: '4px' }}>Estimated Cost / Value (SAR)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="e.g. 8500"
+                          value={formData.estimated_variation_cost}
+                          onChange={e => setFormData(f => ({ ...f, estimated_variation_cost: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {formData.action_intent === 'md_escalation' && (
+                  <div style={{ padding: '12px', background: '#FFF5F5', border: '1px solid #FECACA', borderRadius: '8px', marginBottom: '14px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#DC2626', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <AlertTriangle size={13} /> High-Level Dispute / MD Intervention Required
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#991B1B', marginBottom: '4px' }}>Escalation Category</label>
+                        <select
+                          value={formData.escalation_type}
+                          onChange={e => setFormData(f => ({ ...f, escalation_type: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid #FCA5A5', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                        >
+                          <option value="tool_retention">Tool/Scaffold Demobilization Blocked by Client</option>
+                          <option value="payment_dispute">Payment Dispute / Unreleased Overdue Balance</option>
+                          <option value="scope_dispute">Major Contractual Scope Conflict</option>
+                          <option value="shutdown_conflict">Emergency Site Shutdown Rescheduling</option>
+                          <option value="other">Other Executive Intervention</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#991B1B', marginBottom: '4px' }}>Severity Level</label>
+                        <select
+                          value={formData.escalation_severity}
+                          onChange={e => setFormData(f => ({ ...f, escalation_severity: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid #FCA5A5', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                        >
+                          <option value="critical">Critical (Immediate MD Direct Call Needed)</option>
+                          <option value="high">High (Address Within 24h)</option>
+                          <option value="normal">Normal (Review in Next Executive Meeting)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#991B1B', marginBottom: '4px' }}>Executive Brief for MD</label>
+                      <textarea
+                        rows={2}
+                        value={formData.md_intervention_notes}
+                        onChange={e => setFormData(f => ({ ...f, md_intervention_notes: e.target.value }))}
+                        placeholder="Clarify what needs MD authority (e.g., Client refuses tool demobilization due to unfinished punchlist items)..."
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid #FCA5A5', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {(formData.action_intent === 'site_visit' || formData.action_intent === 'site_measurement') && (
+                  <div style={{ padding: '12px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', marginBottom: '14px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#4F46E5', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <CalendarIcon size={13} /> {formData.action_intent === 'site_measurement' ? 'Site Measurement Booking & Clash Peek' : 'Site Visit Scheduling & Clash Peek'}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748B', marginBottom: '4px' }}>Requested Target Date *</label>
+                        <input
+                          type="date"
+                          value={formData.requested_date}
+                          onChange={e => setFormData(f => ({ ...f, requested_date: e.target.value, follow_up_date: f.follow_up_date || e.target.value }))}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748B', marginBottom: '4px' }}>Assigned Engineer / Lead</label>
+                        <select
+                          value={formData.assigned_to}
+                          onChange={e => setFormData(f => ({ ...f, assigned_to: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                        >
+                          <option value="">Select engineer / lead...</option>
+                          {users.map(u => (
+                            <option key={u.id} value={getUserId(u)}>
+                              {u.full_name || u.email} {u.orgRole ? `(${u.orgRole})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Live Clash Detection Box */}
+                    {formData.requested_date ? (
+                      scheduledVisitsForDate.length > 0 ? (
+                        <div style={{ padding: '8px 12px', background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#B45309', fontSize: '12px', fontWeight: 700, marginBottom: '4px' }}>
+                            <AlertTriangle size={14} /> Schedule Conflict Warning: {scheduledVisitsForDate.length} visit(s) already booked on {formData.requested_date}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {scheduledVisitsForDate.slice(0, 3).map((v: any) => (
+                              <div key={v.id} style={{ fontSize: '11px', color: '#78350F' }}>
+                                • {v.visit_time ? `${v.visit_time} - ` : ''}{v.purpose_of_visit || 'Site visit'}{v.engineer_name ? ` (Eng: ${v.engineer_name})` : ''}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '6px 10px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px', color: '#166534', fontSize: '11px', fontWeight: 600 }}>
+                          <CheckCircle2 size={13} /> No schedule clashes detected for {formData.requested_date}.
+                        </div>
+                      )
+                    ) : null}
+                  </div>
+                )}
+
+                {formData.action_intent === 'manpower_request' && (
+                  <div style={{ padding: '12px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', marginBottom: '14px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#4F46E5', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Users size={13} /> Site Manpower Allocation Request
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748B', marginBottom: '4px' }}>Headcount (Workers) *</label>
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="e.g. 4"
+                          value={formData.manpower_count}
+                          onChange={e => setFormData(f => ({ ...f, manpower_count: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748B', marginBottom: '4px' }}>Trade / Specialization *</label>
+                        <select
+                          value={formData.manpower_trade}
+                          onChange={e => setFormData(f => ({ ...f, manpower_trade: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                        >
+                          <option value="Electrician">Electrician</option>
+                          <option value="Plumber">Plumber</option>
+                          <option value="HVAC Technician">HVAC Technician</option>
+                          <option value="Welder">Welder</option>
+                          <option value="Ductman">Ductman</option>
+                          <option value="Pipe Fitter">Pipe Fitter</option>
+                          <option value="Cable Jointer">Cable Jointer</option>
+                          <option value="Site Supervisor">Site Supervisor</option>
+                          <option value="General Labor">General Labor</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748B', marginBottom: '4px' }}>Deployment Date</label>
+                        <input
+                          type="date"
+                          value={formData.requested_date}
+                          onChange={e => setFormData(f => ({ ...f, requested_date: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Multi-tier Approval Routing & Discussion Flagging */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', borderTop: '1px solid #E2E8F0', paddingTop: '12px' }}>
+                  <div style={{ padding: '10px 12px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: formData.approval_status !== 'not_required' ? '8px' : 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.approval_status !== 'not_required'}
+                        onChange={e => setFormData(f => ({
+                          ...f,
+                          approval_status: e.target.checked ? 'pending' : 'not_required',
+                        }))}
+                        style={{ width: '15px', height: '15px', accentColor: '#4F46E5' }}
+                      />
+                      <span>Route for Executive / Manager Approval</span>
+                    </label>
+                    {formData.approval_status !== 'not_required' && (
+                      <div>
+                        <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748B', marginBottom: '4px' }}>Designated Approver</span>
+                        <select
+                          value={formData.required_approver_role}
+                          onChange={e => setFormData(f => ({ ...f, required_approver_role: e.target.value }))}
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '12px', background: '#fff' }}
+                        >
+                          <option value="MD">Managing Director (MD)</option>
+                          <option value="project_manager">Project Manager</option>
+                          <option value="estimation_head">Estimation Head</option>
+                          <option value="department_head">Department Head</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ padding: '10px 12px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: formData.needs_discussion ? '8px' : 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.needs_discussion}
+                        onChange={e => setFormData(f => ({
+                          ...f,
+                          needs_discussion: e.target.checked,
+                        }))}
+                        style={{ width: '15px', height: '15px', accentColor: '#D97706' }}
+                      />
+                      <span>Flag for Morning Review / MD Discussion</span>
+                    </label>
+                    {formData.needs_discussion && (
+                      <input
+                        type="text"
+                        value={formData.discussion_notes}
+                        onChange={e => setFormData(f => ({ ...f, discussion_notes: e.target.value }))}
+                        placeholder="Talking points for morning meeting..."
+                        style={{ width: '100%', padding: '6px 8px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '12px' }}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -3153,6 +4030,113 @@ export function ClientCommunication() {
                 {selectedCommunication.call_brief || <span style={{ fontStyle: 'italic', color: '#9CA3AF' }}>No brief notes provided.</span>}
               </div>
             </div>
+
+            {/* Operational Intent & Approval Card */}
+            {(selectedCommunication.action_intent !== 'general' || selectedCommunication.approval_status === 'pending' || selectedCommunication.needs_discussion) && (
+              <div style={{
+                padding: '14px 16px',
+                background: selectedCommunication.action_intent === 'md_escalation' ? '#FFF5F5' : '#F0FDF4',
+                border: `1px solid ${selectedCommunication.action_intent === 'md_escalation' ? '#FECACA' : '#BBF7D0'}`,
+                borderRadius: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Zap size={14} color={selectedCommunication.action_intent === 'md_escalation' ? '#DC2626' : '#166534'} />
+                    <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: selectedCommunication.action_intent === 'md_escalation' ? '#991B1B' : '#14532D' }}>
+                      Operational Workflow: {selectedCommunication.action_intent?.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  {selectedCommunication.approval_status && (
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      background: selectedCommunication.approval_status === 'approved' ? '#DCFCE7' : selectedCommunication.approval_status === 'rejected' ? '#FEE2E2' : '#FEF3C7',
+                      color: selectedCommunication.approval_status === 'approved' ? '#15803D' : selectedCommunication.approval_status === 'rejected' ? '#B91C1C' : '#B45309',
+                    }}>
+                      Approval: {selectedCommunication.approval_status?.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+
+                {selectedCommunication.action_intent === 'discount_request' && (
+                  <div style={{ fontSize: '12px', color: '#166534' }}>
+                    {selectedCommunication.requested_discount_percent && <span>Discount: <strong>{selectedCommunication.requested_discount_percent}%</strong> </span>}
+                    {selectedCommunication.requested_discount_amount && <span>(SAR <strong>{Number(selectedCommunication.requested_discount_amount).toLocaleString()}</strong>)</span>}
+                  </div>
+                )}
+
+                {selectedCommunication.action_intent === 'variation_request' && (
+                  <div style={{ fontSize: '12px', color: '#166534' }}>
+                    Treatment: <strong>{selectedCommunication.variation_type === 'chargeable_vo' ? 'Billable VO' : 'Goodwill / FOC'}</strong>
+                    {selectedCommunication.estimated_variation_cost && <span> — Estimated: SAR <strong>{Number(selectedCommunication.estimated_variation_cost).toLocaleString()}</strong></span>}
+                  </div>
+                )}
+
+                {selectedCommunication.action_intent === 'md_escalation' && (
+                  <div style={{ fontSize: '12px', color: '#991B1B' }}>
+                    <div>Category: <strong>{selectedCommunication.escalation_type?.replace(/_/g, ' ')}</strong> (Severity: {selectedCommunication.escalation_severity})</div>
+                    {selectedCommunication.md_intervention_notes && <p style={{ margin: '4px 0 0', fontStyle: 'italic' }}>"{selectedCommunication.md_intervention_notes}"</p>}
+                  </div>
+                )}
+
+                {(selectedCommunication.action_intent === 'site_visit' || selectedCommunication.action_intent === 'site_measurement') && (
+                  <div style={{ fontSize: '12px', color: '#166534' }}>
+                    Requested Target Date: <strong>{selectedCommunication.requested_date || selectedCommunication.follow_up_date || 'N/A'}</strong>
+                  </div>
+                )}
+
+                {selectedCommunication.action_intent === 'manpower_request' && (
+                  <div style={{ fontSize: '12px', color: '#166534' }}>
+                    Allocation: <strong>{selectedCommunication.manpower_count} × {selectedCommunication.manpower_trade}</strong>
+                    {selectedCommunication.requested_date && <span> for <strong>{selectedCommunication.requested_date}</strong></span>}
+                  </div>
+                )}
+
+                {selectedCommunication.needs_discussion && (
+                  <div style={{ fontSize: '12px', color: '#B45309', background: '#FFFBEB', padding: '6px 8px', borderRadius: '4px', border: '1px solid #FDE68A' }}>
+                    <strong>Discussion Flagged:</strong> {selectedCommunication.discussion_notes || 'Pending morning standup discussion.'}
+                  </div>
+                )}
+
+                {/* Inline Action Bar if pending approval or flagged for discussion */}
+                {(selectedCommunication.approval_status === 'pending' || selectedCommunication.needs_discussion) && (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px', paddingTop: '6px', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                    {selectedCommunication.approval_status === 'pending' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => quickActionMutation.mutate({ id: selectedCommunication.id, action: 'approve' })}
+                          style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600, background: '#16A34A', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Approve Request
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => quickActionMutation.mutate({ id: selectedCommunication.id, action: 'reject' })}
+                          style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600, background: '#DC2626', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {selectedCommunication.needs_discussion && (
+                      <button
+                        type="button"
+                        onClick={() => quickActionMutation.mutate({ id: selectedCommunication.id, action: 'mark_discussed' })}
+                        style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600, background: '#D97706', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        Mark Discussed
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Action Items / Follow up */}
             {(selectedCommunication.next_action || selectedCommunication.follow_up_date) && (

@@ -464,10 +464,21 @@ export class ApprovalAPI {
       }
 
       if (action.action === 'REJECTED') {
+        // Transition first; only report success after it lands (fail-closed, mirrors RETURNED).
         try {
           await ApprovalAPI.markSourceDocumentAsRejected(approval, action.comments);
-        } catch (rejErr) {
-          console.warn('Failed to update source document on rejection:', rejErr);
+        } catch (rejectError) {
+          await supabase
+            .from('approvals')
+            .update({ status: approval.status, current_level: approval.current_level, updated_at: new Date().toISOString() })
+            .eq('id', approvalId);
+          return {
+            success: false,
+            error: {
+              code: 'TRANSITION_FAILED',
+              message: rejectError instanceof Error ? rejectError.message : 'Rejection transition failed; approval reverted.'
+            }
+          };
         }
       }
 
@@ -870,7 +881,14 @@ export class ApprovalAPI {
 
       switch (approval.reference_type) {
         case 'quotations':
-          await supabase.from('quotation_header').update(updateData).eq('id', approval.reference_id);
+          // An internal rejection is not a client-facing outcome: quotation_header.status
+          // is the document state, and writing 'Rejected' to it both mislabels the document
+          // and drops it from the Follow-up Center, whose query filters on known statuses.
+          // The approval outcome belongs in approval_status only (PRD v3.4 Q2 / H7).
+          await supabase
+            .from('quotation_header')
+            .update({ approval_status: 'Rejected', approval_completed_at: new Date().toISOString() })
+            .eq('id', approval.reference_id);
           break;
         case 'purchase_orders':
           await supabase.from('purchase_orders').update(updateData).eq('id', approval.reference_id);
@@ -880,7 +898,10 @@ export class ApprovalAPI {
           break;
       }
     } catch (error) {
+      // Fail-closed (Rule 5), matching markSourceDocumentAsReturned: processApproval
+      // reverts the approval row so the operator can retry.
       console.error('Error marking source document as rejected:', error);
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 

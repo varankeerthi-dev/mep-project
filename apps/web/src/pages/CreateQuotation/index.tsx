@@ -2199,12 +2199,11 @@ export default function CreateQuotation() {
             quotationId,
             formData.client_name || 'Unknown Client',
             formData.quotation_no || 'QT-' + quotationId.slice(0, 8),
-            calculations.grandTotal,
             'NORMAL'
           );
           if (approvalResult.success) {
             if (import.meta.env.DEV) console.log('Quotation approval created:', approvalResult.approvalId);
-          } else if (approvalResult.error && !approvalResult.error.includes('No approval required')) {
+          } else {
             console.error('Failed to create approval request:', approvalResult.error);
             toast.error('Quotation saved but approval request failed', { description: approvalResult.error });
           }

@@ -2,10 +2,7 @@ import { differenceInCalendarDays, parseISO } from 'date-fns';
 import { supabase } from '../supabase';
 import { getReminderStage } from '../lib/followup/escalation-engine';
 import {
-  canTransition,
   detectEffectiveStatus,
-  getDbStatus,
-  getTransitionToStatus,
   isExpired,
 } from '../lib/followup/quotation-workflow';
 import type {
@@ -19,7 +16,6 @@ import type {
   PodcIssueFlag,
   QuotationFollowUp,
   QuotationFollowUpStatus,
-  QuotationResponseOption,
   ProcurementFollowUp,
 } from '../types/followup';
 
@@ -62,14 +58,6 @@ function mapQuotationStatus(
   if (s === 'cancelled') return 'cancelled';
   if (s === 'pending_approval') return 'pending';
   return 'pending';
-}
-
-function mapResponseToStatus(response: QuotationResponseOption): QuotationFollowUpStatus {
-  return getTransitionToStatus(response);
-}
-
-function mapResponseToDbStatus(response: QuotationResponseOption): string {
-  return getDbStatus(response);
 }
 
 function computeCollectionRisk(daysOverdue: number, balance: number): InvoiceFollowUp['collection_risk'] {
@@ -133,6 +121,7 @@ export async function fetchFollowUpQuotations(
     return {
       id: String(q.id),
       quotation_no: String(q.quotation_no || ''),
+      client_id: (client?.id as string) ?? null,
       client_name: String(client?.client_name || '—'),
       project_name: String(project?.project_name || '—'),
       total_value: Number(q.grand_total || 0),
@@ -250,6 +239,7 @@ export async function fetchFollowUpInvoices(organisationId: string): Promise<Fol
       return {
         id: String(inv.id),
         invoice_no: String(inv.invoice_no || `INV-${String(inv.id).slice(0, 8)}`),
+        client_id: (client?.id as string) ?? null,
         client_name: String(client?.client_name || '—'),
         project_name: '—',
         balance_due: balance,
@@ -349,73 +339,42 @@ export async function logProcurementActivity(
   return logActivity(organisationId, { ...payload, tab_source: 'procurement' });
 }
 
-export async function upsertQuotationResponse(
-  organisationId: string,
+export type QuotationStageChangeResult = {
+  replayed: boolean;
+  activity_id: string | null;
+  result: {
+    quotation_id?: string;
+    previous_stage?: string;
+    stage?: string;
+    document_status?: string | null;
+  } | null;
+};
+
+/**
+ * The only sanctioned write path for a quotation stage. Everything the old browser-side
+ * upsertQuotationResponse did - graph validation, the tracking upsert, the header projection,
+ * the audit row - now happens in one transaction in change_quotation_stage, so a failure cannot
+ * leave a quotation half-moved.
+ */
+export async function changeQuotationStage(
   quotationId: string,
-  response: QuotationResponseOption,
-  meta: { quotation_no: string; client_name: string },
-  previousStatus?: QuotationFollowUpStatus | null
-) {
-  if (previousStatus && !canTransition(previousStatus, response)) {
-    throw new Error(
-      `Cannot transition from "${previousStatus}" to "${response}". Allowed transitions: ${canTransition(previousStatus, response) ? 'allowed' : 'denied'}`
-    );
+  options: {
+    expectedStage: QuotationFollowUpStatus;
+    nextStage: QuotationFollowUpStatus;
+    reason: string;
+    dedupeKey?: string;
   }
-
-  const followStatus = mapResponseToStatus(response);
-  const dbStatus = mapResponseToDbStatus(response);
-
-  const { data: existingTracking } = await supabase
-    .from('follow_up_quotation_tracking')
-    .select('follow_up_status')
-    .eq('organisation_id', organisationId)
-    .eq('quotation_id', quotationId)
-    .maybeSingle();
-
-  const prevTrackingStatus = (existingTracking?.follow_up_status as QuotationFollowUpStatus) || previousStatus || null;
-
-  const { error: trackError } = await supabase.from('follow_up_quotation_tracking').upsert(
-    {
-      organisation_id: organisationId,
-      quotation_id: quotationId,
-      follow_up_status: followStatus,
-      notes: `Status changed: ${prevTrackingStatus || 'unknown'} → ${followStatus}`,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'organisation_id,quotation_id' }
-  );
-  if (trackError) throw trackError;
-
-  const { error: quoteError } = await supabase
-    .from('quotation_header')
-    .update({ status: dbStatus, updated_at: new Date().toISOString() })
-    .eq('id', quotationId)
-    .eq('organisation_id', organisationId);
-  if (quoteError) throw quoteError;
-
-  await logActivity(organisationId, {
-    event_type: 'quotation_status_changed',
-    tab_source: 'quotation',
-    title: `${meta.quotation_no} → ${response.replace(/_/g, ' ')}`,
-    description: `${meta.client_name} — status changed from ${prevTrackingStatus || 'new'} to ${followStatus.replace(/_/g, ' ')}`,
-    reference_id: quotationId,
-    reference_label: meta.quotation_no,
-    metadata: {
-      response,
-      previous_status: prevTrackingStatus || 'unknown',
-      new_status: followStatus,
-    },
+): Promise<QuotationStageChangeResult> {
+  const { data, error } = await supabase.rpc('change_quotation_stage', {
+    p_quotation_id: quotationId,
+    p_expected_stage: options.expectedStage,
+    p_next_stage: options.nextStage,
+    p_reason: options.reason,
+    p_dedupe_key: options.dedupeKey ?? null,
   });
 
-  await logActivity(organisationId, {
-    event_type: 'quotation_response_logged',
-    tab_source: 'quotation',
-    title: `Response: ${response.replace(/_/g, ' ')}`,
-    description: `${meta.client_name} — ${meta.quotation_no}`,
-    reference_id: quotationId,
-    reference_label: meta.quotation_no,
-    metadata: { response },
-  });
+  if (error) throw error;
+  return data as QuotationStageChangeResult;
 }
 
 export async function recordQuotationReminder(
@@ -650,24 +609,18 @@ export async function updateFollowUpPriority(
     if (error) throw error;
   }
 
-  // Call Supabase RPC 'follow_up_log_activity'
-  const tabSourceMap: Record<string, FollowUpTab> = {
-    quotation: 'quotations',
-    podc: 'podc',
-    invoice: 'invoices',
-    procurement: 'procurement',
-    lead: 'leads',
-  };
-
+  // The source keys are already the canonical tab_source values, so no remapping is needed -
+  // the previous plural map ('quotations'/'invoices'/'leads') was rejected by the CHECK and the
+  // resulting throw was discarded, so priority changes never reached the activity log.
   await logActivity(organisationId, {
-    event_type: 'escalation',
-    tab_source: tabSourceMap[source] || 'queue',
+    event_type: 'followup_priority_changed',
+    tab_source: source,
     title: `Priority updated to ${priorityBand.toUpperCase()}`,
     description: `Card moved via Kanban board drag & drop`,
     reference_id: sourceId,
     reference_label: referenceLabel || '',
-  }).catch(() => {
-    // Non-blocking log if RPC constraints differ
+  }).catch((logError) => {
+    console.error('Priority change logged failed:', logError);
   });
 }
 

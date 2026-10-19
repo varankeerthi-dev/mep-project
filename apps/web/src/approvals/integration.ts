@@ -4,6 +4,15 @@ import { ApprovalRequest } from '../types/approvals';
 import { workOrderRpc } from '../work-orders';
 import { paymentRequestRpc } from '../payment-requests';
 
+type QuotationApprovalRequirement = {
+  needed: boolean;
+  reason: string;
+  amount: number;
+  organisation_id: string;
+  requires_review: boolean;
+  reviewer_id: string | null;
+};
+
 export class ApprovalIntegration {
   static async createPurchaseOrderApproval(
     purchaseOrderId: string,
@@ -230,13 +239,14 @@ export class ApprovalIntegration {
     quotationId: string,
     clientName: string,
     quotationNumber: string,
-    totalAmount: number,
     priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' = 'NORMAL'
   ): Promise<{ success: boolean; approvalId?: string; error?: string }> {
     try {
-      const check = await this.checkApprovalNeeded('QUOTATION', totalAmount);
-      if (!check.needed) {
-        return { success: true, error: 'No approval required for this amount' };
+      // The threshold decision is made by the database from the stored document, and any
+      // failure there aborts the submit instead of waving the quotation through.
+      const requirement = await this.quotationApprovalRequirement(quotationId);
+      if (!requirement.needed) {
+        return { success: true, error: `No approval required (${requirement.reason})` };
       }
 
       const approvalRequest: ApprovalRequest = {
@@ -244,11 +254,11 @@ export class ApprovalIntegration {
         reference_id: quotationId,
         reference_type: 'quotations',
         title: `Quotation - ${quotationNumber}`,
-        description: `Quotation ${quotationNumber} for ${clientName} with total amount of ₹${totalAmount.toLocaleString()}`,
-        amount: totalAmount,
+        description: `Quotation ${quotationNumber} for ${clientName} with total amount of ₹${requirement.amount.toLocaleString()}`,
+        amount: requirement.amount,
         priority,
-        reviewer_id: check.reviewerId,
-        review_status: check.requiresReview ? 'PENDING' : 'NOT_REQUIRED'
+        reviewer_id: requirement.reviewer_id,
+        review_status: requirement.requires_review ? 'PENDING' : 'NOT_REQUIRED'
       };
 
       const response = await ApprovalAPI.createApprovalRequest(approvalRequest);
@@ -861,6 +871,22 @@ export class ApprovalIntegration {
     }
   }
 
+  private static async quotationApprovalRequirement(
+    quotationId: string
+  ): Promise<QuotationApprovalRequirement> {
+    const { data, error } = await supabase.rpc('quotation_approval_requirement', {
+      p_quotation_id: quotationId,
+    });
+    if (error) throw new Error(`Approval gate check failed: ${error.message}`);
+    const requirement = data as QuotationApprovalRequirement | null;
+    if (!requirement || typeof requirement.needed !== 'boolean') {
+      throw new Error('Approval gate check returned no decision');
+    }
+    return requirement;
+  }
+
+  // Legacy browser-side gate for the remaining modules: returns needed=false on any error,
+  // which is why quotations moved to quotation_approval_requirement above.
   private static async checkApprovalNeeded(
     approvalType: string,
     amount: number

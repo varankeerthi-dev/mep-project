@@ -142,4 +142,105 @@ describe('Quotation Approval Flow', () => {
       })
     );
   });
+
+  describe('rejection keeps the client-facing document unchanged (PRD v3.4 Q2 / H7)', () => {
+    const mockApprovalRejected = { ...mockApproval, review_status: 'NOT_REQUIRED' };
+
+    const wireMocks = ({
+      singleMock,
+      updateApprovalsMock,
+      insertActionMock,
+      updateQuotationMock,
+    }: {
+      singleMock: any;
+      updateApprovalsMock: any;
+      insertActionMock: any;
+      updateQuotationMock: any;
+    }) => {
+      (supabase.from as any).mockImplementation((table: string) => {
+        if (table === 'approvals') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({ single: singleMock }),
+            }),
+            update: updateApprovalsMock,
+          };
+        }
+        if (table === 'approval_actions') {
+          return { insert: insertActionMock };
+        }
+        if (table === 'quotation_header') {
+          return { update: updateQuotationMock };
+        }
+        return {
+          select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null }) }) }),
+          insert: vi.fn().mockResolvedValue({ error: null }),
+          update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+        };
+      });
+    };
+
+    it('writes approval_status only — never quotation_header.status', async () => {
+      const singleMock = vi.fn().mockResolvedValue({ data: { ...mockApprovalRejected }, error: null });
+      const insertActionMock = vi.fn().mockResolvedValue({ error: null });
+      const updateApprovalsMock = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { ...mockApprovalRejected, status: 'REJECTED' },
+              error: null,
+            }),
+          }),
+        }),
+      });
+      const updateQuotationMock = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
+      });
+
+      wireMocks({ singleMock, updateApprovalsMock, insertActionMock, updateQuotationMock });
+
+      const res = await ApprovalAPI.processApproval('appr-123', {
+        action: 'REJECTED',
+        comments: 'Rates too high for this scope',
+      });
+
+      expect(res.success).toBe(true);
+      const payload = updateQuotationMock.mock.calls[0][0];
+      expect(payload.approval_status).toBe('Rejected');
+      // 'Rejected' in quotation_header.status is outside QUOTATION_FOLLOW_UP_STATUSES,
+      // which hides the quotation from the Follow-up Center.
+      expect(payload).not.toHaveProperty('status');
+    });
+
+    it('reverts the approval and reports failure when the source-document write fails', async () => {
+      const singleMock = vi.fn().mockResolvedValue({ data: { ...mockApprovalRejected }, error: null });
+      const insertActionMock = vi.fn().mockResolvedValue({ error: null });
+      const updateApprovalsMock = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { ...mockApprovalRejected, status: 'REJECTED' },
+              error: null,
+            }),
+          }),
+        }),
+      });
+      const updateQuotationMock = vi.fn().mockImplementation(() => {
+        throw new Error('rls denied update');
+      });
+
+      wireMocks({ singleMock, updateApprovalsMock, insertActionMock, updateQuotationMock });
+
+      const res = await ApprovalAPI.processApproval('appr-123', {
+        action: 'REJECTED',
+        comments: 'Rates too high for this scope',
+      });
+
+      expect(res.success).toBe(false);
+      expect(res.error?.code).toBe('TRANSITION_FAILED');
+      // Fail-closed: the approval row is put back to PENDING so the operator can retry.
+      const revertPayload = updateApprovalsMock.mock.calls[updateApprovalsMock.mock.calls.length - 1][0];
+      expect(revertPayload).toMatchObject({ status: 'PENDING' });
+    });
+  });
 });

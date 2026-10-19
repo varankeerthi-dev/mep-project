@@ -171,6 +171,7 @@ export default function FollowUpCentre() {
     linkedId: string;
     itemLabel: string;
     clientName: string;
+    clientId?: string | null;
     followUpStatus?: string;
   } | null>(null);
 
@@ -182,9 +183,10 @@ export default function FollowUpCentre() {
       linkedId: string,
       itemLabel: string,
       clientName: string,
-      followUpStatus?: string
+      followUpStatus?: string,
+      clientId?: string | null
     ) => {
-      setDrawerItem({ linkedType, linkedId, itemLabel, clientName, followUpStatus });
+      setDrawerItem({ linkedType, linkedId, itemLabel, clientName, clientId, followUpStatus });
     },
     []
   );
@@ -537,7 +539,7 @@ export default function FollowUpCentre() {
             onOpenSource={handleQueueOpen}
             onQuickAction={handleQueueQuickAction}
             onOpenHistory={(item) =>
-              handleOpenHistory(item.source_tab, item.source_id, item.reference_label, item.client_name)
+              handleOpenHistory(item.source_tab, item.source_id, item.reference_label, item.client_name, undefined, item.client_id)
             }
           />
         );
@@ -551,7 +553,7 @@ export default function FollowUpCentre() {
             disabled={isReadOnly}
             onReminder={handleQuotationReminder}
             onOpenHistory={(item) =>
-              handleOpenHistory('quotation', item.id, item.quotation_no, item.client_name, item.status)
+              handleOpenHistory('quotation', item.id, item.quotation_no, item.client_name, item.status, item.client_id)
             }
             onAssigneeChange={(id, userId) => handleAssigneeChange('quotation', id, userId)}
             onLogResponse={(item, response) =>
@@ -584,7 +586,7 @@ export default function FollowUpCentre() {
             selectedInvoiceId={selectedInvoiceId}
             onSelectInvoice={(inv) => {
               setSelectedInvoiceId(inv.id);
-              handleOpenHistory('invoice', inv.id, inv.invoice_no, inv.client_name, inv.collection_risk);
+              handleOpenHistory('invoice', inv.id, inv.invoice_no, inv.client_name, inv.collection_risk, inv.client_id);
             }}
             onReminder={handleInvoiceReminder}
             onAssigneeChange={(id, userId) => handleAssigneeChange('invoice', id, userId)}
@@ -803,6 +805,7 @@ export default function FollowUpCentre() {
         linkedId={drawerItem?.linkedId}
         itemLabel={drawerItem?.itemLabel || ''}
         clientName={drawerItem?.clientName || ''}
+        clientId={drawerItem?.clientId}
         followUpStatus={drawerItem?.followUpStatus}
       />
 
