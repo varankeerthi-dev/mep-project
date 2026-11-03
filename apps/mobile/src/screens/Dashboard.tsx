@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Loader2, Folder, ArrowRight, ClipboardList, LogOut,
-  Check, CheckCircle2, Bell, ChevronDown, ChevronUp, Phone, Clock
+  Check, CheckCircle2, Bell, ChevronDown, ChevronUp, Phone, Clock, HardHat
 } from 'lucide-react';
 import { useNextActionsMobile } from '../lib/useNextActionsMobile';
 
@@ -14,6 +14,7 @@ interface DashboardProps {
   onNavigateToMaterialReturn?: () => void;
   onNavigateToWorkCompletion?: () => void;
   onNavigateToStockRequests?: () => void;
+  onNavigateToSitePlan?: () => void;
   onOpenModule: (module: 'client' | 'project' | 'purchase') => void;
   isDemo?: boolean;
 }
@@ -34,6 +35,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigateToMaterialReturn,
   onNavigateToWorkCompletion,
   onNavigateToStockRequests,
+  onNavigateToSitePlan,
   onOpenModule,
   isDemo = false
 }) => {
@@ -566,6 +568,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <ClipboardList className="h-5 w-5" />
             </div>
             <span className="text-xs font-semibold text-foreground">Purchase</span>
+          </button>
+          {onNavigateToSitePlan && (
+            <button onClick={onNavigateToSitePlan} className="flex flex-col items-center gap-1.5 active:scale-90 transition-transform cursor-pointer">
+              <div className="h-12 w-12 rounded-2xl bg-teal-500/10 flex items-center justify-center text-teal-600">
+                <HardHat className="h-5 w-5" />
+              </div>
+              <span className="text-xs font-semibold text-foreground">Site Plan</span>
+            </button>
+          )}
+          <button className="hidden">
           </button>
         </div>
       </main>

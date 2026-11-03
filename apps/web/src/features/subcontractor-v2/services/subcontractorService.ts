@@ -291,6 +291,125 @@ export const subcontractorService = {
     return data;
   },
 
+  async quickAddWorker(payload: {
+    organisationId: string;
+    name: string;
+    tradeId: string;
+    defaultRate: number;
+    phone?: string;
+    workerType?: string;
+    payBasis?: string;
+    payoutRef?: string;
+    vendorPartyId?: string;
+  }) {
+    const { data, error } = await supabase.rpc('quick_add_worker', {
+      p_organisation_id: payload.organisationId,
+      p_name: payload.name,
+      p_trade_id: payload.tradeId,
+      p_default_rate: payload.defaultRate,
+      p_phone: payload.phone || null,
+      p_worker_type: payload.workerType || 'casual',
+      p_pay_basis: payload.payBasis || 'daily',
+      p_payout_ref: payload.payoutRef || null,
+      p_vendor_party_id: payload.vendorPartyId || null,
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async getWorkers(organisationId: string) {
+    const { data, error } = await supabase
+      .from('labour_workers')
+      .select('*, trade:labour_categories(id, name, code, unit)')
+      .eq('organisation_id', organisationId)
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async planLabour(payload: {
+    organisationId: string;
+    attendanceDate: string;
+    labourCategoryId: string;
+    workersCount: number;
+    subcontractorId?: string;
+    clientId?: string;
+    projectId?: string;
+    confirmation?: string;
+    remarks?: string;
+    workerId?: string;
+    employeeId?: string;
+  }) {
+    const { data, error } = await supabase.rpc('plan_labour', {
+      p_organisation_id: payload.organisationId,
+      p_attendance_date: payload.attendanceDate,
+      p_labour_category_id: payload.labourCategoryId,
+      p_workers_count: payload.workersCount,
+      p_subcontractor_id: payload.subcontractorId || null,
+      p_client_id: payload.clientId || null,
+      p_project_id: payload.projectId || null,
+      p_confirmation: payload.confirmation || 'planned_unconfirmed',
+      p_remarks: payload.remarks || null,
+      p_worker_id: payload.workerId || null,
+      p_employee_id: payload.employeeId || null,
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async confirmPlanWithClient(attendanceId: string, organisationId: string, confirmation: string) {
+    const { data, error } = await supabase.rpc('confirm_plan_with_client', {
+      p_attendance_id: attendanceId,
+      p_organisation_id: organisationId,
+      p_confirmation: confirmation,
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async convertPlanToActual(payload: {
+    planId: string;
+    organisationId: string;
+    actualHeadcount: number;
+    actualHours?: number;
+    supervisorName?: string;
+    appliedModifiers?: string[];
+    remarks?: string;
+  }) {
+    const { data, error } = await supabase.rpc('convert_plan_to_actual', {
+      p_plan_id: payload.planId,
+      p_organisation_id: payload.organisationId,
+      p_actual_headcount: payload.actualHeadcount,
+      p_actual_hours: payload.actualHours || 8,
+      p_supervisor_name: payload.supervisorName || null,
+      p_applied_modifiers: payload.appliedModifiers || [],
+      p_remarks: payload.remarks || null,
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async getPlannedVsActual(organisationId: string, date?: string) {
+    let query = supabase
+      .from('v_planned_vs_actual')
+      .select('*')
+      .eq('organisation_id', organisationId);
+
+    if (date) {
+      query = query.eq('attendance_date', date);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
   async getDailyLogs(subcontractorId: string, organisationId: string) {
     const { data, error } = await supabase
       .from('subcontractor_daily_logs')

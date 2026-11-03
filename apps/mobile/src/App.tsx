@@ -20,8 +20,9 @@ import { WorkCompletionCertificate } from './screens/WorkCompletionCertificate';
 import { StockRequestMobile } from './screens/StockRequestMobile';
 import { Collaboration } from './screens/Collaboration';
 import { Tasks } from './screens/Tasks';
+import { SitePlanMobile } from './screens/SitePlanMobile';
 
-type Screen = 'dashboard' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup' | 'field_variation' | 'material_return' | 'machine_board' | 'work_completion' | 'stock_requests' | 'collaboration' | 'tasks';
+type Screen = 'dashboard' | 'site_plan' | 'approvals' | 'communications' | 'site_report' | 'site_visits' | 'lookup' | 'field_variation' | 'material_return' | 'machine_board' | 'work_completion' | 'stock_requests' | 'collaboration' | 'tasks';
 type ModuleScreen = 'none' | 'client' | 'project' | 'purchase';
 
 function App() {
@@ -153,10 +154,12 @@ function App() {
             onNavigateToMaterialReturn={() => setCurrentScreen('material_return')}
             onNavigateToWorkCompletion={() => setCurrentScreen('work_completion')}
             onNavigateToStockRequests={() => setCurrentScreen('stock_requests')}
+            onNavigateToSitePlan={() => setCurrentScreen('site_plan')}
             onOpenModule={(m) => setActiveModule(m)}
             isDemo={isDemo}
           />
         )}
+        {currentScreen === 'site_plan' && <SitePlanMobile onBack={() => setCurrentScreen('dashboard')} isDemo={isDemo} />}
         {currentScreen === 'machine_board' && <MachineBoardMobile />}
         {currentScreen === 'approvals' && <Approvals isDemo={isDemo} />}
         {currentScreen === 'site_report' && <SiteReport isDemo={isDemo} onFormDirtyChange={setFormDirty} />}
