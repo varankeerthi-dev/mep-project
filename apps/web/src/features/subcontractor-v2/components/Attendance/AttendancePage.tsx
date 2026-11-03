@@ -266,6 +266,24 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
     enabled: !!organisation?.id,
   });
 
+  const { data: projects } = useQuery({
+    queryKey: ['projects', organisation?.id, selectedClient],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      let q = supabase
+        .from('projects')
+        .select('id, name, project_name, client_id')
+        .eq('organisation_id', organisation.id)
+        .order('name');
+      if (selectedClient) {
+        q = q.eq('client_id', selectedClient);
+      }
+      const { data } = await q;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
+
   const queryClient = useQueryClient();
 
   const { data: labourCategories, isLoading: loadingCategories } = useQuery({
@@ -410,11 +428,12 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
 
     try {
       for (const entry of validEntries) {
-        const input: CreateManpowerAttendanceInput = {
+        const input: any = {
           organisation_id: organisation.id,
           subcontractor_id: selectedSubcontractor,
           client_id: selectedClient || undefined,
           work_unit_id: selectedWorkUnit || undefined,
+          project_id: (workUnitType === 'PROJECT' ? selectedWorkUnit : undefined) || undefined,
           work_unit_type: workUnitType,
           attendance_date: selectedDate,
           labour_category_id: entry.labour_category_id,
@@ -422,10 +441,6 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
           hours_worked: entry.hours_worked,
           supervisor_name: supervisor,
           applied_modifiers: entry.applied_modifiers,
-          base_rate: entry.base_rate,
-          adjusted_rate: entry.adjusted_rate,
-          original_amount: entry.original_amount,
-          adjusted_amount: entry.adjusted_amount,
           remarks,
         };
 
@@ -488,10 +503,15 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
     {
       id: 'client',
       header: 'Client',
-      accessorKey: 'clients.client_name',
-      cell: (info: any) => (
-        <span className="text-sm font-medium text-zinc-700">{info.getValue() || '—'}</span>
-      ),
+      accessorKey: 'client_id',
+      cell: (info: any) => {
+        const row = info.row.original;
+        return (
+          <span className="text-sm font-medium text-zinc-700">
+            {row.clients?.client_name || row.clients?.name || '—'}
+          </span>
+        );
+      },
     },
     {
       id: 'subcontractor',
@@ -504,18 +524,13 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
     {
       id: 'project',
       header: 'Project',
-      accessorKey: 'work_unit_id',
+      accessorKey: 'project_id',
       cell: (info: any) => {
         const row = info.row.original;
+        const projectName = row.projects?.project_name || row.projects?.name;
         return (
           <span className="text-sm text-zinc-600">
-            {row.work_unit_type === 'PROJECT' && row.work_unit_id
-              ? row.work_unit_id.slice(0, 8) + '...'
-              : row.work_unit_type === 'GENERAL'
-                ? 'General / Non-Project'
-                : row.work_unit_id
-                  ? row.work_unit_id.slice(0, 8) + '...'
-                  : '—'}
+            {projectName || (row.work_unit_type === 'GENERAL' ? 'General / Non-Project' : (row.project_id || row.work_unit_id ? (row.project_id || row.work_unit_id).slice(0, 8) + '...' : '—'))}
           </span>
         );
       },
@@ -847,6 +862,31 @@ export function AttendancePage({ onNavigate }: AttendancePageProps) {
               <option value="GENERAL">General / Non-Project</option>
             </select>
           </div>
+          {workUnitType === 'PROJECT' && (
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+                Project
+              </label>
+              <select
+                value={selectedWorkUnit}
+                onChange={(e) => setSelectedWorkUnit(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  fontSize: '14px',
+                  outline: 'none',
+                  background: '#fff',
+                }}
+              >
+                <option value="">Select project</option>
+                {projects?.map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.project_name || p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'flex-end' }}>
             {showForm ? (
               <Button variant="default" size="sm" onClick={() => setShowForm(false)}

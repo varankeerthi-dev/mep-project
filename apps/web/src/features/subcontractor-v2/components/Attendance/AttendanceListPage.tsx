@@ -255,7 +255,7 @@ export function AttendanceListPage({ onNavigate }: AttendanceListPageProps) {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                        {['Subcontractor', 'Category', 'Workers', 'Hours', 'Supervisor', 'Base Rate', 'Adjusted Rate', 'Amount', 'Status', 'Source', 'Actions'].map((header) => (
+                        {['Client', 'Project', 'Subcontractor', 'Category', 'Workers', 'Hours', 'Supervisor', 'Base Rate', 'Adjusted Rate', 'Amount', 'Status', 'Source', 'Actions'].map((header) => (
                           <th key={header} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b' }}>{header}</th>
                         ))}
                       </tr>
@@ -265,6 +265,8 @@ export function AttendanceListPage({ onNavigate }: AttendanceListPageProps) {
                         const statusColor = getStatusColor(entry.status);
                         return (
                           <tr key={entry.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '10px 12px', fontSize: '13px', color: '#0f172a' }}>{entry.clients?.client_name || entry.clients?.name || '—'}</td>
+                            <td style={{ padding: '10px 12px', fontSize: '13px', color: '#0f172a' }}>{entry.projects?.project_name || entry.projects?.name || (entry.work_unit_type === 'GENERAL' ? 'General' : (entry.project_id ? entry.project_id.slice(0, 8) + '...' : '—'))}</td>
                             <td style={{ padding: '10px 12px', fontSize: '13px', color: '#0f172a' }}>{entry.subcontractors?.company_name || '-'}</td>
                             <td style={{ padding: '10px 12px', fontSize: '13px', color: '#0f172a' }}>{entry.labour_categories?.name || '-'}</td>
                             <td style={{ padding: '10px 12px', fontSize: '13px', color: '#0f172a' }}>{entry.workers_count}</td>

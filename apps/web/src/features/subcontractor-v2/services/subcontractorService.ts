@@ -180,7 +180,7 @@ export const subcontractorService = {
   async getAttendance(subcontractorId: string, organisationId: string) {
     const { data, error } = await supabase
       .from('manpower_attendance')
-      .select('*, labour_categories(id, name, code, unit), subcontractors(id, company_name)')
+      .select('*, labour_categories(id, name, code, unit), subcontractors(id, company_name), clients(id, client_name), projects(id, name, project_name)')
       .eq('subcontractor_id', subcontractorId)
       .eq('organisation_id', organisationId)
       .order('attendance_date', { ascending: false });
@@ -192,7 +192,7 @@ export const subcontractorService = {
   async getAttendanceByDateRange(organisationId: string, subcontractorId?: string, startDate?: string, endDate?: string) {
     let query = supabase
       .from('manpower_attendance')
-      .select('*, labour_categories(id, name, code, unit), subcontractors(id, company_name)')
+      .select('*, labour_categories(id, name, code, unit), subcontractors(id, company_name), clients(id, client_name), projects(id, name, project_name)')
       .eq('organisation_id', organisationId);
 
     if (subcontractorId) {
@@ -225,11 +225,8 @@ export const subcontractorService = {
       p_hours_worked: payload.hours_worked || 8,
       p_supervisor_name: payload.supervisor_name || null,
       p_applied_modifiers: payload.applied_modifiers || [],
-      p_base_rate: payload.base_rate || 0,
-      p_adjusted_rate: payload.adjusted_rate || 0,
-      p_original_amount: payload.original_amount || 0,
-      p_adjusted_amount: payload.adjusted_amount || 0,
-      p_remarks: payload.remarks || null
+      p_remarks: payload.remarks || null,
+      p_project_id: payload.project_id || (payload.work_unit_type === 'PROJECT' ? payload.work_unit_id : null) || null
     });
 
     if (error) throw new Error(error.message);
@@ -243,7 +240,9 @@ export const subcontractorService = {
       p_workers_count: payload.workers_count,
       p_hours_worked: payload.hours_worked,
       p_supervisor_name: payload.supervisor_name || null,
-      p_remarks: payload.remarks || null
+      p_remarks: payload.remarks || null,
+      p_applied_modifiers: payload.applied_modifiers || null,
+      p_project_id: payload.project_id || null
     });
 
     if (error) throw new Error(error.message);
@@ -264,6 +263,28 @@ export const subcontractorService = {
     const { data, error } = await supabase.rpc('approve_attendance', {
       p_attendance_id: attendanceId,
       p_organisation_id: organisationId
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async rejectAttendance(attendanceId: string, organisationId: string, reason?: string) {
+    const { data, error } = await supabase.rpc('reject_attendance', {
+      p_attendance_id: attendanceId,
+      p_organisation_id: organisationId,
+      p_rejection_reason: reason || null
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async reopenAttendance(attendanceId: string, organisationId: string, reason?: string) {
+    const { data, error } = await supabase.rpc('reopen_attendance', {
+      p_attendance_id: attendanceId,
+      p_organisation_id: organisationId,
+      p_reason: reason || null
     });
 
     if (error) throw new Error(error.message);

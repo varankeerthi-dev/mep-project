@@ -467,7 +467,11 @@ export default function App() {
       case '/subcontractors-v2/payments':
       case '/subcontractors-v2/invoices':
       case '/subcontractors-v2/documents':
-        return <SubcontractorsPage onNavigate={navigate} />;
+        return (
+          <PermissionGuard permission="labour.attendance.view" fallback={<div className="p-6">Access Denied</div>}>
+            <SubcontractorsPage onNavigate={navigate} />
+          </PermissionGuard>
+        );
 
       // Client PO
       case '/client-po': return <POList />;
@@ -742,7 +746,11 @@ export default function App() {
           if (action === 'create-measurement') {
             return <MeasurementSheetWrapper workOrderId={id} onBack={() => navigate(`/subcontractors-v2/workorders/${id}`)} onSuccess={() => navigate(`/subcontractors-v2/workorders/${id}`)} />;
           }
-          return <SubcontractorsPage onNavigate={navigate} />;
+          return (
+            <PermissionGuard permission="labour.attendance.view" fallback={<div className="p-6">Access Denied</div>}>
+              <SubcontractorsPage onNavigate={navigate} />
+            </PermissionGuard>
+          );
         }
         // Redirect legacy /manufacturing-v2 deep links to the clean /manufacturing paths
         if (pathKey === '/manufacturing-v2' || pathKey.startsWith('/manufacturing-v2/')) {

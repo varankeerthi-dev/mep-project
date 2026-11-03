@@ -195,6 +195,27 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    id: 'labour',
+    label: 'Labour & Subcontractor Attendance',
+    actions: [
+      { key: 'labour.attendance.view' as PermissionKey, label: 'View Attendance' },
+      { key: 'labour.attendance.create' as PermissionKey, label: 'Record Attendance' },
+      { key: 'labour.attendance.edit' as PermissionKey, label: 'Edit Attendance' },
+      { key: 'labour.attendance.approve' as PermissionKey, label: 'Approve Attendance' },
+      { key: 'labour.attendance.reopen' as PermissionKey, label: 'Reopen Attendance' },
+      { key: 'labour.rates.manage' as PermissionKey, label: 'Manage Rates' },
+      { key: 'labour.workers.manage' as PermissionKey, label: 'Manage Workers' },
+      { key: 'labour.billing.view' as PermissionKey, label: 'View Manpower Billing' },
+      { key: 'labour.billing.generate' as PermissionKey, label: 'Generate Bills' },
+      { key: 'labour.wages.view' as PermissionKey, label: 'View Wages' },
+      { key: 'labour.wages.run' as PermissionKey, label: 'Run Wages' },
+      { key: 'labour.wages.pay' as PermissionKey, label: 'Process Wage Payments' },
+      { key: 'labour.measurement.entry' as PermissionKey, label: 'Entry Measurement' },
+      { key: 'labour.measurement.approve' as PermissionKey, label: 'Approve Measurement' },
+      { key: 'labour.share.manage' as PermissionKey, label: 'Manage Sharing' },
+    ],
+  },
+  {
     id: 'org',
     label: 'Organisation',
     actions: [
