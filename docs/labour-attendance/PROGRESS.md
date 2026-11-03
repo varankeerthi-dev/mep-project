@@ -1,10 +1,11 @@
 # BillFast Labour & Subcontractor Attendance — Resumable Progress Log
 
 ## Current Status
-- **Active Phase**: Phase 2 — Payables Roll-Up & Client Recharge
-- **Current Step**: Step 2.1 Payable Roll-Up & Step 2.3 Client Recharge Preparation
+- **Active Phase**: Phase 3 — Labour-Contractor Tenant (Wages, Piece-Rate / Meters, Margin)
+- **Current Step**: Step 3.1 Piece-Rate / Output Entry & Measurement Sheets
 - **Phase 0 Exit Gate Status**: PASSED (W1 & W6 verified on live remote DB, mobile capacitor sync verified)
 - **Phase 1 Exit Gate Status**: PASSED (W1, W4, W5a, W6, W9 verified on live remote DB, mobile capacitor sync verified)
+- **Phase 2 Exit Gate Status**: PASSED (W1, W2, W3, W6 verified on live remote DB, mobile capacitor sync verified)
 
 ---
 
@@ -70,6 +71,47 @@
 
 ---
 
+### Phase 2: Payables Roll-Up, General Ledger Integration & Client Recharge
+- [x] **2.1 Payable Roll-Up & Billing Join Table**:
+  - Created `manpower_billing_entries` join table with `attendance_id UNIQUE` constraint to structurally prevent double billing.
+  - Extended `manpower_billing` header with `idempotency_key` and `journal_id`.
+  - Implemented `generate_manpower_bill` RPC: aggregates approved unbilled attendance, verifies work order retention %, creates join entries, transitions rows to `BILLED`, and recalculates subcontractor balance.
+- [x] **2.2 General Ledger & Project Attribution Integration**:
+  - In `generate_manpower_bill`, created balanced journal entry in `journal_entries`:
+    - Debit: Operational Expense (Account `4100`)
+    - Credit: Subcontractor AP (Account `2100`)
+    - Credit: Retention Payable (Account `2150`, if retention % configured on work order)
+  - Asserted `debit = credit` on every generated bill.
+  - Attached `project_id` attribution to each journal entry line.
+- [x] **2.3 Client Recharge & Rate Resolution**:
+  - Created table `labour_bill_rates` with tenant RLS isolation and audit trigger.
+  - Implemented RPC `resolve_labour_bill_rate` resolving rates with priority: (1) Client x Trade x Project -> (2) Client x Trade -> (3) Category Default -> (4) Fail Closed.
+  - Implemented RPC `mark_attendance_billable` updating attendance with server-resolved `bill_rate` and `bill_amount`.
+  - Implemented RPC `pull_billable_labour` returning uninvoiced billable labour rows.
+  - Implemented RPC `attach_labour_to_invoice`: groups attendance by trade, generates `invoice_items` lines with mandays and rates, and links attendance rows via `invoice_id` with idempotency replay.
+- [x] **2.4 Reporting Views**:
+  - Created `v_labour_margin` computing `total_cost`, `total_billed`, `total_margin`, and `margin_percentage`.
+  - Created `v_labour_billable_uninvoiced` listing all billable rows awaiting invoice attachment.
+- [x] **2.5 Web & Mobile UI Parity**:
+  - `apps/web/src/features/subcontractor-v2/services/subcontractorService.ts`: added `generateManpowerBill`, `pullBillableLabour`, `attachLabourToInvoice`, `getLabourMargin`, `getBillableUninvoiced`, `getLabourBillRates`.
+  - `apps/web/src/features/subcontractor-v2/components/Attendance/AttendanceListPage.tsx`: added Labour Margin summary card, "Generate Manpower Bill" action button and modal, and "Client Recharge" column with billable status.
+  - `apps/web/src/invoices/pages/InvoiceEditorPage.tsx`: added "Add Labour Charges" action pulling unbilled billable labour directly into the invoice editor.
+  - `apps/mobile/src/screens/SitePlanMobile.tsx`: added Client Recharge badge and invoice linkage display with left-aligned monetary values per workspace rule 2.
+- [x] **Phase 2 Exit Gate (W1, W2, W3, W6)**:
+  - Verified via `scripts/verify-phase2.cjs` on live DB:
+    - 5 fitters x 8h x ₹700 = ₹3500 cost
+    - Billed 5 x ₹950 = ₹4750
+    - Margin = ₹1250 (26.32%)
+    - GL balanced: Debit ₹3500 = Credit ₹3500 (AP ₹3325 + Retention ₹175)
+    - Double billing blocked by unique constraint
+    - Idempotency replays on both bill generation and invoice attachment verified
+    - Outsider blocked from all Phase 2 RPCs and tenant views
+  - Raw log: `docs/labour-attendance/verification/phase2-w1-w2-w3-w6-2026-11-03T19-32-51-410Z.log`.
+  - Leftover test rows: 0.
+  - Mobile compilation & Capacitor sync verified: 0 warnings, 0 errors.
+
+---
+
 ## Applied Migrations
 | Timestamp / Version | Name | Applied At | Status |
 |:---|:---|:---|:---|
@@ -78,6 +120,7 @@
 | 20261103000001 | site_planning_foundation | Pre-existing | Moved to migrations_rejected |
 | 20261103010000 | phase0_labour_foundation | 2026-11-04 00:04 | Applied & Verified |
 | 20261103020000 | phase1_parties_workers_planning | 2026-11-04 00:37 | Applied & Verified |
+| 20261103030000 | phase2_payables_client_recharge | 2026-11-04 00:57 | Applied & Verified |
 
 
 ---

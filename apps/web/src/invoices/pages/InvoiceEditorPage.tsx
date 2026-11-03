@@ -39,6 +39,7 @@ import {
   type InvoiceEditorFormValues,
 } from '../ui-utils';
 import type { ConversionType } from '../../conversions/types';
+import { subcontractorService } from '../../features/subcontractor-v2/services/subcontractorService';
 import { useAiDocumentImport } from '../editor/hooks/useAiDocumentImport';
 import { useLastDocumentRates } from '../../hooks/useLastDocumentRates';
 import { useInvoiceEditorData } from '../editor/hooks/useInvoiceEditorData';
@@ -302,6 +303,56 @@ export default function InvoiceEditorPage() {
   }, [isEditMode, invoiceId, organisation?.id, setValue]);
 
   // ── Source line-item selection handlers ──
+  const [isPullingLabour, setIsPullingLabour] = useState(false);
+
+  const handleAddLabourCharges = async () => {
+    if (!organisation?.id) {
+      toast.error('No organisation active.');
+      return;
+    }
+    if (!selectedClientId) {
+      toast.error('Please select a client in the header first.');
+      return;
+    }
+
+    setIsPullingLabour(true);
+    try {
+      const labourRows = await subcontractorService.pullBillableLabour(
+        organisation.id,
+        selectedClientId,
+        undefined
+      );
+
+      if (!labourRows || labourRows.length === 0) {
+        toast.info('No billable un-invoiced labour attendance found for this client.');
+        return;
+      }
+
+      let added = 0;
+      labourRows.forEach((row: any) => {
+        itemsFieldArray.append(createEmptyItem({
+          description: `Labour Charges: ${row.category_name || 'Labour'} (${row.man_days} mandays @ ₹${row.bill_rate})`,
+          qty: Number(row.man_days || 1),
+          rate: Number(row.bill_rate || 0),
+          amount: Number(row.bill_amount || 0),
+          meta_json: {
+            source: 'labour_recharge',
+            attendance_id: row.attendance_id,
+            labour_category_id: row.labour_category_id,
+            bill_rate: row.bill_rate,
+          }
+        }));
+        added++;
+      });
+
+      toast.success(`Added ${added} labour charge line item(s).`);
+    } catch (err: any) {
+      toast.error(`Failed to pull labour charges: ${err?.message || 'Server error'}`);
+    } finally {
+      setIsPullingLabour(false);
+    }
+  };
+
   const handlePOSelection = () => {
     if (selectedSourceType === 'po' && selectedSourceId && source.poDetailsQuery.data) {
       setIsPOSelectorOpen(true);
@@ -755,6 +806,15 @@ export default function InvoiceEditorPage() {
                 title="Select multiple lines from the selected purchase order"
               >
                 <Plus size={12} className="mr-1" /> Add Multiple Items
+              </button>
+              <button
+                type="button"
+                className="h-8 px-3 text-xs font-bold border border-indigo-300 hover:bg-indigo-50 text-indigo-700 flex items-center transition-all bg-indigo-50/50"
+                onClick={handleAddLabourCharges}
+                disabled={isPullingLabour || !selectedClientId}
+                title={!selectedClientId ? 'Select a client first to add labour charges' : 'Pull billable un-invoiced labour attendance'}
+              >
+                <Plus size={12} className="mr-1" /> {isPullingLabour ? 'Pulling...' : 'Add Labour Charges'}
               </button>
             </>
           }

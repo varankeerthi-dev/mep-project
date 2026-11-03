@@ -410,6 +410,120 @@ export const subcontractorService = {
     return data || [];
   },
 
+  async markAttendanceBillable(attendanceId: string, organisationId: string, isBillable: boolean, clientId?: string) {
+    const { data, error } = await supabase.rpc('mark_attendance_billable', {
+      p_attendance_id: attendanceId,
+      p_organisation_id: organisationId,
+      p_is_billable: isBillable,
+      p_client_id: clientId || null,
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async generateManpowerBill(payload: {
+    organisationId: string;
+    subcontractorId: string;
+    periodFrom: string;
+    periodTo: string;
+    idempotencyKey?: string;
+    clientId?: string;
+    projectId?: string;
+    workOrderId?: string;
+    remarks?: string;
+  }) {
+    const { data, error } = await supabase.rpc('generate_manpower_bill', {
+      p_organisation_id: payload.organisationId,
+      p_subcontractor_id: payload.subcontractorId,
+      p_period_from: payload.periodFrom,
+      p_period_to: payload.periodTo,
+      p_idempotency_key: payload.idempotencyKey || null,
+      p_client_id: payload.clientId || null,
+      p_project_id: payload.projectId || null,
+      p_work_order_id: payload.workOrderId || null,
+      p_remarks: payload.remarks || null,
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async pullBillableLabour(organisationId: string, clientId: string, projectId?: string, periodFrom?: string, periodTo?: string) {
+    const { data, error } = await supabase.rpc('pull_billable_labour', {
+      p_organisation_id: organisationId,
+      p_client_id: clientId,
+      p_project_id: projectId || null,
+      p_period_from: periodFrom || null,
+      p_period_to: periodTo || null,
+    });
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async attachLabourToInvoice(payload: {
+    invoiceId: string;
+    organisationId: string;
+    clientId: string;
+    projectId?: string;
+    periodFrom?: string;
+    periodTo?: string;
+    idempotencyKey?: string;
+  }) {
+    const { data, error } = await supabase.rpc('attach_labour_to_invoice', {
+      p_invoice_id: payload.invoiceId,
+      p_organisation_id: payload.organisationId,
+      p_client_id: payload.clientId,
+      p_project_id: payload.projectId || null,
+      p_period_from: payload.periodFrom || null,
+      p_period_to: payload.periodTo || null,
+      p_idempotency_key: payload.idempotencyKey || null,
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async getLabourMargin(organisationId: string, clientId?: string, projectId?: string) {
+    let query = supabase
+      .from('v_labour_margin')
+      .select('*')
+      .eq('organisation_id', organisationId);
+
+    if (clientId) query = query.eq('client_id', clientId);
+    if (projectId) query = query.eq('project_id', projectId);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async getBillableUninvoiced(organisationId: string, clientId?: string, projectId?: string) {
+    let query = supabase
+      .from('v_labour_billable_uninvoiced')
+      .select('*')
+      .eq('organisation_id', organisationId);
+
+    if (clientId) query = query.eq('client_id', clientId);
+    if (projectId) query = query.eq('project_id', projectId);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async getLabourBillRates(organisationId: string, clientId?: string, projectId?: string) {
+    let query = supabase
+      .from('labour_bill_rates')
+      .select('*, labour_categories(id, name, code, unit)')
+      .eq('organisation_id', organisationId)
+      .eq('is_active', true);
+
+    if (clientId) query = query.eq('client_id', clientId);
+    if (projectId) query = query.eq('project_id', projectId);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
   async getDailyLogs(subcontractorId: string, organisationId: string) {
     const { data, error } = await supabase
       .from('subcontractor_daily_logs')

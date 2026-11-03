@@ -44,6 +44,10 @@ interface SitePlanItem {
   client_confirmation_status: 'not_confirmed' | 'confirmed' | 'postponement_requested' | 'cancelled';
   execution_status: 'scheduled' | 'dispatched' | 'in_progress' | 'completed' | 'cancelled';
   site_visit_id: string | null;
+  is_billable?: boolean;
+  bill_rate?: number;
+  bill_amount?: number;
+  invoice_id?: string | null;
   project?: { id: string; title?: string } | null;
   client?: { id: string; company_name?: string } | null;
   allocations?: SitePlanAllocationItem[];
@@ -173,6 +177,10 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
           project_id,
           client_id,
           subcontractor_id,
+          is_billable,
+          bill_rate,
+          bill_amount,
+          invoice_id,
           project:projects(id, name, project_name),
           client:clients(id, client_name, name),
           category:labour_categories(id, name, code),
@@ -198,6 +206,10 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
           client_confirmation_status: p.client_confirmation === 'confirmed' ? 'confirmed' : 'not_confirmed',
           execution_status: p.status === 'CONVERTED' ? 'completed' : 'scheduled',
           site_visit_id: null,
+          is_billable: p.is_billable,
+          bill_rate: p.bill_rate ? Number(p.bill_rate) : undefined,
+          bill_amount: p.bill_amount ? Number(p.bill_amount) : undefined,
+          invoice_id: p.invoice_id,
           project: p.project ? { id: p.project.id, title: p.project.project_name || p.project.name } : null,
           client: p.client ? { id: p.client.id, company_name: p.client.client_name || p.client.name } : null,
           allocations: [
@@ -588,6 +600,27 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
                     <p className="text-[11px] bg-secondary/50 p-2 rounded-xl text-muted-foreground italic border border-border/30">
                       "{plan.notes}"
                     </p>
+                  )}
+
+                  {/* Billable & Client Recharge info (left-aligned) */}
+                  {plan.is_billable && (
+                    <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-border/20 text-left">
+                      <div className="flex items-center gap-1.5 text-left font-semibold text-primary">
+                        <span>Recharge: ₹{Number(plan.bill_amount || 0).toFixed(2)}</span>
+                        {plan.bill_rate && (
+                          <span className="text-muted-foreground text-[10px]">(@ ₹{Number(plan.bill_rate).toFixed(2)}/day)</span>
+                        )}
+                      </div>
+                      {plan.invoice_id ? (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+                          Invoiced
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500/15 text-blue-600 border border-blue-500/30">
+                          Billable Uninvoiced
+                        </span>
+                      )}
+                    </div>
                   )}
 
                   {/* Action Buttons */}
