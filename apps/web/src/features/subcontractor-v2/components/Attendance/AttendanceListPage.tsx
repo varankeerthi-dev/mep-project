@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../../../App';
 import { SubcontractorModuleNav } from '../Shared/SubcontractorModuleNav';
-import { Plus, Trash2, Edit2, Search, Filter, Calendar, Users, X, CheckCircle, Clock, XCircle, Receipt, TrendingUp, DollarSign } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, Filter, Calendar, Users, X, CheckCircle, Clock, XCircle, Receipt, TrendingUp, DollarSign, Inbox } from 'lucide-react';
 import { subcontractorService } from '../../services/subcontractorService';
 
 interface AttendanceListPageProps {
@@ -23,6 +23,22 @@ export function AttendanceListPage({ onNavigate }: AttendanceListPageProps) {
   const [billPeriodFrom, setBillPeriodFrom] = useState('');
   const [billPeriodTo, setBillPeriodTo] = useState('');
   const [isGeneratingBill, setIsGeneratingBill] = useState(false);
+  const [showInboxModal, setShowInboxModal] = useState(false);
+  const [inboxProjectId, setInboxProjectId] = useState('');
+  const [isReviewingItem, setIsReviewingItem] = useState(false);
+
+  const { data: sharedInbox, refetch: refetchInbox } = useQuery({
+    queryKey: ['v2-shared-inbox', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      return subcontractorService.getSharedInbox(organisation.id);
+    },
+    enabled: !!organisation?.id,
+  });
+
+  const pendingInboxCount = useMemo(() => {
+    return sharedInbox?.filter((item: any) => item.status === 'pending').length || 0;
+  }, [sharedInbox]);
 
   const { data: subcontractors } = useQuery({
     queryKey: ['v2-subcontractors', 'list', organisation?.id],
@@ -187,6 +203,36 @@ export function AttendanceListPage({ onNavigate }: AttendanceListPageProps) {
     refetch();
   };
 
+  const handleReviewInboxItem = async (itemId: string, decision: 'approved' | 'disputed') => {
+    if (!organisation?.id) return;
+    let reason: string | null = null;
+    if (decision === 'disputed') {
+      reason = window.prompt('Enter reason for disputing this attendance row:');
+      if (!reason || !reason.trim()) {
+        alert('A reason is required to dispute attendance.');
+        return;
+      }
+    }
+
+    try {
+      setIsReviewingItem(true);
+      await subcontractorService.reviewSharedAttendance({
+        itemId,
+        receiverOrgId: organisation.id,
+        decision,
+        reason: reason || undefined,
+        projectId: inboxProjectId || undefined,
+      });
+      alert(`Shared attendance ${decision} successfully`);
+      refetchInbox();
+      refetch();
+    } catch (err: any) {
+      alert(`Failed to ${decision} shared attendance: ${err?.message || err}`);
+    } finally {
+      setIsReviewingItem(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'APPROVED': return { bg: '#dcfce7', text: '#16a34a' };
@@ -210,6 +256,19 @@ export function AttendanceListPage({ onNavigate }: AttendanceListPageProps) {
               </p>
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowInboxModal(true)}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '8px', borderRadius: '8px',
+                  background: '#6366f1', padding: '10px 18px', fontSize: '14px', fontWeight: '600',
+                  color: '#fff', border: 'none', cursor: 'pointer', transition: 'background 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#4f46e5'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#6366f1'}
+              >
+                <Inbox size={16} />
+                Shared Inbox {pendingInboxCount > 0 && `(${pendingInboxCount})`}
+              </button>
               <button
                 onClick={() => setShowBillModal(true)}
                 style={{
@@ -507,6 +566,138 @@ export function AttendanceListPage({ onNavigate }: AttendanceListPageProps) {
                 style={{ padding: '8px 16px', borderRadius: '8px', background: '#0284c7', color: '#fff', border: 'none', cursor: isGeneratingBill ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '600', opacity: isGeneratingBill ? 0.6 : 1 }}
               >
                 {isGeneratingBill ? 'Generating Bill...' : 'Generate Bill'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Shared Inbox Modal */}
+      {showInboxModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '24px', width: '90%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div>
+                <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '0 0 4px 0' }}>
+                  Shared Contractor Attendance Inbox
+                </h2>
+                <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
+                  Review shared attendance packets submitted by linked labour contractors. Approved items automatically land in your payable statement with server-resolved rates.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowInboxModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {sharedInbox?.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px 16px', color: '#94a3b8' }}>
+                <Inbox size={40} style={{ margin: '0 auto 12px auto', opacity: 0.5 }} />
+                <p style={{ fontSize: '14px', fontWeight: '600', color: '#475569', margin: '0 0 4px 0' }}>Inbox is empty</p>
+                <p style={{ fontSize: '12px', margin: 0 }}>No shared attendance records have been submitted by linked contractors.</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+                      <th style={{ padding: '10px 14px', fontWeight: '600' }}>Date</th>
+                      <th style={{ padding: '10px 14px', fontWeight: '600' }}>Sender Org</th>
+                      <th style={{ padding: '10px 14px', fontWeight: '600' }}>Trade</th>
+                      <th style={{ padding: '10px 14px', fontWeight: '600' }}>Headcount</th>
+                      <th style={{ padding: '10px 14px', fontWeight: '600' }}>Hours</th>
+                      <th style={{ padding: '10px 14px', fontWeight: '600' }}>Project Ref</th>
+                      <th style={{ padding: '10px 14px', fontWeight: '600' }}>Status</th>
+                      <th style={{ padding: '10px 14px', fontWeight: '600', textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sharedInbox?.map((item: any) => (
+                      <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '10px 14px', fontWeight: '600', color: '#0f172a' }}>{item.attendance_date}</td>
+                        <td style={{ padding: '10px 14px', color: '#475569' }}>{item.sender_org_name || 'Contractor'}</td>
+                        <td style={{ padding: '10px 14px', fontWeight: '500', color: '#0f172a' }}>{item.trade}</td>
+                        <td style={{ padding: '10px 14px', color: '#0f172a' }}>{item.headcount} workers</td>
+                        <td style={{ padding: '10px 14px', color: '#64748b' }}>{item.hours_worked}h</td>
+                        <td style={{ padding: '10px 14px', color: '#64748b' }}>{item.project_name_ref || '-'}</td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            textTransform: 'uppercase',
+                            background: item.status === 'approved' ? '#dcfce7' : item.status === 'disputed' ? '#fee2e2' : '#fef9c3',
+                            color: item.status === 'approved' ? '#16a34a' : item.status === 'disputed' ? '#dc2626' : '#ca8a04',
+                          }}>
+                            {item.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                          {item.status === 'pending' ? (
+                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                              <button
+                                onClick={() => handleReviewInboxItem(item.id, 'approved')}
+                                disabled={isReviewingItem}
+                                style={{
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  background: '#16a34a',
+                                  color: '#fff',
+                                  border: 'none',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  cursor: isReviewingItem ? 'not-allowed' : 'pointer'
+                                }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleReviewInboxItem(item.id, 'disputed')}
+                                disabled={isReviewingItem}
+                                style={{
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  background: '#fff',
+                                  color: '#dc2626',
+                                  border: '1px solid #fca5a5',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  cursor: isReviewingItem ? 'not-allowed' : 'pointer'
+                                }}
+                              >
+                                Dispute
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '12px', color: '#94a3b8' }}>Reviewed</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button
+                onClick={() => setShowInboxModal(false)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  background: '#f1f5f9',
+                  color: '#0f172a',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '500'
+                }}
+              >
+                Close
               </button>
             </div>
           </div>

@@ -38,3 +38,18 @@ This document tracks known adjacent defects identified during the codebase audit
 - **Tables**: `parties`, `party_roles`, `party_opening_balances`, `work_order_items`, `work_order_links`, `work_order_parties`, `work_order_requirements`, `work_order_versions`, `work_order_bill_links`, `work_order_audit_events`.
 - **Defect**: Row Level Security is turned on (`relrowsecurity = true`), but no policies exist, locking out non-service-role queries.
 - **Remediation**: Add explicit tenant policies `TO authenticated` using `user_can_access_org(organisation_id)` for tables used by this feature.
+
+### 8. `invoices` Table Column Schemas
+- **Relation**: `public.invoices`
+- **Defect**: Code in several places assumed `invoice_number`, but the live column is `invoice_no`. Additionally, multiple financial columns (`template_type`, `mode`, `subtotal`, `cgst`, `sgst`, `igst`, `total`, `round_off`) are defined as `NOT NULL` without database defaults.
+- **Remediation**: Standardized on `invoice_no` and provided all non-null default values when attaching labour invoice charges.
+
+### 9. Postgres `FOR UPDATE` with `GROUP BY`
+- **Context**: `attach_labour_to_invoice`
+- **Defect**: PostgreSQL raises error `42P10: FOR UPDATE cannot be applied to queries with GROUP BY`.
+- **Remediation**: De-coupled row-level locking from aggregation by pre-locking candidate rows using `PERFORM id FROM manpower_attendance ... FOR UPDATE` before executing the grouped aggregation.
+
+### 10. `labour_audit_log` Immutability with Cascade Deletions
+- **Relation**: `public.labour_audit_log`
+- **Defect**: The trigger `trg_prevent_labour_audit_tampering()` rejects all `DELETE` operations. However, `organisations(id)` had `ON DELETE CASCADE` on `labour_audit_log.organisation_id`. When an organisation was deleted, the cascade delete fired the trigger and failed.
+- **Remediation**: Test runners must temporarily disable `trg_labour_audit_immutable` during cleanup of test tenants, or organisations must be archived instead of hard-deleted in production.

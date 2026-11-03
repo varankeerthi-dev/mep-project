@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   HardHat, Calendar, Clock, Users, ArrowLeft, Search, 
-  CheckCircle2, AlertTriangle, RefreshCw, UserCheck
+  CheckCircle2, AlertTriangle, RefreshCw, UserCheck, Inbox
 } from 'lucide-react';
 
 interface SitePlanMobileProps {
@@ -57,7 +57,9 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
   const [plans, setPlans] = useState<SitePlanItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterMode, setFilterMode] = useState<'all' | 'tomorrow' | 'confirmed' | 'postponed'>('all');
+  const [filterMode, setFilterMode] = useState<'all' | 'tomorrow' | 'confirmed' | 'postponed' | 'shared_inbox'>('all');
+  const [sharedInboxItems, setSharedInboxItems] = useState<any[]>([]);
+  const [loadingInbox, setLoadingInbox] = useState(false);
   
   // Reschedule state
   const [reschedulePlan, setReschedulePlan] = useState<SitePlanItem | null>(null);
@@ -86,6 +88,7 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
 
   useEffect(() => {
     loadPlans();
+    loadSharedInbox();
   }, [isDemo]);
 
   const loadPlans = async () => {
@@ -285,6 +288,75 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
       } : p));
     } catch (err: any) {
       alert(`Confirmation toggle failed: ${err?.message || 'Server error'}`);
+    }
+  };
+
+  const loadSharedInbox = async () => {
+    setLoadingInbox(true);
+    try {
+      if (isDemo) {
+        setSharedInboxItems([
+          {
+            id: 'demo-share-1',
+            attendance_date: tomorrowStr,
+            trade: 'HVAC Fitter',
+            headcount: 5,
+            hours_worked: 8.0,
+            project_name_ref: 'Metro Station HVAC Phase 2',
+            worker_names: ['Ramesh Fitter', 'Suresh Tech'],
+            status: 'pending',
+            sender_org_name: 'Metro Labour Solutions',
+          }
+        ]);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('v_labour_share_inbox')
+        .select('*')
+        .order('attendance_date', { ascending: false });
+      if (error) throw error;
+      setSharedInboxItems(data || []);
+    } catch (err: any) {
+      console.error('Failed to load shared inbox:', err);
+    } finally {
+      setLoadingInbox(false);
+    }
+  };
+
+  const handleReviewSharedItem = async (itemId: string, decision: 'approved' | 'disputed') => {
+    let reason: string | null = null;
+    if (decision === 'disputed') {
+      reason = window.prompt('Enter reason for disputing this attendance row:');
+      if (!reason || !reason.trim()) {
+        alert('A reason is required to dispute attendance.');
+        return;
+      }
+    }
+
+    if (isDemo) {
+      setSharedInboxItems(prev => prev.map(item => item.id === itemId ? {
+        ...item,
+        status: decision,
+        review_notes: reason
+      } : item));
+      alert(`Shared attendance ${decision} successfully (demo mode)`);
+      return;
+    }
+
+    try {
+      const orgId = plans[0]?.organisation_id;
+      const { error } = await supabase.rpc('review_shared_attendance', {
+        p_item_id: itemId,
+        p_receiver_org_id: orgId,
+        p_decision: decision,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      alert(`Shared attendance ${decision} successfully`);
+      loadSharedInbox();
+      loadPlans();
+    } catch (err: any) {
+      alert(`Failed to ${decision} shared attendance: ${err?.message || err}`);
     }
   };
 
@@ -490,10 +562,14 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
               { id: 'tomorrow', label: 'Tomorrow' },
               { id: 'confirmed', label: 'Client Confirmed' },
               { id: 'postponed', label: 'Postponed' },
+              { id: 'shared_inbox', label: 'Shared Inbox' },
             ].map((f) => (
               <button
                 key={f.id}
-                onClick={() => setFilterMode(f.id as any)}
+                onClick={() => {
+                  setFilterMode(f.id as any);
+                  if (f.id === 'shared_inbox') loadSharedInbox();
+                }}
                 className={`py-1 px-3 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
                   filterMode === f.id
                     ? 'bg-primary text-primary-foreground shadow-xs'
@@ -506,20 +582,112 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
           </div>
         </div>
 
-        {/* Plan Cards List */}
-        {loading ? (
-          <div className="py-12 text-center text-xs text-muted-foreground space-y-2">
-            <RefreshCw className="w-5 h-5 mx-auto animate-spin text-primary" />
-            <p>Loading planned site manpower...</p>
-          </div>
-        ) : filteredPlans.length === 0 ? (
-          <div className="py-12 text-center text-xs text-muted-foreground border border-dashed border-border rounded-2xl p-6 bg-card/40">
-            <HardHat className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
-            <p className="font-semibold text-foreground">No site plans found</p>
-            <p className="mt-1">Try switching filters or adjusting your search query.</p>
-          </div>
+        {/* Shared Inbox Mode */}
+        {filterMode === 'shared_inbox' ? (
+          loadingInbox ? (
+            <div className="py-12 text-center text-xs text-muted-foreground space-y-2">
+              <RefreshCw className="w-5 h-5 mx-auto animate-spin text-primary" />
+              <p>Loading shared contractor inbox...</p>
+            </div>
+          ) : sharedInboxItems.length === 0 ? (
+            <div className="py-12 text-center text-xs text-muted-foreground border border-dashed border-border rounded-2xl p-6 bg-card/40">
+              <Inbox className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
+              <p className="font-semibold text-foreground">Inbox Empty</p>
+              <p className="mt-1">No shared attendance entries received from linked contractors.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sharedInboxItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="glass-card rounded-2xl p-4 bg-card/90 border border-border/60 shadow-xs space-y-3 transition-all"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-0.5 text-left">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-foreground text-left">
+                          {item.sender_org_name || 'Linked Contractor'}
+                        </span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                          {item.trade}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground text-left">
+                        {item.project_name_ref || 'Project Site'} • {item.attendance_date}
+                      </p>
+                    </div>
+
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                      item.status === 'approved' ? 'bg-emerald-500/10 text-emerald-600' :
+                      item.status === 'disputed' ? 'bg-rose-500/10 text-rose-600' :
+                      'bg-amber-500/10 text-amber-600'
+                    }`}>
+                      {item.status}
+                    </span>
+                  </div>
+
+                  {/* Metrics: Headcount & Hours (left-aligned) */}
+                  <div className="grid grid-cols-2 gap-2 text-left bg-background/50 p-2.5 rounded-xl border border-border/30">
+                    <div className="text-left">
+                      <span className="text-[10px] text-muted-foreground block text-left">Headcount</span>
+                      <span className="text-sm font-bold text-foreground text-left">{item.headcount} workers</span>
+                    </div>
+                    <div className="text-left">
+                      <span className="text-[10px] text-muted-foreground block text-left">Hours Worked</span>
+                      <span className="text-sm font-bold text-foreground text-left">{item.hours_worked} hrs</span>
+                    </div>
+                  </div>
+
+                  {item.worker_names && item.worker_names.length > 0 && (
+                    <div className="text-[11px] text-muted-foreground text-left">
+                      <span className="font-semibold text-foreground">Workers: </span>
+                      {item.worker_names.join(', ')}
+                    </div>
+                  )}
+
+                  {item.review_notes && (
+                    <div className="text-[11px] text-rose-600 bg-rose-50 p-2 rounded-lg text-left">
+                      <span className="font-semibold">Review note: </span>{item.review_notes}
+                    </div>
+                  )}
+
+                  {/* Actions for Pending */}
+                  {item.status === 'pending' && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => handleReviewSharedItem(item.id, 'approved')}
+                        className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Approve to Payables</span>
+                      </button>
+                      <button
+                        onClick={() => handleReviewSharedItem(item.id, 'disputed')}
+                        className="py-2 px-3 rounded-xl border border-rose-300 text-rose-600 hover:bg-rose-50 text-xs font-semibold transition-colors"
+                      >
+                        Dispute
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
         ) : (
-          <div className="space-y-3">
+          /* Plan Cards List */
+          loading ? (
+            <div className="py-12 text-center text-xs text-muted-foreground space-y-2">
+              <RefreshCw className="w-5 h-5 mx-auto animate-spin text-primary" />
+              <p>Loading planned site manpower...</p>
+            </div>
+          ) : filteredPlans.length === 0 ? (
+            <div className="py-12 text-center text-xs text-muted-foreground border border-dashed border-border rounded-2xl p-6 bg-card/40">
+              <HardHat className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
+              <p className="font-semibold text-foreground">No site plans found</p>
+              <p className="mt-1">Try switching filters or adjusting your search query.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
             {filteredPlans.map((plan) => {
               const isConfirmed = plan.client_confirmation_status === 'confirmed';
               const isPostponed = plan.client_confirmation_status === 'postponement_requested';
@@ -662,7 +830,8 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
               );
             })}
           </div>
-        )}
+        )
+      )}
       </main>
 
       {/* Convert to Actual Bottom Sheet */}

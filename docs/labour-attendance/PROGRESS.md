@@ -1,11 +1,13 @@
 # BillFast Labour & Subcontractor Attendance — Resumable Progress Log
 
 ## Current Status
-- **Active Phase**: Phase 3 — Labour-Contractor Tenant (Wages, Piece-Rate / Meters, Margin)
-- **Current Step**: Step 3.1 Piece-Rate / Output Entry & Measurement Sheets
+- **Active Phase**: ALL PHASES 0 → 4 COMPLETE & VERIFIED
 - **Phase 0 Exit Gate Status**: PASSED (W1 & W6 verified on live remote DB, mobile capacitor sync verified)
 - **Phase 1 Exit Gate Status**: PASSED (W1, W4, W5a, W6, W9 verified on live remote DB, mobile capacitor sync verified)
 - **Phase 2 Exit Gate Status**: PASSED (W1, W2, W3, W6 verified on live remote DB, mobile capacitor sync verified)
+- **Phase 3 Exit Gate Status**: PASSED (W5 full, W8, W6 verified on live remote DB, mobile capacitor sync verified)
+- **Phase 4 Exit Gate Status**: PASSED (W7 cross-tenant sharing verified on live remote DB, mobile capacitor sync verified)
+- **Full Regression Status**: PASSED (W1-W9 all green with 0 leftover rows)
 
 ---
 
@@ -112,6 +114,72 @@
 
 ---
 
+### Phase 3: Labour-Contractor Tenant — Wages, Piece-Rate / Meters & Margin
+- [x] **3.1 Business Profile Setting**:
+  - Added `organisations.business_profile` with values `'epc'`, `'labour_supplier'`, `'both'`.
+- [x] **3.2 Wages Module**:
+  - Created tables `labour_wage_runs`, `labour_wage_lines`, `labour_wage_line_sources`, `labour_advances` with tenant RLS isolation and audit triggers.
+  - Implemented RPC `give_labour_advance` for casual workers and own employees.
+  - Implemented RPC `generate_wage_run` aggregating actual attendance by pay basis with advance recovery cap (advances never drive net below zero).
+  - Implemented RPC `approve_wage_run` and `pay_wage_run` posting balanced double-entry GL journals (`Debit: Wages Expense 4110`, `Credit: Cash/Bank 1010`, `Credit: Advance Recovered 1150`).
+  - Created worker wage statement view `v_worker_wage_statement`.
+- [x] **3.3 Piece-Rate / Measurement-Based Pay**:
+  - Extended `rate_cards.pay_basis` and `subcontractor_work_orders.pay_basis` (`'daily'`, `'per_meter'`, `'lump_sum'`).
+  - Created `labour_measurements` table with status workflow (`DRAFT` -> `SUBMITTED` -> `APPROVED`).
+  - Added `manpower_attendance.productivity_only` boolean flag for piece-rate agreements.
+  - Implemented RPCs: `record_measurement`, `approve_measurement`.
+  - Created productivity view `v_labour_productivity` calculating meters per man-day without cross-contaminating worker daily wages.
+- [x] **3.4 Margin & Service Layer**:
+  - Updated `v_labour_margin` to dynamically combine daily attendance costs and piece-rate measurements against client recharge billing.
+  - Added service methods to `subcontractorService.ts`: `giveLabourAdvance`, `getLabourAdvances`, `generateWageRun`, `approveWageRun`, `payWageRun`, `getWageRuns`, `getWorkerWageStatements`, `recordMeasurement`, `approveMeasurement`, `getMeasurements`, `getLabourProductivity`.
+- [x] **Phase 3 Exit Gate (W5 full, W8, W6)**:
+  - Verified via `scripts/verify-phase3.cjs` on live DB:
+    - W5.a mixed attendance & casual worker quick-add verified
+    - W5.b client recharge invoice attached (₹8350.00 billed) verified
+    - W5.c advance given (₹1000), wage run generated (gross ₹5900, adv rec ₹1000, net ₹4900), approved, paid with balanced GL debit=credit=₹5900
+    - W8 rate card ₹120/m, productivity attendance (cost ₹0), measurement 50m -> ₹6000 approved, productivity view = 10.00 m/manday
+    - W5.d margin combining wages and measurements verified
+    - W6 outsider blocked and audit immutability verified
+  - Raw log: `docs/labour-attendance/verification/phase3-w5-w8-w6-2026-11-03T19-57-24-718Z.log`.
+  - Leftover test rows: 0.
+  - Mobile compilation & Capacitor sync verified: 0 warnings, 0 errors.
+
+---
+
+### Phase 4: Cross-Tenant Sharing & Bilateral Tenant Linking
+- [x] **4.1 Schema & Linking**:
+  - Created `labour_tenant_links` table supporting bilateral handshake between contractor (Org B) and client (Org A).
+  - Extended `manpower_attendance` with `shared_ref` and `source_share_item_id`.
+  - Created `labour_attendance_shares` batch header and `labour_share_inbox` items table.
+  - Strictly sanitized payload: date, trade, headcount, hours, worker names, project reference name. Never leaks rates, wages, margin, or payout references.
+  - Enforced cross-tenant RLS: receiver can ONLY see items when link status is `'accepted'`. Revoking the link immediately stops submissions and hides inbox from receiver.
+- [x] **4.2 RPCs & Automated Import**:
+  - Implemented `request_tenant_link`, `accept_tenant_link`, `revoke_tenant_link`.
+  - Implemented `submit_shared_attendance`: batches approved rows and maps sanitized payload into receiver's inbox.
+  - Implemented `review_shared_attendance`: allows approve, reject, dispute (reason required).
+  - Approving automatically generates an approved attendance row in receiver's `manpower_attendance` using receiver's server-resolved rate card for vendor (zero re-entry).
+- [x] **4.3 UI & Service Integration**:
+  - Added service methods to `subcontractorService.ts`: `requestTenantLink`, `acceptTenantLink`, `revokeTenantLink`, `getTenantLinks`, `submitSharedAttendance`, `getSharedInbox`, `reviewSharedAttendance`.
+  - Web UI: added "Shared Inbox" button with pending count badge and Shared Inbox Review Modal in `AttendanceListPage.tsx`.
+  - Mobile UI: added "Shared Inbox" filter pill, card list, and review actions (Approve / Dispute) with left-aligned monetary columns in `SitePlanMobile.tsx`.
+- [x] **Phase 4 Exit Gate (W7) & Full Regressions (W1-W9)**:
+  - Verified via `scripts/verify-phase4.cjs` on live DB:
+    - Bilateral tenant link handshake (Org B requests, Org A accepts) verified
+    - Org B submits approved rows (5 fitters, 3 fitters) verified
+    - Payload sanitization verified (zero rate, wage, or margin leaks)
+    - Org A reviews: approves Item 1 (receiver attendance created with Org A rate ₹700, amount ₹3500)
+    - Org A disputes Item 2 with reason (dispute without reason correctly rejected)
+    - Zero re-entry payable roll-up: Org A generates bill for Subcontractor B with 1 row, total ₹3500.00
+    - Tenant isolation: Org B queries Org A tables -> 0 rows; Org A queries Org B wages/margin -> 0 rows
+    - Revoke link: stops submissions and hides inbox from Org A
+    - Full audit logging into `labour_audit_log` verified
+  - Raw log: `docs/labour-attendance/verification/phase4-w7-2026-11-03T20-21-31-547Z.log`.
+  - Leftover test rows: 0.
+  - Full regressions re-run and passed: Phase 0, Phase 1, Phase 2, Phase 3, Phase 4 all green.
+  - Mobile compilation & Capacitor sync verified: 0 warnings, 0 errors.
+
+---
+
 ## Applied Migrations
 | Timestamp / Version | Name | Applied At | Status |
 |:---|:---|:---|:---|
@@ -121,6 +189,8 @@
 | 20261103010000 | phase0_labour_foundation | 2026-11-04 00:04 | Applied & Verified |
 | 20261103020000 | phase1_parties_workers_planning | 2026-11-04 00:37 | Applied & Verified |
 | 20261103030000 | phase2_payables_client_recharge | 2026-11-04 00:57 | Applied & Verified |
+| 20261103040000 | phase3_contractor_wages_measurements | 2026-11-04 01:25 | Applied & Verified |
+| 20261103050000 | phase4_cross_tenant_sharing | 2026-11-04 01:46 | Applied & Verified |
 
 
 ---
