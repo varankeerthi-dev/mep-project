@@ -163,7 +163,7 @@ BEGIN
     p_project_id := v_project_id
   );
 
-  v_att_id := (v_res->>'attendance_id')::uuid;
+  v_att_id := COALESCE((v_res->>'id')::uuid, (v_res->>'attendance_id')::uuid);
 
   SELECT * INTO v_row FROM public.manpower_attendance WHERE id = v_att_id;
   IF v_row.base_rate != 700.00 THEN

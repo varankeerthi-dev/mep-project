@@ -509,6 +509,173 @@ export const subcontractorService = {
     return data || [];
   },
 
+  async giveLabourAdvance(payload: {
+    organisationId: string;
+    workerId?: string;
+    employeeId?: string;
+    amount: number;
+    date?: string;
+    notes?: string;
+  }) {
+    const { data, error } = await supabase.rpc('give_labour_advance', {
+      p_organisation_id: payload.organisationId,
+      p_worker_id: payload.workerId || null,
+      p_employee_id: payload.employeeId || null,
+      p_amount: payload.amount,
+      p_date: payload.date || new Date().toISOString().split('T')[0],
+      p_notes: payload.notes || null,
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async getLabourAdvances(organisationId: string, workerId?: string, employeeId?: string) {
+    let query = supabase
+      .from('labour_advances')
+      .select('*, labour_workers(id, name, phone), employees(id, name, email)')
+      .eq('organisation_id', organisationId)
+      .order('advance_date', { ascending: false });
+
+    if (workerId) query = query.eq('worker_id', workerId);
+    if (employeeId) query = query.eq('employee_id', employeeId);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async generateWageRun(payload: {
+    organisationId: string;
+    periodFrom: string;
+    periodTo: string;
+    kind?: 'weekly' | 'monthly' | 'on_demand';
+    maxAdvanceRecoveryCap?: number;
+    idempotencyKey?: string;
+  }) {
+    const { data, error } = await supabase.rpc('generate_wage_run', {
+      p_organisation_id: payload.organisationId,
+      p_period_from: payload.periodFrom,
+      p_period_to: payload.periodTo,
+      p_kind: payload.kind || 'weekly',
+      p_max_advance_recovery_cap: payload.maxAdvanceRecoveryCap || 1000.00,
+      p_idempotency_key: payload.idempotencyKey || null,
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async approveWageRun(runId: string, organisationId: string) {
+    const { data, error } = await supabase.rpc('approve_wage_run', {
+      p_run_id: runId,
+      p_organisation_id: organisationId,
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async payWageRun(runId: string, organisationId: string, paymentAccountId?: string, idempotencyKey?: string) {
+    const { data, error } = await supabase.rpc('pay_wage_run', {
+      p_run_id: runId,
+      p_organisation_id: organisationId,
+      p_payment_account_id: paymentAccountId || null,
+      p_idempotency_key: idempotencyKey || null,
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async getWageRuns(organisationId: string) {
+    const { data, error } = await supabase
+      .from('labour_wage_runs')
+      .select('*')
+      .eq('organisation_id', organisationId)
+      .order('period_from', { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async getWorkerWageStatements(organisationId: string, runId?: string, workerId?: string) {
+    let query = supabase
+      .from('v_worker_wage_statement')
+      .select('*')
+      .eq('organisation_id', organisationId);
+
+    if (runId) query = query.eq('run_id', runId);
+    if (workerId) query = query.eq('worker_id', workerId);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async recordMeasurement(payload: {
+    organisationId: string;
+    subcontractorId?: string;
+    workerId?: string;
+    clientId?: string;
+    projectId?: string;
+    workOrderId?: string;
+    task: string;
+    unit?: string;
+    qty: number;
+    measurementDate?: string;
+    evidenceNotes?: string;
+  }) {
+    const { data, error } = await supabase.rpc('record_measurement', {
+      p_organisation_id: payload.organisationId,
+      p_subcontractor_id: payload.subcontractorId || null,
+      p_worker_id: payload.workerId || null,
+      p_client_id: payload.clientId || null,
+      p_project_id: payload.projectId || null,
+      p_work_order_id: payload.workOrderId || null,
+      p_task: payload.task,
+      p_unit: payload.unit || 'm',
+      p_qty: payload.qty,
+      p_measurement_date: payload.measurementDate || new Date().toISOString().split('T')[0],
+      p_evidence_notes: payload.evidenceNotes || null,
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async approveMeasurement(measurementId: string, organisationId: string) {
+    const { data, error } = await supabase.rpc('approve_measurement', {
+      p_measurement_id: measurementId,
+      p_organisation_id: organisationId,
+    });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async getMeasurements(organisationId: string, projectId?: string, subcontractorId?: string) {
+    let query = supabase
+      .from('labour_measurements')
+      .select('*, subcontractors(id, company_name), labour_workers(id, name), clients(id, client_name, name), projects(id, name, project_name)')
+      .eq('organisation_id', organisationId)
+      .order('measurement_date', { ascending: false });
+
+    if (projectId) query = query.eq('project_id', projectId);
+    if (subcontractorId) query = query.eq('subcontractor_id', subcontractorId);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async getLabourProductivity(organisationId: string, projectId?: string) {
+    let query = supabase
+      .from('v_labour_productivity')
+      .select('*')
+      .eq('organisation_id', organisationId);
+
+    if (projectId) query = query.eq('project_id', projectId);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
   async getLabourBillRates(organisationId: string, clientId?: string, projectId?: string) {
     let query = supabase
       .from('labour_bill_rates')
