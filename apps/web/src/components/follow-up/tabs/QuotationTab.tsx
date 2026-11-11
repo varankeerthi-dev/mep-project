@@ -15,7 +15,7 @@ interface QuotationTabProps {
   onReminder: (item: QuotationFollowUp) => void;
   onOpenHistory: (item: QuotationFollowUp) => void;
   onAssigneeChange: (id: string, userId: string | null) => void;
-  onLogResponse: (item: QuotationFollowUp, response: QuotationResponseOption) => void;
+  onLogResponse: (item: QuotationFollowUp, response: QuotationResponseOption, reason: string) => void;
 }
 
 /**
@@ -50,7 +50,7 @@ export function QuotationTab({
               onReminder={() => onReminder(item)}
               onSelect={() => onOpenHistory(item)}
               onAssigneeChange={onAssigneeChange}
-              onLogResponse={(id, response) => onLogResponse(item, response)}
+              onLogResponse={(id, response, reason) => onLogResponse(item, response, reason)}
             />
           ))
         )}

@@ -881,13 +881,22 @@ export class ApprovalAPI {
 
       switch (approval.reference_type) {
         case 'quotations':
-          // An internal rejection is not a client-facing outcome: quotation_header.status
-          // is the document state, and writing 'Rejected' to it both mislabels the document
-          // and drops it from the Follow-up Center, whose query filters on known statuses.
-          // The approval outcome belongs in approval_status only (PRD v3.4 Q2 / H7).
+          // An internal rejection is not a client-facing outcome: 'Rejected' in
+          // quotation_header.status means the client declined, and it would also drop the row from
+          // the Follow-up Center, whose query filters on known statuses. The approval outcome
+          // belongs in approval_status (PRD v3.4 Q2 / H7).
+          // The document still has to leave the approval state — §4.1's edge is
+          // `Pending Approval -> Sent (internal reject / return)`. Writing nothing left the header
+          // on PENDING_APPROVAL after the request closed, which keeps the Approve button live and
+          // makes change_quotation_stage raise QUOTATION_UNDER_APPROVAL forever: an internally
+          // rejected quotation could never be followed up again.
           await supabase
             .from('quotation_header')
-            .update({ approval_status: 'Rejected', approval_completed_at: new Date().toISOString() })
+            .update({
+              status: 'Sent',
+              approval_status: 'Rejected',
+              approval_completed_at: new Date().toISOString(),
+            })
             .eq('id', approval.reference_id);
           break;
         case 'purchase_orders':

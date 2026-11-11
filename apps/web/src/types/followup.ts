@@ -36,6 +36,7 @@ export type QuotationFollowUpStatus =
   | 'on_hold';
 
 export type QuotationResponseOption =
+  | 'sent'
   | 'under_review'
   | 'in_negotiation'
   | 'lost_to_competitor'
@@ -77,6 +78,9 @@ export type ActivityEventType =
   | 'podc_issue_flagged'
   | 'invoice_reminder_sent'
   | 'invoice_escalation_changed'
+  // Written by the approvals API when a decision lands; the SQL vocabulary has accepted it since
+  // 20261019000002, so this union was the only side left behind.
+  | 'approval_status_changed'
   | 'invoice_edited'
   | 'invoice_finalized'
   | 'procurement_reminder_sent'

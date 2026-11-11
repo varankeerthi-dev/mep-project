@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, lazy, Suspense } from 'react';
+import { useState, useMemo, useRef, useEffect, lazy, Suspense, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { supabase } from '../../supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -16,12 +16,12 @@ import {
   STATUS_CONFIG,
   PO_STATUS_CONFIG,
   STATUS_FILTER_OPTIONS,
-  PROJECT_STATUS_STATS,
 } from '../constants';
 import { fmt } from '../utils';
 import { useProjects, useProjectStats } from '../hooks/useProjects';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 // Lazy-load the heavy detail view subtree on demand
 const ProjectDetailView = lazy(() => import('./ProjectDetailView'));
@@ -44,6 +44,7 @@ export default function ProjectList() {
   const itemsPerPage = 20;
 
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLElement | null>(null);
 
   // Debounce search input (~300ms) so typing does not fire a DB query per keystroke
   useEffect(() => {
@@ -54,16 +55,29 @@ export default function ProjectList() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  // Close menu on outside click
+  // Close on outside press. pointerdown covers touch, pen and mouse; a
+  // mousedown listener never fires a dismissal on iOS.
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    const handler = (e: PointerEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setOpenMenuId(null);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
   }, []);
+
+  // Escape dismisses the open menu and returns focus to its trigger.
+  useEffect(() => {
+    if (!openMenuId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setOpenMenuId(null);
+      menuTriggerRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [openMenuId]);
 
   // 1. Projects List Query with server-side pagination & filtering
   const { data: projectsData, isLoading } = useProjects({
@@ -79,11 +93,14 @@ export default function ProjectList() {
   // 2. Lightweight project status stats
   const { data: projectStats = {} } = useProjectStats(organisation?.id || '');
 
-  // 3. At-risk milestones count for list row indicator
+  // 3. At-risk milestone counts, scoped to the rows on this page. An
+  //    org-wide query is silently cut at PostgREST's 1000-row default cap,
+  //    so late pages would lose their indicators.
+  const pageProjectIds = useMemo(() => projects.map((p) => p.id).join(','), [projects]);
   const { data: atRiskMilestoneCounts = {} } = useQuery<Record<string, number>>({
-    queryKey: ['at-risk-milestones-count', organisation?.id],
+    queryKey: ['at-risk-milestones-count', organisation?.id, pageProjectIds],
     queryFn: async () => {
-      if (!organisation?.id) return {};
+      if (!organisation?.id || !pageProjectIds) return {};
       const today = new Date().toISOString().split('T')[0];
       const sevenDaysLater = new Date(new Date().getTime() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0];
       
@@ -92,6 +109,7 @@ export default function ProjectList() {
         .select('project_id')
         .eq('organisation_id', organisation.id)
         .eq('is_completed', false)
+        .in('project_id', pageProjectIds.split(','))
         .or(`milestone_date.lt.${today},and(milestone_date.gte.${today},milestone_date.lte.${sevenDaysLater})`);
       
       if (error) throw error;
@@ -102,19 +120,18 @@ export default function ProjectList() {
       });
       return counts;
     },
-    enabled: !!organisation?.id,
+    enabled: !!organisation?.id && pageProjectIds.length > 0,
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
   // ─── Stats ──────────────────────────────────────────────────────────────────
+  // Keyed by the filter options so each pill can carry its own count.
   const stats = useMemo(() => {
-    return {
-      All: projectStats.All || 0,
-      Active: projectStats.Active || 0,
-      Draft: projectStats.Draft || 0,
-      Closed: projectStats.Closed || 0,
-    };
+    return STATUS_FILTER_OPTIONS.reduce<Record<string, number>>((acc, s) => {
+      acc[s] = projectStats[s] || 0;
+      return acc;
+    }, {});
   }, [projectStats]);
 
   // ─── Pagination ─────────────────────────────────────────────────────────────
@@ -122,42 +139,6 @@ export default function ProjectList() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, totalCount);
   const currentItems = projects;
-
-  const deleteProject = async (id: string) => {
-    // Preferred: single server-side existence check via the existing
-    // can_delete_project RPC (same business rule: no POs/invoices/expenses/payments).
-    const { data: canDelete, error: rpcError } = await supabase.rpc('can_delete_project', { p_id: id });
-    if (rpcError) {
-      // Fallback: original per-table existence checks (keeps current behaviour
-      // if the RPC is unavailable).
-      const [posRes, invoicesRes, expensesRes, paymentsRes] = await Promise.all([
-        supabase.from('client_purchase_orders').select('id').eq('project_id', id),
-        supabase.from('project_invoices').select('id').eq('project_id', id),
-        supabase.from('project_expenses').select('id').eq('project_id', id),
-        supabase.from('project_payments').select('id').eq('project_id', id),
-      ]);
-      if (
-        (posRes.data?.length ?? 0) > 0 ||
-        (invoicesRes.data?.length ?? 0) > 0 ||
-        (expensesRes.data?.length ?? 0) > 0 ||
-        (paymentsRes.data?.length ?? 0) > 0
-      ) {
-        alert('Cannot delete project: Related records exist');
-        return;
-      }
-    } else if (canDelete === false) {
-      alert('Cannot delete project: Related records exist');
-      return;
-    }
-    if (!confirm('Are you sure you want to delete this project?')) return;
-    const { error } = await supabase.from('projects').delete().eq('id', id);
-    if (error) { alert('Error deleting project: ' + error.message); return; }
-    setSelectedProject(null);
-    queryClient.invalidateQueries({ queryKey: ['projects'] });
-  };
-
-  const checkPORequiredWarning = (p: Project) =>
-    p.po_required && p.po_status !== 'Received' && p.po_status !== 'Not Required';
 
   const loadProjectDetails = (project: Project, scrollToMilestonesFlag = false) => {
     setSelectedProject(project);
@@ -193,78 +174,198 @@ export default function ProjectList() {
   // LIST VIEW
   // ═══════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="flex flex-col h-full min-h-[400px] max-w-[1400px] mx-auto w-full">
+    <div className="flex flex-col h-full min-h-[400px] max-w-[1400px] mx-auto w-full overflow-y-auto md:min-h-0 md:overflow-y-visible">
       {/* ── Main Header ── */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-base font-medium text-zinc-900">Projects</h1>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-              {projects.length}
-            </span>
-          </div>
-          <div className="h-4 w-px bg-zinc-200" />
-          <div className="flex items-center gap-4">
-            {PROJECT_STATUS_STATS.map(s => (
-              <div key={s} className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mx-1">
-                  {s === 'Active' ? 'Active' : s === 'Draft' ? 'Draft' : 'Closed'}
-                </span>
-                <span className={`text-xs font-medium mx-1 ${
-                  s === 'Active' ? 'text-emerald-700' : s === 'Draft' ? 'text-zinc-700' : 'text-zinc-700'
-                }`}>
-                  {stats[s] || 0}
-                </span>
-              </div>
-            ))}
-          </div>
+      <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-3 py-2 md:px-6 md:py-4">
+        <div className="flex shrink-0 items-center gap-2">
+          <h1 className="text-base font-medium text-zinc-900">Projects</h1>
+          <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 tabular-nums">
+            {totalCount}
+          </span>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search projects..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-          </div>
+        <div className="relative min-w-0 flex-1 md:w-64 md:flex-none">
+          <input
+            type="text"
+            placeholder="Search projects..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="h-11 w-full rounded-lg border border-zinc-200 px-3 text-[1rem] focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/25 md:h-[30px] md:px-4 md:text-sm"
+          />
         </div>
       </div>
 
       {/* ── Filter Row ── */}
-      <div className="flex items-center justify-between px-6 border-b border-zinc-100 bg-zinc-50/50"
-        style={{ paddingTop: '15px', paddingBottom: '15px' }}>
-        <div className="flex items-center gap-1.5 overflow-x-auto py-1">
+      <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-zinc-100 bg-zinc-50 px-3 py-2 md:static md:px-6 md:py-3">
+        <div className="pl-rail -mx-1 min-w-0 flex-1 px-1">
           {STATUS_FILTER_OPTIONS.map((status) => (
             <button
               key={status}
               onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
-              className={`px-3.5 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-all ${
+              aria-pressed={statusFilter === status}
+              className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3.5 text-xs font-medium transition-colors duration-150 ease-out active:scale-[0.96] md:min-h-0 md:py-2 ${
                 statusFilter === status
-                  ? 'bg-blue-50 text-blue-600 font-semibold shadow-xs'
-                  : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+                  ? 'bg-blue-50 font-semibold text-blue-700 shadow-xs'
+                  : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
               }`}
             >
               {status === 'All' ? 'All Projects' : status}
+              <span className="tabular-nums opacity-90">{stats[status] || 0}</span>
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-[10px]">
-          <PermissionGuard permission="projects.create">
-            <button
-              onClick={() => navigate('/projects/new')}
-              className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors active:scale-[0.98]"
-              style={{ paddingTop: '8px', paddingBottom: '8px', paddingLeft: '10px', paddingRight: '10px' }}
-            >
-              New Project
-            </button>
-          </PermissionGuard>
-        </div>
+        <PermissionGuard permission="projects.create">
+          <button
+            onClick={() => navigate('/projects/new')}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-sm font-medium text-white shadow-sm transition-[background-color,scale] duration-150 ease-out hover:bg-blue-700 active:scale-[0.96] md:min-h-10"
+          >
+            <span className="hidden sm:inline">New Project</span>
+            <span className="sm:hidden">New</span>
+          </button>
+        </PermissionGuard>
+      </div>
+
+      {/* ── Mobile card list ── */}
+      <div className="px-3 py-3 md:hidden">
+        {currentItems.length === 0 ? (
+          <div className="py-16 text-center text-sm text-zinc-500">No projects found</div>
+        ) : (
+          <div className="pl-stagger flex flex-col gap-2.5">
+            {currentItems.map((p, index) => {
+              const statusCfg = STATUS_CONFIG[p.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.Draft;
+              const poStatusCfg = PO_STATUS_CONFIG[p.po_status as keyof typeof PO_STATUS_CONFIG] || PO_STATUS_CONFIG.Pending;
+              const showWarning = checkPORequiredWarning(p);
+              const atRisk = atRiskMilestoneCounts[p.id] || 0;
+              const poTotal = p.pos && p.pos.length > 0
+                ? p.pos.reduce((sum, po) => sum + (po.po_total_value || 0), 0)
+                : null;
+              const pct = p.completion_percentage || 0;
+
+              return (
+                // The card opens on any tap, but the accessible control is the
+                // title button, so the values below stay selectable.
+                <article
+                  key={p.id}
+                  className="pl-pcard relative cursor-pointer rounded-2xl bg-white p-3.5"
+                  style={{ ['--pl-i' as string]: String(index) }}
+                  onClick={() => loadProjectDetails(p)}
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="min-w-0">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); loadProjectDetails(p); }}
+                          aria-label={`Open ${p.project_name || 'project'} details`}
+                          className="pl-pcard-open block w-full truncate py-1 text-left text-[0.9375rem] font-semibold leading-snug text-zinc-900"
+                        >
+                          {p.project_name || 'Unnamed Project'}
+                        </button>
+                      </h2>
+                      <div className="mt-0.5 flex items-center gap-2">
+                        {p.project_code && (
+                          <p className="min-w-0 truncate font-mono text-[0.6875rem] text-zinc-600">{p.project_code}</p>
+                        )}
+                        <div
+                          className="h-1.5 min-w-6 flex-1 overflow-hidden rounded-full bg-zinc-100"
+                          role="progressbar"
+                          aria-label="Completion"
+                          aria-valuenow={pct}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        >
+                          <div
+                            className="h-full rounded-full bg-blue-500 transition-[width] duration-500 ease-out"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="shrink-0 font-mono text-[0.75rem] font-medium tabular-nums text-zinc-600">
+                          {pct}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="relative shrink-0" ref={openMenuId === p.id ? menuRef : null}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          menuTriggerRef.current = e.currentTarget;
+                          setOpenMenuId(openMenuId === p.id ? null : p.id);
+                        }}
+                        aria-label={`Actions for ${p.project_name || 'project'}`}
+                        aria-haspopup="menu"
+                        aria-expanded={openMenuId === p.id}
+                        className="relative inline-flex size-8 items-center justify-center rounded-lg text-zinc-500 transition-[background-color,color,scale] duration-150 ease-out after:absolute after:top-1/2 after:left-1/2 after:size-11 after:-translate-1/2 hover:bg-zinc-100 hover:text-zinc-800 active:scale-[0.96] focus:outline-none focus-visible:bg-zinc-100"
+                      >
+                        <MoreHorizontal className="pointer-events-none size-4" />
+                      </button>
+                      {openMenuId === p.id && (
+                        <ProjectActionMenu
+                          p={p}
+                          dropUp={index >= currentItems.length - 3 && index > 3}
+                          onClose={() => setOpenMenuId(null)}
+                          onView={() => loadProjectDetails(p)}
+                          onDeleted={() => { setSelectedProject(null); queryClient.invalidateQueries({ queryKey: ['projects'] }); }}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* mt-3 keeps this row's 44px hit expanders clear of the
+                      title button above them. */}
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-600">
+                      <span className="size-2 shrink-0 rounded-full" style={{ background: statusCfg.dot }} />
+                      {statusCfg.label}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-600">
+                      <span className="size-2 shrink-0 rounded-full" style={{ background: poStatusCfg.dot }} />
+                      PO {poStatusCfg.label}
+                    </span>
+                    {showWarning && (
+                      <span className="inline-flex items-center rounded bg-red-50 px-1.5 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-red-700">
+                        PO Required
+                      </span>
+                    )}
+                    {atRisk > 0 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); loadProjectDetails(p, true); }}
+                        className="relative inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-amber-700 transition-colors duration-150 ease-out hover:bg-amber-100 hover:text-amber-800 active:scale-[0.96] after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2"
+                      >
+                        {atRisk} {atRisk === 1 ? 'Milestone' : 'Milestones'} At Risk
+                      </button>
+                    )}
+                  </div>
+
+                  <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-zinc-100 pt-2.5">
+                    <div className="flex min-w-0 items-baseline gap-1.5">
+                      <dt className="shrink-0 text-[0.6875rem] uppercase tracking-wide text-zinc-500">Client</dt>
+                      <dd className="truncate text-xs font-medium text-zinc-800">{p.client?.client_name || '-'}</dd>
+                    </div>
+                    <div className="flex min-w-0 items-baseline gap-1.5">
+                      <dt className="shrink-0 text-[0.6875rem] uppercase tracking-wide text-zinc-500">Type</dt>
+                      <dd className="truncate text-xs font-medium text-zinc-800">{p.project_type || '-'}</dd>
+                    </div>
+                    <div className="flex min-w-0 items-baseline gap-1.5">
+                      <dt className="shrink-0 text-[0.6875rem] uppercase tracking-wide text-zinc-500">Est.</dt>
+                      <dd className="truncate font-mono text-[0.8125rem] font-medium tabular-nums text-zinc-900">
+                        {p.project_estimated_value ? fmt(p.project_estimated_value) : '-'}
+                      </dd>
+                    </div>
+                    <div className="flex min-w-0 items-baseline gap-1.5">
+                      <dt className="shrink-0 text-[0.6875rem] uppercase tracking-wide text-zinc-500">PO</dt>
+                      <dd className="truncate font-mono text-[0.8125rem] font-medium tabular-nums text-zinc-900">
+                        {poTotal !== null ? fmt(poTotal) : '-'}
+                      </dd>
+                    </div>
+                  </dl>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Table ── */}
-      <div className="flex-1 overflow-auto">
+      <div className="hidden flex-1 overflow-auto md:block">
         <div className="min-w-full">
           <table className="w-full border-separate border-spacing-0">
             <thead className="z-10">
@@ -329,10 +430,10 @@ export default function ProjectList() {
                           </span>
                           <div className="flex items-center gap-2 flex-wrap">
                             {p.project_code && (
-                              <span className="text-[11px] font-mono text-zinc-400">{p.project_code}</span>
+                              <span className="text-[0.6875rem] font-mono text-zinc-600">{p.project_code}</span>
                             )}
                             {showWarning && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[10px] font-semibold uppercase tracking-wider">
+                              <span className="inline-flex items-center px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-[0.6875rem] font-semibold uppercase tracking-wider">
                                 ⚠ PO Required
                               </span>
                             )}
@@ -342,7 +443,7 @@ export default function ProjectList() {
                                   e.stopPropagation();
                                   loadProjectDetails(p, true);
                                 }}
-                                className="inline-flex items-center px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[10px] font-semibold uppercase tracking-wider hover:bg-amber-100 transition-colors cursor-pointer"
+                                className="inline-flex items-center px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-[0.6875rem] font-semibold uppercase tracking-wider hover:bg-amber-100 hover:text-amber-800 transition-colors cursor-pointer"
                                 title="Click to view at risk milestones"
                               >
                                 ⚠ {atRiskMilestoneCounts[p.id]} {atRiskMilestoneCounts[p.id] === 1 ? 'Milestone' : 'Milestones'} At Risk
@@ -403,83 +504,25 @@ export default function ProjectList() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              menuTriggerRef.current = e.currentTarget;
                               setOpenMenuId(openMenuId === p.id ? null : p.id);
                             }}
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-zinc-100 transition-colors text-zinc-500 hover:text-zinc-800"
+                            aria-label={`Actions for ${p.project_name || 'project'}`}
+                            aria-haspopup="menu"
+                            aria-expanded={openMenuId === p.id}
+                            className="relative inline-flex w-8 h-8 items-center justify-center rounded-md hover:bg-zinc-100 transition-[background-color,color,scale] duration-150 ease-out text-zinc-500 hover:text-zinc-800 active:scale-[0.96]"
                           >
                             <MoreHorizontal className="w-4 h-4" />
                           </button>
-                        {openMenuId === p.id && (
-                          <div className={`absolute right-0 z-[100] w-44 rounded-lg border border-zinc-200/60 bg-white p-1 shadow-lg shadow-black/5 ${
-                            index >= currentItems.length - 3 && index > 3 ? 'bottom-full mb-1' : 'top-full mt-1'
-                          }`}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                loadProjectDetails(p);
-                              }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                              style={{ padding: '6px' }}
-                            >
-                              <Folder className="w-3.5 h-3.5" />
-                              View Details
-                            </button>
-                            <PermissionGuard permission="projects.update">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuId(null);
-                                  navigate(`/projects/${p.id}/edit`);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98]"
-                                style={{ padding: '6px' }}
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                                Edit
-                              </button>
-                            </PermissionGuard>
-
-                            <div className="my-1 border-t border-zinc-100" />
-
-                            {p.status !== 'Archived' && p.status !== 'Closed' && (
-                              <PermissionGuard permission="projects.archive">
-                                <button
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    setOpenMenuId(null);
-                                    if (!confirm('Archive this project?')) return;
-                                    const { error } = await supabase.from('projects').update({ status: 'Archived' }).eq('id', p.id);
-                                    if (error) { alert('Error: ' + error.message); return; }
-                                    queryClient.invalidateQueries({ queryKey: ['projects'] });
-                                  }}
-                                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-zinc-50 hover:text-zinc-700 active:scale-[0.98]"
-                                  style={{ padding: '6px' }}
-                                >
-                                  <Archive className="w-3.5 h-3.5" />
-                                  Archive
-                                </button>
-                              </PermissionGuard>
-                            )}
-
-                            <div className="my-1 border-t border-zinc-100" />
-
-                            <PermissionGuard permission="projects.delete">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuId(null);
-                                  deleteProject(p.id);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 transition-all hover:bg-red-50 hover:text-red-600 active:scale-[0.98]"
-                                style={{ padding: '6px' }}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                Delete
-                              </button>
-                            </PermissionGuard>
-                          </div>
-                        )}
+                          {openMenuId === p.id && (
+                            <ProjectActionMenu
+                              p={p}
+                              dropUp={index >= currentItems.length - 3 && index > 3}
+                              onClose={() => setOpenMenuId(null)}
+                              onView={() => loadProjectDetails(p)}
+                              onDeleted={() => { setSelectedProject(null); queryClient.invalidateQueries({ queryKey: ['projects'] }); }}
+                            />
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -492,22 +535,23 @@ export default function ProjectList() {
       </div>
 
       {/* ── Pagination ── */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-zinc-50/50">
-        <div className="text-sm font-medium text-zinc-600">
-          Showing {totalCount === 0 ? 0 : startIndex + 1} to {endIndex} of {totalCount} projects
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-zinc-200 bg-zinc-50/50 px-3 py-2 md:px-6 md:py-4">
+        <div className="text-xs font-medium text-zinc-600 tabular-nums md:text-sm">
+          {totalCount === 0 ? 'No projects' : `${startIndex + 1}–${endIndex} of ${totalCount}`}
+          <span className="hidden md:inline"> projects</span>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="default" size="sm" onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
             disabled={currentPage <= 1}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
+            className={`flex h-11 items-center justify-center rounded-md px-3 text-sm font-medium transition-[background-color,scale] duration-150 ease-out md:h-[32px] md:min-w-[80px] md:px-4 ${
               currentPage > 1
-                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
-                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+                ? 'bg-white text-zinc-700 shadow-sm hover:bg-zinc-200 active:scale-[0.96]'
+                : 'bg-zinc-50 text-zinc-400'
             }`}
           >
             Previous
           </Button>
-          <div className="flex items-center gap-1.5">
+          <div className="hidden items-center gap-1.5 sm:flex">
             {Array.from({ length: Math.max(1, Math.min(5, totalPages)) }, (_, i) => {
               let pageNum: number;
               if (totalPages <= 5) {
@@ -521,10 +565,10 @@ export default function ProjectList() {
               }
               return (
                 <Button variant="default" size="sm" key={pageNum} onClick={() => setCurrentPage(pageNum)}
-                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[32px] flex items-center justify-center ${
+                  className={`flex h-[32px] min-w-[32px] items-center justify-center rounded-md px-3 text-sm font-medium transition-[background-color,scale] duration-150 ease-out ${
                     currentPage === pageNum
-                      ? 'bg-blue-600/10 text-blue-600 border border-blue-600/20 shadow-sm'
-                      : 'text-zinc-600 hover:bg-zinc-100 bg-white border border-zinc-200'
+                      ? 'bg-blue-600/10 text-blue-600 active:scale-[0.96]'
+                      : 'bg-white text-zinc-600 hover:bg-zinc-100 active:scale-[0.96]'
                   }`}
                 >
                   {pageNum}
@@ -532,18 +576,175 @@ export default function ProjectList() {
               );
             })}
           </div>
+          <span className="text-xs font-medium text-zinc-500 tabular-nums sm:hidden">
+            {currentPage} / {totalPages}
+          </span>
           <Button variant="default" size="sm" onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage >= totalPages}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors h-[32px] min-w-[80px] flex items-center justify-center ${
+            className={`flex h-11 items-center justify-center rounded-md px-3 text-sm font-medium transition-[background-color,scale] duration-150 ease-out md:h-[32px] md:min-w-[80px] md:px-4 ${
               currentPage < totalPages
-                ? 'text-zinc-700 hover:bg-zinc-200 bg-white border border-zinc-200 shadow-sm'
-                : 'text-zinc-400 bg-zinc-50 border border-zinc-100 cursor-not-allowed'
+                ? 'bg-white text-zinc-700 shadow-sm hover:bg-zinc-200 active:scale-[0.96]'
+                : 'bg-zinc-50 text-zinc-400'
             }`}
           >
             Next
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Shared helpers ──────────────────────────────────────────────────────────
+
+const checkPORequiredWarning = (p: Project) =>
+  p.po_required && p.po_status !== 'Received' && p.po_status !== 'Not Required';
+
+/**
+ * Row actions, used by both the desktop table and the mobile card list.
+ * Concentric radii: 12px panel = 8px items + 4px panel padding.
+ */
+function ProjectActionMenu({
+  p,
+  dropUp,
+  onClose,
+  onView,
+  onDeleted,
+}: {
+  p: Project;
+  dropUp: boolean;
+  onClose: () => void;
+  onView: () => void;
+  onDeleted: () => void;
+}) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const deleteProject = async (id: string) => {
+    // Preferred: single server-side existence check via the existing
+    // can_delete_project RPC (same business rule: no POs/invoices/expenses/payments).
+    const { data: canDelete, error: rpcError } = await supabase.rpc('can_delete_project', { p_id: id });
+    if (rpcError) {
+      // Fallback: original per-table existence checks (keeps current behaviour
+      // if the RPC is unavailable).
+      const [posRes, invoicesRes, expensesRes, paymentsRes] = await Promise.all([
+        supabase.from('client_purchase_orders').select('id').eq('project_id', id),
+        supabase.from('project_invoices').select('id').eq('project_id', id),
+        supabase.from('project_expenses').select('id').eq('project_id', id),
+        supabase.from('project_payments').select('id').eq('project_id', id),
+      ]);
+      if (
+        (posRes.data?.length ?? 0) > 0 ||
+        (invoicesRes.data?.length ?? 0) > 0 ||
+        (expensesRes.data?.length ?? 0) > 0 ||
+        (paymentsRes.data?.length ?? 0) > 0
+      ) {
+        alert('Cannot delete project: Related records exist');
+        return;
+      }
+    } else if (canDelete === false) {
+      alert('Cannot delete project: Related records exist');
+      return;
+    }
+    if (!confirm('Are you sure you want to delete this project?')) return;
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (error) { alert('Error deleting project: ' + error.message); return; }
+    queryClient.invalidateQueries({ queryKey: ['projects'] });
+    onDeleted();
+  };
+
+  const itemCls =
+    'flex w-full items-center gap-2 rounded-lg px-2 text-[0.8125rem] text-zinc-600 transition-[background-color,color,scale] duration-150 ease-out active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-600';
+
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    panelRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  }, []);
+
+  // Roving focus inside the menu: Tab moves out of the page, arrows move
+  // between actions.
+  const onMenuKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const list = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    const at = list.indexOf(document.activeElement as HTMLElement);
+    const next = e.key === 'ArrowDown' ? (at + 1) % list.length : (at - 1 + list.length) % list.length;
+    list[next]?.focus();
+  };
+
+  return (
+    <div
+      ref={panelRef}
+      role="menu"
+      aria-label={`Actions for ${p.project_name || 'project'}`}
+      onKeyDown={onMenuKeyDown}
+      className={cn(
+        'absolute right-0 z-[100] w-44 animate-in fade-in-0 zoom-in-95 duration-150 rounded-xl bg-white p-1',
+        dropUp ? 'bottom-full mb-1 origin-bottom-right' : 'top-full mt-1 origin-top-right'
+      )}
+      style={{
+        boxShadow:
+          '0px 0px 0px 1px oklch(0 0 0 / 0.06), 0px 4px 12px -2px oklch(0 0 0 / 0.12), 0px 12px 28px -6px oklch(0 0 0 / 0.10)',
+      }}
+    >
+      <button
+        role="menuitem"
+        tabIndex={-1}
+        onClick={(e) => { e.stopPropagation(); onClose(); onView(); }}
+        className={cn(itemCls, 'min-h-11 hover:bg-blue-50 hover:text-blue-700')}
+      >
+        <Folder className="size-3.5 shrink-0" />
+        View Details
+      </button>
+      <PermissionGuard permission="projects.update">
+        <button
+          role="menuitem"
+          tabIndex={-1}
+          onClick={(e) => { e.stopPropagation(); onClose(); navigate(`/projects/${p.id}/edit`); }}
+          className={cn(itemCls, 'min-h-11 hover:bg-blue-50 hover:text-blue-700')}
+        >
+          <Edit className="size-3.5 shrink-0" />
+          Edit
+        </button>
+      </PermissionGuard>
+
+      {p.status !== 'Archived' && p.status !== 'Closed' && (
+        <>
+          <div className="my-1 border-t border-zinc-100" />
+          <PermissionGuard permission="projects.archive">
+            <button
+              role="menuitem"
+              tabIndex={-1}
+              onClick={async (e) => {
+                e.stopPropagation();
+                onClose();
+                if (!confirm('Archive this project?')) return;
+                const { error } = await supabase.from('projects').update({ status: 'Archived' }).eq('id', p.id);
+                if (error) { alert('Error: ' + error.message); return; }
+                queryClient.invalidateQueries({ queryKey: ['projects'] });
+              }}
+              className={cn(itemCls, 'min-h-11 hover:bg-zinc-50 hover:text-zinc-700')}
+            >
+              <Archive className="size-3.5 shrink-0" />
+              Archive
+            </button>
+          </PermissionGuard>
+        </>
+      )}
+
+      <div className="my-1 border-t border-zinc-100" />
+      <PermissionGuard permission="projects.delete">
+        <button
+          role="menuitem"
+          tabIndex={-1}
+          onClick={(e) => { e.stopPropagation(); onClose(); deleteProject(p.id); }}
+          className={cn(itemCls, 'min-h-11 hover:bg-red-50 hover:text-red-700')}
+        >
+          <Trash2 className="size-3.5 shrink-0" />
+          Delete
+        </button>
+      </PermissionGuard>
     </div>
   );
 }

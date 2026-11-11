@@ -556,8 +556,8 @@ export default function FollowUpCentre() {
               handleOpenHistory('quotation', item.id, item.quotation_no, item.client_name, item.status, item.client_id)
             }
             onAssigneeChange={(id, userId) => handleAssigneeChange('quotation', id, userId)}
-            onLogResponse={(item, response) =>
-              logResponse.mutate({ id: item.id, response, quotation_no: item.quotation_no, client_name: item.client_name, previousStatus: item.status })
+            onLogResponse={(item, response, reason) =>
+              logResponse.mutate({ id: item.id, response, reason, previousStatus: item.status })
             }
           />
         );

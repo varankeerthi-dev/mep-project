@@ -60,6 +60,15 @@ export function getActivityEventLabel(type: ActivityEventType): string {
     podc_issue_flagged: 'Issue flagged',
     invoice_reminder_sent: 'Invoice reminder',
     invoice_escalation_changed: 'Escalation change',
+    invoice_edited: 'Invoice edited',
+    invoice_finalized: 'Invoice finalized',
+    approval_status_changed: 'Approval updated',
+    procurement_reminder_sent: 'Procurement reminder',
+    po_created: 'PO created',
+    po_expected_updated: 'PO date updated',
+    po_supplier_call_logged: 'Supplier call logged',
+    followup_reassigned: 'Reassigned',
+    followup_priority_changed: 'Priority change',
   };
   return map[type] ?? type;
 }

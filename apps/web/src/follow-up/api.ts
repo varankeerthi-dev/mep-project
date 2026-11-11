@@ -5,6 +5,7 @@ import {
   detectEffectiveStatus,
   isExpired,
 } from '../lib/followup/quotation-workflow';
+import { QUOTATION_FOLLOW_UP_STATUSES, stageFromDocumentStatus } from '../lib/followup/quotation-status';
 import type {
   ActivityEventType,
   FollowUpActivityLog,
@@ -29,15 +30,6 @@ export interface FollowUpListResult<T> {
   total: number;
 }
 
-const QUOTATION_FOLLOW_UP_STATUSES = [
-  'Sent',
-  'Under Negotiation',
-  'Approved',
-  'Rejected',
-  'Cancelled',
-  'PENDING_APPROVAL',
-];
-
 function mapQuotationStatus(
   dbStatus: string | null | undefined,
   trackingStatus: string | null | undefined,
@@ -48,16 +40,7 @@ function mapQuotationStatus(
     if (validTill) return detectEffectiveStatus(ts, validTill);
     return ts;
   }
-  const s = (dbStatus || 'sent').toLowerCase();
-  if (s.includes('negotiation')) return 'in_negotiation';
-  if (s.includes('review')) return 'under_review';
-  if (s === 'rejected') return 'lost_to_competitor';
-  if (s === 'sent') return 'sent';
-  if (s === 'approved') return 'approved';
-  if (s === 'expired') return 'expired';
-  if (s === 'cancelled') return 'cancelled';
-  if (s === 'pending_approval') return 'pending';
-  return 'pending';
+  return stageFromDocumentStatus(dbStatus);
 }
 
 function computeCollectionRisk(daysOverdue: number, balance: number): InvoiceFollowUp['collection_risk'] {
@@ -272,6 +255,9 @@ export async function fetchFollowUpActivity(
     .from('follow_up_activity_log')
     .select('*', { count: 'exact' })
     .eq('organisation_id', organisationId)
+    // Rows the Phase 1a status-observation trigger writes for the migration window are
+    // instrumentation, not history. See 20261019000004.
+    .neq('event_type', 'quotation_status_transition_audited')
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -359,7 +345,8 @@ export type QuotationStageChangeResult = {
 export async function changeQuotationStage(
   quotationId: string,
   options: {
-    expectedStage: QuotationFollowUpStatus;
+    /** The stage the caller saw. Omit it from surfaces that never read one (the document view). */
+    expectedStage?: QuotationFollowUpStatus | null;
     nextStage: QuotationFollowUpStatus;
     reason: string;
     dedupeKey?: string;
@@ -367,7 +354,7 @@ export async function changeQuotationStage(
 ): Promise<QuotationStageChangeResult> {
   const { data, error } = await supabase.rpc('change_quotation_stage', {
     p_quotation_id: quotationId,
-    p_expected_stage: options.expectedStage,
+    p_expected_stage: options.expectedStage ?? null,
     p_next_stage: options.nextStage,
     p_reason: options.reason,
     p_dedupe_key: options.dedupeKey ?? null,

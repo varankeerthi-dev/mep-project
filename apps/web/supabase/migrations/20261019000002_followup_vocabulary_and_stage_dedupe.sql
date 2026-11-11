@@ -1,6 +1,6 @@
 -- Migration: 20261019000002_followup_vocabulary_and_stage_dedupe.sql
 -- Description: Guarantees the follow-up vocabulary the quotation loop writes, and adds the
---              idempotency key change_quotation_stage needs (PRD v3.5 H3, H8, §5.4).
+--              idempotency key change_quotation_stage needs (PRD v3.4 H3, H8, §5.4).
 --
 -- Why this re-states constraints that 20260916121500_remediation_followup_vocabulary.sql already
 -- authoring: that migration and the live capture are the same day (2026-09-16), and the capture -
@@ -11,14 +11,24 @@
 -- whether or not the September migration ran. Widening a CHECK can never invalidate existing
 -- rows, because every value already stored satisfied the narrower list.
 --
+-- That containment is checked, not assumed. As at the capture, live holds event_type
+-- {quotation_reminder_sent, quotation_response_logged, podc_pack_shared, podc_issue_flagged,
+-- invoice_reminder_sent, invoice_escalation_changed}, tab_source {quotation, podc, invoice,
+-- activity} and follow_up_status {sent, under_review, in_negotiation, pending,
+-- lost_to_competitor} - each a strict subset of the list below, so re-adding the constraint
+-- cannot fail validation on existing rows whichever migration ran last.
+--
 -- Values are taken from what the application actually writes (src/types/followup.ts
 -- ActivityEventType / FollowUpTab and every call site of follow_up_log_activity), not from a
--- wish list. Two additions beyond the September text:
+-- wish list. Three additions beyond the September text:
 --   * po_created, po_expected_updated, po_supplier_call_logged, followup_reassigned - already in
 --     the TS union and already written by FollowupsTable.tsx:61, so they were being rejected live
 --     and swallowed.
 --   * followup_priority_changed - replaces the 'escalation' value the Kanban drag handler writes,
 --     which no vocabulary has ever accepted.
+--   * quotation_status_transition_audited - written only by the Phase 1a observation trigger
+--     (20261019000004). It needs its own value so the window report can separate an observed raw
+--     status write from the deliberate stage change logged as quotation_status_changed.
 
 -- ---------------------------------------------------------------------------
 -- 0. Pre-flight
@@ -53,6 +63,7 @@ ALTER TABLE public.follow_up_activity_log
     'quotation_response_logged'::text,
     'quotation_status_changed'::text,
     'quotation_expired'::text,
+    'quotation_status_transition_audited'::text,
     'podc_pack_shared'::text,
     'podc_issue_flagged'::text,
     'invoice_reminder_sent'::text,

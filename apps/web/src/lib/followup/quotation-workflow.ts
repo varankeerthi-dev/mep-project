@@ -10,12 +10,21 @@ const TRANSITION_GRAPH: Record<QuotationFollowUpStatus, QuotationResponseOption[
   in_negotiation: ['approved', 'pending', 'under_review', 'lost_to_competitor', 'on_hold', 'cancelled'],
   pending: ['under_review', 'in_negotiation', 'lost_to_competitor', 'on_hold', 'cancelled'],
   approved: [],
+  lost_to_competitor: [],
   expired: ['under_review', 'in_negotiation', 'pending', 'cancelled'],
   cancelled: ['sent'],
   on_hold: ['under_review', 'in_negotiation', 'pending', 'cancelled'],
 };
 
 export const TRANSITION_META: Record<QuotationResponseOption, QuotationTransitionMeta> = {
+  sent: {
+    label: 'Back to Sent',
+    description: 'Re-send to the client — revives a withdrawn quotation',
+    dbStatus: 'Sent',
+    icon: '📤',
+    color: 'bg-sky-100 text-sky-800 border-sky-200',
+    terminal: false,
+  },
   under_review: {
     label: 'Under Review',
     description: 'Client is actively reviewing the quotation',

@@ -58,6 +58,7 @@ export function EquipmentTab({
           <p className="pl-empty-text">No equipment registered yet</p>
         </div>
       ) : (
+        <div className="pl-table-scroll">
         <table className="pl-table">
           <thead>
             <tr>
@@ -160,6 +161,7 @@ export function EquipmentTab({
             })}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

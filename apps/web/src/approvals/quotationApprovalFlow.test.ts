@@ -122,19 +122,18 @@ describe('Quotation Approval Flow', () => {
     });
 
     expect(res.success).toBe(true);
-    // Verifies review completion and approval were batched in approval_actions
+    // Review completion is recorded as metadata on the APPROVED row, not as a second
+    // synthetic FORWARDED row (removed in api.ts — it duplicated every approval in History).
     expect(insertActionMock).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({
           approval_id: 'appr-123',
-          action: 'FORWARDED',
-        }),
-        expect.objectContaining({
-          approval_id: 'appr-123',
           action: 'APPROVED',
+          metadata: expect.objectContaining({ review_auto_completed: true }),
         }),
       ])
     );
+    expect(insertActionMock.mock.calls[0][0]).toHaveLength(1);
     // Verifies quotation_header was updated to Approved
     expect(updateQuotationMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -180,7 +179,7 @@ describe('Quotation Approval Flow', () => {
       });
     };
 
-    it('writes approval_status only — never quotation_header.status', async () => {
+    it('returns the document to Sent and records the outcome in approval_status', async () => {
       const singleMock = vi.fn().mockResolvedValue({ data: { ...mockApprovalRejected }, error: null });
       const insertActionMock = vi.fn().mockResolvedValue({ error: null });
       const updateApprovalsMock = vi.fn().mockReturnValue({
@@ -207,9 +206,13 @@ describe('Quotation Approval Flow', () => {
       expect(res.success).toBe(true);
       const payload = updateQuotationMock.mock.calls[0][0];
       expect(payload.approval_status).toBe('Rejected');
-      // 'Rejected' in quotation_header.status is outside QUOTATION_FOLLOW_UP_STATUSES,
-      // which hides the quotation from the Follow-up Center.
-      expect(payload).not.toHaveProperty('status');
+      // 'Rejected' in quotation_header.status means the client declined, and it is outside
+      // QUOTATION_FOLLOW_UP_STATUSES, which would hide the quotation from the Follow-up Center.
+      // Leaving status untouched is worse: the header stays on PENDING_APPROVAL after the request
+      // closes, so the Approve button stays live and change_quotation_stage refuses every later
+      // stage change with QUOTATION_UNDER_APPROVAL. §4.1's edge is Pending Approval -> Sent.
+      expect(payload.status).toBe('Sent');
+      expect(typeof payload.approval_completed_at).toBe('string');
     });
 
     it('reverts the approval and reports failure when the source-document write fails', async () => {

@@ -172,6 +172,7 @@ export function TransactionsTab({
               <p className="pl-empty-text">No purchase orders found. Create a PO to start tracking utilization.</p>
             </div>
           ) : (
+            <div className="pl-table-scroll">
             <table className="pl-table">
               <thead>
                 <tr>
@@ -373,6 +374,7 @@ export function TransactionsTab({
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}
@@ -627,6 +629,7 @@ export function TransactionsTab({
               <p className="pl-empty-text">No project materials logged</p>
             </div>
           ) : (
+            <div className="pl-table-scroll">
             <table className="pl-table">
               <thead>
                 <tr>
@@ -713,6 +716,7 @@ export function TransactionsTab({
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}

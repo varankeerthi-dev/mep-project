@@ -1,7 +1,7 @@
 -- Migration: 20261019000003_change_quotation_stage_rpc.sql
 -- Description: The single server-side path for a quotation stage change, with the transition
 --              graph, the document-status projection and idempotency all enforced in the
---              database (PRD v3.5 §5.4, §4.2).
+--              database (PRD v3.4 §5.4, §4.2).
 --
 -- Today the row menu on the Follow-up Center writes follow_up_quotation_tracking.follow_up_status
 -- and quotation_header.status from the browser, with the graph validated in TypeScript only. Any
@@ -147,6 +147,7 @@ DECLARE
   v_organisation_id  uuid;
   v_quotation_no     text;
   v_header_status    text;
+  v_valid_till       date;
   v_tracking_stage   text;
   v_current_stage    text;
   v_document_status  text;
@@ -163,8 +164,8 @@ BEGIN
   IF v_reason IS NULL OR length(v_reason) < 3 THEN
     RAISE EXCEPTION 'STAGE_REASON_REQUIRED: a stage change needs a reason';
   END IF;
-  IF p_expected_stage IS NULL OR p_next_stage IS NULL THEN
-    RAISE EXCEPTION 'STAGE_ARGUMENT_REQUIRED: expected stage and next stage are both required';
+  IF p_next_stage IS NULL THEN
+    RAISE EXCEPTION 'STAGE_ARGUMENT_REQUIRED: a target stage is required';
   END IF;
   IF v_actor_id IS NULL THEN
     RAISE EXCEPTION 'STAGE_UNAUTHENTICATED: an authenticated session is required';
@@ -178,8 +179,8 @@ BEGIN
     RAISE EXCEPTION 'STAGE_UNKNOWN: % is not a quotation stage', p_next_stage;
   END IF;
 
-  SELECT organisation_id, quotation_no, status
-    INTO v_organisation_id, v_quotation_no, v_header_status
+  SELECT organisation_id, quotation_no, status, valid_till
+    INTO v_organisation_id, v_quotation_no, v_header_status, v_valid_till
   FROM public.quotation_header
   WHERE id = p_quotation_id;
 
@@ -219,20 +220,43 @@ BEGIN
     AND quotation_id = p_quotation_id;
 
   -- With no tracking row the effective stage is the one the list already shows the user,
-  -- derived from the document status exactly as src/follow-up/api.ts mapQuotationStatus does.
+  -- derived from the document status exactly as src/follow-up/api.ts mapQuotationStatus does
+  -- (including its null-is-'sent' default, so the two sides never disagree about the starting
+  -- stage and produce a STAGE_CONFLICT the user cannot explain).
   v_current_stage := coalesce(v_tracking_stage, CASE
-    WHEN lower(coalesce(v_header_status, '')) LIKE '%negotiation%'  THEN 'in_negotiation'
-    WHEN lower(coalesce(v_header_status, '')) LIKE '%review%'       THEN 'under_review'
-    WHEN lower(coalesce(v_header_status, '')) = 'rejected'          THEN 'lost_to_competitor'
-    WHEN lower(coalesce(v_header_status, '')) = 'sent'              THEN 'sent'
-    WHEN lower(coalesce(v_header_status, '')) = 'approved'          THEN 'approved'
-    WHEN lower(coalesce(v_header_status, '')) = 'expired'           THEN 'expired'
-    WHEN lower(coalesce(v_header_status, '')) = 'cancelled'         THEN 'cancelled'
-    WHEN lower(coalesce(v_header_status, '')) IN ('pending_approval', 'pending approval') THEN 'under_review'
+    WHEN lower(coalesce(v_header_status, 'sent')) LIKE '%negotiation%'  THEN 'in_negotiation'
+    WHEN lower(coalesce(v_header_status, 'sent')) LIKE '%review%'       THEN 'under_review'
+    WHEN lower(coalesce(v_header_status, 'sent')) = 'rejected'          THEN 'lost_to_competitor'
+    WHEN lower(coalesce(v_header_status, 'sent')) = 'sent'              THEN 'sent'
+    WHEN lower(coalesce(v_header_status, 'sent')) = 'approved'          THEN 'approved'
+    WHEN lower(coalesce(v_header_status, 'sent')) = 'expired'           THEN 'expired'
+    WHEN lower(coalesce(v_header_status, 'sent')) = 'cancelled'         THEN 'cancelled'
+    WHEN lower(coalesce(v_header_status, 'sent')) IN ('pending_approval', 'pending approval') THEN 'pending'
     ELSE 'pending'
   END);
 
-  IF p_expected_stage <> v_current_stage THEN
+  -- Ageing, mirroring detectEffectiveStatus exactly: it applies to a stored stage, and not to a
+  -- closed one. The no-tracking-row branch deliberately skips it, because the list query skips it
+  -- too (src/follow-up/api.ts mapQuotationStatus). If the two disagreed, every click on an aged
+  -- row would come back as STAGE_CONFLICT.
+  IF v_tracking_stage IS NOT NULL
+     AND v_current_stage NOT IN ('approved', 'lost_to_competitor', 'cancelled', 'on_hold')
+     AND v_valid_till IS NOT NULL
+     AND v_valid_till < current_date THEN
+    v_current_stage := 'expired';
+  END IF;
+
+  -- Checked before the compare-and-set, because "an approval is in flight" is the more useful
+  -- message than "the stage moved" when both are true.
+  -- Both spellings, because the live token is PENDING_APPROVAL and a case-sensitive literal
+  -- check on 'Pending Approval' would silently never match (F33, G3).
+  IF lower(coalesce(v_header_status, '')) IN ('pending_approval', 'pending approval') THEN
+    RAISE EXCEPTION 'QUOTATION_UNDER_APPROVAL: % has an approval request in flight — return or reject it before changing the stage', v_quotation_no;
+  END IF;
+
+  -- Compare-and-set. A caller that never saw a stage (the quotation document view) passes NULL
+  -- and skips it; the graph, the tenant check, the approval guard and the audit row still apply.
+  IF p_expected_stage IS NOT NULL AND p_expected_stage <> v_current_stage THEN
     SELECT last_row.actor_name INTO v_last_actor_name
     FROM (
       SELECT actor_name
@@ -244,19 +268,14 @@ BEGIN
       LIMIT 1
     ) last_row;
 
-    RAISE EXCEPTION 'STAGE_CONFLICT: quotation % is at stage %, not %',
-      p_quotation_id, v_current_stage, p_expected_stage
+    RAISE EXCEPTION 'STAGE_CONFLICT: % is at %, not %. Reload the list and try again.',
+      v_quotation_no, public.quotation_stage_label(v_current_stage), public.quotation_stage_label(p_expected_stage)
       USING HINT = coalesce('Last recorded change by ' || v_last_actor_name, 'No recorded change on this quotation');
   END IF;
 
-  -- Both spellings, because the live token is PENDING_APPROVAL and a case-sensitive literal
-  -- check on 'Pending Approval' would silently never match (F33, G3).
-  IF lower(coalesce(v_header_status, '')) IN ('pending_approval', 'pending approval') THEN
-    RAISE EXCEPTION 'QUOTATION_UNDER_APPROVAL: quotation % has an approval request in flight; return or reject it before changing the stage', p_quotation_id;
-  END IF;
-
   IF NOT public.quotation_stage_is_legal(v_current_stage, p_next_stage) THEN
-    RAISE EXCEPTION 'STAGE_NOT_ALLOWED: % to % is not a legal transition', v_current_stage, p_next_stage;
+    RAISE EXCEPTION 'STAGE_NOT_ALLOWED: % to % is not a legal transition',
+      public.quotation_stage_label(v_current_stage), public.quotation_stage_label(p_next_stage);
   END IF;
 
   v_document_status := public.quotation_document_status_for_stage(p_next_stage);
@@ -273,6 +292,11 @@ BEGIN
         updated_at = now();
 
   IF v_document_status IS NOT NULL THEN
+    -- Transaction-local tag so the observation trigger (20261019000004) records this header write
+    -- as a sanctioned RPC rather than an untracked browser write. Name and value follow the
+    -- app.allow_* = 'true' convention the 19 live financial guards already use.
+    PERFORM set_config('app.allow_quotation_status_mutation', 'true', true);
+
     UPDATE public.quotation_header
        SET status = v_document_status,
            updated_at = now()
@@ -341,4 +365,4 @@ GRANT EXECUTE ON FUNCTION public.quotation_document_status_for_stage(text) TO au
 GRANT EXECUTE ON FUNCTION public.quotation_stage_label(text) TO authenticated;
 
 COMMENT ON FUNCTION public.change_quotation_stage(uuid, text, text, text, uuid) IS
-  'The only sanctioned write path for a quotation sales stage: authorises the tenant, compare-and-sets on the expected stage, validates the transition graph, projects quotation_header.status, and writes one idempotent audit row. Raises STAGE_CONFLICT, STAGE_NOT_ALLOWED, STAGE_REASON_REQUIRED or QUOTATION_UNDER_APPROVAL.';
+  'The only sanctioned write path for a quotation sales stage: authorises the tenant, optionally compare-and-sets on the expected stage (pass NULL from surfaces that never read one), validates the transition graph, blocks stages while an approval is in flight, projects quotation_header.status, and writes one idempotent audit row. Raises STAGE_CONFLICT, STAGE_NOT_ALLOWED, STAGE_REASON_REQUIRED or QUOTATION_UNDER_APPROVAL.';

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { Folder, Plus, ClipboardList, Package, ArrowLeft, List, Calendar, BarChart3, Users, CheckSquare, LayoutGrid, MessageSquare } from 'lucide-react';
 import { supabase } from '../../supabase';
@@ -40,7 +41,13 @@ function FileText() { return <svg width="18" height="18" viewBox="0 0 24 24" fil
 function Truck() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>; }
 function BarChart() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>; }
 
+// Zero duration is the reduced-motion path: the indicator still changes
+// position, it just does not travel.
+const underlineMotion = (reduce: boolean | null) =>
+  reduce ? { duration: 0 } : ({ type: 'spring', duration: 0.3, bounce: 0 } as const);
+
 export default function Projects({ defaultTab }: { defaultTab?: string } = {}) {
+  const reduceMotion = useReducedMotion();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -116,8 +123,8 @@ export default function Projects({ defaultTab }: { defaultTab?: string } = {}) {
 
   return (
     <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '0 24px' }}>
-        <div style={{ display: 'flex', gap: '4px' }}>
+      <div className="border-b border-zinc-200 bg-white px-3 md:px-6">
+        <div className="pl-rail">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -125,23 +132,24 @@ export default function Projects({ defaultTab }: { defaultTab?: string } = {}) {
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
+                className="relative flex shrink-0 items-center gap-2 whitespace-nowrap border-none bg-transparent px-4 text-sm transition-colors duration-150 ease-out active:scale-[0.97]"
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '16px 20px',
-                  border: 'none',
-                  borderBottom: `2px solid ${isActive ? '#1d4ed8' : 'transparent'}`,
-                  background: 'transparent',
+                  paddingTop: '0.875rem',
+                  paddingBottom: '0.875rem',
+                  minHeight: 44,
                   color: isActive ? '#1d4ed8' : '#6b7280',
-                  fontSize: '14px',
                   fontWeight: isActive ? 600 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s'
                 }}
               >
                 <Icon size={18} />
                 {tab.label}
+                {isActive && (
+                  <motion.span
+                    layoutId="projects-tab-underline"
+                    transition={underlineMotion(reduceMotion)}
+                    className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-blue-700"
+                  />
+                )}
               </button>
             );
           })}
@@ -152,8 +160,8 @@ export default function Projects({ defaultTab }: { defaultTab?: string } = {}) {
         {isMaterialManagement ? (
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Material Sub-tabs */}
-            <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '0 24px' }}>
-              <div style={{ display: 'flex', gap: '4px' }}>
+            <div className="border-b border-zinc-200 bg-white px-3 md:px-6">
+              <div className="pl-rail">
                 {MATERIAL_SUBTABS.map((subtab) => {
                   const Icon = subtab.icon;
                   const isActive = materialSubTab === subtab.id;
@@ -161,23 +169,24 @@ export default function Projects({ defaultTab }: { defaultTab?: string } = {}) {
                     <button
                       key={subtab.id}
                       onClick={() => handleMaterialSubTabChange(subtab.id)}
+                      className="relative flex shrink-0 items-center gap-2 whitespace-nowrap border-none bg-transparent px-4 text-sm transition-colors duration-150 ease-out active:scale-[0.97]"
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '16px 20px',
-                        border: 'none',
-                        borderBottom: `2px solid ${isActive ? '#1d4ed8' : 'transparent'}`,
-                        background: 'transparent',
+                        paddingTop: '0.875rem',
+                        paddingBottom: '0.875rem',
+                        minHeight: 44,
                         color: isActive ? '#1d4ed8' : '#6b7280',
-                        fontSize: '14px',
                         fontWeight: isActive ? 600 : 500,
-                        cursor: 'pointer',
-                        transition: 'all 0.15s'
                       }}
                     >
                       <Icon size={18} />
                       {subtab.label}
+                      {isActive && (
+                        <motion.span
+                          layoutId="projects-material-subtab-underline"
+                          transition={underlineMotion(reduceMotion)}
+                          className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-blue-700"
+                        />
+                      )}
                     </button>
                   );
                 })}
@@ -260,19 +269,18 @@ function TimelineTab({ organisationId }: { organisationId: string }) {
 
   if (selectedProjectId) {
     return (
-      <div style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+      <div className="p-3 md:p-6">
+        <div className="mb-4 flex flex-wrap items-center gap-3 md:mb-6">
           <Button variant="default" size="sm" onClick={() => { setSelectedProjectId(null); setSelectedProjectName(''); }}
+            className="flex h-10 items-center gap-1.5 rounded-md px-3 text-[13px] transition-[background-color,scale] duration-150 ease-out active:scale-[0.96]"
             style={{
-              display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px',
-              background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '6px',
-              fontSize: '13px', cursor: 'pointer', color: '#374151'
+              background: '#f3f4f6', border: '1px solid #d1d5db', color: '#374151'
             }}
           >
             <ArrowLeft size={14} />
             Back to Projects
           </Button>
-          <h2 style={{ fontSize: '18px', fontWeight: 600 }}>{selectedProjectName}</h2>
+          <h2 className="min-w-0 flex-1 truncate" style={{ fontSize: '18px', fontWeight: 600 }}>{selectedProjectName}</h2>
         </div>
         <ProjectGantt projectId={selectedProjectId} projectName={selectedProjectName} />
       </div>
@@ -280,8 +288,8 @@ function TimelineTab({ organisationId }: { organisationId: string }) {
   }
 
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ marginBottom: '24px' }}>
+    <div className="p-4 md:p-6">
+      <div className="mb-4 md:mb-6">
         <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '4px' }}>Project Timeline</h2>
         <p style={{ color: '#6b7280', fontSize: '14px' }}>Select a project to view its Gantt chart with milestones and tasks.</p>
       </div>
@@ -291,9 +299,10 @@ function TimelineTab({ organisationId }: { organisationId: string }) {
         placeholder="Search projects..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
+        className="mb-4 w-full rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         style={{
-          width: '100%', maxWidth: '400px', padding: '10px 12px',
-          border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', marginBottom: '16px'
+          maxWidth: '400px', padding: '10px 12px',
+          border: '1px solid #d1d5db', fontSize: '16px',
         }}
       />
 
@@ -305,7 +314,7 @@ function TimelineTab({ organisationId }: { organisationId: string }) {
           <p>No projects found.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '16px' }}>
           {filteredProjects.map(project => {
             const displayName = project.project_name || project.name || 'Unnamed';
             const startDate = project.start_date ? new Date(project.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -314,28 +323,23 @@ function TimelineTab({ organisationId }: { organisationId: string }) {
 
             return (
               <Button variant="default" size="sm" key={project.id} onClick={() => { setSelectedProjectId(project.id); setSelectedProjectName(displayName); }}
-                style={{
-                  padding: '20px', background: '#fff', border: '1px solid #e5e7eb',
-                  borderRadius: '8px', cursor: 'pointer', textAlign: 'left',
-                  transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: '12px'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1d4ed8'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(29,78,216,0.1)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.boxShadow = 'none'; }}
+                className="flex h-auto flex-col items-start gap-3 rounded-xl bg-white p-4 text-left transition-[box-shadow,scale] duration-150 ease-out hover:shadow-md active:scale-[0.98]"
+                style={{ boxShadow: 'var(--pl-shadow-border)' }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827' }}>{displayName}</h3>
-                  <span style={{
-                    fontSize: '11px', fontWeight: 500, padding: '2px 8px', borderRadius: '12px',
+                <div className="flex w-full items-start justify-between gap-3">
+                  <h3 className="min-w-0 flex-1 truncate" style={{ fontSize: '15px', fontWeight: 600, color: '#111827' }}>{displayName}</h3>
+                  <span className="shrink-0 rounded-full px-2 py-0.5" style={{
+                    fontSize: '11px', fontWeight: 500,
                     backgroundColor: `${statusColor}15`, color: statusColor
                   }}>
                     {project.status || 'Active'}
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#6b7280' }}>
+                <div className="flex gap-4 text-xs text-zinc-500 tabular-nums">
                   <span>Start: {startDate}</span>
                   <span>End: {endDate}</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#1d4ed8', fontWeight: 500 }}>
+                <div className="flex items-center gap-1.5 text-[13px] font-medium" style={{ color: '#1d4ed8' }}>
                   <LayoutGrid size={14} />
                   View Timeline
                 </div>
@@ -367,7 +371,7 @@ function ProjectMaterialSelect({ onSelectProject }: { onSelectProject: (id: stri
   );
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div className="p-4 md:p-6">
       <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '20px' }}>Project Material Management</h2>
       <p style={{ color: '#6b7280', marginBottom: '20px' }}>Select a project to manage material intents, receipts, and budget.</p>
       
@@ -376,19 +380,22 @@ function ProjectMaterialSelect({ onSelectProject }: { onSelectProject: (id: stri
         placeholder="Search projects..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        style={{ width: '100%', maxWidth: '400px', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', marginBottom: '16px' }}
+        className="mb-4 w-full rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        style={{ maxWidth: '400px', padding: '10px 12px', border: '1px solid #d1d5db', fontSize: '16px' }}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '16px' }}>
         {filteredProjects.map(project => (
-          <div
+          <button
             key={project.id}
+            type="button"
             onClick={() => onSelectProject(project.id, project.organisation_id || '', project.project_name || 'Unnamed')}
-            style={{ padding: '20px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', cursor: 'pointer' }}
+            className="rounded-xl bg-white p-4 text-left transition-[box-shadow,scale] duration-150 ease-out hover:shadow-md active:scale-[0.98]"
+            style={{ boxShadow: 'var(--pl-shadow-border)' }}
           >
-            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>{project.project_name}</h3>
+            <h3 className="truncate" style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>{project.project_name}</h3>
             <div style={{ fontSize: '13px', color: '#6b7280' }}>{project.project_code && <span>Code: {project.project_code}</span>}</div>
-          </div>
+          </button>
         ))}
       </div>
     </div>
@@ -406,6 +413,7 @@ const MATERIAL_TAB_DEFS = [
 ];
 
 function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }: { projectId: string; organisationId: string; projectName: string; onBack: () => void }) {
+  const reduceMotion = useReducedMotion();
   const [activeSubTab, setActiveSubTab] = useState('intents');
 
   const tabComponents = useMemo<Record<string, React.ReactNode>>(() => ({
@@ -420,31 +428,33 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '0 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Button variant="ghost" size="icon-xs" onClick={onBack}>
-            <ArrowLeft size={18} />
-          </Button>
-          <div style={{ display: 'flex', gap: '4px' }}>
-            {MATERIAL_TAB_DEFS.map(tab => {
-              const isActive = activeSubTab === tab.id;
-              return (
-                <Button variant="default" size="sm" key={tab.id} onClick={() => setActiveSubTab(tab.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 20px', border: 'none',
-                    borderBottom: `2px solid ${isActive ? '#1d4ed8' : 'transparent'}`, background: 'transparent',
-                    color: isActive ? '#1d4ed8' : '#6b7280', fontSize: '14px', fontWeight: isActive ? 600 : 500, cursor: 'pointer',
-                  }}
-                >
-                  <tab.Icon />
-                  {tab.label}
-                </Button>
-              );
-            })}
-          </div>
+      <div className="flex items-center gap-2 border-b border-zinc-200 bg-white px-3 md:px-6">
+        <Button variant="ghost" size="icon" className="shrink-0" onClick={onBack} aria-label="Back to projects">
+          <ArrowLeft size={18} />
+        </Button>
+        <div className="pl-rail min-w-0 flex-1">
+          {MATERIAL_TAB_DEFS.map(tab => {
+            const isActive = activeSubTab === tab.id;
+            return (
+              <Button key={tab.id} variant="default" size="sm" onClick={() => setActiveSubTab(tab.id)}
+                className="relative h-11 shrink-0 gap-2 whitespace-nowrap border-none bg-transparent px-4 text-sm transition-colors duration-150 ease-out active:scale-[0.97]"
+                style={{ color: isActive ? '#1d4ed8' : '#6b7280', fontWeight: isActive ? 600 : 500 }}
+              >
+                <tab.Icon />
+                {tab.label}
+                {isActive && (
+                  <motion.span
+                    layoutId="projects-material-tab-underline"
+                    transition={underlineMotion(reduceMotion)}
+                    className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-blue-700"
+                  />
+                )}
+              </Button>
+            );
+          })}
         </div>
       </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '1rem' }}>
         {tabComponents[activeSubTab]}
       </div>
     </div>
@@ -504,11 +514,12 @@ function ProjectMeetings({ projectId, organisationId, projectName }: { projectId
           </Button>
         </div>
       ) : (
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div className="rounded-xl bg-white" style={{ boxShadow: 'var(--pl-shadow-border)' }}>
+          <div className="pl-table-scroll">
+            <table style={{ width: '100%', minWidth: 680, borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Date</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>Date</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Client</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Vendor</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, color: '#374151' }}>Location</th>
@@ -544,6 +555,7 @@ function ProjectMeetings({ projectId, organisationId, projectName }: { projectId
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

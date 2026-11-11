@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
+import { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
 import { supabase } from '../../supabase';
 import { formatCurrency } from '../../utils/formatters';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -467,20 +467,29 @@ export default function ProjectDetailView({
     { id: 'continuous-improvement', label: 'Continuous Improvement' },
   ];
 
+  // Nine tabs never fit a phone rail. Keep the active one in view when it
+  // changes (e.g. after a tab is picked from a card's shortcut).
+  const tabRailRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = tabRailRef.current?.querySelector<HTMLElement>(`[data-tab="${activeTab}"]`);
+    el?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [activeTab]);
+
   return (
     <div className="pl-page">
       <div className="pl-container">
         <div className="pl-detail-header" style={{ padding: '0.5rem 1rem', gap: '0.75rem' }}>
-          <Button variant="default" size="icon-xs" onClick={onBack}>
+          <Button variant="default" size="icon" className="shrink-0" onClick={onBack} aria-label="Back to projects">
             <ArrowLeft size={18} />
           </Button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
-            <h1 className="pl-detail-title" style={{ fontSize: '18px', margin: 0 }}>{selectedProject.project_name}</h1>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>{selectedProject.project_code}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: '1 1 160px', minWidth: 0 }}>
+            <h1 className="pl-detail-title min-w-0 flex-1 truncate" style={{ fontSize: '18px', margin: 0 }}>{selectedProject.project_name}</h1>
+            <span className="shrink-0" style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>{selectedProject.project_code}</span>
           </div>
-          <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+          <div ref={tabRailRef} className="pl-rail order-last w-full min-w-0 basis-full md:order-none md:w-auto md:basis-auto">
             {tabs.map(tab => (
-              <Button variant="default" size="sm" key={tab.id} className={`pl-tab ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}
+              <Button variant="default" size="sm" key={tab.id} data-tab={tab.id}
+                className={`pl-tab shrink-0 ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}
                 style={{ padding: '0.375rem 0.75rem', fontSize: '0.8125rem' }}
               >
                 {tab.label}

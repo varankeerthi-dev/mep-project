@@ -21,6 +21,7 @@ import { ApprovalAPI } from '../approvals/api';
 import { ApprovalIntegration } from '../approvals/integration';
 import { postQuotationChannelCard } from '../projects/features/collaboration/api';
 import { initiateQuotationRevision } from '../lib/quotation-workflow';
+import { isQuotationApprovalInFlight } from '../lib/followup/quotation-status';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../components/ui/resizable';
 import DocumentSettingsDrawer from '../components/document-settings/DocumentSettingsDrawer';
 import { numberToInrWords } from '../pdf/numberToWords';
@@ -2263,7 +2264,7 @@ export default function QuotationView() {
   const isEditable = quotation?.status !== 'Converted' && quotation?.status !== 'Cancelled';
   const isDeletable = quotation?.status === 'Draft';
   const isCancellable = quotation?.status !== 'Cancelled' && quotation?.status !== 'Converted' && quotation?.status !== 'Draft';
-  const canApprove = quotation?.status === 'PENDING_APPROVAL';
+  const canApprove = isQuotationApprovalInFlight(quotation?.status);
 
   if (loading) {
     return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;

@@ -38,6 +38,8 @@ export function useItemHistory(
           .select('id, event_type, title, description, actor_name, created_at, reference_id, reference_label, metadata')
           .eq('organisation_id', organisationId)
           .eq('reference_id', linkedId)
+          // Server-side status-observation rows (20261019000004) are instrumentation, not history.
+          .neq('event_type', 'quotation_status_transition_audited')
           .order('created_at', { ascending: false })
           .limit(100),
         isLead

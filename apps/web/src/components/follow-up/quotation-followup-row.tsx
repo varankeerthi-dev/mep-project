@@ -2,7 +2,6 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MessageCircle, ChevronDown, ArrowRight, CheckCircle2, XCircle, Pause, Clock, Ban } from 'lucide-react';
 import type { QuotationFollowUp, QuotationResponseOption } from '@/types/followup';
-import { QUOTATION_RESPONSE_OPTIONS } from '@/types/followup';
 import { getAvailableTransitions, isTerminalStatus, TRANSITION_META } from '@/lib/followup/quotation-workflow';
 import { initiateQuotationRevision } from '@/lib/quotation-workflow';
 import { useAuth } from '@/App';
@@ -18,10 +17,25 @@ type QuotationFollowupRowProps = {
   disabled?: boolean;
   assignees: FollowUpAssigneeOption[];
   onReminder: (item: QuotationFollowUp) => void;
-  onLogResponse: (id: string, response: QuotationResponseOption) => void;
+  onLogResponse: (id: string, response: QuotationResponseOption, reason: string) => void;
   onAssigneeChange: (id: string, userId: string | null) => void;
   onSelect?: () => void;
 };
+
+const QUICK_REASONS: Record<QuotationResponseOption, string[]> = {
+  sent: ['Client asked to re-send', 'Resent after the correction'],
+  under_review: ['Sent to the client for review', 'Shared with the decision maker'],
+  in_negotiation: ['Discussing pricing', 'Scope change requested', 'Client asked for a revision'],
+  pending: ['Awaiting client decision', 'Waiting on internal clearance'],
+  approved: ['Client confirmed the award', 'Work order to be raised'],
+  on_hold: ['Project deferred by the client', 'Budget put on hold'],
+  lost_to_competitor: ['Higher competitor quotation', 'Client continued with another vendor'],
+  cancelled: ['Requirement withdrawn', 'Duplicate quotation'],
+};
+
+// Mirrors STAGE_REASON_REQUIRED in change_quotation_stage; keeps the user from
+// discovering the server's minimum by submitting a blank reason.
+const MIN_REASON_LENGTH = 3;
 
 const TERMINAL_ICON: Record<string, React.ReactNode> = {
   approved: <CheckCircle2 className="h-3 w-3 text-green-600" />,
@@ -40,6 +54,9 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
   onSelect,
 }: QuotationFollowupRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pendingTransition, setPendingTransition] = useState<QuotationResponseOption | null>(null);
+  const [reason, setReason] = useState('');
+  const reasonInputRef = useRef<HTMLTextAreaElement>(null);
   const [revisionLoading, setRevisionLoading] = useState(false);
   const { organisation, user } = useAuth();
   const expiring = isValidityExpiringSoon(item.valid_till);
@@ -61,12 +78,20 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
     setMenuPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
   }, []);
 
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false);
+    setPendingTransition(null);
+    setReason('');
+  }, []);
+
   useEffect(() => {
     if (menuOpen) {
       updatePosition();
-      const onScroll = () => setMenuOpen(false);
+      // Reposition instead of closing on scroll: the reason step holds typed input, and the
+      // table body is a scroll container, so closing here would discard what the user wrote.
+      const onScroll = () => updatePosition();
       const onEscape = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') setMenuOpen(false);
+        if (e.key === 'Escape') closeMenu();
       };
       window.addEventListener('scroll', onScroll, true);
       window.addEventListener('resize', updatePosition);
@@ -77,7 +102,27 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
         window.removeEventListener('keydown', onEscape);
       };
     }
-  }, [menuOpen, updatePosition]);
+  }, [menuOpen, updatePosition, closeMenu]);
+
+  useEffect(() => {
+    if (pendingTransition) reasonInputRef.current?.focus();
+  }, [pendingTransition]);
+
+  const startTransition = useCallback((opt: QuotationResponseOption) => {
+    setPendingTransition(opt);
+    setReason('');
+  }, []);
+
+  const confirmTransition = useCallback(() => {
+    if (!pendingTransition) return;
+    const trimmed = reason.trim();
+    if (trimmed.length < MIN_REASON_LENGTH) return;
+    onLogResponse(item.id, pendingTransition, trimmed);
+    closeMenu();
+  }, [closeMenu, item.id, onLogResponse, pendingTransition, reason]);
+
+  const pendingMeta = pendingTransition ? TRANSITION_META[pendingTransition] : null;
+  const reasonReady = reason.trim().length >= MIN_REASON_LENGTH;
 
   return (
     <div
@@ -164,7 +209,11 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
               ref={triggerRef}
               type="button"
               disabled={disabled}
-              onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (menuOpen) closeMenu();
+                else setMenuOpen(true);
+              }}
               className={cn(
                 'inline-flex h-7 items-center gap-0.5 rounded-md border px-2 text-[11px] font-medium disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.96] transition duration-150',
                 item.status === 'in_negotiation'
@@ -179,47 +228,134 @@ export const QuotationFollowupRow = memo(function QuotationFollowupRow({
               <>
                 <div
                   className="fixed inset-0 z-[9998]"
-                  onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
+                  onClick={(e) => { e.stopPropagation(); closeMenu(); }}
                 />
                 <div
-                  className="fixed z-[9999] min-w-[260px] rounded-lg border border-slate-200 bg-white py-1 shadow-[0_4px_12px_-2px_rgba(15,23,42,0.08),0_2px_6px_-1px_rgba(15,23,42,0.04)]"
-                  style={{ top: menuPos.top, left: Math.min(menuPos.left, window.innerWidth - 280) }}
-                >
-                  {item.previous_status && (
-                    <div className="flex items-center gap-1.5 border-b border-slate-100 px-3 py-2 text-[10px] text-slate-500">
-                      <span>{formatQuotationStatus(item.previous_status)}</span>
-                      <ArrowRight className="h-2.5 w-2.5" />
-                      <span className="font-medium text-slate-800">{formatQuotationStatus(item.status)}</span>
-                      <span className="ml-auto">(current)</span>
-                    </div>
+                  className={cn(
+                    'fixed z-[9999] rounded-lg border border-slate-200 bg-white py-1 shadow-[0_4px_12px_-2px_rgba(15,23,42,0.08),0_2px_6px_-1px_rgba(15,23,42,0.04)]',
+                    pendingTransition ? 'w-[320px]' : 'min-w-[260px]'
                   )}
-                  <div className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                    Transition to
-                  </div>
-                  {availableTransitions.map((opt) => {
-                    const meta = TRANSITION_META[opt];
-                    return (
-                      <button
-                        key={opt}
-                        type="button"
-                        className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-slate-50"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onLogResponse(item.id, opt);
-                          setMenuOpen(false);
-                        }}
-                      >
-                        <span className="mt-0.5 text-sm leading-none">{meta.icon}</span>
+                  style={{
+                    top: Math.min(menuPos.top, Math.max(8, window.innerHeight - (pendingTransition ? 330 : 260))),
+                    left: Math.min(menuPos.left, window.innerWidth - (pendingTransition ? 336 : 280)),
+                  }}
+                >
+                  {pendingTransition && pendingMeta ? (
+                    <div className="p-3">
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 text-sm leading-none">{pendingMeta.icon}</span>
                         <div className="min-w-0">
-                          <div className="text-[11px] font-medium text-slate-900">{meta.label}</div>
-                          <div className="text-[10px] text-slate-500">{meta.description}</div>
+                          <div className="text-[11px] font-semibold text-slate-900">{pendingMeta.label}</div>
+                          <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-500">
+                            <span>{formatQuotationStatus(item.status)}</span>
+                            <ArrowRight className="h-2.5 w-2.5" />
+                            <span className="font-medium text-slate-700">{pendingMeta.label}</span>
+                          </div>
                         </div>
-                        {meta.terminal && (
-                          <span className="ml-auto mt-0.5 rounded bg-slate-100 px-1 text-[9px] text-slate-500">Final</span>
+                        {pendingMeta.terminal && (
+                          <span className="ml-auto rounded bg-slate-100 px-1 py-0.5 text-[9px] text-slate-500">Final</span>
                         )}
-                      </button>
-                    );
-                  })}
+                      </div>
+                      <label className="mt-3 block text-[10px] font-medium uppercase tracking-wide text-slate-400" htmlFor={`reason-${item.id}`}>
+                        Why is it changing? <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        id={`reason-${item.id}`}
+                        ref={reasonInputRef}
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                            e.preventDefault();
+                            confirmTransition();
+                          }
+                        }}
+                        rows={3}
+                        maxLength={500}
+                        placeholder="What the client said, or what happened — this is stored in the audit trail."
+                        className="mt-1 w-full resize-none rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-200"
+                      />
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {QUICK_REASONS[pendingTransition].map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setReason(preset)}
+                            className={cn(
+                              'rounded-full border px-2 py-0.5 text-[10px] transition duration-150',
+                              reason === preset
+                                ? 'border-blue-300 bg-blue-50 text-blue-800'
+                                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                            )}
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setPendingTransition(null); setReason(''); }}
+                          className="inline-flex h-7 items-center rounded-md border border-slate-200 px-2 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          Back
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!reasonReady}
+                          onClick={(e) => { e.stopPropagation(); confirmTransition(); }}
+                          className={cn(
+                            'inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] font-medium text-white transition duration-150',
+                            reasonReady ? 'bg-blue-600 hover:bg-blue-700 active:scale-[0.96]' : 'cursor-not-allowed bg-slate-300'
+                          )}
+                        >
+                          Record change
+                        </button>
+                      </div>
+                      {!reasonReady && (
+                        <p className="mt-1.5 text-right text-[10px] text-slate-400">
+                          A reason is required.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      {item.previous_status && (
+                        <div className="flex items-center gap-1.5 border-b border-slate-100 px-3 py-2 text-[10px] text-slate-500">
+                          <span>{formatQuotationStatus(item.previous_status)}</span>
+                          <ArrowRight className="h-2.5 w-2.5" />
+                          <span className="font-medium text-slate-800">{formatQuotationStatus(item.status)}</span>
+                          <span className="ml-auto">(current)</span>
+                        </div>
+                      )}
+                      <div className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                        Transition to
+                      </div>
+                      {availableTransitions.map((opt) => {
+                        const meta = TRANSITION_META[opt];
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-slate-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startTransition(opt);
+                            }}
+                          >
+                            <span className="mt-0.5 text-sm leading-none">{meta.icon}</span>
+                            <div className="min-w-0">
+                              <div className="text-[11px] font-medium text-slate-900">{meta.label}</div>
+                              <div className="text-[10px] text-slate-500">{meta.description}</div>
+                            </div>
+                            {meta.terminal && (
+                              <span className="ml-auto mt-0.5 rounded bg-slate-100 px-1 text-[9px] text-slate-500">Final</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
               </>,
               document.body

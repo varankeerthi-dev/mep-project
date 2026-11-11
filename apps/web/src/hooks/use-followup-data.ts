@@ -12,7 +12,7 @@ import type {
   QuotationFollowUpStatus,
   QuotationResponseOption,
 } from '../types/followup';
-import { getTransitionToStatus } from '../lib/followup/quotation-workflow';
+import { detectEffectiveStatus, getTransitionToStatus } from '../lib/followup/quotation-workflow';
 
 const FOLLOWUP_KEY = ['follow-up'] as const;
 
@@ -162,13 +162,15 @@ export function useLogQuotationResponse() {
       await qc.cancelQueries({ queryKey: [...FOLLOWUP_KEY, 'quotations', orgId] });
       const prev = qc.getQueryData<FollowUpListResult<QuotationFollowUp>>([...FOLLOWUP_KEY, 'quotations', orgId]);
       const newStatus = getTransitionToStatus(response);
+      // Age the optimistic row exactly as the list query and the RPC do; without this the next
+      // click would send a stage the server has already moved on from.
       qc.setQueryData<FollowUpListResult<QuotationFollowUp>>([...FOLLOWUP_KEY, 'quotations', orgId], (old) =>
         old
           ? {
               ...old,
               items: old.items.map((q) =>
                 q.id === id
-                  ? { ...q, status: newStatus, previous_status: q.status, status_changed_at: new Date().toISOString() }
+                  ? { ...q, status: detectEffectiveStatus(newStatus, q.valid_till), previous_status: q.status, status_changed_at: new Date().toISOString() }
                   : q
               ),
             }

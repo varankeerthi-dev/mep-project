@@ -455,6 +455,7 @@ export function SnagsTab({
             <p className="pl-empty-text">No active warranty claims registered</p>
           </div>
         ) : (
+          <div className="pl-table-scroll">
           <table className="pl-table">
             <thead>
               <tr>
@@ -601,6 +602,7 @@ export function SnagsTab({
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

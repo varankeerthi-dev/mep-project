@@ -37,6 +37,8 @@ import { useAutosave } from './hooks/useAutosave';
 import { usePresence } from './hooks/usePresence';
 import { DocumentConversionChain } from '../../components/DocumentConversionChain';
 import { PresenceBanner } from './components/PresenceBanner';
+import { ApprovalLockBanner } from './components/ApprovalLockBanner';
+import { quotationApprovalLockMessage } from '../../lib/followup/quotation-status';
 import { autoCreateOrUpdateErection } from '../../utils/erectionUtils';
 
 const DEFAULT_PAYMENT_TERMS = 'Net 30 Days';
@@ -2240,7 +2242,13 @@ export default function CreateQuotation() {
       console.error('Error saving quotation:', err);
       const errMsg = (err as any)?.message || String(err || '');
       
-      if (errMsg.includes('Save conflict') || /conflict/i.test(errMsg) || (err as any)?.code === '409') {
+      const lockMessage = quotationApprovalLockMessage(errMsg);
+      if (lockMessage) {
+        setSaveStatus('error');
+        if (!isAutosave) {
+          toast.error('Locked while under approval', { description: lockMessage });
+        }
+      } else if (errMsg.includes('Save conflict') || /conflict/i.test(errMsg) || (err as any)?.code === '409') {
         setSaveStatus('conflict');
         if (!isAutosave) {
           toast.error('Save conflict', {
@@ -2357,6 +2365,7 @@ export default function CreateQuotation() {
 
       <div style={{ background: '#f8fafc', padding: '56px 16px 16px 16px', minHeight: 'calc(100vh - 64px)' }}>
         <PresenceBanner users={activePresenceUsers} />
+        <ApprovalLockBanner quotationId={editId} organisationId={organisation?.id} />
         {activeImportSessionId && (
           <div className="bg-indigo-900/40 border border-indigo-800/60 text-indigo-200 px-6 py-3 rounded-lg flex items-center justify-between text-xs font-semibold mb-4 animate-in slide-in-from-top">
             <div className="flex items-center gap-2">

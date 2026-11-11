@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { withTimeout, isTimeoutError } from '../utils/promiseTimeout';
 import { ApprovalIntegration } from '../../../approvals/integration';
 import { buildQuotationItemPayload } from '../utils/quotationCalculations';
+import { quotationApprovalLockMessage } from '../../../lib/followup/quotation-status';
 
 type QuoteSeriesCfg = {
   source: 'document_settings' | 'document_series';
@@ -438,7 +439,16 @@ export function useQuotationMutations({
       console.error('Error saving quotation:', err);
       const errMsg = (err as any)?.message || String(err || '');
       
-      if (errMsg.includes('Save conflict') || /conflict/i.test(errMsg) || (err as any)?.code === '409') {
+      const lockMessage = quotationApprovalLockMessage(errMsg);
+      if (lockMessage) {
+        // The database refused the save because an approval request for this quotation is open.
+        // The message already names the request level and, when the workflow resolves it, the
+        // approver holding it.
+        setSaveStatus('error');
+        if (!isAutosaveParam) {
+          toast.error('Locked while under approval', { description: lockMessage });
+        }
+      } else if (errMsg.includes('Save conflict') || /conflict/i.test(errMsg) || (err as any)?.code === '409') {
         setSaveStatus('conflict');
         if (!isAutosaveParam) {
           toast.error('Save conflict', {
