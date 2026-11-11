@@ -125,6 +125,48 @@ export const SitePlanTable: React.FC<SitePlanTableProps> = ({
     }
   };
 
+  const getWorkTypeBadge = (wt?: string) => {
+    switch (wt) {
+      case 'service_breakdown':
+        return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-200">🚨 Service</span>;
+      case 'amc_ppm':
+        return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">🛡️ AMC PPM</span>;
+      default:
+        return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">🏗️ EPC</span>;
+    }
+  };
+
+  const getReadinessPill = (plan: SitePlan) => {
+    const score = [
+      plan.site_access_cleared,
+      plan.permits_approved,
+      plan.materials_staged,
+      plan.tools_dispatched,
+    ].filter(Boolean).length;
+
+    if (score === 4) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300" title="4/4 Gates Cleared">
+          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+          <span>Ready (4/4)</span>
+        </span>
+      );
+    }
+    if (score >= 1) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300" title={`${score}/4 Gates Cleared`}>
+          <AlertTriangle className="w-3 h-3 text-amber-600" />
+          <span>Gates ({score}/4)</span>
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-300" title="0/4 Gates Cleared">
+        <span>Blocked (0/4)</span>
+      </span>
+    );
+  };
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       {/* Controls Bar */}
@@ -197,6 +239,7 @@ export const SitePlanTable: React.FC<SitePlanTableProps> = ({
                 </div>
               </th>
               <th className="py-3 px-4">Client & Project</th>
+              <th className="py-3 px-4">Readiness</th>
               <th className="py-3 px-4 cursor-pointer hover:bg-slate-200/50" onClick={() => toggleSort('plan_date')}>
                 <div className="flex items-center gap-1">
                   <span>Date & Window</span>
@@ -218,7 +261,7 @@ export const SitePlanTable: React.FC<SitePlanTableProps> = ({
           <tbody className="divide-y divide-slate-100">
             {isLoading ? (
               <tr>
-                <td colSpan={8} className="py-12 text-center text-slate-400">
+                <td colSpan={9} className="py-12 text-center text-slate-400">
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                     <span>Loading site plans...</span>
@@ -227,7 +270,7 @@ export const SitePlanTable: React.FC<SitePlanTableProps> = ({
               </tr>
             ) : filteredPlans.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-12 text-center text-slate-400">
+                <td colSpan={9} className="py-12 text-center text-slate-400">
                   No site plans found matching your criteria.
                 </td>
               </tr>
@@ -244,8 +287,9 @@ export const SitePlanTable: React.FC<SitePlanTableProps> = ({
                     onClick={() => onSelectPlan(plan)}
                   >
                     {/* Plan & Scope */}
-                    <td className="py-3.5 px-4 font-medium text-slate-900 max-w-[220px]">
-                      <div className="flex items-center gap-1.5">
+                    <td className="py-3.5 px-4 font-medium text-slate-900 max-w-[240px]">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {getWorkTypeBadge(plan.work_type)}
                         <span className="truncate font-semibold">{plan.plan_name}</span>
                         {plan.trade && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-medium whitespace-nowrap">
@@ -271,6 +315,11 @@ export const SitePlanTable: React.FC<SitePlanTableProps> = ({
                           <span>{plan.project.title}</span>
                         </div>
                       )}
+                    </td>
+
+                    {/* Site Readiness */}
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      {getReadinessPill(plan)}
                     </td>
 
                     {/* Date & Window */}

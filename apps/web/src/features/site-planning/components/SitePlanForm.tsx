@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Users, Building, Briefcase, FileText, CheckCircle2 } from 'lucide-react';
+import { 
+  X, Calendar, Clock, Users, Building, Briefcase, 
+  FileText, CheckCircle2, ShieldCheck, AlertCircle, Wrench, Flame 
+} from 'lucide-react';
 import { useClients } from '../../../hooks/useClients';
 import { useProjects } from '../../../hooks/useProjects';
-import type { SitePlan, SitePlanStatus, ClientConfirmationStatus } from '../types';
+import type { SitePlan, SitePlanStatus, ClientConfirmationStatus, WorkType } from '../types';
 
 interface SitePlanFormProps {
   isOpen: boolean;
@@ -25,6 +28,14 @@ const MEP_TRADES = [
   'General',
 ];
 
+function getTodayLocalDate(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export const SitePlanForm: React.FC<SitePlanFormProps> = ({
   isOpen,
   onClose,
@@ -42,9 +53,22 @@ export const SitePlanForm: React.FC<SitePlanFormProps> = ({
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('18:00');
   const [trade, setTrade] = useState('Electrical');
+  const [workType, setWorkType] = useState<WorkType>('erection_project');
   const [headcountRequired, setHeadcountRequired] = useState(2);
   const [planStatus, setPlanStatus] = useState<SitePlanStatus>('approved');
   const [confirmationStatus, setConfirmationStatus] = useState<ClientConfirmationStatus>('not_confirmed');
+  
+  // 4-Point Site Readiness Checklist
+  const [siteAccessCleared, setSiteAccessCleared] = useState(false);
+  const [permitsApproved, setPermitsApproved] = useState(false);
+  const [materialsStaged, setMaterialsStaged] = useState(false);
+  const [toolsDispatched, setToolsDispatched] = useState(false);
+
+  // Operational Specs
+  const [ptwNotes, setPtwNotes] = useState('');
+  const [toolsRequired, setToolsRequired] = useState('');
+  const [emergencySlaDeadline, setEmergencySlaDeadline] = useState('');
+  const [repeatDays, setRepeatDays] = useState(1);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,22 +82,40 @@ export const SitePlanForm: React.FC<SitePlanFormProps> = ({
       setStartTime(initialData.start_time ? initialData.start_time.slice(0, 5) : '09:00');
       setEndTime(initialData.end_time ? initialData.end_time.slice(0, 5) : '18:00');
       setTrade(initialData.trade || 'Electrical');
+      setWorkType(initialData.work_type || 'erection_project');
       setHeadcountRequired(initialData.headcount_required || 1);
       setPlanStatus(initialData.plan_status || 'approved');
       setConfirmationStatus(initialData.client_confirmation_status || 'not_confirmed');
+      setSiteAccessCleared(Boolean(initialData.site_access_cleared));
+      setPermitsApproved(Boolean(initialData.permits_approved));
+      setMaterialsStaged(Boolean(initialData.materials_staged));
+      setToolsDispatched(Boolean(initialData.tools_dispatched));
+      setPtwNotes(initialData.ptw_notes || '');
+      setToolsRequired(initialData.tools_required || '');
+      setEmergencySlaDeadline(initialData.emergency_sla_deadline ? initialData.emergency_sla_deadline.slice(0, 16) : '');
       setNotes(initialData.notes || '');
+      setRepeatDays(1);
     } else {
       setPlanName('');
       setClientId('');
       setProjectId('');
-      setPlanDate(defaultDate || new Date().toISOString().split('T')[0]);
+      setPlanDate(defaultDate || getTodayLocalDate());
       setStartTime('09:00');
       setEndTime('18:00');
       setTrade('Electrical');
+      setWorkType('erection_project');
       setHeadcountRequired(2);
       setPlanStatus('approved');
       setConfirmationStatus('not_confirmed');
+      setSiteAccessCleared(false);
+      setPermitsApproved(false);
+      setMaterialsStaged(false);
+      setToolsDispatched(false);
+      setPtwNotes('');
+      setToolsRequired('');
+      setEmergencySlaDeadline('');
       setNotes('');
+      setRepeatDays(1);
     }
     setError(null);
   }, [initialData, defaultDate, isOpen]);
@@ -97,19 +139,41 @@ export const SitePlanForm: React.FC<SitePlanFormProps> = ({
     try {
       setIsSubmitting(true);
       setError(null);
-      await onSubmit({
-        plan_name: planName.trim(),
-        client_id: clientId || null,
-        project_id: projectId || null,
-        plan_date: planDate,
-        start_time: startTime || null,
-        end_time: endTime || null,
-        trade,
-        headcount_required: Number(headcountRequired) || 1,
-        plan_status: planStatus,
-        client_confirmation_status: confirmationStatus,
-        notes: notes.trim() || null,
-      });
+
+      const daysToCreate = !initialData && repeatDays > 1 ? repeatDays : 1;
+      const baseDate = new Date(planDate);
+
+      for (let i = 0; i < daysToCreate; i++) {
+        const currentDate = new Date(baseDate);
+        currentDate.setDate(baseDate.getDate() + i);
+        const y = currentDate.getFullYear();
+        const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const d = String(currentDate.getDate()).padStart(2, '0');
+        const targetDateStr = `${y}-${m}-${d}`;
+
+        await onSubmit({
+          plan_name: daysToCreate > 1 ? `${planName.trim()} (Day ${i + 1}/${daysToCreate})` : planName.trim(),
+          client_id: clientId || null,
+          project_id: projectId || null,
+          plan_date: targetDateStr,
+          start_time: startTime || null,
+          end_time: endTime || null,
+          trade,
+          work_type: workType,
+          headcount_required: Number(headcountRequired) || 1,
+          plan_status: planStatus,
+          client_confirmation_status: confirmationStatus,
+          site_access_cleared: siteAccessCleared,
+          permits_approved: permitsApproved,
+          materials_staged: materialsStaged,
+          tools_dispatched: toolsDispatched,
+          ptw_notes: ptwNotes.trim() || null,
+          tools_required: toolsRequired.trim() || null,
+          emergency_sla_deadline: workType === 'service_breakdown' && emergencySlaDeadline ? new Date(emergencySlaDeadline).toISOString() : null,
+          notes: notes.trim() || null,
+        });
+      }
+
       onClose();
     } catch (err: any) {
       setError(err?.message || 'Failed to save site plan');
@@ -158,6 +222,35 @@ export const SitePlanForm: React.FC<SitePlanFormProps> = ({
               onChange={(e) => setPlanName(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent"
             />
+          </div>
+
+          {/* Work Activity Type */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Work Activity Type
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {[
+                { id: 'erection_project', label: 'EPC Erection', desc: 'Project Milestone', color: 'border-blue-400 bg-blue-50/50 text-blue-900' },
+                { id: 'service_breakdown', label: 'Emergency Service', desc: 'SLA Breakdown', color: 'border-red-400 bg-red-50/50 text-red-900' },
+                { id: 'amc_ppm', label: 'AMC Maintenance', desc: 'Preventive PPM', color: 'border-emerald-400 bg-emerald-50/50 text-emerald-900' },
+                { id: 'other', label: 'Other Activity', desc: 'Audit / Survey', color: 'border-slate-300 bg-slate-50 text-slate-800' },
+              ].map((wt) => (
+                <button
+                  key={wt.id}
+                  type="button"
+                  onClick={() => setWorkType(wt.id as WorkType)}
+                  className={`p-2 rounded-lg border text-left transition-all ${
+                    workType === wt.id
+                      ? `${wt.color} ring-2 ring-[var(--brand)] font-bold shadow-xs`
+                      : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                  }`}
+                >
+                  <div className="text-xs font-semibold">{wt.label}</div>
+                  <div className="text-[10px] text-slate-500">{wt.desc}</div>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Client & Project Linkage */}
@@ -246,6 +339,142 @@ export const SitePlanForm: React.FC<SitePlanFormProps> = ({
               />
             </div>
           </div>
+
+          {workType === 'service_breakdown' && (
+            <div className="p-3 bg-red-50/70 border border-red-200 rounded-lg">
+              <label className="block text-xs font-bold text-red-800 mb-1 flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5 text-red-600" />
+                <span>Emergency SLA Resolution Deadline</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={emergencySlaDeadline}
+                onChange={(e) => setEmergencySlaDeadline(e.target.value)}
+                className="w-full px-3 py-1.5 text-xs border border-red-300 rounded-lg bg-white focus:ring-2 focus:ring-red-500"
+              />
+              <p className="text-[10px] text-red-600 mt-1">
+                Contractual penalty or breach threshold for customer resolution.
+              </p>
+            </div>
+          )}
+
+          {/* 4-Point Site Readiness Checklist */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Site Readiness Checklist (4 Gates)</span>
+              </h3>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
+                Score: {[siteAccessCleared, permitsApproved, materialsStaged, toolsDispatched].filter(Boolean).length}/4
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <label className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={siteAccessCleared}
+                  onChange={(e) => setSiteAccessCleared(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 rounded"
+                />
+                <div>
+                  <span className="font-semibold text-slate-800 block">Site Access & Gate Pass</span>
+                  <span className="text-[10px] text-slate-500">Security clearance / inductions done</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={permitsApproved}
+                  onChange={(e) => setPermitsApproved(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 rounded"
+                />
+                <div>
+                  <span className="font-semibold text-slate-800 block">Permits to Work (PTW)</span>
+                  <span className="text-[10px] text-slate-500">Hot work / Height permit approved</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={materialsStaged}
+                  onChange={(e) => setMaterialsStaged(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 rounded"
+                />
+                <div>
+                  <span className="font-semibold text-slate-800 block">Materials Staged on Site</span>
+                  <span className="text-[10px] text-slate-500">Ducts, pipes, wires physically at site</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={toolsDispatched}
+                  onChange={(e) => setToolsDispatched(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 rounded"
+                />
+                <div>
+                  <span className="font-semibold text-slate-800 block">Tools & Plant (T&P) Ready</span>
+                  <span className="text-[10px] text-slate-500">Vacuum pumps, brazing kits assigned</span>
+                </div>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  Permit Numbers / Safety Protocols
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. HW-409 (Hot Work valid till 6 PM)"
+                  value={ptwNotes}
+                  onChange={(e) => setPtwNotes(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  Machinery & Instruments Required
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 2-stage vacuum pump, 410A gauges"
+                  value={toolsRequired}
+                  onChange={(e) => setToolsRequired(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                />
+              </div>
+            </div>
+          </div>
+
+          {!initialData && (
+            <div className="p-3 bg-blue-50/50 border border-blue-200 rounded-lg flex items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-semibold text-slate-800 block">Multi-Day EPC Repeat</span>
+                <span className="text-[10px] text-slate-500">
+                  Automatically create consecutive daily plans for long installations.
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-xs text-slate-600">Repeat for:</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="14"
+                  value={repeatDays}
+                  onChange={(e) => setRepeatDays(Math.min(14, Math.max(1, parseInt(e.target.value) || 1)))}
+                  className="w-16 px-2 py-1 text-xs border border-blue-300 rounded bg-white font-bold text-center"
+                />
+                <span className="text-xs text-slate-600">days</span>
+              </div>
+            </div>
+          )}
 
           {/* Trade & Headcount Demand */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   X, Users, UserCheck, HardHat, Plus, Trash2, 
   Building2, AlertTriangle, CheckCircle2, Shield
 } from 'lucide-react';
 import { useEmployees } from '../../../hooks/useEmployees';
-import { useAddAllocation, useRemoveAllocation } from '../hooks/useSitePlans';
+import { useSubcontractors } from '../../../hooks/useSubcontractors';
+import { useSitePlans, useAddAllocation, useRemoveAllocation } from '../hooks/useSitePlans';
 import type { SitePlan, AllocationType, AllocationStatus } from '../types';
 
 interface ManpowerAllocationEditorProps {
@@ -19,11 +20,16 @@ export const ManpowerAllocationEditor: React.FC<ManpowerAllocationEditorProps> =
   onClose,
 }) => {
   const { data: employees = [] } = useEmployees();
+  const { data: subcontractors = [] } = useSubcontractors();
+  const { data: datePlans = [] } = useSitePlans(
+    plan?.plan_date ? { startDate: plan.plan_date, endDate: plan.plan_date } : undefined
+  );
   const addAllocation = useAddAllocation();
   const removeAllocation = useRemoveAllocation();
 
   const [allocType, setAllocType] = useState<AllocationType>('employee');
   const [employeeId, setEmployeeId] = useState('');
+  const [subcontractorId, setSubcontractorId] = useState('');
   const [trade, setTrade] = useState(plan?.trade || 'Electrical');
   const [headcount, setHeadcount] = useState(1);
   const [subcontractorName, setSubcontractorName] = useState('');
@@ -40,6 +46,22 @@ export const ManpowerAllocationEditor: React.FC<ManpowerAllocationEditorProps> =
   );
   const unallocated = Math.max(0, totalRequired - totalAllocated);
 
+  // Double-booking collision detector
+  const conflictWarning = useMemo(() => {
+    if (allocType !== 'employee' || !employeeId) return null;
+    const selectedEmp = employees.find((e: any) => e.id === employeeId);
+    const empName = selectedEmp?.name || 'Selected employee';
+
+    for (const p of datePlans) {
+      if (p.id === plan.id) continue;
+      const match = (p.allocations || []).find((a) => a.employee_id === employeeId);
+      if (match) {
+        return `${empName} is already assigned to "${p.plan_name}" (${p.trade || 'Work'}) on ${p.plan_date}`;
+      }
+    }
+    return null;
+  }, [allocType, employeeId, employees, datePlans, plan]);
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -48,24 +70,29 @@ export const ManpowerAllocationEditor: React.FC<ManpowerAllocationEditorProps> =
       setError('Please select an employee');
       return;
     }
-    if (allocType === 'subcontractor' && !subcontractorName.trim()) {
-      setError('Please enter subcontractor or vendor team name');
+    if (allocType === 'subcontractor' && !subcontractorId && !subcontractorName.trim()) {
+      setError('Please select or specify a subcontractor team');
       return;
     }
+
+    const selectedSub = subcontractors.find((s) => s.id === subcontractorId);
+    const resolvedSubName = selectedSub?.company_name || subcontractorName.trim();
 
     try {
       await addAllocation.mutateAsync({
         site_plan_id: plan.id,
         allocation_type: allocType,
         employee_id: allocType === 'employee' ? employeeId : null,
+        subcontractor_id: allocType === 'subcontractor' && subcontractorId ? subcontractorId : null,
         allocated_trade: trade,
         headcount: allocType === 'employee' ? 1 : Number(headcount) || 1,
         status: 'assigned',
-        notes: allocType === 'subcontractor' ? `Crew: ${subcontractorName.trim()}` : notes.trim() || null,
+        notes: allocType === 'subcontractor' ? `Crew: ${resolvedSubName}` : notes.trim() || null,
       });
 
       // Reset form
       setEmployeeId('');
+      setSubcontractorId('');
       setSubcontractorName('');
       setNotes('');
       setHeadcount(1);
@@ -207,6 +234,16 @@ export const ManpowerAllocationEditor: React.FC<ManpowerAllocationEditorProps> =
               </div>
             )}
 
+            {conflictWarning && (
+              <div className="p-2.5 mb-3 text-xs bg-amber-50 text-amber-900 border border-amber-300 rounded-lg flex items-start gap-2 animate-in fade-in">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Double-Booking Warning:</span>
+                  <p className="text-[11px] mt-0.5">{conflictWarning}</p>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleAdd} className="space-y-3">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
@@ -266,15 +303,38 @@ export const ManpowerAllocationEditor: React.FC<ManpowerAllocationEditorProps> =
                 <>
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Subcontractor / Crew Name
+                      Approved Subcontractor
                     </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Metro Electricals Crew A"
-                      value={subcontractorName}
-                      onChange={(e) => setSubcontractorName(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg"
-                    />
+                    <select
+                      value={subcontractorId}
+                      onChange={(e) => {
+                        setSubcontractorId(e.target.value);
+                        if (e.target.value) setSubcontractorName('');
+                      }}
+                      className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white mb-2"
+                    >
+                      <option value="">-- Select Registered Vendor --</option>
+                      {subcontractors.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.company_name} {s.nature_of_work ? `(${s.nature_of_work})` : ''}
+                        </option>
+                      ))}
+                    </select>
+
+                    {!subcontractorId && (
+                      <div>
+                        <label className="block text-[10px] font-medium text-slate-500 mb-0.5">
+                          Or Enter Custom / Unregistered Team Name
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Metro Electricals Crew A"
+                          value={subcontractorName}
+                          onChange={(e) => setSubcontractorName(e.target.value)}
+                          className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg"
+                        />
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">

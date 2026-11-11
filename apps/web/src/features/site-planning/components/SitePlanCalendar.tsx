@@ -214,6 +214,13 @@ export const SitePlanCalendar: React.FC<SitePlanCalendarProps> = ({
                     {dayPlans.slice(0, 3).map((plan) => {
                       const isConfirmed = plan.client_confirmation_status === 'confirmed';
                       const isPostponed = plan.client_confirmation_status === 'postponement_requested';
+                      const isEmergency = plan.work_type === 'service_breakdown';
+                      const score = [
+                        plan.site_access_cleared,
+                        plan.permits_approved,
+                        plan.materials_staged,
+                        plan.tools_dispatched,
+                      ].filter(Boolean).length;
 
                       return (
                         <div
@@ -222,17 +229,28 @@ export const SitePlanCalendar: React.FC<SitePlanCalendarProps> = ({
                             e.stopPropagation();
                             onSelectPlan(plan);
                           }}
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium border truncate transition-transform hover:scale-[1.02] ${
-                            isConfirmed 
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium border truncate transition-transform hover:scale-[1.02] flex items-center justify-between gap-1 ${
+                            isEmergency
+                              ? 'bg-red-50 text-red-900 border-red-300 font-bold'
+                              : isConfirmed 
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
                               : isPostponed
                               ? 'bg-amber-50 text-amber-800 border-amber-200'
                               : 'bg-slate-100 text-slate-800 border-slate-200'
                           }`}
-                          title={`${plan.plan_name} (${plan.trade || 'General'}): ${plan.allocated_headcount || 0}/${plan.headcount_required} heads`}
+                          title={`${plan.plan_name} (${plan.trade || 'General'}): ${plan.allocated_headcount || 0}/${plan.headcount_required} heads | Readiness: ${score}/4`}
                         >
-                          <span className="font-semibold">{plan.trade ? `[${plan.trade}] ` : ''}</span>
-                          {plan.plan_name}
+                          <span className="truncate">
+                            {isEmergency ? '🚨 ' : plan.work_type === 'amc_ppm' ? '🛡️ ' : ''}
+                            <span className="font-semibold">{plan.trade ? `[${plan.trade}] ` : ''}</span>
+                            {plan.plan_name}
+                          </span>
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                              score === 4 ? 'bg-emerald-500' : score > 0 ? 'bg-amber-500' : 'bg-red-400'
+                            }`}
+                            title={`Readiness Gates: ${score}/4`}
+                          />
                         </div>
                       );
                     })}
@@ -286,27 +304,48 @@ export const SitePlanCalendar: React.FC<SitePlanCalendarProps> = ({
                         No plans
                       </div>
                     ) : (
-                      dayPlans.map(plan => (
-                        <div
-                          key={plan.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectPlan(plan);
-                          }}
-                          className="p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-blue-300 hover:shadow-xs transition-all text-xs"
-                        >
-                          <div className="font-semibold text-slate-900 truncate">{plan.plan_name}</div>
-                          <div className="text-[11px] text-slate-500 truncate">{plan.client?.company_name || 'No client'}</div>
-                          <div className="mt-1 flex items-center justify-between text-[10px] text-slate-600">
-                            <span className="font-bold text-blue-700">
-                              {plan.allocated_headcount || 0}/{plan.headcount_required} heads
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded bg-white border border-slate-200">
-                              {plan.trade || 'General'}
-                            </span>
+                      dayPlans.map(plan => {
+                        const isEmergency = plan.work_type === 'service_breakdown';
+                        const score = [
+                          plan.site_access_cleared,
+                          plan.permits_approved,
+                          plan.materials_staged,
+                          plan.tools_dispatched,
+                        ].filter(Boolean).length;
+
+                        return (
+                          <div
+                            key={plan.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectPlan(plan);
+                            }}
+                            className={`p-2 rounded-lg border hover:shadow-xs transition-all text-xs ${
+                              isEmergency ? 'bg-red-50/70 border-red-300' : 'bg-slate-50 border-slate-200 hover:border-blue-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="font-semibold text-slate-900 truncate">
+                                {isEmergency ? '🚨 ' : ''}{plan.plan_name}
+                              </span>
+                              <span className={`text-[9px] font-bold px-1 rounded ${
+                                score === 4 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                              }`}>
+                                {score}/4
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-500 truncate">{plan.client?.company_name || 'No client'}</div>
+                            <div className="mt-1 flex items-center justify-between text-[10px] text-slate-600">
+                              <span className="font-bold text-blue-700">
+                                {plan.allocated_headcount || 0}/{plan.headcount_required} heads
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded bg-white border border-slate-200">
+                                {plan.trade || 'General'}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>

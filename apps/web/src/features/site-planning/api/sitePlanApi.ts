@@ -3,8 +3,57 @@ import type { SitePlan, SitePlanAllocation, SitePlanScheduleHistory, TomorrowsMa
 
 export const sitePlanApi = {
   async getSitePlans(organisationId: string, options?: { startDate?: string; endDate?: string }): Promise<SitePlan[]> {
-    // 1. First query unified manpower_attendance with entry_kind = 'PLANNED'
+    // 1. Primary authoritative query on public.site_plans
     let query = supabase
+      .from('site_plans')
+      .select(`
+        *,
+        project:projects(id, title, project_code),
+        client:clients(id, company_name),
+        allocations:site_plan_allocations(
+          *,
+          employee:employees(id, name, employee_code, designation),
+          subcontractor:subcontractors(id, vendor_name, company_name)
+        )
+      `)
+      .eq('organisation_id', organisationId)
+      .order('plan_date', { ascending: true });
+
+    if (options?.startDate) {
+      query = query.gte('plan_date', options.startDate);
+    }
+    if (options?.endDate) {
+      query = query.lte('plan_date', options.endDate);
+    }
+
+    const { data: plansData, error: plansError } = await query;
+    if (plansError) {
+      console.error('Error fetching site plans:', plansError);
+      return [];
+    }
+
+    const plans: SitePlan[] = (plansData || []).map((plan: any) => {
+      const allocatedHeadcount = (plan.allocations || []).reduce(
+        (sum: number, a: SitePlanAllocation) => sum + (Number(a.headcount) || 1),
+        0
+      );
+      const readinessScore = [
+        Boolean(plan.site_access_cleared),
+        Boolean(plan.permits_approved),
+        Boolean(plan.materials_staged),
+        Boolean(plan.tools_dispatched),
+      ].filter(Boolean).length;
+
+      return {
+        ...plan,
+        allocated_headcount: allocatedHeadcount,
+        readiness_score: readinessScore,
+      };
+    });
+
+    // 2. Secondary check for standalone planned attendance records without duplicate IDs
+    const existingIds = new Set(plans.map((p) => p.id));
+    let attQuery = supabase
       .from('manpower_attendance')
       .select(`
         id,
@@ -28,75 +77,89 @@ export const sitePlanApi = {
       .order('attendance_date', { ascending: true });
 
     if (options?.startDate) {
-      query = query.gte('attendance_date', options.startDate);
+      attQuery = attQuery.gte('attendance_date', options.startDate);
     }
     if (options?.endDate) {
-      query = query.lte('attendance_date', options.endDate);
+      attQuery = attQuery.lte('attendance_date', options.endDate);
     }
 
-    const { data: attData, error: attError } = await query;
+    const { data: attData } = await attQuery;
 
-    if (!attError && attData && attData.length > 0) {
-      return attData.map((p: any) => ({
-        id: p.id,
-        organisation_id: p.organisation_id,
-        project_id: p.project_id,
-        client_id: p.client_id,
-        plan_name: p.remarks || `${p.category?.name || 'Labour'} on ${p.project?.project_name || p.project?.name || p.project?.title || 'Site'}`,
-        plan_date: p.attendance_date,
-        start_time: '08:00:00',
-        end_time: '17:00:00',
-        trade: p.category?.name || 'General',
-        headcount_required: p.workers_count || 1,
-        allocated_headcount: p.workers_count || 1,
-        notes: p.remarks,
-        plan_status: p.status === 'CONVERTED' ? 'approved' : (p.status === 'APPROVED' ? 'approved' : 'draft'),
-        client_confirmation_status: p.client_confirmation === 'confirmed' ? 'confirmed' : 'not_confirmed',
-        execution_status: p.status === 'CONVERTED' ? 'completed' : 'scheduled',
-        site_visit_id: null,
-        created_by: null,
-        approved_by: null,
-        approved_at: null,
-        approval_notes: null,
-        created_at: p.attendance_date,
-        updated_at: p.attendance_date,
-        project: p.project ? {
-          id: p.project.id,
-          title: p.project.project_name || p.project.name || p.project.title,
-          name: p.project.name || p.project.project_name,
-          project_code: p.project.project_code,
-        } : null,
-        client: p.client ? {
-          id: p.client.id,
-          company_name: p.client.client_name || p.client.name || p.client.company_name,
-          name: p.client.name || p.client.client_name,
-        } : null,
-        allocations: [
-          {
-            id: p.id + '-alloc',
-            site_plan_id: p.id,
+    if (attData && attData.length > 0) {
+      for (const p of attData) {
+        if (!existingIds.has(p.id)) {
+          plans.push({
+            id: p.id,
             organisation_id: p.organisation_id,
-            employee_id: null,
-            subcontractor_id: p.subcontractor_id,
-            allocation_type: p.subcontractor_id ? 'subcontractor' : 'headcount_placeholder',
-            allocated_trade: p.category?.name || 'General',
-            headcount: p.workers_count || 1,
-            status: p.client_confirmation === 'confirmed' ? 'confirmed' : 'assigned',
+            project_id: p.project_id,
+            client_id: p.client_id,
+            plan_name: p.remarks || `${p.category?.name || 'Labour'} on ${p.project?.project_name || p.project?.name || p.project?.title || 'Site'}`,
+            plan_date: p.attendance_date,
+            start_time: '08:00:00',
+            end_time: '17:00:00',
+            trade: p.category?.name || 'General',
+            headcount_required: p.workers_count || 1,
+            allocated_headcount: p.workers_count || 1,
             notes: p.remarks,
-            allocated_by: null,
-            allocated_at: p.attendance_date,
-            subcontractor: p.subcontractor ? {
-              id: p.subcontractor.id,
-              vendor_name: p.subcontractor.company_name,
-              company_name: p.subcontractor.company_name,
+            plan_status: p.status === 'CONVERTED' ? 'approved' : (p.status === 'APPROVED' ? 'approved' : 'draft'),
+            client_confirmation_status: p.client_confirmation === 'confirmed' ? 'confirmed' : 'not_confirmed',
+            execution_status: p.status === 'CONVERTED' ? 'completed' : 'scheduled',
+            work_type: 'erection_project',
+            site_access_cleared: true,
+            permits_approved: true,
+            materials_staged: true,
+            tools_dispatched: true,
+            readiness_score: 4,
+            site_visit_id: null,
+            created_by: null,
+            approved_by: null,
+            approved_at: null,
+            approval_notes: null,
+            created_at: p.attendance_date,
+            updated_at: p.attendance_date,
+            project: p.project ? {
+              id: p.project.id,
+              title: p.project.project_name || p.project.name || p.project.title,
+              name: p.project.name || p.project.project_name,
+              project_code: p.project.project_code,
             } : null,
-          }
-        ],
-      }));
+            client: p.client ? {
+              id: p.client.id,
+              company_name: p.client.client_name || p.client.name || p.client.company_name,
+              name: p.client.name || p.client.client_name,
+            } : null,
+            allocations: [
+              {
+                id: p.id + '-alloc',
+                site_plan_id: p.id,
+                organisation_id: p.organisation_id,
+                employee_id: null,
+                subcontractor_id: p.subcontractor_id,
+                allocation_type: p.subcontractor_id ? 'subcontractor' : 'headcount_placeholder',
+                allocated_trade: p.category?.name || 'General',
+                headcount: p.workers_count || 1,
+                status: p.client_confirmation === 'confirmed' ? 'confirmed' : 'assigned',
+                notes: p.remarks,
+                allocated_by: null,
+                allocated_at: p.attendance_date,
+                subcontractor: p.subcontractor ? {
+                  id: p.subcontractor.id,
+                  vendor_name: p.subcontractor.company_name,
+                  company_name: p.subcontractor.company_name,
+                } : null,
+              }
+            ],
+          });
+        }
+      }
     }
 
-    // 2. Fallback to site_plans table
-    let legacyQuery = supabase
+    return plans;
+  },
+
+  async getSitePlanById(id: string): Promise<SitePlan | null> {
+    // 1. Primary check in site_plans
+    const { data, error } = await supabase
       .from('site_plans')
       .select(`
         *,
@@ -108,33 +171,29 @@ export const sitePlanApi = {
           subcontractor:subcontractors(id, vendor_name, company_name)
         )
       `)
-      .eq('organisation_id', organisationId)
-      .order('plan_date', { ascending: true });
+      .eq('id', id)
+      .maybeSingle();
 
-    if (options?.startDate) {
-      legacyQuery = legacyQuery.gte('plan_date', options.startDate);
-    }
-    if (options?.endDate) {
-      legacyQuery = legacyQuery.lte('plan_date', options.endDate);
-    }
-
-    const { data, error } = await legacyQuery;
-    if (error) return [];
-
-    return (data || []).map((plan: any) => {
-      const allocatedHeadcount = (plan.allocations || []).reduce(
+    if (!error && data) {
+      const allocatedHeadcount = (data.allocations || []).reduce(
         (sum: number, a: SitePlanAllocation) => sum + (Number(a.headcount) || 1),
         0
       );
-      return {
-        ...plan,
-        allocated_headcount: allocatedHeadcount,
-      };
-    });
-  },
+      const readinessScore = [
+        Boolean(data.site_access_cleared),
+        Boolean(data.permits_approved),
+        Boolean(data.materials_staged),
+        Boolean(data.tools_dispatched),
+      ].filter(Boolean).length;
 
-  async getSitePlanById(id: string): Promise<SitePlan | null> {
-    // 1. Try manpower_attendance
+      return {
+        ...data,
+        allocated_headcount: allocatedHeadcount,
+        readiness_score: readinessScore,
+      };
+    }
+
+    // 2. Fallback to manpower_attendance
     const { data: attData } = await supabase
       .from('manpower_attendance')
       .select(`
@@ -179,6 +238,12 @@ export const sitePlanApi = {
         plan_status: p.status === 'CONVERTED' ? 'approved' : (p.status === 'APPROVED' ? 'approved' : 'draft'),
         client_confirmation_status: p.client_confirmation === 'confirmed' ? 'confirmed' : 'not_confirmed',
         execution_status: p.status === 'CONVERTED' ? 'completed' : 'scheduled',
+        work_type: 'erection_project',
+        site_access_cleared: true,
+        permits_approved: true,
+        materials_staged: true,
+        tools_dispatched: true,
+        readiness_score: 4,
         site_visit_id: null,
         created_by: null,
         approved_by: null,
@@ -201,9 +266,13 @@ export const sitePlanApi = {
       };
     }
 
-    // 2. Fallback to site_plans
+    return null;
+  },
+
+  async createSitePlan(plan: Partial<SitePlan>): Promise<SitePlan> {
     const { data, error } = await supabase
       .from('site_plans')
+      .insert([plan])
       .select(`
         *,
         project:projects(id, title, project_code),
@@ -214,54 +283,64 @@ export const sitePlanApi = {
           subcontractor:subcontractors(id, vendor_name, company_name)
         )
       `)
-      .eq('id', id)
-      .maybeSingle();
-
-    if (error || !data) return null;
-
-    const allocatedHeadcount = (data.allocations || []).reduce(
-      (sum: number, a: SitePlanAllocation) => sum + (Number(a.headcount) || 1),
-      0
-    );
-
-    return {
-      ...data,
-      allocated_headcount: allocatedHeadcount,
-    };
-  },
-
-  async createSitePlan(plan: Partial<SitePlan>): Promise<SitePlan> {
-    // If trade category id is provided, call plan_labour RPC
-    const categoryId = (plan as any).labour_category_id || (plan as any).trade_id;
-    if (plan.organisation_id && plan.plan_date && categoryId) {
-      const { data, error } = await supabase.rpc('plan_labour', {
-        p_organisation_id: plan.organisation_id,
-        p_attendance_date: plan.plan_date,
-        p_labour_category_id: categoryId,
-        p_workers_count: plan.headcount_required || 1,
-        p_client_id: plan.client_id || null,
-        p_project_id: plan.project_id || null,
-        p_confirmation: plan.client_confirmation_status === 'confirmed' ? 'confirmed' : 'planned_unconfirmed',
-        p_remarks: plan.notes || plan.plan_name || null,
-      });
-
-      if (error) throw error;
-      return data as any;
-    }
-
-    // Fallback to site_plans table
-    const { data, error } = await supabase
-      .from('site_plans')
-      .insert([plan])
-      .select()
       .single();
 
     if (error) throw error;
-    return data;
+    const readinessScore = [
+      Boolean(data.site_access_cleared),
+      Boolean(data.permits_approved),
+      Boolean(data.materials_staged),
+      Boolean(data.tools_dispatched),
+    ].filter(Boolean).length;
+
+    return {
+      ...data,
+      allocated_headcount: 0,
+      readiness_score: readinessScore,
+    };
   },
 
   async updateSitePlan(id: string, updates: Partial<SitePlan>): Promise<SitePlan> {
-    // Update on manpower_attendance if it's an attendance row
+    const { data, error } = await supabase
+      .from('site_plans')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        project:projects(id, title, project_code),
+        client:clients(id, company_name),
+        allocations:site_plan_allocations(
+          *,
+          employee:employees(id, name, employee_code, designation),
+          subcontractor:subcontractors(id, vendor_name, company_name)
+        )
+      `)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (data) {
+      const allocatedHeadcount = (data.allocations || []).reduce(
+        (sum: number, a: SitePlanAllocation) => sum + (Number(a.headcount) || 1),
+        0
+      );
+      const readinessScore = [
+        Boolean(data.site_access_cleared),
+        Boolean(data.permits_approved),
+        Boolean(data.materials_staged),
+        Boolean(data.tools_dispatched),
+      ].filter(Boolean).length;
+
+      return {
+        ...data,
+        allocated_headcount: allocatedHeadcount,
+        readiness_score: readinessScore,
+      };
+    }
+
+    // Fallback for attendance updates
     const { data: attData } = await supabase
       .from('manpower_attendance')
       .update({
@@ -275,21 +354,7 @@ export const sitePlanApi = {
       .select()
       .maybeSingle();
 
-    if (attData) return attData as any;
-
-    // Fallback to site_plans
-    const { data, error } = await supabase
-      .from('site_plans')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+    return attData as any;
   },
 
   async confirmPlanWithClient(attendanceId: string, organisationId: string, confirmation: string): Promise<any> {
@@ -334,8 +399,18 @@ export const sitePlanApi = {
     clientAgreed: boolean;
     userId?: string;
   }): Promise<void> {
-    // Try updating manpower_attendance
-    const { error: attError } = await supabase
+    // 1. Update authoritative site_plans table
+    await supabase
+      .from('site_plans')
+      .update({
+        plan_date: params.newDate,
+        client_confirmation_status: params.clientAgreed ? 'confirmed' : 'postponement_requested',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', params.planId);
+
+    // 2. Also synchronize manpower_attendance if present
+    await supabase
       .from('manpower_attendance')
       .update({
         attendance_date: params.newDate,
@@ -344,17 +419,7 @@ export const sitePlanApi = {
       })
       .eq('id', params.planId);
 
-    if (attError) {
-      await supabase
-        .from('site_plans')
-        .update({
-          plan_date: params.newDate,
-          client_confirmation_status: params.clientAgreed ? 'confirmed' : 'postponement_requested',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', params.planId);
-    }
-
+    // 3. Record schedule history audit trail
     await supabase
       .from('site_plan_schedule_history')
       .insert([{

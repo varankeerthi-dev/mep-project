@@ -1,6 +1,7 @@
 export type SitePlanStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'cancelled';
 export type ClientConfirmationStatus = 'not_confirmed' | 'confirmed' | 'postponement_requested' | 'cancelled';
 export type ExecutionStatus = 'scheduled' | 'dispatched' | 'in_progress' | 'completed' | 'cancelled';
+export type WorkType = 'erection_project' | 'service_breakdown' | 'amc_ppm' | 'other';
 export type AllocationType = 'employee' | 'subcontractor' | 'headcount_placeholder';
 export type AllocationStatus = 'assigned' | 'confirmed' | 'present' | 'absent' | 'replaced';
 
@@ -60,6 +61,15 @@ export interface SitePlan {
   plan_status: SitePlanStatus;
   client_confirmation_status: ClientConfirmationStatus;
   execution_status: ExecutionStatus;
+  work_type?: WorkType;
+  site_access_cleared?: boolean;
+  permits_approved?: boolean;
+  materials_staged?: boolean;
+  tools_dispatched?: boolean;
+  ptw_notes?: string | null;
+  tools_required?: string | null;
+  emergency_sla_deadline?: string | null;
+  readiness_score?: number;
   site_visit_id: string | null;
   created_by: string | null;
   approved_by: string | null;

@@ -2,13 +2,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   HardHat, Calendar, Clock, Users, ArrowLeft, Search, 
-  CheckCircle2, AlertTriangle, RefreshCw, UserCheck, Inbox
+  CheckCircle2, AlertTriangle, RefreshCw, UserCheck, Inbox,
+  Share2, ShieldCheck, Wrench, AlertCircle
 } from 'lucide-react';
 
 interface SitePlanMobileProps {
   onBack: () => void;
   isDemo?: boolean;
 }
+
+export type WorkType = 'erection_project' | 'service_breakdown' | 'amc_ppm' | 'other';
 
 interface SitePlanAllocationItem {
   id: string;
@@ -51,6 +54,15 @@ interface SitePlanItem {
   project?: { id: string; title?: string } | null;
   client?: { id: string; company_name?: string } | null;
   allocations?: SitePlanAllocationItem[];
+  work_type?: WorkType;
+  site_access_cleared?: boolean;
+  permits_approved?: boolean;
+  materials_staged?: boolean;
+  tools_dispatched?: boolean;
+  ptw_notes?: string | null;
+  tools_required?: string | null;
+  emergency_sla_deadline?: string | null;
+  readiness_score?: number;
 }
 
 export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo = false }) => {
@@ -110,6 +122,13 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
           client_confirmation_status: 'confirmed',
           execution_status: 'scheduled',
           site_visit_id: null,
+          work_type: 'erection_project',
+          site_access_cleared: true,
+          permits_approved: true,
+          materials_staged: true,
+          tools_dispatched: true,
+          readiness_score: 4,
+          tools_required: '10m Scaffolding, Drill sets, Flange sealers',
           project: { id: 'p1', title: 'Metro Station HVAC Phase 2' },
           client: { id: 'c1', company_name: 'Metro Rail Corp' },
           allocations: [
@@ -146,6 +165,14 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
           client_confirmation_status: 'not_confirmed',
           execution_status: 'scheduled',
           site_visit_id: null,
+          work_type: 'service_breakdown',
+          site_access_cleared: true,
+          permits_approved: false,
+          materials_staged: true,
+          tools_dispatched: false,
+          readiness_score: 2,
+          emergency_sla_deadline: `${tomorrowStr}T14:00:00Z`,
+          ptw_notes: 'Hot work permit awaiting Fire Marshal sign-off',
           project: { id: 'p2', title: 'IT Tech Park Block C' },
           client: { id: 'c2', company_name: 'Prestige Infra' },
           allocations: [
@@ -166,8 +193,46 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
     }
 
     try {
-      // First attempt query on unified manpower_attendance with entry_kind = 'PLANNED'
-      const { data: attendanceData, error: attError } = await supabase
+      // 1. Primary authoritative query on public.site_plans
+      const { data: sitePlanData, error: spError } = await supabase
+        .from('site_plans')
+        .select(`
+          *,
+          project:projects(id, title),
+          client:clients(id, company_name),
+          allocations:site_plan_allocations(
+            *,
+            employee:employees(id, name, employee_code, designation),
+            subcontractor:subcontractors(id, vendor_name, company_name)
+          )
+        `)
+        .order('plan_date', { ascending: true });
+
+      if (spError) throw spError;
+
+      const formattedFromSitePlans: SitePlanItem[] = (sitePlanData || []).map((p: any) => {
+        const readinessScore = (p.site_access_cleared ? 1 : 0) +
+          (p.permits_approved ? 1 : 0) +
+          (p.materials_staged ? 1 : 0) +
+          (p.tools_dispatched ? 1 : 0);
+
+        return {
+          ...p,
+          work_type: p.work_type || 'erection_project',
+          site_access_cleared: !!p.site_access_cleared,
+          permits_approved: !!p.permits_approved,
+          materials_staged: !!p.materials_staged,
+          tools_dispatched: !!p.tools_dispatched,
+          readiness_score: readinessScore,
+          allocated_headcount: (p.allocations || []).reduce(
+            (sum: number, a: any) => sum + (Number(a.headcount) || 1),
+            0
+          ),
+        };
+      });
+
+      // 2. Fetch any legacy or planned records from manpower_attendance
+      const { data: attendanceData } = await supabase
         .from('manpower_attendance')
         .select(`
           id,
@@ -193,8 +258,10 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
         .eq('entry_kind', 'PLANNED')
         .order('attendance_date', { ascending: true });
 
-      if (!attError && attendanceData && attendanceData.length > 0) {
-        const formatted: SitePlanItem[] = attendanceData.map((p: any) => ({
+      const existingIds = new Set(formattedFromSitePlans.map(p => p.id));
+      const mergedAttendance: SitePlanItem[] = (attendanceData || [])
+        .filter((a: any) => !existingIds.has(a.id))
+        .map((p: any) => ({
           id: p.id,
           organisation_id: p.organisation_id,
           plan_name: p.remarks || `${p.category?.name || 'Labour'} on ${p.project?.project_name || p.project?.name || 'Project'}`,
@@ -215,6 +282,12 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
           invoice_id: p.invoice_id,
           project: p.project ? { id: p.project.id, title: p.project.project_name || p.project.name } : null,
           client: p.client ? { id: p.client.id, company_name: p.client.client_name || p.client.name } : null,
+          work_type: 'erection_project',
+          site_access_cleared: false,
+          permits_approved: false,
+          materials_staged: false,
+          tools_dispatched: false,
+          readiness_score: 0,
           allocations: [
             {
               id: p.id + '-alloc',
@@ -226,36 +299,8 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
             }
           ]
         }));
-        setPlans(formatted);
-        return;
-      }
 
-      // Fallback to site_plans table if available
-      const { data, error } = await supabase
-        .from('site_plans')
-        .select(`
-          *,
-          project:projects(id, title),
-          client:clients(id, company_name),
-          allocations:site_plan_allocations(
-            *,
-            employee:employees(id, name, employee_code, designation),
-            subcontractor:subcontractors(id, vendor_name, company_name)
-          )
-        `)
-        .order('plan_date', { ascending: true });
-
-      if (error) throw error;
-
-      const formatted = (data || []).map((p: any) => ({
-        ...p,
-        allocated_headcount: (p.allocations || []).reduce(
-          (sum: number, a: any) => sum + (Number(a.headcount) || 1),
-          0
-        ),
-      }));
-
-      setPlans(formatted);
+      setPlans([...formattedFromSitePlans, ...mergedAttendance]);
     } catch (err: any) {
       console.error('Error fetching mobile site plans:', err);
     } finally {
@@ -289,6 +334,64 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
     } catch (err: any) {
       alert(`Confirmation toggle failed: ${err?.message || 'Server error'}`);
     }
+  };
+
+  const handleToggleGate = async (
+    plan: SitePlanItem,
+    gate: 'site_access_cleared' | 'permits_approved' | 'materials_staged' | 'tools_dispatched'
+  ) => {
+    const nextVal = !plan[gate];
+    const newPlan: SitePlanItem = { ...plan, [gate]: nextVal };
+    const newScore = (newPlan.site_access_cleared ? 1 : 0) +
+      (newPlan.permits_approved ? 1 : 0) +
+      (newPlan.materials_staged ? 1 : 0) +
+      (newPlan.tools_dispatched ? 1 : 0);
+    newPlan.readiness_score = newScore;
+
+    setPlans(prev => prev.map(p => p.id === plan.id ? newPlan : p));
+
+    if (!isDemo) {
+      try {
+        await supabase
+          .from('site_plans')
+          .update({ [gate]: nextVal, updated_at: new Date().toISOString() })
+          .eq('id', plan.id);
+      } catch (err) {
+        console.error('Failed to update gate:', err);
+      }
+    }
+  };
+
+  const handleShareWhatsApp = (plan: SitePlanItem) => {
+    const crewSummary = (plan.allocations || [])
+      .map(a => a.employee?.name || a.subcontractor?.company_name || a.subcontractor?.vendor_name || `${a.headcount} ${a.allocated_trade || 'workers'}`)
+      .join(', ');
+
+    const workTypeLabel = plan.work_type === 'service_breakdown' ? 'EMERGENCY SERVICE BREAKDOWN' :
+      plan.work_type === 'amc_ppm' ? 'AMC PPM PREVENTIVE' :
+      plan.work_type === 'erection_project' ? 'PROJECT ERECTION' : 'PLANNED WORK';
+
+    const gatesSummary = [
+      plan.site_access_cleared ? '✅ Access' : '❌ Access',
+      plan.permits_approved ? '✅ Permits/PTW' : '❌ Permits/PTW',
+      plan.materials_staged ? '✅ Materials' : '❌ Materials',
+      plan.tools_dispatched ? '✅ Tools/PPE' : '❌ Tools/PPE',
+    ].join(' | ');
+
+    const msg = `*SITE DISPATCH BRIEFING*\n` +
+      `📋 *Work:* ${plan.plan_name} (${workTypeLabel})\n` +
+      `📅 *Date:* ${plan.plan_date} | ⏰ *Time:* ${plan.start_time?.slice(0, 5) || '08:00'}\n` +
+      `📍 *Site:* ${plan.project?.title || 'Main Site'} (${plan.client?.company_name || 'Client'})\n` +
+      `👷 *Crew:* ${crewSummary || 'To be assigned'}\n` +
+      `🛡️ *Readiness Gates:* ${gatesSummary}\n` +
+      (plan.emergency_sla_deadline ? `🚨 *SLA Deadline:* ${new Date(plan.emergency_sla_deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}\n` : '') +
+      (plan.tools_required ? `🧰 *Tools Required:* ${plan.tools_required}\n` : '') +
+      (plan.ptw_notes ? `📄 *PTW Note:* ${plan.ptw_notes}\n` : '') +
+      (plan.notes ? `📝 *Notes:* ${plan.notes}\n` : '') +
+      `_Sent via MEP Operations Mobile_`;
+
+    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
   };
 
   const loadSharedInbox = async () => {
@@ -700,11 +803,24 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
                 >
                   {/* Card Header */}
                   <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-xs font-bold text-foreground">
                           {plan.plan_name}
                         </span>
+                        {plan.work_type === 'service_breakdown' ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 border border-rose-500/30 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> Breakdown
+                          </span>
+                        ) : plan.work_type === 'amc_ppm' ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 border border-blue-500/30 flex items-center gap-1">
+                            <Wrench className="w-3 h-3" /> AMC PPM
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 border border-purple-500/30 flex items-center gap-1">
+                            <HardHat className="w-3 h-3" /> Project
+                          </span>
+                        )}
                         {plan.trade && (
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground">
                             {plan.trade}
@@ -719,7 +835,7 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
                     {/* Confirmation Status Badge / Action */}
                     <button
                       onClick={() => handleToggleConfirmation(plan)}
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors cursor-pointer ${
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors cursor-pointer shrink-0 ${
                         isConfirmed
                           ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30'
                           : isPostponed
@@ -744,6 +860,14 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
                     </button>
                   </div>
 
+                  {/* Emergency SLA Alert if present */}
+                  {plan.emergency_sla_deadline && (
+                    <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-2 text-[11px] text-rose-600 flex items-center gap-1.5 font-bold">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span>SLA Deadline: {new Date(plan.emergency_sla_deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  )}
+
                   {/* Date & Time & Headcount Summary */}
                   <div className="flex items-center justify-between text-xs pt-1 border-t border-border/30">
                     <div className="flex items-center gap-3 text-muted-foreground">
@@ -760,6 +884,49 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
                     <div className="flex items-center gap-1.5 font-semibold text-foreground">
                       <Users className="w-3.5 h-3.5 text-primary" />
                       <span>{plan.allocated_headcount || plan.headcount_required} workers</span>
+                    </div>
+                  </div>
+
+                  {/* 4-Point Site Readiness Gates */}
+                  <div className="pt-2 border-t border-border/30 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-primary" /> Readiness Gates
+                      </span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        (plan.readiness_score ?? 0) === 4
+                          ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30'
+                          : (plan.readiness_score ?? 0) > 0
+                          ? 'bg-amber-500/15 text-amber-600 border border-amber-500/30'
+                          : 'bg-rose-500/15 text-rose-600 border border-rose-500/30'
+                      }`}>
+                        {(plan.readiness_score ?? 0) === 4 ? 'Ready (4/4)' : `Gates (${plan.readiness_score ?? 0}/4)`}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1">
+                      {[
+                        { key: 'site_access_cleared', label: 'Access' },
+                        { key: 'permits_approved', label: 'Permits' },
+                        { key: 'materials_staged', label: 'Materials' },
+                        { key: 'tools_dispatched', label: 'Tools' },
+                      ].map((gate) => {
+                        const active = !!(plan as any)[gate.key];
+                        return (
+                          <button
+                            key={gate.key}
+                            type="button"
+                            onClick={() => handleToggleGate(plan, gate.key as any)}
+                            className={`py-1 px-1 rounded-lg text-[10px] font-semibold text-center border transition-colors ${
+                              active
+                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 font-bold'
+                                : 'bg-muted/40 border-border text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            {active ? `✓ ${gate.label}` : `✗ ${gate.label}`}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -793,6 +960,14 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
 
                   {/* Action Buttons */}
                   <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => handleShareWhatsApp(plan)}
+                      className="p-2.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-600 border border-emerald-600/30 text-xs font-semibold flex items-center justify-center transition-colors shrink-0"
+                      title="Share WhatsApp Dispatch Briefing"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+
                     <button
                       onClick={() => {
                         setReschedulePlan(plan);
