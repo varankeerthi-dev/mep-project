@@ -49,20 +49,21 @@ export const useNeedsAttention = () => {
       
       const { data: stoppages, error: err2 } = await supabase
         .from('site_report_work_stoppages')
-        .select('*, project:project_id(project_name)')
-        .is('end_time', null)
+        .select('*, report:report_id(id, project:projects(id, project_name, name))')
+        .eq('is_resolved', false)
         .limit(10);
         
       if (!err2 && stoppages) {
         stoppages.forEach((s: any) => {
+          const projName = s.report?.project?.project_name || s.report?.project?.name || 'Project Stoppage';
           items.push({
             id: `stop-${s.id}`,
             type: 'alert',
             tagLabel: 'STOPPAGE',
-            title: s.project?.project_name || 'Project Stoppage',
-            context: s.reason || 'Work stopped',
+            title: projName,
+            context: s.reason_detail || s.category || 'Work stopped',
             amount: null,
-            days: Math.floor((Date.now() - new Date(s.start_time).getTime()) / (1000 * 3600 * 24)),
+            days: Math.floor((Date.now() - new Date(s.created_at).getTime()) / (1000 * 3600 * 24)),
             link: '/projects'
           });
         });
@@ -115,7 +116,7 @@ export const useLiveNow = () => {
     queryFn: async (): Promise<LiveNowDispatch[]> => {
       const { data, error } = await supabase
         .from('delivery_challans')
-        .select('*, client:client_id(client_name)')
+        .select('*')
         .not('status', 'in', '("delivered","cancelled")')
         .limit(5);
         
@@ -124,8 +125,8 @@ export const useLiveNow = () => {
         const hours = Math.floor((Date.now() - new Date(d.created_at).getTime()) / (1000 * 3600));
         return {
           id: d.id,
-          dispatchId: d.challan_number || 'Unknown',
-          destination: d.client?.client_name || 'Unknown Destination',
+          dispatchId: d.dc_number || d.challan_number || 'Unknown',
+          destination: d.client_name || d.ship_to_name || 'Unknown Destination',
           timeBadge: hours > 24 ? `${Math.floor(hours/24)}d ago` : `${hours}h ago`,
           badgeType: hours > 48 ? 'warn' : 'info'
         };
@@ -158,9 +159,9 @@ export const useSalesQuotes = () => {
         return {
           id: q.id,
           client: q.client?.client_name || 'Unknown Client',
-          context: `Quote ${q.quotation_number}`,
+          context: `Quote ${q.quotation_no || q.quotation_number || ''}`,
           badgeType: days > 7 ? 'warn' : 'info',
-          badgeLabel: q.status.toUpperCase(),
+          badgeLabel: (q.status || 'DRAFT').toUpperCase(),
           daysSince: `${days} days`
         };
       });
@@ -185,7 +186,7 @@ export const useOpenSalesOrders = () => {
         id: po.id,
         client: po.client?.client_name || 'Unknown Client',
         orderNo: po.po_number,
-        value: po.total_amount || 0
+        value: po.po_total_value || po.total_amount || 0
       }));
     },
     staleTime: 5 * 60 * 1000,
@@ -208,7 +209,7 @@ export const useConfirmedAwaitingPO = () => {
         id: q.id,
         client: q.client?.client_name || 'Unknown Client',
         daysWaiting: Math.floor((Date.now() - new Date(q.updated_at).getTime()) / (1000 * 3600 * 24)),
-        value: q.total_amount || 0
+        value: q.grand_total || q.total_amount || 0
       }));
     },
     staleTime: 5 * 60 * 1000,
@@ -238,16 +239,16 @@ export const useProjectActivity = () => {
     queryFn: async (): Promise<ProjectActivity[]> => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, manager:manager_id(full_name)')
+        .select('*, manager:project_manager_id(id, name)')
         .in('status', ['active', 'ongoing', 'in_progress'])
         .limit(10);
         
       if (error) return [];
       return (data || []).map((p: any) => ({
         id: p.id,
-        name: p.project_name,
-        progress: p.progress_percentage || 0,
-        manager: p.manager?.full_name || null,
+        name: p.project_name || p.name,
+        progress: p.completion_percentage || p.progress_percentage || 0,
+        manager: p.manager?.name || null,
         nextMilestone: p.current_phase || 'Execution',
         date: formatAppDate(p.created_at)
       }));
@@ -263,16 +264,16 @@ export const useUpcomingPlanningShutdown = () => {
     queryFn: async (): Promise<PlanningShutdownEvent[]> => {
       const { data, error } = await supabase
         .from('site_report_work_stoppages')
-        .select('*, project:project_id(project_name)')
-        .is('end_time', null)
+        .select('*, report:report_id(id, project:projects(id, project_name, name))')
+        .eq('is_resolved', false)
         .limit(5);
         
       if (error) return [];
       return (data || []).map((s: any) => ({
         id: s.id,
         type: 'shutdown',
-        title: s.project?.project_name || 'Project Issue',
-        context: s.reason || 'Work halted'
+        title: s.report?.project?.project_name || s.report?.project?.name || 'Project Issue',
+        context: s.reason_detail || s.category || 'Work halted'
       }));
     },
     staleTime: 5 * 60 * 1000,
@@ -286,19 +287,20 @@ export const useBlockingWork = () => {
     queryFn: async (): Promise<BlockingWorkItem[]> => {
       const { data, error } = await supabase
         .from('site_report_work_stoppages')
-        .select('*, project:project_id(project_name)')
-        .is('end_time', null)
+        .select('*, report:report_id(id, project:projects(id, project_name, name))')
+        .eq('is_resolved', false)
         .limit(5);
         
       if (error) return [];
       return (data || []).map((s: any) => {
-        const daysStopped = Math.floor((Date.now() - new Date(s.start_time).getTime()) / (1000 * 3600 * 24));
+        const daysStopped = Math.floor((Date.now() - new Date(s.created_at).getTime()) / (1000 * 3600 * 24));
+        const projName = s.report?.project?.project_name || s.report?.project?.name || 'Unknown Project';
         return {
           id: s.id,
-          project: s.project?.project_name || 'Unknown Project',
-          context: s.reason || 'Stoppage',
+          project: projName,
+          context: s.reason_detail || s.category || 'Stoppage',
           workStarted: formatAppDate(s.created_at),
-          stoppedSince: formatAppDate(s.start_time),
+          stoppedSince: formatAppDate(s.created_at),
           daysStopped,
           pendingAmount: 0
         };
@@ -323,13 +325,13 @@ export const useProformaAdvancePending = () => {
       return (data || []).map((pi: any) => ({
         id: pi.id,
         client: pi.client?.client_name || 'Unknown Client',
-        context: pi.invoice_number || 'Proforma',
+        context: pi.pi_number || 'Proforma',
         poDate: formatAppDate(pi.created_at),
         terms: 'Advance',
         receivedPct: 0,
         status: 'Grace period',
         daysSincePO: Math.floor((Date.now() - new Date(pi.created_at).getTime()) / (1000 * 3600 * 24)),
-        pendingAmount: pi.total_amount || 0
+        pendingAmount: pi.total || 0
       }));
     },
     staleTime: 5 * 60 * 1000,
@@ -354,21 +356,21 @@ export const usePayablesList = () => {
     queryFn: async (): Promise<PayableReceivableItem[]> => {
       const { data, error } = await supabase
         .from('purchase_bills')
-        .select('*, vendor:vendor_id(name)')
-        .not('status', 'eq', 'paid')
+        .select('*, vendor:vendor_id(id, company_name)')
+        .not('payment_status', 'eq', 'paid')
         .limit(5);
         
       if (error) return [];
       return (data || []).map((pb: any) => {
-        const daysOverdue = Math.floor((Date.now() - new Date(pb.due_date).getTime()) / (1000 * 3600 * 24));
+        const daysOverdue = Math.floor((Date.now() - new Date(pb.due_date || pb.bill_date || pb.created_at).getTime()) / (1000 * 3600 * 24));
         return {
           id: pb.id,
-          name: pb.vendor?.name || 'Unknown Vendor',
+          name: pb.vendor?.company_name || 'Unknown Vendor',
           invoiceRef: pb.bill_number || 'Bill',
           aging: daysOverdue > 14 ? 'alert' : (daysOverdue > 0 ? 'warn' : 'ok'),
           agingText: daysOverdue > 0 ? `${daysOverdue}d overdue` : `Due in ${Math.abs(daysOverdue)}d`,
           amount: pb.total_amount || 0,
-          dueDate: formatAppDate(pb.due_date || pb.created_at),
+          dueDate: formatAppDate(pb.due_date || pb.bill_date || pb.created_at),
           paymentMode: 'Bank Transfer',
           bank: 'HDFC',
           contact: 'Vendor Contact',
@@ -393,15 +395,15 @@ export const useReceivablesList = () => {
         
       if (error) return [];
       return (data || []).map((inv: any) => {
-        const daysOverdue = Math.floor((Date.now() - new Date(inv.due_date).getTime()) / (1000 * 3600 * 24));
+        const daysOverdue = Math.floor((Date.now() - new Date(inv.due_date || inv.invoice_date || inv.created_at).getTime()) / (1000 * 3600 * 24));
         return {
           id: inv.id,
           name: inv.client?.client_name || 'Unknown Client',
-          invoiceRef: inv.invoice_number || 'Invoice',
+          invoiceRef: inv.invoice_no || inv.invoice_number || 'Invoice',
           aging: daysOverdue > 30 ? 'alert' : (daysOverdue > 0 ? 'warn' : 'ok'),
           agingText: daysOverdue > 0 ? `${daysOverdue}d overdue` : `Due in ${Math.abs(daysOverdue)}d`,
-          amount: inv.total_amount || 0,
-          dueDate: formatAppDate(inv.due_date || inv.created_at),
+          amount: inv.total || inv.total_amount || 0,
+          dueDate: formatAppDate(inv.due_date || inv.invoice_date || inv.created_at),
           paymentMode: 'Bank Transfer',
           bank: 'SBI',
           contact: 'Client Contact',

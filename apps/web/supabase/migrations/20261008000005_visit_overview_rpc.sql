@@ -31,7 +31,7 @@ BEGIN
                e.name,
                (SELECT up.full_name
                   FROM user_profiles up
-                 WHERE up.user_id = v.created_by
+                 WHERE up.user_id::text = v.created_by
                  ORDER BY (up.organisation_id = v.organisation_id) DESC
                  LIMIT 1),
                v.engineer
@@ -56,7 +56,7 @@ BEGIN
                e.name,
                (SELECT up.full_name
                   FROM user_profiles up
-                 WHERE up.user_id = v.created_by
+                 WHERE up.user_id::text = v.created_by
                  ORDER BY (up.organisation_id = v.organisation_id) DESC
                  LIMIT 1),
                v.engineer

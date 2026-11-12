@@ -49,20 +49,21 @@ export const useNeedsAttentionV2 = () => {
       
       const { data: stoppages, error: err2 } = await supabase
         .from('site_report_work_stoppages')
-        .select('*, project:project_id(project_name)')
-        .is('end_time', null)
+        .select('*, report:report_id(id, project:projects(id, project_name, name))')
+        .eq('is_resolved', false)
         .limit(10);
         
       if (!err2 && stoppages) {
         stoppages.forEach((s: any) => {
+          const projName = s.report?.project?.project_name || s.report?.project?.name || 'Project Stoppage';
           items.push({
             id: `stop-${s.id}`,
             type: 'alert',
             tagLabel: 'WORK STOPPED',
-            title: s.project?.project_name || 'Project Stoppage',
-            context: s.reason || 'Work stopped',
+            title: projName,
+            context: s.reason_detail || s.category || 'Work stopped',
             amount: null,
-            days: Math.floor((Date.now() - new Date(s.start_time).getTime()) / (1000 * 3600 * 24)),
+            days: Math.floor((Date.now() - new Date(s.created_at).getTime()) / (1000 * 3600 * 24)),
             link: '/projects',
             owner: { name: 'Manager', initials: 'MG' },
             statusBadge: { text: 'Active', type: 'Today' }
@@ -121,7 +122,7 @@ export const useLiveNowV2 = () => {
     queryFn: async (): Promise<LiveNowDispatchV2[]> => {
       const { data, error } = await supabase
         .from('delivery_challans')
-        .select('*, client:client_id(client_name)')
+        .select('*')
         .not('status', 'in', '("delivered","cancelled")')
         .limit(5);
         
@@ -130,7 +131,7 @@ export const useLiveNowV2 = () => {
         const hours = Math.floor((Date.now() - new Date(d.created_at).getTime()) / (1000 * 3600));
         return {
           id: d.id,
-          dcClient: `${d.challan_number || 'Unknown'}\n${d.client?.client_name || 'Client'}`,
+          dcClient: `${d.dc_number || d.challan_number || 'Unknown'}\n${d.client_name || d.ship_to_name || 'Client'}`,
           vehicleDriver: `${d.vehicle_number || 'Vehicle'}\n${d.driver_name || 'Driver'}`,
           departed: new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           eta: new Date(Date.now() + 4 * 3600 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -235,19 +236,19 @@ export const useProjectActivityV2 = () => {
     queryFn: async (): Promise<ProjectV2[]> => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, manager:manager_id(full_name)')
+        .select('*, manager:project_manager_id(id, name)')
         .in('status', ['active', 'ongoing', 'in_progress'])
         .limit(10);
         
       if (error) return [];
       return (data || []).map((p: any) => ({
         id: p.id,
-        projectManager: `${p.project_name}\n${p.manager?.full_name || 'Unassigned'}`,
-        managerInitials: (p.manager?.full_name || 'U').substring(0, 2).toUpperCase(),
-        progress: p.progress_percentage || 0,
+        projectManager: `${p.project_name || p.name}\n${p.manager?.name || 'Unassigned'}`,
+        managerInitials: (p.manager?.name || 'U').substring(0, 2).toUpperCase(),
+        progress: p.completion_percentage || p.progress_percentage || 0,
         nextMilestone: p.current_phase || 'Execution',
         milestoneDate: formatAppDate(p.created_at),
-        status: p.progress_percentage > 60 ? 'On Track' : p.progress_percentage > 30 ? 'At Risk' : 'Delayed'
+        status: (p.completion_percentage || p.progress_percentage || 0) > 60 ? 'On Track' : (p.completion_percentage || p.progress_percentage || 0) > 30 ? 'At Risk' : 'Delayed'
       }));
     },
     staleTime: 5 * 60 * 1000,
@@ -266,14 +267,17 @@ export const useProformaAdvanceV2 = () => {
         .limit(5);
         
       if (error) return [];
-      return (data || []).map((pi: any) => ({
-        id: pi.id,
-        company: pi.client?.client_name || 'Unknown Client',
-        poValue: pi.total_amount || 0,
-        advanceReceived: (pi.total_amount || 0) * 0.2,
-        advancePercentage: 20,
-        pendingAmount: (pi.total_amount || 0) * 0.8
-      }));
+      return (data || []).map((pi: any) => {
+        const val = pi.total || pi.total_amount || 0;
+        return {
+          id: pi.id,
+          company: pi.client?.client_name || 'Unknown Client',
+          poValue: val,
+          advanceReceived: val * 0.2,
+          advancePercentage: 20,
+          pendingAmount: val * 0.8
+        };
+      });
     },
     staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
@@ -292,13 +296,13 @@ export const useOverdueReceivables = () => {
         
       if (error) return [];
       return (data || []).map((inv: any) => {
-        const daysOverdue = Math.floor((Date.now() - new Date(inv.due_date).getTime()) / (1000 * 3600 * 24));
+        const daysOverdue = Math.floor((Date.now() - new Date(inv.due_date || inv.invoice_date || inv.created_at).getTime()) / (1000 * 3600 * 24));
         return {
           id: inv.id,
           company: inv.client?.client_name || 'Unknown Client',
-          invoice: inv.invoice_number || 'Invoice',
-          dueDate: formatAppDate(inv.due_date || inv.created_at),
-          amount: inv.total_amount || 0,
+          invoice: inv.invoice_no || inv.invoice_number || 'Invoice',
+          dueDate: formatAppDate(inv.due_date || inv.invoice_date || inv.created_at),
+          amount: inv.total || inv.total_amount || 0,
           daysOverdue: Math.max(0, daysOverdue)
         };
       });
