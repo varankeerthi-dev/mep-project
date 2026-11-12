@@ -297,27 +297,29 @@ export function DocumentListShell(props: DocumentListShellProps) {
         )}
       </AnimatePresence>
 
-      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-base font-medium text-zinc-900">{title}</h1>
+      <div className="flex items-center justify-between px-6 py-3 border-b border-zinc-200 gap-4">
+        <div className="flex items-center gap-4 min-w-0 flex-1 flex-wrap xl:flex-nowrap">
+          <div className="flex items-center gap-2.5 shrink-0">
+            <h1 className="text-base font-semibold text-zinc-900 whitespace-nowrap">{title}</h1>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
               {count}
             </span>
           </div>
           {actionsInHeader && (
             <>
-              <div className="relative">
+              <div className="relative shrink-0">
                 <input
                   type="text"
                   placeholder={searchPlaceholder || 'Search...'}
                   value={search}
                   onChange={(e) => onSearch(e.target.value)}
-                  className="px-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="px-3 h-[30px] w-52 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder:text-zinc-400"
                 />
               </div>
-              <div className="h-4 w-px bg-zinc-200" />
-              {renderFilters}
+              <div className="h-4 w-px bg-zinc-200 shrink-0 hidden sm:block" />
+              <div className="flex items-center gap-2 shrink-0">
+                {renderFilters}
+              </div>
             </>
           )}
           {stats && stats.length > 0 && (
@@ -346,7 +348,7 @@ export function DocumentListShell(props: DocumentListShellProps) {
             <p className="text-sm text-zinc-500">{subtitle}</p>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 shrink-0">
           {actionsInHeader ? (
             <>
               {renderCreateButton}

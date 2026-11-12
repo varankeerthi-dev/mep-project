@@ -108,89 +108,91 @@ export const SitePlanWorkspace: React.FC<SitePlanWorkspaceProps> = ({ initialDat
 
   return (
     <div className="space-y-4">
-      {/* Action and Filter Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3">
-          {/* View mode toggle */}
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+      {/* Calendar View Controls Bar (only shown in calendar mode) */}
+      {viewMode === 'calendar' && (
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-xl border border-zinc-200 shadow-xs">
+          <div className="flex items-center gap-3">
+            {/* View mode toggle */}
+            <div className="flex items-center bg-zinc-100 p-0.5 rounded-lg border border-zinc-200">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                  viewMode === 'table' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                <TableIcon className="w-3.5 h-3.5" />
+                <span>Table</span>
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                  viewMode === 'calendar' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                <CalendarIcon className="w-3.5 h-3.5" />
+                <span>Calendar</span>
+              </button>
+            </div>
+
+            {/* Quick Date Presets */}
+            <div className="flex items-center gap-1 bg-zinc-50 p-1 rounded-lg border border-zinc-200 text-xs">
+              <button
+                onClick={() => setDatePreset('all')}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  datePreset === 'all' ? 'bg-blue-600 text-white font-semibold' : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                All Plans
+              </button>
+              <button
+                onClick={() => setDatePreset('tomorrow')}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  datePreset === 'tomorrow' ? 'bg-blue-600 text-white font-semibold' : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                Tomorrow
+              </button>
+              <button
+                onClick={() => setDatePreset('next7days')}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  datePreset === 'next7days' ? 'bg-blue-600 text-white font-semibold' : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                Next 7 Days
+              </button>
+              <button
+                onClick={() => setDatePreset('this_month')}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  datePreset === 'this_month' ? 'bg-blue-600 text-white font-semibold' : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                This Month
+              </button>
+            </div>
+
             <button
-              onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                viewMode === 'table' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="p-1.5 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors border border-zinc-200"
+              title="Refresh Site Plans"
             >
-              <TableIcon className="w-3.5 h-3.5" />
-              <span>Table</span>
-            </button>
-            <button
-              onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                viewMode === 'calendar' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <CalendarIcon className="w-3.5 h-3.5" />
-              <span>Calendar</span>
+              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-blue-600' : ''}`} />
             </button>
           </div>
 
-          {/* Quick Date Presets */}
-          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200 text-xs">
-            <button
-              onClick={() => setDatePreset('all')}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                datePreset === 'all' ? 'bg-blue-600 text-white font-semibold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              All Plans
-            </button>
-            <button
-              onClick={() => setDatePreset('tomorrow')}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                datePreset === 'tomorrow' ? 'bg-blue-600 text-white font-semibold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Tomorrow
-            </button>
-            <button
-              onClick={() => setDatePreset('next7days')}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                datePreset === 'next7days' ? 'bg-blue-600 text-white font-semibold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Next 7 Days
-            </button>
-            <button
-              onClick={() => setDatePreset('this_month')}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                datePreset === 'this_month' ? 'bg-blue-600 text-white font-semibold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              This Month
-            </button>
-          </div>
-
+          {/* Create Plan Button */}
           <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-            title="Refresh Site Plans"
+            onClick={() => {
+              setFormPlan(null);
+              setIsFormOpen(true);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
           >
-            <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+            <Plus className="w-4 h-4" />
+            <span>New Site Plan</span>
           </button>
         </div>
-
-        {/* Create Plan Button */}
-        <button
-          onClick={() => {
-            setFormPlan(null);
-            setIsFormOpen(true);
-          }}
-          className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Site Plan</span>
-        </button>
-      </div>
+      )}
 
       {/* Main View Area */}
       {viewMode === 'table' ? (
@@ -219,6 +221,16 @@ export const SitePlanWorkspace: React.FC<SitePlanWorkspaceProps> = ({ initialDat
           }}
           onDispatch={handleDispatch}
           isDispatching={dispatchMutation.isPending}
+          onCreatePlan={() => {
+            setFormPlan(null);
+            setIsFormOpen(true);
+          }}
+          datePreset={datePreset}
+          onDatePresetChange={setDatePreset}
+          onRefresh={refetch}
+          isRefreshing={isFetching}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
         />
       ) : (
         <SitePlanCalendar
