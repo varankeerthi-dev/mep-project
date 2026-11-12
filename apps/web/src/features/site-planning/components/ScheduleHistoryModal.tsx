@@ -19,9 +19,9 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
   if (!isOpen || !plan) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-xl my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/50 backdrop-blur-xs p-4 sm:p-6 flex justify-center items-start pt-14 pb-14">
+      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden flex flex-col max-h-[calc(100vh-4.5rem)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center">
               <History className="w-4 h-4" />
@@ -39,7 +39,7 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1 min-h-0">
           {isLoading ? (
             <div className="py-8 text-center text-xs text-slate-400">Loading audit history...</div>
           ) : history.length === 0 ? (
@@ -82,7 +82,7 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
           )}
         </div>
 
-        <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
           <button
             type="button"
             onClick={onClose}

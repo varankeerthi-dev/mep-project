@@ -64,9 +64,9 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/50 backdrop-blur-xs p-4 sm:p-6 flex justify-center items-start pt-14 pb-14">
+      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[calc(100vh-4.5rem)] animate-in fade-in zoom-in-95 duration-150">
+        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
           <div>
             <h2 className="text-base font-bold text-slate-900">Reschedule Site Plan</h2>
             <p className="text-xs text-slate-500">
@@ -81,12 +81,13 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="p-3 text-xs bg-red-50 text-red-700 border border-red-200 rounded-lg">
-              {error}
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden min-h-0">
+          <div className="p-6 space-y-4 overflow-y-auto flex-1">
+            {error && (
+              <div className="p-3 text-xs bg-red-50 text-red-700 border border-red-200 rounded-lg">
+                {error}
+              </div>
+            )}
 
           <div className="p-3 bg-slate-100 rounded-lg text-xs space-y-1">
             <div className="text-slate-500">Plan: <strong className="text-slate-900">{plan.plan_name}</strong></div>
@@ -153,11 +154,13 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
             </label>
           </div>
 
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-3">
+          </div>
+
+          <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100"
             >
               Cancel
             </button>

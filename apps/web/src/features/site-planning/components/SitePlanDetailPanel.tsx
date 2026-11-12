@@ -98,7 +98,7 @@ export const SitePlanDetailPanel: React.FC<SitePlanDetailPanelProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-black/30 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] overflow-hidden bg-black/30 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
       <div 
         className="w-full max-w-lg bg-white h-full shadow-2xl flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-200 overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
