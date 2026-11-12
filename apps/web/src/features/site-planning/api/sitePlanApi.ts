@@ -1,6 +1,52 @@
 import { supabase } from '../../../supabase';
 import type { SitePlan, SitePlanAllocation, SitePlanScheduleHistory, TomorrowsManpowerSummaryData } from '../types';
 
+function formatSitePlanRelations(data: any): SitePlan {
+  const proj = data.project ? {
+    id: data.project.id,
+    title: data.project.project_name || data.project.name || data.project.title || 'Site',
+    name: data.project.name || data.project.project_name || data.project.title,
+    project_code: data.project.project_code,
+  } : null;
+
+  const cl = data.client ? {
+    id: data.client.id,
+    company_name: data.client.client_name || data.client.name || data.client.company_name || 'Client',
+    client_name: data.client.client_name || data.client.name,
+    name: data.client.name || data.client.client_name,
+  } : null;
+
+  const allocs = (data.allocations || []).map((a: any) => ({
+    ...a,
+    subcontractor: a.subcontractor ? {
+      id: a.subcontractor.id,
+      vendor_name: a.subcontractor.company_name || a.subcontractor.vendor_name,
+      company_name: a.subcontractor.company_name || a.subcontractor.vendor_name,
+    } : null,
+  }));
+
+  const allocatedHeadcount = allocs.reduce(
+    (sum: number, a: SitePlanAllocation) => sum + (Number(a.headcount) || 1),
+    0
+  );
+
+  const readinessScore = [
+    Boolean(data.site_access_cleared),
+    Boolean(data.permits_approved),
+    Boolean(data.materials_staged),
+    Boolean(data.tools_dispatched),
+  ].filter(Boolean).length;
+
+  return {
+    ...data,
+    project: proj,
+    client: cl,
+    allocations: allocs,
+    allocated_headcount: allocatedHeadcount,
+    readiness_score: readinessScore,
+  };
+}
+
 export const sitePlanApi = {
   async getSitePlans(organisationId: string, options?: { startDate?: string; endDate?: string }): Promise<SitePlan[]> {
     // 1. Primary authoritative query on public.site_plans
@@ -8,12 +54,12 @@ export const sitePlanApi = {
       .from('site_plans')
       .select(`
         *,
-        project:projects(id, title, project_code),
-        client:clients(id, company_name),
+        project:projects(id, name, project_name, project_code),
+        client:clients(id, name, client_name),
         allocations:site_plan_allocations(
           *,
           employee:employees(id, name, employee_code, designation),
-          subcontractor:subcontractors(id, vendor_name, company_name)
+          subcontractor:subcontractors(id, company_name)
         )
       `)
       .eq('organisation_id', organisationId)
@@ -32,24 +78,7 @@ export const sitePlanApi = {
       return [];
     }
 
-    const plans: SitePlan[] = (plansData || []).map((plan: any) => {
-      const allocatedHeadcount = (plan.allocations || []).reduce(
-        (sum: number, a: SitePlanAllocation) => sum + (Number(a.headcount) || 1),
-        0
-      );
-      const readinessScore = [
-        Boolean(plan.site_access_cleared),
-        Boolean(plan.permits_approved),
-        Boolean(plan.materials_staged),
-        Boolean(plan.tools_dispatched),
-      ].filter(Boolean).length;
-
-      return {
-        ...plan,
-        allocated_headcount: allocatedHeadcount,
-        readiness_score: readinessScore,
-      };
-    });
+    const plans: SitePlan[] = (plansData || []).map(formatSitePlanRelations);
 
     // 2. Secondary check for standalone planned attendance records without duplicate IDs
     const existingIds = new Set(plans.map((p) => p.id));
@@ -66,10 +95,10 @@ export const sitePlanApi = {
         project_id,
         client_id,
         subcontractor_id,
-        project:projects(id, title, name, project_name, project_code),
-        client:clients(id, company_name, client_name, name),
+        project:projects(id, name, project_name, project_code),
+        client:clients(id, name, client_name),
         category:labour_categories(id, name, code),
-        subcontractor:subcontractors(id, vendor_name, company_name),
+        subcontractor:subcontractors(id, company_name),
         worker:labour_workers(id, name)
       `)
       .eq('organisation_id', organisationId)
@@ -163,34 +192,19 @@ export const sitePlanApi = {
       .from('site_plans')
       .select(`
         *,
-        project:projects(id, title, project_code),
-        client:clients(id, company_name),
+        project:projects(id, name, project_name, project_code),
+        client:clients(id, name, client_name),
         allocations:site_plan_allocations(
           *,
           employee:employees(id, name, employee_code, designation),
-          subcontractor:subcontractors(id, vendor_name, company_name)
+          subcontractor:subcontractors(id, company_name)
         )
       `)
       .eq('id', id)
       .maybeSingle();
 
     if (!error && data) {
-      const allocatedHeadcount = (data.allocations || []).reduce(
-        (sum: number, a: SitePlanAllocation) => sum + (Number(a.headcount) || 1),
-        0
-      );
-      const readinessScore = [
-        Boolean(data.site_access_cleared),
-        Boolean(data.permits_approved),
-        Boolean(data.materials_staged),
-        Boolean(data.tools_dispatched),
-      ].filter(Boolean).length;
-
-      return {
-        ...data,
-        allocated_headcount: allocatedHeadcount,
-        readiness_score: readinessScore,
-      };
+      return formatSitePlanRelations(data);
     }
 
     // 2. Fallback to manpower_attendance
@@ -207,10 +221,10 @@ export const sitePlanApi = {
         project_id,
         client_id,
         subcontractor_id,
-        project:projects(id, title, name, project_name, project_code),
-        client:clients(id, company_name, client_name, name),
+        project:projects(id, name, project_name, project_code),
+        client:clients(id, name, client_name),
         category:labour_categories(id, name, code),
-        subcontractor:subcontractors(id, vendor_name, company_name),
+        subcontractor:subcontractors(id, company_name),
         worker:labour_workers(id, name)
       `)
       .eq('id', id)
@@ -227,7 +241,7 @@ export const sitePlanApi = {
         organisation_id: p.organisation_id,
         project_id: p.project_id,
         client_id: p.client_id,
-        plan_name: p.remarks || `${cat?.name || 'Labour'} on ${proj?.project_name || proj?.name || proj?.title || 'Site'}`,
+        plan_name: p.remarks || `${cat?.name || 'Labour'} on ${proj?.project_name || proj?.name || 'Site'}`,
         plan_date: p.attendance_date,
         start_time: '08:00:00',
         end_time: '17:00:00',
@@ -253,13 +267,13 @@ export const sitePlanApi = {
         updated_at: p.attendance_date,
         project: proj ? {
           id: proj.id,
-          title: proj.project_name || proj.name || proj.title,
+          title: proj.project_name || proj.name || 'Site',
           name: proj.name || proj.project_name,
           project_code: proj.project_code,
         } : null,
         client: cl ? {
           id: cl.id,
-          company_name: cl.client_name || cl.name || cl.company_name,
+          company_name: cl.client_name || cl.name || 'Client',
           name: cl.name || cl.client_name,
         } : null,
         allocations: [],
@@ -275,29 +289,18 @@ export const sitePlanApi = {
       .insert([plan])
       .select(`
         *,
-        project:projects(id, title, project_code),
-        client:clients(id, company_name),
+        project:projects(id, name, project_name, project_code),
+        client:clients(id, name, client_name),
         allocations:site_plan_allocations(
           *,
           employee:employees(id, name, employee_code, designation),
-          subcontractor:subcontractors(id, vendor_name, company_name)
+          subcontractor:subcontractors(id, company_name)
         )
       `)
       .single();
 
     if (error) throw error;
-    const readinessScore = [
-      Boolean(data.site_access_cleared),
-      Boolean(data.permits_approved),
-      Boolean(data.materials_staged),
-      Boolean(data.tools_dispatched),
-    ].filter(Boolean).length;
-
-    return {
-      ...data,
-      allocated_headcount: 0,
-      readiness_score: readinessScore,
-    };
+    return formatSitePlanRelations(data);
   },
 
   async updateSitePlan(id: string, updates: Partial<SitePlan>): Promise<SitePlan> {
@@ -310,34 +313,19 @@ export const sitePlanApi = {
       .eq('id', id)
       .select(`
         *,
-        project:projects(id, title, project_code),
-        client:clients(id, company_name),
+        project:projects(id, name, project_name, project_code),
+        client:clients(id, name, client_name),
         allocations:site_plan_allocations(
           *,
           employee:employees(id, name, employee_code, designation),
-          subcontractor:subcontractors(id, vendor_name, company_name)
+          subcontractor:subcontractors(id, company_name)
         )
       `)
       .maybeSingle();
 
     if (error) throw error;
     if (data) {
-      const allocatedHeadcount = (data.allocations || []).reduce(
-        (sum: number, a: SitePlanAllocation) => sum + (Number(a.headcount) || 1),
-        0
-      );
-      const readinessScore = [
-        Boolean(data.site_access_cleared),
-        Boolean(data.permits_approved),
-        Boolean(data.materials_staged),
-        Boolean(data.tools_dispatched),
-      ].filter(Boolean).length;
-
-      return {
-        ...data,
-        allocated_headcount: allocatedHeadcount,
-        readiness_score: readinessScore,
-      };
+      return formatSitePlanRelations(data);
     }
 
     // Fallback for attendance updates
@@ -444,12 +432,18 @@ export const sitePlanApi = {
       .select(`
         *,
         employee:employees(id, name, employee_code, designation),
-        subcontractor:subcontractors(id, vendor_name, company_name)
+        subcontractor:subcontractors(id, company_name)
       `)
       .single();
 
     if (error) throw error;
-    return data;
+    return {
+      ...data,
+      subcontractor: data.subcontractor ? {
+        ...data.subcontractor,
+        vendor_name: data.subcontractor.company_name,
+      } : null,
+    };
   },
 
   async removeAllocation(allocationId: string): Promise<void> {

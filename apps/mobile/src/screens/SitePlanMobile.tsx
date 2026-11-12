@@ -198,12 +198,12 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
         .from('site_plans')
         .select(`
           *,
-          project:projects(id, title),
-          client:clients(id, company_name),
+          project:projects(id, name, project_name, project_code),
+          client:clients(id, name, client_name),
           allocations:site_plan_allocations(
             *,
             employee:employees(id, name, employee_code, designation),
-            subcontractor:subcontractors(id, vendor_name, company_name)
+            subcontractor:subcontractors(id, company_name)
           )
         `)
         .order('plan_date', { ascending: true });
@@ -216,15 +216,37 @@ export const SitePlanMobile: React.FC<SitePlanMobileProps> = ({ onBack, isDemo =
           (p.materials_staged ? 1 : 0) +
           (p.tools_dispatched ? 1 : 0);
 
+        const proj = p.project ? {
+          ...p.project,
+          title: p.project.project_name || p.project.name || p.project.title || 'General',
+        } : null;
+
+        const cl = p.client ? {
+          ...p.client,
+          company_name: p.client.client_name || p.client.name || p.client.company_name || 'Direct Client',
+        } : null;
+
+        const allocs = (p.allocations || []).map((a: any) => ({
+          ...a,
+          subcontractor: a.subcontractor ? {
+            ...a.subcontractor,
+            vendor_name: a.subcontractor.company_name || a.subcontractor.vendor_name,
+            company_name: a.subcontractor.company_name || a.subcontractor.vendor_name,
+          } : null,
+        }));
+
         return {
           ...p,
+          project: proj,
+          client: cl,
+          allocations: allocs,
           work_type: p.work_type || 'erection_project',
           site_access_cleared: !!p.site_access_cleared,
           permits_approved: !!p.permits_approved,
           materials_staged: !!p.materials_staged,
           tools_dispatched: !!p.tools_dispatched,
           readiness_score: readinessScore,
-          allocated_headcount: (p.allocations || []).reduce(
+          allocated_headcount: allocs.reduce(
             (sum: number, a: any) => sum + (Number(a.headcount) || 1),
             0
           ),
