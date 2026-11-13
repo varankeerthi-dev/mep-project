@@ -24,6 +24,7 @@ export interface SiteVisitCalendarProps {
   onEditVisit?: (visit: any) => void;
   onDeleteVisit?: (visit: any) => void;
   onDownloadPdf?: (visit: any) => void;
+  onCheckIn?: (visit: any) => Promise<void> | void;
   onQuickUpdate?: (visit: any) => void;
   onCheckOut?: (visit: any) => void;
 }
@@ -35,6 +36,7 @@ export const SiteVisitCalendar: React.FC<SiteVisitCalendarProps> = ({
   onEditVisit,
   onDeleteVisit,
   onDownloadPdf,
+  onCheckIn,
   onQuickUpdate,
   onCheckOut,
 }) => {
@@ -336,6 +338,7 @@ export const SiteVisitCalendar: React.FC<SiteVisitCalendarProps> = ({
                   onEdit={onEditVisit || (() => {})}
                   onDelete={onDeleteVisit || (() => {})}
                   onDownloadPdf={onDownloadPdf || (() => {})}
+                  onCheckIn={onCheckIn}
                   onQuickUpdate={onQuickUpdate}
                   onCheckOut={onCheckOut}
                 />

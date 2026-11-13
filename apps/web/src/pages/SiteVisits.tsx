@@ -18,7 +18,7 @@ import { useEmployees } from '../hooks/useEmployees';
 import { siteVisitScheduleSchema, siteVisitIntentSchema } from '../lib/validations/siteVisit';
 import { toast } from '@/lib/logger';
 import { format } from 'date-fns';
-import { Eye, Pencil, Trash2, Download, Plus, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { Eye, Pencil, Trash2, Download, Plus, ChevronLeft, ChevronRight, MapPin, ShieldCheck } from 'lucide-react';
 
 import { Table, type RowAction } from '../components/table';
 import { QuickAddClientModal } from '../components/QuickAddClientModal';
@@ -55,14 +55,35 @@ const getSiteVisitRowActions = (
   onView: (v: any) => void,
   onEdit: (v: any) => void,
   onDelete: (v: any) => void,
-  onDownloadPdf: (v: any) => void
+  onDownloadPdf: (v: any) => void,
+  onCheckIn?: (v: any) => void,
+  onCheckOut?: (v: any) => void
 ): ((row: SiteVisitRow) => RowAction[]) => {
-  return (row: SiteVisitRow): RowAction[] => [
-    { label: SITE_VISIT_LABELS.actions.viewDetails, icon: <Eye size={14} />, onClick: () => onView(row) },
-    { label: SITE_VISIT_LABELS.actions.editVisit, icon: <Pencil size={14} />, onClick: () => onEdit(row) },
-    { label: SITE_VISIT_LABELS.actions.downloadPdf, icon: <Download size={14} />, onClick: () => onDownloadPdf(row) },
-    { label: SITE_VISIT_LABELS.actions.delete, icon: <Trash2 size={14} />, variant: 'danger', onClick: () => onDelete(row) },
-  ];
+  return (row: SiteVisitRow): RowAction[] => {
+    const actions: RowAction[] = [
+      { label: SITE_VISIT_LABELS.actions.viewDetails, icon: <Eye size={14} />, onClick: () => onView(row) },
+    ];
+    if ((row.status === 'scheduled' || row.status === 'pending') && onCheckIn) {
+      actions.push({
+        label: 'Check In',
+        icon: <MapPin size={14} className="text-emerald-600" />,
+        onClick: () => onCheckIn(row),
+      });
+    }
+    if (row.status === 'in_progress' && onCheckOut) {
+      actions.push({
+        label: 'Check Out & Sign Off',
+        icon: <ShieldCheck size={14} className="text-amber-600" />,
+        onClick: () => onCheckOut(row),
+      });
+    }
+    actions.push(
+      { label: SITE_VISIT_LABELS.actions.editVisit, icon: <Pencil size={14} />, onClick: () => onEdit(row) },
+      { label: SITE_VISIT_LABELS.actions.downloadPdf, icon: <Download size={14} />, onClick: () => onDownloadPdf(row) },
+      { label: SITE_VISIT_LABELS.actions.delete, icon: <Trash2 size={14} />, variant: 'danger', onClick: () => onDelete(row) }
+    );
+    return actions;
+  };
 };
 
 export function SiteVisits() {
@@ -359,8 +380,9 @@ export function SiteVisits() {
   }, [visitToView?.id]);
 
   const handleCheckIn = async (visit: any) => {
-    const today = new Date().toISOString().split('T')[0];
-    if (visit.visit_date > today) {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (visit.visit_date > todayStr) {
       toast.error(`Cannot check in before the visit date. This visit is scheduled for ${visit.visit_date}.`);
       return;
     }
@@ -1038,7 +1060,12 @@ export function SiteVisits() {
                   (v) => setVisitToView(v),
                   handleEditVisit,
                   handleDeleteVisit,
-                  (v) => downloadVisitPDF(v, projectManagers)
+                  (v) => downloadVisitPDF(v, projectManagers),
+                  handleCheckIn,
+                  (v) => {
+                    setVisitToView(v);
+                    setIsCheckoutModalOpen(true);
+                  }
                 )}
                 bulkActions={[
                   {
@@ -1112,6 +1139,7 @@ export function SiteVisits() {
                         onEdit={handleEditVisit}
                         onDelete={handleDeleteVisit}
                         onDownloadPdf={(v) => downloadVisitPDF(v, projectManagers)}
+                        onCheckIn={handleCheckIn}
                         onQuickUpdate={(v) => {
                           setSelectedVisit(v);
                           setIsUpdateModalOpen(true);
@@ -1170,6 +1198,7 @@ export function SiteVisits() {
             onEditVisit={handleEditVisit}
             onDeleteVisit={handleDeleteVisit}
             onDownloadPdf={(v) => downloadVisitPDF(v, projectManagers)}
+            onCheckIn={handleCheckIn}
             onQuickUpdate={(v) => {
               setSelectedVisit(v);
               setIsUpdateModalOpen(true);
