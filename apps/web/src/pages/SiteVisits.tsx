@@ -18,7 +18,7 @@ import { useEmployees } from '../hooks/useEmployees';
 import { siteVisitScheduleSchema, siteVisitIntentSchema } from '../lib/validations/siteVisit';
 import { toast } from '@/lib/logger';
 import { format } from 'date-fns';
-import { Eye, Pencil, Trash2, Download } from 'lucide-react';
+import { Eye, Pencil, Trash2, Download, Plus, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 
 import { Table, type RowAction } from '../components/table';
 import { QuickAddClientModal } from '../components/QuickAddClientModal';
@@ -40,6 +40,7 @@ import {
   SiteVisitQuickUpdateModal,
   SiteVisitFormModal,
   SiteVisitDetailModal,
+  SiteVisitMobileCard,
   SiteVisitStickyFooter,
   SITE_VISIT_LABELS,
   type VisitTableDensity,
@@ -922,71 +923,157 @@ export function SiteVisits() {
         {/* Table View */}
         {viewMode === 'table' && (
           <div className="flex flex-col h-full bg-white">
-            <Table<SiteVisitRow>
-              data={paginatedVisits.map((v: any) => ({
-                ...v,
-                client_name: v.clients?.client_name || SITE_VISIT_LABELS.table.missingValue,
-              }))}
-              columns={siteVisitColumns}
-              loading={isLoadingVisits}
-              page={currentPage}
-              pageSize={itemsPerPage}
-              totalRows={filteredVisits.length}
-              searchable
-              selectable
-              sortable
-              pagination
-              density={density}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={() => {}}
-              onSearch={(val) => setSearchQuery(val)}
-              selectedRowIds={new Set(selectedVisits)}
-              onRowSelectChange={(row, checked) => {
-                if (checked) setSelectedVisits((prev) => [...prev, row.id]);
-                else setSelectedVisits((prev) => prev.filter((id) => id !== row.id));
-              }}
-              onSelectAllChange={(checked) => {
-                if (checked) setSelectedVisits(paginatedVisits.map((v: any) => v.id));
-                else setSelectedVisits([]);
-              }}
-              onView={(row) => setVisitToView(row)}
-              rowActions={getSiteVisitRowActions(
-                (v) => setVisitToView(v),
-                handleEditVisit,
-                handleDeleteVisit,
-                (v) => downloadVisitPDF(v, projectManagers)
+            {/* Desktop Table (Visible on md and above) */}
+            <div className="hidden md:block">
+              <Table<SiteVisitRow>
+                data={paginatedVisits.map((v: any) => ({
+                  ...v,
+                  client_name: v.clients?.client_name || SITE_VISIT_LABELS.table.missingValue,
+                }))}
+                columns={siteVisitColumns}
+                loading={isLoadingVisits}
+                page={currentPage}
+                pageSize={itemsPerPage}
+                totalRows={filteredVisits.length}
+                searchable
+                selectable
+                sortable
+                pagination
+                density={density}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={() => {}}
+                onSearch={(val) => setSearchQuery(val)}
+                selectedRowIds={new Set(selectedVisits)}
+                onRowSelectChange={(row, checked) => {
+                  if (checked) setSelectedVisits((prev) => [...prev, row.id]);
+                  else setSelectedVisits((prev) => prev.filter((id) => id !== row.id));
+                }}
+                onSelectAllChange={(checked) => {
+                  if (checked) setSelectedVisits(paginatedVisits.map((v: any) => v.id));
+                  else setSelectedVisits([]);
+                }}
+                onView={(row) => setVisitToView(row)}
+                rowActions={getSiteVisitRowActions(
+                  (v) => setVisitToView(v),
+                  handleEditVisit,
+                  handleDeleteVisit,
+                  (v) => downloadVisitPDF(v, projectManagers)
+                )}
+                bulkActions={[
+                  {
+                    label: SITE_VISIT_LABELS.actions.downloadPdf,
+                    icon: <Download size={14} />,
+                    variant: 'default' as const,
+                    onClick: (rows) => rows.forEach((r: any) => downloadVisitPDF(r, projectManagers)),
+                  },
+                  {
+                    label: SITE_VISIT_LABELS.actions.delete,
+                    icon: <Trash2 size={14} />,
+                    variant: 'danger' as const,
+                    onClick: () => handleBatchDelete(),
+                  },
+                ]}
+                hiddenColumnIds={hiddenColumnIds}
+                onColumnVisibilityChange={setHiddenColumnIds}
+                mandatoryColumnIds={['visit_type', 'client']}
+                emptyTitle={SITE_VISIT_LABELS.table.emptyTitle}
+                emptySubtitle={SITE_VISIT_LABELS.table.emptySubtitle}
+                emptyActionLabel={SITE_VISIT_LABELS.table.emptyAction}
+                onEmptyAction={() => handleOpenNewVisit()}
+                footer={
+                  <SiteVisitStickyFooter
+                    selectedCount={selectedVisits.length}
+                    page={currentPage}
+                    pageSize={itemsPerPage}
+                    totalRows={filteredVisits.length}
+                    onPageChange={setCurrentPage}
+                  />
+                }
+              />
+            </div>
+
+            {/* Mobile Card List (Visible on mobile/PWA < md) */}
+            <div className="block md:hidden p-3.5 pb-24 space-y-3">
+              {paginatedVisits.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600 mb-3">
+                    <MapPin className="h-6 w-6" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-slate-900">{SITE_VISIT_LABELS.table.emptyTitle}</h4>
+                  <p className="mt-1 text-xs text-slate-500 max-w-xs">{SITE_VISIT_LABELS.table.emptySubtitle}</p>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenNewVisit()}
+                    className="mt-4 flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm active:scale-95 transition-transform"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>{SITE_VISIT_LABELS.table.emptyAction}</span>
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between px-1 text-xs font-medium text-slate-500">
+                    <span>
+                      Showing {Math.min(filteredVisits.length, (currentPage - 1) * itemsPerPage + 1)}–
+                      {Math.min(filteredVisits.length, currentPage * itemsPerPage)} of {filteredVisits.length} visits
+                    </span>
+                    {selectedVisits.length > 0 && (
+                      <span className="text-blue-600 font-semibold">{selectedVisits.length} selected</span>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    {paginatedVisits.map((visit: any) => (
+                      <SiteVisitMobileCard
+                        key={visit.id}
+                        visit={visit}
+                        onView={(v) => setVisitToView(v)}
+                        onEdit={handleEditVisit}
+                        onDelete={handleDeleteVisit}
+                        onDownloadPdf={(v) => downloadVisitPDF(v, projectManagers)}
+                        onQuickUpdate={(v) => {
+                          setSelectedVisit(v);
+                          setIsUpdateModalOpen(true);
+                        }}
+                        onCheckOut={(v) => {
+                          setVisitToView(v);
+                          setIsCheckoutModalOpen(true);
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Mobile Pagination Controls */}
+                  {filteredVisits.length > itemsPerPage && (
+                    <div className="flex items-center justify-between border-t border-slate-200/80 pt-3 px-1">
+                      <button
+                        type="button"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 disabled:opacity-40 active:scale-95 transition-transform"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5" />
+                        Previous
+                      </button>
+
+                      <span className="text-xs text-slate-500 font-medium">
+                        Page {currentPage} of {Math.ceil(filteredVisits.length / itemsPerPage)}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={currentPage >= Math.ceil(filteredVisits.length / itemsPerPage)}
+                        onClick={() => setCurrentPage((p) => p + 1)}
+                        className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 disabled:opacity-40 active:scale-95 transition-transform"
+                      >
+                        Next
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
-              bulkActions={[
-                {
-                  label: SITE_VISIT_LABELS.actions.downloadPdf,
-                  icon: <Download size={14} />,
-                  variant: 'default' as const,
-                  onClick: (rows) => rows.forEach((r: any) => downloadVisitPDF(r, projectManagers)),
-                },
-                {
-                  label: SITE_VISIT_LABELS.actions.delete,
-                  icon: <Trash2 size={14} />,
-                  variant: 'danger' as const,
-                  onClick: () => handleBatchDelete(),
-                },
-              ]}
-              hiddenColumnIds={hiddenColumnIds}
-              onColumnVisibilityChange={setHiddenColumnIds}
-              mandatoryColumnIds={['visit_type', 'client']}
-              emptyTitle={SITE_VISIT_LABELS.table.emptyTitle}
-              emptySubtitle={SITE_VISIT_LABELS.table.emptySubtitle}
-              emptyActionLabel={SITE_VISIT_LABELS.table.emptyAction}
-              onEmptyAction={() => handleOpenNewVisit()}
-              footer={
-                <SiteVisitStickyFooter
-                  selectedCount={selectedVisits.length}
-                  page={currentPage}
-                  pageSize={itemsPerPage}
-                  totalRows={filteredVisits.length}
-                  onPageChange={setCurrentPage}
-                />
-              }
-            />
+            </div>
           </div>
         )}
 
@@ -1193,6 +1280,18 @@ export function SiteVisits() {
           }}
         />
       )}
+
+      {/* Mobile Floating Action Button (FAB) for + New Visit */}
+      <div className="fixed bottom-6 right-5 z-30 md:hidden">
+        <button
+          type="button"
+          onClick={() => handleOpenNewVisit()}
+          className="flex items-center gap-2 rounded-full bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-95 transition-transform"
+        >
+          <Plus className="h-5 w-5" />
+          <span>New Visit</span>
+        </button>
+      </div>
     </div>
   );
 }

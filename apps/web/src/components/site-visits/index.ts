@@ -15,6 +15,7 @@ export * from './SiteVisitCheckoutModal';
 export * from './SiteVisitQuickUpdateModal';
 export * from './SiteVisitFormModal';
 export * from './SiteVisitDetailModal';
+export * from './SiteVisitMobileCard';
 export * from './pdfExport';
 export * from './calendarExport';
 export * from './useSiteVisitFormStore';
