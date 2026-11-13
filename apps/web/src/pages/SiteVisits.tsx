@@ -31,6 +31,7 @@ import {
   getChecklistQuestions,
   SiteVisitMetrics,
   SiteVisitFilters,
+  type SiteVisitTimeFilter,
   SiteVisitCalendar,
   SiteVisitUpdatesView,
   SiteVisitDeleteDialog,
@@ -573,6 +574,7 @@ export function SiteVisits() {
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [timeFilter, setTimeFilter] = useState<SiteVisitTimeFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
 
@@ -820,16 +822,81 @@ export function SiteVisits() {
     }
   };
 
-  // Filter visits based on search and filters
-  const filteredVisits = useMemo(() => {
-    if (!visits) return [];
+  // Helper to parse YYYY-MM-DD in local time without UTC offset bugs
+  const parseVisitDate = (dateStr?: string | null): Date | null => {
+    if (!dateStr) return null;
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        return new Date(y, m, d);
+      }
+      return new Date(dateStr);
+    } catch {
+      return null;
+    }
+  };
 
-    return visits.filter((v: any) => {
+  // Filter visits based on search, status, and time filters
+  const { timeFilterCounts, filteredVisits } = useMemo(() => {
+    if (!visits) {
+      return {
+        timeFilterCounts: { all: 0, upcoming: 0, today: 0, tomorrow: 0, this_week: 0 },
+        filteredVisits: [] as any[],
+      };
+    }
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Week calculation: Monday to Sunday
+    const startOfWeek = new Date(today);
+    const day = startOfWeek.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    startOfWeek.setDate(startOfWeek.getDate() + diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    let allCount = 0;
+    let upcomingCount = 0;
+    let todayCount = 0;
+    let tomorrowCount = 0;
+    let thisWeekCount = 0;
+
+    const filtered = visits.filter((v: any) => {
+      // 1. Status Filter
       if (statusFilter !== 'all' && v.status !== statusFilter) return false;
 
+      // 2. Count calculation based on date
+      const d = parseVisitDate(v.visit_date);
+      allCount++;
+      if (d) {
+        const dMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        if (dMidnight >= today) upcomingCount++;
+        if (dMidnight.getTime() === today.getTime()) todayCount++;
+        if (dMidnight.getTime() === tomorrow.getTime()) tomorrowCount++;
+        if (dMidnight >= startOfWeek && dMidnight <= endOfWeek) thisWeekCount++;
+
+        // 3. Time filter check
+        if (timeFilter === 'today' && dMidnight.getTime() !== today.getTime()) return false;
+        if (timeFilter === 'tomorrow' && dMidnight.getTime() !== tomorrow.getTime()) return false;
+        if (timeFilter === 'upcoming' && dMidnight < today) return false;
+        if (timeFilter === 'this_week' && (dMidnight < startOfWeek || dMidnight > endOfWeek)) return false;
+      } else if (timeFilter !== 'all') {
+        return false;
+      }
+
+      // 4. Search query
       if (deferredSearchQuery) {
         const query = deferredSearchQuery.toLowerCase();
-        const clientMatch = v.clients?.client_name?.toLowerCase().includes(query);
+        const clientMatch = v.clients?.client_name?.toLowerCase().includes(query) || v.client_name?.toLowerCase().includes(query);
         const engineerMatch = v.engineer?.toLowerCase().includes(query) || v.visited_by?.toLowerCase().includes(query);
         const locationMatch = v.site_address?.toLowerCase().includes(query);
 
@@ -838,7 +905,18 @@ export function SiteVisits() {
 
       return true;
     });
-  }, [visits, statusFilter, deferredSearchQuery]);
+
+    return {
+      timeFilterCounts: {
+        all: allCount,
+        upcoming: upcomingCount,
+        today: todayCount,
+        tomorrow: tomorrowCount,
+        this_week: thisWeekCount,
+      },
+      filteredVisits: filtered,
+    };
+  }, [visits, statusFilter, timeFilter, deferredSearchQuery]);
 
   // Paginated items
   const paginatedVisits = useMemo(() => {
@@ -914,6 +992,9 @@ export function SiteVisits() {
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
+        timeFilter={timeFilter}
+        onTimeFilterChange={setTimeFilter}
+        timeFilterCounts={timeFilterCounts}
         density={density}
         onDensityChange={setDensity}
       />
@@ -1086,6 +1167,17 @@ export function SiteVisits() {
               handleOpenNewVisit({ visit_date: format(date, 'yyyy-MM-dd') });
             }}
             onVisitClick={(visit) => setVisitToView(visit)}
+            onEditVisit={handleEditVisit}
+            onDeleteVisit={handleDeleteVisit}
+            onDownloadPdf={(v) => downloadVisitPDF(v, projectManagers)}
+            onQuickUpdate={(v) => {
+              setSelectedVisit(v);
+              setIsUpdateModalOpen(true);
+            }}
+            onCheckOut={(v) => {
+              setVisitToView(v);
+              setIsCheckoutModalOpen(true);
+            }}
           />
         )}
 
