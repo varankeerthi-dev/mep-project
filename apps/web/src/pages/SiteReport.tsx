@@ -428,13 +428,6 @@ export function SiteReport() {
     alignItems: 'center',
     gap: '10px',
   };
-  const accentLineStyle: React.CSSProperties = {
-    width: '3px',
-    height: '16px',
-    background: '#2563eb',
-    borderRadius: '2px',
-    flexShrink: 0,
-  };
   const sectionTitleStyle: React.CSSProperties = {
     fontSize: '13px',
     fontWeight: 600,
@@ -2308,7 +2301,6 @@ export function SiteReport() {
               <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('identification')} style={sectionHeaderStyle(openSections.identification)}>
                   <div style={accentHeaderStyle}>
-                    <div style={accentLineStyle} />
                     <span style={sectionTitleStyle}>Report Identification</span>
                   </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.identification && 'rotate-90')} />
@@ -2409,7 +2401,7 @@ export function SiteReport() {
                 <div
                   style={{
                     background: '#fffbeb',
-                    borderLeft: '3px solid #f59e0b',
+                    border: '1px solid #fde68a',
                     borderRadius: '8px',
                     padding: '14px 18px',
                     boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
@@ -2478,7 +2470,6 @@ export function SiteReport() {
               <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('manpower')} style={sectionHeaderStyle(openSections.manpower)}>
                   <div style={accentHeaderStyle}>
-                    <div style={accentLineStyle} />
                     <span style={sectionTitleStyle}>Manpower Details</span>
                   </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.manpower && 'rotate-90')} />
@@ -2645,7 +2636,6 @@ export function SiteReport() {
               <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('workMilestones')} style={sectionHeaderStyle(openSections.workMilestones)}>
                   <div style={accentHeaderStyle}>
-                    <div style={accentLineStyle} />
                     <span style={sectionTitleStyle}>Work Carried Out & Milestones</span>
                   </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.workMilestones && 'rotate-90')} />
@@ -2746,7 +2736,6 @@ export function SiteReport() {
               <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('progressEquipmentSafety')} style={sectionHeaderStyle(openSections.progressEquipmentSafety)}>
                   <div style={accentHeaderStyle}>
-                    <div style={accentLineStyle} />
                     <span style={sectionTitleStyle}>Progress, Equipment & Safety</span>
                   </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.progressEquipmentSafety && 'rotate-90')} />
@@ -2900,7 +2889,6 @@ export function SiteReport() {
               <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('logistics')} style={sectionHeaderStyle(openSections.logistics)}>
                   <div style={accentHeaderStyle}>
-                    <div style={accentLineStyle} />
                     <span style={sectionTitleStyle}>Logistics & Internal Reporting</span>
                   </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.logistics && 'rotate-90')} />
@@ -2986,7 +2974,6 @@ export function SiteReport() {
               <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('issuesPlanClient')} style={sectionHeaderStyle(openSections.issuesPlanClient)}>
                   <div style={accentHeaderStyle}>
-                    <div style={accentLineStyle} />
                     <span style={sectionTitleStyle}>Issues, Planning & Client Requirements</span>
                   </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.issuesPlanClient && 'rotate-90')} />
@@ -3101,10 +3088,9 @@ export function SiteReport() {
               </div>
 
               {/* Section 6.5: Work Stoppages */}
-              <div style={{ ...sectionCardStyle, borderLeft: '3px solid #fca5a5' }} className="p-3.5 sm:p-5">
+              <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('workStoppages')} style={sectionHeaderStyle(openSections.workStoppages)}>
                   <div style={accentHeaderStyle}>
-                    <div style={{ ...accentLineStyle, background: '#ef4444' }} />
                     <span style={{ ...sectionTitleStyle, color: '#b91c1c' }}>Work Stoppages</span>
                     {stoppages.length > 0 && (
                       <span style={{ fontSize: '10px', fontWeight: 700, color: '#b91c1c', background: '#fecaca', padding: '2px 8px', borderRadius: '10px' }}>
@@ -3302,7 +3288,6 @@ export function SiteReport() {
               <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('continuousImprovement')} style={sectionHeaderStyle(openSections.continuousImprovement)}>
                   <div style={accentHeaderStyle}>
-                    <div style={{ ...accentLineStyle, background: '#10b981' }} />
                     <span style={sectionTitleStyle}>Continuous Improvement Observations</span>
                     {observations.length > 0 && (
                       <span style={{ fontSize: '10px', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '2px 8px', borderRadius: '10px' }}>
@@ -3449,7 +3434,6 @@ export function SiteReport() {
               <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('photos')} style={sectionHeaderStyle(openSections.photos)}>
                   <div style={accentHeaderStyle}>
-                    <div style={accentLineStyle} />
                     <span style={sectionTitleStyle}>Visual Documentation</span>
                   </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.photos && 'rotate-90')} />
@@ -3470,7 +3454,6 @@ export function SiteReport() {
               <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('footer')} style={sectionHeaderStyle(openSections.footer)}>
                   <div style={accentHeaderStyle}>
-                    <div style={accentLineStyle} />
                     <span style={sectionTitleStyle}>Engineer Signature & Date</span>
                   </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.footer && 'rotate-90')} />
@@ -3491,7 +3474,7 @@ export function SiteReport() {
 
               {/* Section 9: Approval — visible only in create mode */}
               {view === 'create' && (
-                <div style={{ ...sectionCardStyle, borderLeft: '3px solid #93c5fd' }} className="p-3.5 sm:p-5">
+                <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: submitForApproval ? '16px' : 0 }}>
                     <div>
                       <div style={sectionTitleStyle}>Approval</div>
