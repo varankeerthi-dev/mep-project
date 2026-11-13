@@ -204,43 +204,24 @@ const siteReportSchema = z.object({
 
 type SiteReportFormValues = z.infer<typeof siteReportSchema>;
 
-// ---------- Date helpers (module-level) ----------
-const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
-const isSameDay = (a: Date, b: Date) => startOfDay(a).getTime() === startOfDay(b).getTime();
-const daysAgo = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() - n); return x; };
-const startOfWeek = (d: Date) => { const x = startOfDay(d); const dow = x.getDay(); const diff = (dow + 6) % 7; x.setDate(x.getDate() - diff); return x; };
-const startOfMonth = (d: Date) => { const x = startOfDay(d); x.setDate(1); return x; };
-
-const reportDateBucket = (reportDate: string): 'today' | 'yesterday' | 'this_week' | 'this_month' | 'earlier' => {
-  const d = new Date(reportDate);
-  const now = new Date();
-  if (isSameDay(d, now)) return 'today';
-  if (isSameDay(d, daysAgo(now, 1))) return 'yesterday';
-  if (d >= startOfWeek(now)) return 'this_week';
-  if (d >= startOfMonth(now)) return 'this_month';
-  return 'earlier';
-};
-
-const BUCKET_LABELS: Record<string, string> = {
-  today: 'Today',
-  yesterday: 'Yesterday',
-  this_week: 'This Week',
-  this_month: 'Earlier this Month',
-  earlier: 'Earlier',
-};
-
-const dateRangePredicate = (range: DateRange, reportDate: string): boolean => {
-  if (range === 'all') return true;
-  const d = new Date(reportDate);
-  const now = new Date();
-  if (range === 'today') return isSameDay(d, now);
-  if (range === 'yesterday') return isSameDay(d, daysAgo(now, 1));
-  if (range === 'this_week') return d >= startOfWeek(now);
-  if (range === 'this_month') return d >= startOfMonth(now);
-  return true;
-};
-
-type DateRange = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month';
+import {
+  SiteReportMetrics,
+  SiteReportFilters,
+  SiteReportMobileCard,
+  SiteReportPdfModal,
+  SiteReportMobileSubcontractorCard,
+  ReportStatusPill,
+  type SiteReportDateRange,
+  type DateBucketCounts,
+  startOfDay,
+  daysAgo,
+  startOfWeek,
+  startOfMonth,
+  isSameDay,
+  reportDateBucket,
+  dateRangePredicate,
+  BUCKET_LABELS,
+} from '@/components/site-reports';
 
 export function SiteReport() {
   const { user, organisation } = useAuth();
@@ -248,6 +229,7 @@ export function SiteReport() {
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [pdfPreviewReportId, setPdfPreviewReportId] = useState<string | null>(null);
 
   // Continuous Improvement Observations state
   const [observations, setObservations] = useState<Array<{ category: string; title: string }>>([]);
@@ -290,7 +272,7 @@ export function SiteReport() {
   const [searchQuery, setSearchQuery] = useState('');
   const [projectFilter, setProjectFilter] = useState<string>('');
   const [engineerFilter, setEngineerFilter] = useState<string>('');
-  const [dateRange, setDateRange] = useState<DateRange>('all');
+  const [dateRange, setDateRange] = useState<SiteReportDateRange>('all');
   const [groupByDate, setGroupByDate] = useState(true);
 
   const queryClient = useQueryClient();
@@ -426,8 +408,8 @@ export function SiteReport() {
   // Style constants for the refactored form
   const sectionCardStyle: React.CSSProperties = {
     background: '#fff',
-    borderRadius: '10px',
-    padding: '20px',
+    borderRadius: '12px',
+    border: '1px solid rgba(226, 232, 240, 0.8)',
     boxShadow: '0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04)',
   };
   const sectionHeaderStyle = (isOpen: boolean): React.CSSProperties => ({
@@ -1450,6 +1432,29 @@ export function SiteReport() {
     return { total: reports.length, thisWeek: weekCount, today: todayCount, engineersActive: engineers.size };
   }, [reports]);
 
+  const dateBucketCounts = useMemo<DateBucketCounts>(() => {
+    if (!reports) return { all: 0, today: 0, yesterday: 0, this_week: 0, this_month: 0 };
+    const now = new Date();
+    const yest = daysAgo(now, 1);
+    const weekStart = startOfWeek(now);
+    const monthStart = startOfMonth(now);
+    let today = 0, yesterday = 0, this_week = 0, this_month = 0;
+    for (const r of (reports as any[])) {
+      const d = new Date(r.report_date);
+      if (isSameDay(d, now)) today++;
+      if (isSameDay(d, yest)) yesterday++;
+      if (d >= weekStart) this_week++;
+      if (d >= monthStart) this_month++;
+    }
+    return {
+      all: reports.length,
+      today,
+      yesterday,
+      this_week,
+      this_month,
+    };
+  }, [reports]);
+
   const clearFilters = () => {
     setSearchQuery(''); setProjectFilter(''); setEngineerFilter(''); setDateRange('all');
   };
@@ -1476,10 +1481,78 @@ export function SiteReport() {
     else saveMutation.mutate(payload);
   }, [form, view, saveMutation, updateMutation]);
 
-  const onInvalid = useCallback((errors: any) => {
-    console.error("Form validation errors:", errors);
-    toast.error("Please fill in all required fields correctly.");
+  const onInvalid = useCallback((formErrors: any) => {
+    console.error("Form validation errors:", formErrors);
+    
+    // Auto-expand any collapsed accordion sections containing errors
+    setOpenSections(prev => {
+      const next = { ...prev };
+      if (formErrors.client || formErrors.projectName || formErrors.date) next.identification = true;
+      if (formErrors.manpower) next.manpower = true;
+      if (formErrors.workCarriedOut || formErrors.milestonesCompleted) next.workMilestones = true;
+      if (formErrors.progress || formErrors.equipment || formErrors.safety) next.progressEquipmentSafety = true;
+      if (formErrors.quality || formErrors.rework || formErrors.documents) next.logistics = true;
+      if (formErrors.issues || formErrors.workPlanNextDay || formErrors.specialInstructions || formErrors.clientRequirements || formErrors.reporting) next.issuesPlanClient = true;
+      if (formErrors.footer) next.footer = true;
+      return next;
+    });
+
+    const keys = Object.keys(formErrors);
+    if (keys.length > 0) {
+      const firstVal = formErrors[keys[0]];
+      let message = firstVal?.message;
+      if (!message && typeof firstVal === 'object') {
+        const subKeys = Object.keys(firstVal);
+        if (subKeys.length > 0) {
+          message = firstVal[subKeys[0]]?.message;
+        }
+      }
+      toast.error(message ? `Validation error: ${message}` : "Please fill in all required fields correctly.");
+    } else {
+      toast.error("Please fill in all required fields correctly.");
+    }
   }, []);
+
+  // Keystroke shortcuts: Escape (return/close), Ctrl/Cmd+S (save draft), Ctrl/Cmd+Enter (submit)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (pdfPreviewReportId) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setPdfPreviewReportId(null);
+        }
+        return;
+      }
+
+      if (view === 'create' || view === 'edit' || view === 'view') {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setView('list');
+          setSelectedReportId(null);
+          return;
+        }
+
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+          e.preventDefault();
+          if (view !== 'view') {
+            saveAsDraft();
+          }
+          return;
+        }
+
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          if (view !== 'view') {
+            form.handleSubmit(onSubmit, onInvalid)();
+          }
+          return;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [view, pdfPreviewReportId, saveAsDraft, form, onSubmit, onInvalid]);
 
   const handlePrintPDF = useCallback(() => {
     if (!organisation) {
@@ -1721,16 +1794,6 @@ export function SiteReport() {
       };
       const badge = bucketBadge[bucket];
       const isLocked = report.pm_status === 'Pending Approval' || report.pm_status === 'Approved' || report.pm_status === 'Reported';
-      const statusStyle: Record<string, { color: string; bg: string; border: string }> = {
-        'Approved':   { color: '#047857', bg: '#ecfdf5', border: '#a7f3d0' },
-        'Reported':   { color: '#047857', bg: '#ecfdf5', border: '#a7f3d0' },
-        'Rejected':   { color: '#b91c1c', bg: '#fef2f2', border: '#fecaca' },
-        'On Hold':    { color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
-        'Pending Approval': { color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
-        'Pending':    { color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
-        'Draft':      { color: '#4b5563', bg: '#f3f4f6', border: '#e5e7eb' },
-      };
-      const ss = statusStyle[report.pm_status] || statusStyle['Pending'];
       return (
         <tr
           key={report.id}
@@ -1740,7 +1803,7 @@ export function SiteReport() {
             isSelected ? "bg-indigo-50/50 border-l-2 border-l-blue-600" : "hover:border-blue-600 hover:bg-blue-100/80 hover:shadow-sm"
           )}
         >
-          <td className="px-4 py-[20px] text-center align-middle">
+          <td className="px-4 py-[16px] text-center align-middle">
             <Checkbox
               checked={isSelected}
               onCheckedChange={(checked) => {
@@ -1750,7 +1813,7 @@ export function SiteReport() {
               className="h-4 w-4 border-2 border-zinc-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
             />
           </td>
-          <td className="px-6 py-[20px] align-middle">
+          <td className="px-6 py-[16px] align-middle">
             <div className="flex flex-col gap-1">
               <span className="text-sm font-medium text-zinc-900">
                 {new Date(report.report_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -1765,30 +1828,19 @@ export function SiteReport() {
               )}
             </div>
           </td>
-          <td className="px-6 py-[20px] align-middle max-w-[180px] truncate" title={report.clients?.client_name || '-'}>
+          <td className="px-6 py-[16px] align-middle max-w-[180px] truncate" title={report.clients?.client_name || '-'}>
             <span className="text-sm text-zinc-800">{report.clients?.client_name || '-'}</span>
           </td>
-          <td className="px-6 py-[20px] align-middle max-w-[350px] truncate" title={report.projects?.project_name || '-'}>
+          <td className="px-6 py-[16px] align-middle max-w-[350px] truncate" title={report.projects?.project_name || '-'}>
             <span className="text-sm text-zinc-800">{report.projects?.project_name || '-'}</span>
           </td>
-          <td className="px-6 py-[20px] align-middle">
+          <td className="px-6 py-[16px] align-middle">
             <span className="text-sm text-zinc-800">{report.engineer_name || '-'}</span>
           </td>
-          <td className="px-6 py-[20px] align-middle">
-            <span
-              className="text-sm font-medium inline-flex items-center px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border"
-              style={{
-                color: ss.color,
-                backgroundColor: ss.bg,
-                borderColor: ss.border,
-              }}
-              title={isLocked ? 'Report is locked after approval' : undefined}
-            >
-              {report.pm_status}
-              {isLocked && <span className="ml-1.5 text-[9px]">🔒</span>}
-            </span>
+          <td className="px-6 py-[16px] align-middle">
+            <ReportStatusPill status={report.pm_status} isLocked={isLocked} />
           </td>
-          <td className="px-6 py-[20px] text-center align-middle w-[70px]">
+          <td className="px-6 py-[16px] text-center align-middle w-[70px]">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -1798,7 +1850,7 @@ export function SiteReport() {
                   <MoreHorizontal size={14} />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44 bg-white border border-zinc-200/60 p-1 shadow-lg shadow-black/5 rounded-lg z-[100]">
+              <DropdownMenuContent align="end" className="w-48 bg-white border border-zinc-200/60 p-1 shadow-lg shadow-black/5 rounded-lg z-[100]">
                 <DropdownMenuItem
                   style={{ padding: '6px' }}
                   className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98] cursor-pointer"
@@ -1830,6 +1882,14 @@ export function SiteReport() {
                 <DropdownMenuItem
                   style={{ padding: '6px' }}
                   className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-blue-600 hover:bg-blue-50 hover:text-blue-800 font-medium active:scale-[0.98] cursor-pointer"
+                  onClick={() => setPdfPreviewReportId(report.id)}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Preview / Print PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  style={{ padding: '6px' }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 text-[12px] text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 active:scale-[0.98] cursor-pointer"
                   onClick={() => downloadReportPDF(report.id)}
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -1917,10 +1977,10 @@ export function SiteReport() {
         )}
 
         {/* Page Header */}
-        <div className="px-6 pt-5 pb-4 bg-white border-b border-zinc-200">
+        <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 bg-white border-b border-zinc-200">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-xl font-semibold text-zinc-900">Site Reports</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-zinc-900 tracking-tight">Site Reports</h1>
               <p className="text-xs text-zinc-500 mt-0.5">Daily logs from the field — manpower, progress, photos</p>
             </div>
             <button
@@ -1931,136 +1991,128 @@ export function SiteReport() {
                 setSelectedReportId(null);
                 setView('create');
               }}
-              className="inline-flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:scale-[0.98] px-4 py-2"
+              className="inline-flex items-center justify-center text-xs sm:text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-sm active:scale-[0.98] px-3.5 sm:px-4 py-2 sm:py-2.5 transition-all"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Create Report
+              <Plus className="w-4 h-4 mr-1.5" />
+              <span>Create Report</span>
             </button>
           </div>
 
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-            <div className="border border-zinc-200 rounded-lg p-3 bg-zinc-50/50">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Total Reports</div>
-              <div className="text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{reportsLoading ? '—' : summaryStats.total}</div>
-            </div>
-            <div className="border border-zinc-200 rounded-lg p-3 bg-zinc-50/50">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">This Week</div>
-              <div className="text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{reportsLoading ? '—' : summaryStats.thisWeek}</div>
-            </div>
-            <div className="border border-emerald-200 rounded-lg p-3 bg-emerald-50/50">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Filed Today</div>
-              <div className="text-2xl font-semibold text-emerald-700 mt-1 tabular-nums">{reportsLoading ? '—' : summaryStats.today}</div>
-            </div>
-            <div className="border border-zinc-200 rounded-lg p-3 bg-zinc-50/50">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Engineers Active</div>
-              <div className="text-2xl font-semibold text-zinc-900 mt-1 tabular-nums">{reportsLoading ? '—' : summaryStats.engineersActive}</div>
-            </div>
+          {/* Metric cards */}
+          <div className="mb-4">
+            <SiteReportMetrics stats={summaryStats} isLoading={reportsLoading} />
           </div>
 
           {/* Filter bar */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative flex-1 min-w-[200px] max-w-md">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by client, project, engineer…"
-                className="w-full h-9 pl-8 pr-8 text-sm border border-zinc-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+          <SiteReportFilters
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            projectFilter={projectFilter}
+            onProjectFilterChange={setProjectFilter}
+            engineerFilter={engineerFilter}
+            onEngineerFilterChange={setEngineerFilter}
+            groupByDate={groupByDate}
+            onGroupByDateChange={setGroupByDate}
+            projects={uniqueProjects}
+            engineers={uniqueEngineers}
+            counts={dateBucketCounts}
+            totalFiltered={filteredReports.length}
+            totalAll={reports?.length || 0}
+            onClearFilters={clearFilters}
+            hasActiveFilters={hasActiveFilters}
+          />
+        </div>
+
+        {/* Mobile Card View (< md) */}
+        <div className="block md:hidden flex-1 overflow-auto bg-slate-50/50 px-3.5 py-3 space-y-3 min-h-[300px]">
+          {reportsLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-500 gap-2">
+              <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin" />
+              <span className="text-xs font-medium">Loading reports...</span>
             </div>
-
-            <Select value={projectFilter} onValueChange={setProjectFilter}>
-              <SelectTrigger className="h-9 w-[180px] text-sm bg-white">
-                <SelectValue placeholder="All projects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All projects</SelectItem>
-                {uniqueProjects.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={engineerFilter} onValueChange={setEngineerFilter}>
-              <SelectTrigger className="h-9 w-[160px] text-sm bg-white">
-                <SelectValue placeholder="All engineers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All engineers</SelectItem>
-                {uniqueEngineers.map(e => (
-                  <SelectItem key={e} value={e}>{e}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-              <SelectTrigger className="h-9 w-[140px] text-sm bg-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All time</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="yesterday">Yesterday</SelectItem>
-                <SelectItem value="this_week">This week</SelectItem>
-                <SelectItem value="this_month">This month</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="h-9 px-3 text-xs font-semibold text-zinc-700 bg-zinc-100 hover:bg-zinc-200 rounded-lg active:scale-[0.98] transition-colors"
-              >
-                Clear filters
-              </button>
-            )}
-
-            <div className="flex items-center gap-2 ml-auto pl-2">
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">Group by date</span>
-              <button
-                type="button"
-                onClick={() => setGroupByDate(g => !g)}
-                className={cn(
-                  "relative inline-flex h-5 w-9 rounded-full transition-colors",
-                  groupByDate ? "bg-blue-600" : "bg-zinc-300"
-                )}
-                aria-pressed={groupByDate}
-              >
-                <span className={cn(
-                  "inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform mt-0.5",
-                  groupByDate ? "translate-x-4 ml-0.5" : "translate-x-0.5"
-                )} />
-              </button>
+          ) : reports?.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center">
+              <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <div className="text-sm font-semibold text-slate-800">No reports filed yet</div>
+              <div className="text-xs text-slate-500 mt-1">Create your first site report to get started.</div>
             </div>
-          </div>
-
-          {/* Active filter chips */}
-          {hasActiveFilters && (
-            <div className="flex items-center gap-1.5 mt-2 text-[11px]">
-              <span className="text-zinc-500 font-semibold uppercase tracking-widest">Active filters:</span>
-              {searchQuery && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">“{searchQuery}”</span>}
-              {projectFilter && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">Project: {uniqueProjects.find(p => p.id === projectFilter)?.name}</span>}
-              {engineerFilter && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">Engineer: {engineerFilter}</span>}
-              {dateRange !== 'all' && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">Range: {BUCKET_LABELS[dateRange] || dateRange}</span>}
-              <span className="text-zinc-500">· {filteredReports.length} of {reports?.length || 0} reports</span>
+          ) : filteredReports.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center">
+              <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <div className="text-sm font-semibold text-slate-800">No matching reports</div>
+              <div className="text-xs text-slate-500 mt-1">Try clearing filters or changing the date range.</div>
+            </div>
+          ) : groupByDate && groupedReports ? (
+            <div className="space-y-4">
+              {(['today', 'yesterday', 'this_week', 'this_month', 'earlier'] as const).map((bucket) => {
+                const items = groupedReports[bucket];
+                if (items.length === 0) return null;
+                return (
+                  <div key={bucket} className="space-y-2">
+                    <div className="sticky top-0 z-10 -mx-3.5 px-3.5 py-1.5 bg-slate-100/90 backdrop-blur-xs border-y border-slate-200/70 flex items-center justify-between text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                      <span>{BUCKET_LABELS[bucket]}</span>
+                      <span className="text-[10px] font-semibold text-slate-500 normal-case bg-white px-2 py-0.5 rounded-full border border-slate-200/60 shadow-2xs">
+                        {items.length} {items.length === 1 ? 'report' : 'reports'}
+                      </span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {items.map((r: any) => (
+                        <SiteReportMobileCard
+                          key={r.id}
+                          report={r}
+                          isSelected={selectedReports.includes(r.id)}
+                          onSelectChange={(sel) => {
+                            if (sel) setSelectedReports(prev => [...prev, r.id]);
+                            else setSelectedReports(prev => prev.filter(id => id !== r.id));
+                          }}
+                          onView={(id) => {
+                            setSelectedReportId(id);
+                            setView('view');
+                          }}
+                          onEdit={(id) => {
+                            setSelectedReportId(id);
+                            setView('edit');
+                          }}
+                          onDownloadPdf={(id) => downloadReportPDF(id)}
+                          onPreviewPdf={() => setPdfPreviewReportId(r.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {filteredReports.map((r: any) => (
+                <SiteReportMobileCard
+                  key={r.id}
+                  report={r}
+                  isSelected={selectedReports.includes(r.id)}
+                  onSelectChange={(sel) => {
+                    if (sel) setSelectedReports(prev => [...prev, r.id]);
+                    else setSelectedReports(prev => prev.filter(id => id !== r.id));
+                  }}
+                  onView={(id) => {
+                    setSelectedReportId(id);
+                    setView('view');
+                  }}
+                  onEdit={(id) => {
+                    setSelectedReportId(id);
+                    setView('edit');
+                  }}
+                  onDownloadPdf={(id) => downloadReportPDF(id)}
+                  onPreviewPdf={() => setPdfPreviewReportId(r.id)}
+                />
+              ))}
             </div>
           )}
         </div>
 
-        {/* Table container */}
-        <div className="flex-1 overflow-auto">
+        {/* Desktop Table View (>= md) */}
+        <div className="hidden md:block flex-1 overflow-auto">
           {reportsLoading ? (
             <table className="w-full border-separate border-spacing-0">
               {renderTableHead()}
@@ -2118,6 +2170,14 @@ export function SiteReport() {
             </table>
           )}
         </div>
+
+        {/* In-app PDF Viewer Modal */}
+        <SiteReportPdfModal
+          isOpen={!!pdfPreviewReportId}
+          onClose={() => setPdfPreviewReportId(null)}
+          reportId={pdfPreviewReportId}
+          organisation={organisation || { id: '', name: 'MEP Project' }}
+        />
       </div>
     );
   }
@@ -2136,10 +2196,10 @@ export function SiteReport() {
     }
 
     return (
-      <div className="min-h-screen bg-zinc-50/30 py-8 px-6">
+      <div className="min-h-screen bg-zinc-50/30 py-4 sm:py-8 px-3 sm:px-6 pb-28 sm:pb-8">
         <div className="max-w-5xl mx-auto">
           {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 mb-4">
+          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 mb-3 sm:mb-4">
             <button
               type="button"
               onClick={() => { setView('list'); setSelectedReportId(null); }}
@@ -2154,26 +2214,26 @@ export function SiteReport() {
           </div>
 
           {/* Header */}
-          <div className="flex items-start justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4 sm:mb-6">
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-zinc-900">
+              <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">
                 {view === 'create' ? 'Create Site Report' : view === 'edit' ? 'Edit Site Report' : 'Site Report Details'}
               </h1>
               {/* Summary bar */}
-              <div className="flex items-center gap-6 mt-3 text-xs text-zinc-500">
-                <div className="flex items-center gap-1.5">
+              <div className="flex items-center flex-wrap gap-2.5 sm:gap-5 mt-2 sm:mt-3 text-xs text-zinc-500">
+                <div className="flex items-center gap-1.5 bg-white sm:bg-transparent px-2.5 py-1 sm:p-0 rounded-lg border sm:border-0 border-zinc-200/60 shadow-2xs sm:shadow-none">
                   <CalendarIcon className="w-3.5 h-3.5 text-zinc-400" />
                   <span className="font-medium text-zinc-700">{form.watch('date') ? new Date(form.watch('date') + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 bg-white sm:bg-transparent px-2.5 py-1 sm:p-0 rounded-lg border sm:border-0 border-zinc-200/60 shadow-2xs sm:shadow-none">
                   <FileText className="w-3.5 h-3.5 text-zinc-400" />
                   <span className="font-medium text-zinc-700">{view === 'create' ? 'New' : form.watch('reporting.pmStatus') || 'Draft'}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 bg-white sm:bg-transparent px-2.5 py-1 sm:p-0 rounded-lg border sm:border-0 border-zinc-200/60 shadow-2xs sm:shadow-none">
                   <HardHat className="w-3.5 h-3.5 text-zinc-400" />
                   <span className="font-medium text-zinc-700">{form.watch('footer.engineer') || '—'}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 bg-white sm:bg-transparent px-2.5 py-1 sm:p-0 rounded-lg border sm:border-0 border-zinc-200/60 shadow-2xs sm:shadow-none">
                   <Building2 className="w-3.5 h-3.5 text-zinc-400" />
                   <span className="font-medium text-zinc-700">
                     {projects?.find((p: any) => p.id === form.watch('projectName'))?.project_name || '—'}
@@ -2181,7 +2241,7 @@ export function SiteReport() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 flex-shrink-0 ml-6">
+            <div className="hidden sm:flex items-center gap-3 flex-shrink-0 ml-6">
               <button
                 type="button"
                 onClick={() => setView('list')}
@@ -2191,17 +2251,32 @@ export function SiteReport() {
               </button>
               
               {view === 'view' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedReportId) {
-                      downloadReportPDF(selectedReportId);
-                    }
-                  }}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors active:scale-[0.98]"
-                >
-                  Download PDF
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedReportId) {
+                        setPdfPreviewReportId(selectedReportId);
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors active:scale-[0.98] flex items-center gap-1.5 shadow-sm"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Preview PDF</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedReportId) {
+                        downloadReportPDF(selectedReportId);
+                      }
+                    }}
+                    className="px-4 py-2 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 rounded-lg text-sm font-semibold transition-colors active:scale-[0.98] flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download PDF</span>
+                  </button>
+                </>
               ) : (
                 <>
                   <button
@@ -2230,7 +2305,7 @@ export function SiteReport() {
             <fieldset disabled={view === 'view'} style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
               {/* 1. Identification Section */}
-              <div style={sectionCardStyle}>
+              <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('identification')} style={sectionHeaderStyle(openSections.identification)}>
                   <div style={accentHeaderStyle}>
                     <div style={accentLineStyle} />
@@ -2240,7 +2315,7 @@ export function SiteReport() {
                 </button>
                 {openSections.identification && (
                   <>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <label style={fieldLabelStyle}>Client *</label>
                         <Select 
@@ -2400,7 +2475,7 @@ export function SiteReport() {
               )}
 
               {/* 2. Manpower Section */}
-              <div style={sectionCardStyle}>
+              <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('manpower')} style={sectionHeaderStyle(openSections.manpower)}>
                   <div style={accentHeaderStyle}>
                     <div style={accentLineStyle} />
@@ -2413,7 +2488,7 @@ export function SiteReport() {
                 <div style={{ marginBottom: '16px' }}>
                   <div style={subSectionStyle}>
                     <label style={{ ...fieldGroupLabelStyle, marginBottom: '10px', display: 'block' }}>On-site Workforce</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Skilled</label>
                         <Input className="h-10 bg-white text-sm" {...form.register('manpower.skilled')} placeholder="0" type="number" />
@@ -2436,7 +2511,7 @@ export function SiteReport() {
                 <div style={{ marginBottom: '20px' }}>
                   <div style={subSectionStyle}>
                     <label style={{ ...fieldGroupLabelStyle, marginBottom: '10px', display: 'block' }}>Timing</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '400px' }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 sm:max-w-md">
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>In Time</label>
                         <div style={{ position: 'relative' }}>
@@ -2470,7 +2545,28 @@ export function SiteReport() {
                     )}
                   </div>
                   
-                  <div className="rounded-lg overflow-hidden bg-white border border-zinc-200">
+                  {/* Mobile Subcontractors Card View */}
+                  <div className="block md:hidden space-y-3">
+                    {subContractorFields.map((field, index) => (
+                      <SiteReportMobileSubcontractorCard
+                        key={field.id}
+                        index={index}
+                        field={field}
+                        form={form}
+                        subcontractors={subcontractors || []}
+                        onRemove={removeSubContractor}
+                        isReadOnly={view === 'view'}
+                      />
+                    ))}
+                    {subContractorFields.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-zinc-200 p-4 text-center text-xs text-zinc-400">
+                        No sub-contractors added
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block rounded-lg overflow-hidden bg-white border border-zinc-200">
                     <Table>
                       <TableHeader className="bg-zinc-50">
                         <TableRow className="hover:bg-transparent">
@@ -2546,7 +2642,7 @@ export function SiteReport() {
               </div>
 
               {/* 3. Work Carried Out & Milestones */}
-              <div style={sectionCardStyle}>
+              <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('workMilestones')} style={sectionHeaderStyle(openSections.workMilestones)}>
                   <div style={accentHeaderStyle}>
                     <div style={accentLineStyle} />
@@ -2554,7 +2650,7 @@ export function SiteReport() {
                   </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.workMilestones && 'rotate-90')} />
                 </button>
-                {openSections.workMilestones && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                {openSections.workMilestones && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                 <div style={subSectionStyle}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                     <label style={fieldLabelStyle}>Work Done Today *</label>
@@ -2647,7 +2743,7 @@ export function SiteReport() {
               </div>
 
               {/* 4. Progress, Equipment, Safety & Quality */}
-              <div style={sectionCardStyle}>
+              <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('progressEquipmentSafety')} style={sectionHeaderStyle(openSections.progressEquipmentSafety)}>
                   <div style={accentHeaderStyle}>
                     <div style={accentLineStyle} />
@@ -2655,7 +2751,7 @@ export function SiteReport() {
                   </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.progressEquipmentSafety && 'rotate-90')} />
                 </button>
-                {openSections.progressEquipmentSafety && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                {openSections.progressEquipmentSafety && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Progress Monitoring */}
                 <div style={subSectionStyle}>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '12px' }}>Progress Monitoring</div>
@@ -2738,7 +2834,7 @@ export function SiteReport() {
                   
                   <div className="h-px bg-zinc-200 my-3" />
                   
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                       <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Inspection</label>
                       <Select value={form.watch('quality.inspection')} onValueChange={(val: any) => form.setValue('quality.inspection', val)} disabled={view === 'view'}>
@@ -2775,7 +2871,7 @@ export function SiteReport() {
                           <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Rework reason *</label>
                           <Input className="h-9 text-sm bg-white" {...form.register('rework.reason')} placeholder="What is being reworked..." disabled={view === 'view'} />
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                             <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Start date</label>
                             <Input type="date" className="h-9 text-sm bg-white" {...form.register('rework.start')} disabled={view === 'view'} />
@@ -2801,7 +2897,7 @@ export function SiteReport() {
               </div>
 
               {/* 5. Logistics & Internal Reporting */}
-              <div style={sectionCardStyle}>
+              <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('logistics')} style={sectionHeaderStyle(openSections.logistics)}>
                   <div style={accentHeaderStyle}>
                     <div style={accentLineStyle} />
@@ -2811,7 +2907,7 @@ export function SiteReport() {
                 </button>
                 {openSections.logistics && <>
                 <div style={subSectionStyle}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                       <label style={fieldGroupLabelStyle}>Approval status</label>
                       <Select value={form.watch('reporting.pmStatus')} onValueChange={(v: any) => form.setValue('reporting.pmStatus', v)}>
@@ -2864,7 +2960,7 @@ export function SiteReport() {
                 {/* DC/Invoice Section */}
                 <div style={subSectionStyle}>
                   <label style={{ ...fieldLabelStyle, marginBottom: '10px', display: 'block' }}>Documentation</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div className="flex items-center gap-2.5">
                       <Checkbox checked={form.watch('documents.dcInvoiceSupplied')} onCheckedChange={(c) => form.setValue('documents.dcInvoiceSupplied', !!c)} />
                       <label style={{ fontSize: '12px', fontWeight: 500, color: '#374151' }}>DC/Invoice supplied today</label>
@@ -2887,7 +2983,7 @@ export function SiteReport() {
               </div>
 
               {/* 6. Issues, Plan, Client Requirements */}
-              <div style={sectionCardStyle}>
+              <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('issuesPlanClient')} style={sectionHeaderStyle(openSections.issuesPlanClient)}>
                   <div style={accentHeaderStyle}>
                     <div style={accentLineStyle} />
@@ -2895,7 +2991,7 @@ export function SiteReport() {
                   </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.issuesPlanClient && 'rotate-90')} />
                 </button>
-                {openSections.issuesPlanClient && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                {openSections.issuesPlanClient && <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Issues */}
                 <div style={{ background: '#fef2f2', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -3005,7 +3101,7 @@ export function SiteReport() {
               </div>
 
               {/* Section 6.5: Work Stoppages */}
-              <div style={{ ...sectionCardStyle, borderLeft: '3px solid #fca5a5' }}>
+              <div style={{ ...sectionCardStyle, borderLeft: '3px solid #fca5a5' }} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('workStoppages')} style={sectionHeaderStyle(openSections.workStoppages)}>
                   <div style={accentHeaderStyle}>
                     <div style={{ ...accentLineStyle, background: '#ef4444' }} />
@@ -3058,7 +3154,7 @@ export function SiteReport() {
                                   </ShadcnButton>
                                 )}
                               </div>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-2.5">
                                 <div>
                                   <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>Category</label>
                                   <Select
@@ -3114,7 +3210,7 @@ export function SiteReport() {
                                   readOnly={view === 'view'}
                                 />
                               </div>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                 <div>
                                   <label style={{ fontSize: '11px', fontWeight: 500, color: '#475569' }}>
                                     Expected restart <span style={{ fontWeight: 400, color: '#9ca3af' }}>(estimate)</span>
@@ -3203,7 +3299,7 @@ export function SiteReport() {
               </div>
 
               {/* Section 6.8: Continuous Improvement Observations */}
-              <div style={sectionCardStyle}>
+              <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('continuousImprovement')} style={sectionHeaderStyle(openSections.continuousImprovement)}>
                   <div style={accentHeaderStyle}>
                     <div style={{ ...accentLineStyle, background: '#10b981' }} />
@@ -3350,7 +3446,7 @@ export function SiteReport() {
               </div>
 
               {/* Section 7: Photos */}
-              <div style={sectionCardStyle}>
+              <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('photos')} style={sectionHeaderStyle(openSections.photos)}>
                   <div style={accentHeaderStyle}>
                     <div style={accentLineStyle} />
@@ -3371,7 +3467,7 @@ export function SiteReport() {
               </div>
 
               {/* Section 8: Engineer Signature & Date */}
-              <div style={sectionCardStyle}>
+              <div style={sectionCardStyle} className="p-3.5 sm:p-5">
                 <button type="button" onClick={() => toggleSection('footer')} style={sectionHeaderStyle(openSections.footer)}>
                   <div style={accentHeaderStyle}>
                     <div style={accentLineStyle} />
@@ -3379,7 +3475,7 @@ export function SiteReport() {
                   </div>
                   <ChevronRight className={cn('w-4 h-4 text-zinc-400 transition-transform duration-200', openSections.footer && 'rotate-90')} />
                 </button>
-                {openSections.footer && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                {openSections.footer && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={fieldLabelStyle}>Engineer/Supervisor Name *</label>
                     <Input className="h-10 bg-white text-sm" {...form.register('footer.engineer')} placeholder="Enter your name" />
@@ -3395,7 +3491,7 @@ export function SiteReport() {
 
               {/* Section 9: Approval — visible only in create mode */}
               {view === 'create' && (
-                <div style={{ ...sectionCardStyle, borderLeft: '3px solid #93c5fd' }}>
+                <div style={{ ...sectionCardStyle, borderLeft: '3px solid #93c5fd' }} className="p-3.5 sm:p-5">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: submitForApproval ? '16px' : 0 }}>
                     <div>
                       <div style={sectionTitleStyle}>Approval</div>
@@ -3458,28 +3554,12 @@ export function SiteReport() {
               )}
             </fieldset>
 
-            {/* Footer Buttons */}
-            <div style={{
-              display: 'flex',
-              gap: '12px',
-              marginTop: '28px',
-              paddingTop: '20px',
-              borderTop: '1px solid #e2e8f0',
-            }}>
+            {/* Desktop / Tablet Action Buttons */}
+            <div className="hidden sm:flex items-center gap-3 mt-7 pt-5 border-t border-zinc-200">
               <button
                 type="button"
-                onClick={() => setView('list')}
-                style={{
-                  flex: 1,
-                  padding: '12px 20px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  background: '#fff',
-                  color: '#525252',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                onClick={() => { setView('list'); setSelectedReportId(null); }}
+                className="flex-1 py-2.5 px-4 border border-zinc-200 rounded-xl bg-white text-zinc-700 text-sm font-semibold hover:bg-zinc-50 active:scale-[0.98] transition-all shadow-2xs"
               >
                 {view === 'view' ? 'Back to List' : 'Cancel'}
               </button>
@@ -3489,36 +3569,14 @@ export function SiteReport() {
                     type="button"
                     onClick={saveAsDraft}
                     disabled={isMutating}
-                    style={{
-                      flex: 1,
-                      padding: '12px 20px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '8px',
-                      background: '#fff',
-                      color: '#374151',
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      cursor: isMutating ? 'not-allowed' : 'pointer',
-                      opacity: isMutating ? 0.6 : 1,
-                    }}
+                    className="flex-1 py-2.5 px-4 border border-zinc-200 rounded-xl bg-white text-zinc-700 text-sm font-semibold hover:bg-zinc-50 active:scale-[0.98] transition-all disabled:opacity-50 shadow-2xs"
                   >
                     {isMutating ? 'Saving...' : 'Save as Draft'}
                   </button>
                   <button
                     type="submit"
                     disabled={isMutating}
-                    style={{
-                      flex: 1,
-                      padding: '12px 20px',
-                      border: 'none',
-                      borderRadius: '8px',
-                      background: '#2563eb',
-                      color: '#fff',
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      cursor: isMutating ? 'not-allowed' : 'pointer',
-                      opacity: isMutating ? 0.6 : 1,
-                    }}
+                    className="flex-1 py-2.5 px-4 border-0 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 active:scale-[0.98] transition-all disabled:opacity-50 shadow-sm"
                   >
                     {isMutating ? 'Saving...' : view === 'edit' ? 'Update Report' : 'Submit Site Report'}
                   </button>
@@ -3526,6 +3584,70 @@ export function SiteReport() {
               )}
             </div>
           </form>
+
+          {/* Mobile Sticky Bottom Action Bar */}
+          <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-3.5 py-2.5 shadow-lg flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { setView('list'); setSelectedReportId(null); }}
+              className="flex-1 h-11 px-3 border border-slate-200 bg-white text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 active:scale-[0.98] transition-all flex items-center justify-center"
+            >
+              {view === 'view' ? 'Back' : 'Cancel'}
+            </button>
+            {view === 'view' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedReportId) setPdfPreviewReportId(selectedReportId);
+                  }}
+                  className="flex-1 h-11 px-3 bg-blue-600 text-white text-xs font-semibold rounded-xl shadow-sm hover:bg-blue-700 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Preview PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedReportId) downloadReportPDF(selectedReportId);
+                  }}
+                  className="h-11 px-3 border border-slate-200 bg-white text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 active:scale-[0.98] transition-all flex items-center justify-center"
+                  title="Download PDF"
+                >
+                  <Download className="w-4 h-4 text-slate-500" />
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={saveAsDraft}
+                  disabled={isMutating}
+                  className="flex-1 h-11 px-3 border border-slate-200 bg-white text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-1 shadow-2xs"
+                >
+                  <Save className="w-3.5 h-3.5 text-slate-500" />
+                  <span>{isMutating ? 'Saving…' : 'Save Draft'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={form.handleSubmit(onSubmit, onInvalid)}
+                  disabled={isMutating}
+                  className="flex-1 h-11 px-3 bg-blue-600 text-white text-xs font-semibold rounded-xl shadow-sm hover:bg-blue-700 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-1"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{isMutating ? 'Saving…' : view === 'edit' ? 'Update' : 'Submit'}</span>
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* In-app PDF Viewer Modal for View/Edit */}
+          <SiteReportPdfModal
+            isOpen={!!pdfPreviewReportId}
+            onClose={() => setPdfPreviewReportId(null)}
+            reportId={pdfPreviewReportId}
+            organisation={organisation || { id: '', name: 'MEP Project' }}
+          />
         </div>
       </div>
     );
