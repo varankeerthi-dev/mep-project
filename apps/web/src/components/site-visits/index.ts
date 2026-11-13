@@ -12,6 +12,7 @@ export * from './SiteVisitDeleteDialog';
 export * from './SiteVisitAddVisitTypeModal';
 export * from './SiteVisitActivityModal';
 export * from './SiteVisitCheckoutModal';
+export * from './SiteVisitCheckInModal';
 export * from './SiteVisitQuickUpdateModal';
 export * from './SiteVisitFormModal';
 export * from './SiteVisitDetailModal';

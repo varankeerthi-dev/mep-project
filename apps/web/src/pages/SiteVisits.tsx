@@ -38,6 +38,7 @@ import {
   SiteVisitAddVisitTypeModal,
   SiteVisitActivityModal,
   SiteVisitCheckoutModal,
+  SiteVisitCheckInModal,
   SiteVisitQuickUpdateModal,
   SiteVisitFormModal,
   SiteVisitDetailModal,
@@ -89,6 +90,9 @@ const getSiteVisitRowActions = (
 export function SiteVisits() {
   const { user, organisation, organisations } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const { data: visits, isLoading: isLoadingVisits, refetch: refetchVisits } = useSiteVisits();
+  const updateVisitMutation = useUpdateSiteVisit();
 
   const userRole = useMemo(() => {
     const currentMember = organisations?.find(
@@ -111,6 +115,7 @@ export function SiteVisits() {
   const [batchDeleteProgress, setBatchDeleteProgress] = useState<{ current: number; total: number } | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [visitToView, setVisitToView] = useState<any | null>(null);
+  const [visitToCheckIn, setVisitToCheckIn] = useState<any | null>(null);
   const [visitActivityLogs, setVisitActivityLogs] = useState<any[]>([]);
   const [visitActivityLoading, setVisitActivityLoading] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
@@ -379,56 +384,81 @@ export function SiteVisits() {
     }
   }, [visitToView?.id]);
 
-  const handleCheckIn = async (visit: any) => {
+  const handleCheckIn = (visit: any) => {
     const now = new Date();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     if (visit.visit_date > todayStr) {
       toast.error(`Cannot check in before the visit date. This visit is scheduled for ${visit.visit_date}.`);
       return;
     }
+    setVisitToCheckIn(visit);
+  };
 
-    const timeNow = new Date().toISOString();
+  const handleConfirmCheckIn = async ({
+    visit,
+    actualInTime,
+    checkInTime,
+    lat,
+    lng,
+    note,
+  }: {
+    visit: any;
+    actualInTime: string;
+    checkInTime: string;
+    lat: number | null;
+    lng: number | null;
+    note?: string;
+  }) => {
+    try {
+      // Optimistic update for instant 0ms mobile UI response
+      queryClient.setQueryData(['site-visits', organisation?.id], (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((v: any) =>
+          v.id === visit.id
+            ? {
+                ...v,
+                status: 'in_progress',
+                in_time: actualInTime,
+                check_in_time: checkInTime,
+                check_in_lat: lat,
+                check_in_lng: lng,
+              }
+            : v
+        );
+      });
 
-    const saveCheckIn = async (lat: number | null, lng: number | null, status: string, locationDenied = false) => {
-      try {
-        const { error } = await supabase
-          .from('site_visits')
-          .update({
-            check_in_lat: lat,
-            check_in_lng: lng,
-            check_in_time: timeNow,
-            status: status,
-          })
-          .eq('id', visit.id);
+      await updateVisitMutation.mutateAsync({
+        id: visit.id,
+        check_in_lat: lat,
+        check_in_lng: lng,
+        check_in_time: checkInTime,
+        in_time: actualInTime,
+        status: 'in_progress',
+      });
 
-        if (error) throw error;
-
-        const updatedVisit = { ...visit, check_in_lat: lat, check_in_lng: lng, check_in_time: timeNow, status };
-        setVisitToView(updatedVisit);
-        queryClient.invalidateQueries({ queryKey: ['site-visits'] });
-        if (locationDenied) {
-          toast.warning('Checked in without location — location permission denied.');
-        } else {
-          toast.success('Successfully checked in!');
-        }
-      } catch (err: any) {
-        toast.error('Error during check-in: ' + err.message);
-      }
-    };
-
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          saveCheckIn(position.coords.latitude, position.coords.longitude, 'in_progress');
-        },
-        (error) => {
-          console.warn('Geolocation error:', error);
-          saveCheckIn(null, null, 'in_progress', true);
-        },
-        { enableHighAccuracy: true, timeout: 5000 }
+      await logSiteVisitActivity(
+        visit.id,
+        'site_visit_checked_in',
+        'Checked In at Site',
+        `Actual Arrival: ${formatTime12(actualInTime)}, Recorded: ${new Date(checkInTime).toLocaleTimeString()}${note ? ` | Note: ${note}` : ''}`
       );
-    } else {
-      saveCheckIn(null, null, 'in_progress', true);
+
+      if (visitToView?.id === visit.id) {
+        setVisitToView({
+          ...visitToView,
+          check_in_lat: lat,
+          check_in_lng: lng,
+          check_in_time: checkInTime,
+          in_time: actualInTime,
+          status: 'in_progress',
+        });
+      }
+
+      await refetchVisits();
+      toast.success(`Successfully checked in! (In-Time: ${formatTime12(actualInTime)})`);
+      setVisitToCheckIn(null);
+    } catch (err: any) {
+      toast.error('Error during check-in: ' + err.message);
     }
   };
 
@@ -602,9 +632,6 @@ export function SiteVisits() {
 
   const [hiddenColumnIds, setHiddenColumnIds] = useState<string[]>([]);
 
-  const queryClient = useQueryClient();
-
-  const { data: visits, isLoading: isLoadingVisits } = useSiteVisits();
   const { data: clients } = useClients();
   const { data: visitTypes } = useVisitTypes();
   const { data: projectManagers } = useProjectManagers();
@@ -613,7 +640,6 @@ export function SiteVisits() {
 
   const addVisitTypeMutation = useAddVisitType();
   const addVisitMutation = useAddSiteVisit();
-  const updateVisitMutation = useUpdateSiteVisit();
 
   const resetForm = () => {
     setFormData(initialSiteVisitFormData);
@@ -1358,6 +1384,16 @@ export function SiteVisits() {
         clearSignature={clearSignature}
         onSubmitCheckout={handleCheckOut}
       />
+
+      {/* Check-In Confirmation & Time Adjustment Modal */}
+      {visitToCheckIn && (
+        <SiteVisitCheckInModal
+          isOpen={!!visitToCheckIn}
+          onClose={() => setVisitToCheckIn(null)}
+          visit={visitToCheckIn}
+          onConfirmCheckIn={handleConfirmCheckIn}
+        />
+      )}
 
       {/* Global Activity Log Modal */}
       <SiteVisitActivityModal
