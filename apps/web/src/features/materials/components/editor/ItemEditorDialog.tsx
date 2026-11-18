@@ -127,13 +127,15 @@ export function ItemEditorDialog({
     onSubmit(e);
   };
 
-  const typeConfig = getItemTypeConfig(formData.item_type || 'product');
+  const currentType = (formData.item_type as string) === 'standard' ? 'product' : (formData.item_type || 'product');
+  const typeConfig = getItemTypeConfig(currentType);
 
   const handleItemTypeChange = (newType: 'product' | 'service' | 'kit') => {
-    const config = getItemTypeConfig(newType);
-    handleChange('item_type', newType);
+    const resolvedType = (newType as string) === 'standard' ? 'product' : newType;
+    const config = getItemTypeConfig(resolvedType);
+    handleChange('item_type', resolvedType);
 
-    if (newType === 'service') {
+    if (resolvedType === 'service') {
       const needsCodeReset = !formData.item_code || formData.item_code === '' || formData.item_code.startsWith('ITEM-');
       handleChange('accounting_treatment', config.defaultAccountingTreatment);
       handleChange('item_classification', config.defaultItemClassification);
@@ -142,10 +144,10 @@ export function ItemEditorDialog({
       if (needsCodeReset) {
         handleChange('item_code', generateItemCode(config.codePrefix));
       }
-    } else if (newType === 'product') {
+    } else if (resolvedType === 'product') {
       handleChange('accounting_treatment', 'INVENTORY_STOCK');
       handleChange('item_classification', 'STOCK_IN_TRADE');
-    } else if (newType === 'kit') {
+    } else if (resolvedType === 'kit') {
       handleChange('accounting_treatment', 'INVENTORY_STOCK');
       handleChange('item_classification', 'STOCK_IN_TRADE');
     }
@@ -161,7 +163,7 @@ export function ItemEditorDialog({
           <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200">
             {(Object.keys(MATERIAL_TYPES) as Array<keyof typeof MATERIAL_TYPES>).map((key) => {
               const typeValue = MATERIAL_TYPES[key].toLowerCase() as MaterialEditorFormData['item_type'];
-              const isSelected = (formData.item_type || 'product') === typeValue;
+              const isSelected = currentType === typeValue;
               return (
                 <button
                   key={typeValue}

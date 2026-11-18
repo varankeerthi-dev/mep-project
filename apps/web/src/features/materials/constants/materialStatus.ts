@@ -4,7 +4,7 @@ export const ITEM_STATUS = {
 } as const;
 
 export const MATERIAL_TYPES = {
-  STANDARD: 'Standard',
+  PRODUCT: 'Product',
   SERVICE: 'Service',
   KIT: 'Kit',
 } as const;

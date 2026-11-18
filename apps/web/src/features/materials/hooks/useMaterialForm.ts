@@ -253,7 +253,8 @@ export function useMaterialForm() {
     }
 
     if (formData.hsn_code && !/^\d{1,10}$/.test(formData.hsn_code)) {
-      const typeConfig = getItemTypeConfig(formData.item_type);
+      const resolvedItemType = (formData.item_type as string) === 'standard' ? 'product' : (formData.item_type || 'product');
+    const typeConfig = getItemTypeConfig(resolvedItemType);
       alert(`${typeConfig.hsnLabel} must be numeric and up to 10 digits.`);
       setMaterialSavePending(false);
       return;
@@ -320,7 +321,8 @@ export function useMaterialForm() {
       }
     }
 
-    const typeConfig = getItemTypeConfig(formData.item_type);
+    const resolvedItemType = (formData.item_type as string) === 'standard' ? 'product' : (formData.item_type || 'product');
+    const typeConfig = getItemTypeConfig(resolvedItemType);
     const materialData = {
       item_code: formData.item_code || generateItemCode(typeConfig.codePrefix),
       name: formData.item_name,
@@ -344,7 +346,7 @@ export function useMaterialForm() {
       dimension_unit: formData.dimension_unit || 'cm',
       weight: formData.weight ? parseFloat(formData.weight as string) : null,
       weight_unit: formData.weight_unit || 'kg',
-      item_type: formData.item_type || 'product',
+      item_type: (formData.item_type as string) === 'standard' ? 'product' : (formData.item_type || 'product'),
       item_classification: normalizeItemClassification(formData.item_classification),
       gl_classification: formData.gl_classification,
       is_stockable: formData.is_stockable,
