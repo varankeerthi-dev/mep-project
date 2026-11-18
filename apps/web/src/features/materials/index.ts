@@ -6,11 +6,13 @@
 export { default as MaterialsPage } from './page/MaterialsPage';
 export { ItemsTab } from './page/ItemsTab';
 export { ItemEditorPage } from './page/ItemEditorPage';
+export { ItemEditorPageV2 } from './page/ItemEditorPageV2';
 
 // Components
 export { ItemsToolbar, ColumnSettingsDropdown } from './components/toolbar';
 export { ItemsTable, Pagination } from './components/table';
 export { ItemEditorDialog, BasicInformationSection, TechnicalSection, CommercialSection, InventorySection, VendorSection, ClientSection, VariantPricingSection } from './components/editor';
+export { ItemEditorDialogV2 } from './components/editor/ItemEditorDialogV2';
 export { ItemDetailsDialog, AttributesTab, OverviewTab, WarehouseTab, AdjustmentsTab, TransactionsTab, AuditTab } from './components/viewer';
 export { BulkPriceDialog, MultiItemDialog, ExcelEditorDialog } from './components/dialogs';
 

@@ -21,6 +21,7 @@ export { useAuth };
 export type { AuthContextValue, Organisation, OrganisationMember };
 
 import ItemEditorPage from './features/materials/page/ItemEditorPage';
+import ItemEditorPageV2 from './features/materials/page/ItemEditorPageV2';
 
 const DynamicAgentation = lazy(() => {
   if (typeof window === 'undefined') return Promise.resolve({ default: () => null });
@@ -621,6 +622,7 @@ export default function App() {
       case '/procurement': return <ProcurementList />;
       case '/procurement/detail': return <ProcurementDetail />;
       case '/store/materials/items/new': return <ItemEditorPage />;
+      case '/store/materials/items/new-v2': return <ItemEditorPageV2 />;
       case '/store/materials': return <MaterialsList />;
       case '/store/inward': return <MaterialInward />;
       case '/store/outward': return <MaterialOutward />;

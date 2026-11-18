@@ -191,6 +191,19 @@ export function ItemEditorPage() {
 
   return (
     <>
+      <div className="bg-indigo-600 text-white text-xs font-medium px-4 py-2 flex items-center justify-between shadow-xs shrink-0 z-30 relative">
+        <div className="flex items-center gap-2">
+          <span className="font-bold bg-white/20 px-2 py-0.5 rounded text-[10px] tracking-wide">PREVIEW</span>
+          <span>A new, faster Item Editor (V2) is available with Quick Add and instant keyboard shortcuts.</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/store/materials/items/new-v2')}
+          className="bg-white text-indigo-700 font-semibold px-3 py-1 rounded text-xs hover:bg-indigo-50 transition-colors shadow-2xs"
+        >
+          Try Editor V2 →
+        </button>
+      </div>
       <ItemEditorDialog
         asPage
         open
